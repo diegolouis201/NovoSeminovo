@@ -123,7 +123,10 @@ export default async function ListingDetailPage({
           </div>
 
           <FinancingCallout
+            listingId={listing.id}
+            assetType={listing.assetType}
             price={listing.financing.price}
+            priceValue={listing.financing.priceValue}
             downPayment={listing.financing.downPayment}
             installments={listing.financing.installments}
             rate={listing.financing.rate}

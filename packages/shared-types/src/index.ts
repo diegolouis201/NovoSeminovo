@@ -123,6 +123,10 @@ export type SpecItem = z.infer<typeof SpecItemSchema>;
 // resultado de uma simulação sob medida que a pessoa pede em seguida.
 export const ListingFinancingSummarySchema = z.object({
   price: z.string(),
+  // Preço bruto (não formatado) do anúncio — o front-end precisa dele pra
+  // mandar em POST /listings/:id/financing-simulations quando a pessoa
+  // ajusta entrada/parcelas; price acima é só pra exibição.
+  priceValue: z.number(),
   downPayment: z.string(),
   installments: z.string(),
   rate: z.string(),
@@ -220,7 +224,9 @@ export const FinancingSimulationInputSchema = z.object({
   listingId: z.string(),
   assetPrice: z.number().positive(),
   downPaymentPct: z.number().min(0).max(0.9),
-  installments: z.number().int().min(1).max(84),
+  // 360 cobre financiamento imobiliário (até 30 anos); veículo usa no máximo
+  // 84 no front-end, mas o schema não distingue por assetType.
+  installments: z.number().int().min(1).max(360),
 });
 export type FinancingSimulationInput = z.infer<typeof FinancingSimulationInputSchema>;
 

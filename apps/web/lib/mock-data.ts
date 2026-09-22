@@ -30,6 +30,7 @@ const LISTINGS: ListingDetail[] = [
     ],
     financing: {
       price: formatBRL(94500),
+      priceValue: 94500,
       downPayment: `${formatBRL(18900)} (20%)`,
       installments: "48x de " + formatBRL(1842),
       rate: "a partir de 1,39% a.m.",
@@ -59,6 +60,7 @@ const LISTINGS: ListingDetail[] = [
     ],
     financing: {
       price: formatBRL(520000),
+      priceValue: 520000,
       downPayment: `${formatBRL(104000)} (20%)`,
       installments: "360x de " + formatBRL(3120),
       rate: "a partir de 10,9% a.a. + TR",
@@ -84,6 +86,7 @@ const LISTINGS: ListingDetail[] = [
     ],
     financing: {
       price: formatBRL(112900),
+      priceValue: 112900,
       downPayment: `${formatBRL(22580)} (20%)`,
       installments: "48x de " + formatBRL(2205),
       rate: "a partir de 1,39% a.m.",
@@ -107,6 +110,7 @@ const LISTINGS: ListingDetail[] = [
     ],
     financing: {
       price: formatBRL(780000),
+      priceValue: 780000,
       downPayment: `${formatBRL(156000)} (20%)`,
       installments: "360x de " + formatBRL(4680),
       rate: "a partir de 10,9% a.a. + TR",

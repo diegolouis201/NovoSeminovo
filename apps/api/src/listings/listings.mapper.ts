@@ -166,6 +166,7 @@ export function toListingDetail(listing: ListingWithDetails): ListingDetail {
     status: listing.status,
     financing: {
       price: formatBRL(price),
+      priceValue: price,
       downPayment: `${formatBRL(downPayment)} (${Math.round(downPaymentPct * 100)}%)`,
       installments: `${rateInfo.defaultInstallments}x de ${formatBRL(installment)}`,
       rate: rateInfo.label,

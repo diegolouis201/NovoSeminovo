@@ -43,7 +43,7 @@ O site tem onze telas (Etapa 1 → Etapa 4 aplicadas), todas servidas pela API q
 
 - `/` — home com busca e destaques
 - `/busca?assetType=vehicle|property` — resultados com filtros
-- `/anuncio/[id]` — detalhe do anúncio, com simulação de financiamento (Tabela Price), favoritar, "Conversar no chat" e o bloco no tom "sóbrio"
+- `/anuncio/[id]` — detalhe do anúncio, com simulação de financiamento interativa (Tabela Price, entrada e parcelas ajustáveis via `POST /listings/:id/financing-simulations`), favoritar, "Conversar no chat" e o bloco no tom "sóbrio"
 - `/cadastro`, `/entrar` — criação de conta e login (Auth.js no site, senha validada por `POST /auth/*` na API)
 - `/anunciar` — publicar um anúncio de veículo ou imóvel (protegida)
 - `/conta` — página protegida (redireciona para `/entrar` sem sessão)
