@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { ListingCard } from "@/components/ListingCard";
-import { listListings } from "@/lib/mock-data";
+import { fetchListings } from "@/lib/api";
 
-export default function HomePage() {
-  const destaques = listListings();
+export default async function HomePage() {
+  const destaques = await fetchListings({});
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16">

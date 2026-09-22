@@ -1,19 +1,10 @@
-import { formatBRL, type ListingSummary } from "@novoseminovo/shared-types";
+import { formatBRL, type ListingDetail } from "@novoseminovo/shared-types";
 
-// Dados de exemplo para as primeiras telas, no mesmo formato que a futura
-// API (apps/api, Etapa 3) vai devolver — trocar por fetch real é o único
-// passo pendente quando o backend existir.
+export type { ListingDetail };
 
-export type ListingDetail = ListingSummary & {
-  description: string;
-  specs: { label: string; value: string }[];
-  financing: {
-    price: string;
-    downPayment: string;
-    installments: string;
-    rate: string;
-  };
-};
+// Dados de exemplo para quando a API (apps/api) não estiver configurada —
+// mesmo formato que GET /listings e GET /listings/:id devolvem de verdade.
+// Ver lib/api.ts para a troca entre mock e API real.
 
 const LISTINGS: ListingDetail[] = [
   {

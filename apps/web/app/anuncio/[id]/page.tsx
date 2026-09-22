@@ -2,10 +2,10 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { FinancingCallout } from "@/components/FinancingCallout";
-import { getListing } from "@/lib/mock-data";
+import { fetchListing } from "@/lib/api";
 
-export default function ListingDetailPage({ params }: { params: { id: string } }) {
-  const listing = getListing(params.id);
+export default async function ListingDetailPage({ params }: { params: { id: string } }) {
+  const listing = await fetchListing(params.id);
   if (!listing) notFound();
 
   return (

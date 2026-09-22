@@ -1,13 +1,13 @@
 import { ListingCard } from "@/components/ListingCard";
-import { listListings } from "@/lib/mock-data";
+import { fetchListings } from "@/lib/api";
 
 type SearchPageProps = {
   searchParams: { assetType?: string; q?: string };
 };
 
-export default function SearchPage({ searchParams }: SearchPageProps) {
+export default async function SearchPage({ searchParams }: SearchPageProps) {
   const assetType = searchParams.assetType === "property" ? "property" : searchParams.assetType === "vehicle" ? "vehicle" : undefined;
-  const results = listListings(assetType);
+  const results = await fetchListings({ assetType, q: searchParams.q });
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">

@@ -67,6 +67,30 @@ export const SearchFiltersSchema = z.discriminatedUnion("assetType", [
 ]);
 export type SearchFilters = z.infer<typeof SearchFiltersSchema>;
 
+export const SpecItemSchema = z.object({
+  label: z.string(),
+  value: z.string(),
+});
+export type SpecItem = z.infer<typeof SpecItemSchema>;
+
+// Bloco de financiamento já exibido na página do anúncio (simulação padrão,
+// 20% de entrada). Distinto de FinancingSimulationResult abaixo, que é o
+// resultado de uma simulação sob medida que a pessoa pede em seguida.
+export const ListingFinancingSummarySchema = z.object({
+  price: z.string(),
+  downPayment: z.string(),
+  installments: z.string(),
+  rate: z.string(),
+});
+export type ListingFinancingSummary = z.infer<typeof ListingFinancingSummarySchema>;
+
+export const ListingDetailSchema = ListingSummarySchema.extend({
+  description: z.string(),
+  specs: z.array(SpecItemSchema),
+  financing: ListingFinancingSummarySchema,
+});
+export type ListingDetail = z.infer<typeof ListingDetailSchema>;
+
 // Calculadora do MVP — sem integração bancária real (ver Etapa 3).
 export const FinancingSimulationInputSchema = z.object({
   listingId: z.string(),
