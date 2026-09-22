@@ -44,6 +44,8 @@ const LISTINGS: ListingDetail[] = [
     badge: { label: "Loja verificada", tone: "blue" },
     sellerType: "partner",
     ownerUserId: "mock-owner",
+    partnerSlug: "imobiliaria-savassi",
+    partnerVerified: true,
     description:
       "Apartamento reformado, 2 quartos (1 suíte), varanda gourmet, 1 vaga de garagem. A 5 minutos a pé da Praça da Savassi.",
     specs: [

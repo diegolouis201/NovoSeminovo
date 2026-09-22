@@ -53,6 +53,10 @@ export class ConversationsService {
       throw new BadRequestException("Você não pode iniciar uma conversa com o seu próprio anúncio.");
     }
 
+    if (listing.partnerId) {
+      await this.upsertLead(listing.partnerId, listingId, buyerId);
+    }
+
     const existing = await this.prisma.conversation.findFirst({
       where: { listingId, buyerId },
       include: conversationWithParties,
@@ -64,6 +68,18 @@ export class ConversationsService {
       include: conversationWithParties,
     });
     return toSummary(created, buyerId);
+  }
+
+  // O chat é hoje a única origem de lead — cada conversa nova com um
+  // anúncio de parceiro vira um cartão no funil do painel (Etapa 1: CRM
+  // básico). Sem unique constraint em (listingId, buyerId): busca antes de
+  // criar, como o resto da base já faz para evitar duplicar.
+  private async upsertLead(partnerId: string, listingId: string, buyerId: string) {
+    const existing = await this.prisma.lead.findFirst({ where: { listingId, buyerId } });
+    if (existing) return;
+    await this.prisma.lead.create({
+      data: { partnerId, listingId, buyerId, source: "chat", status: "new" },
+    });
   }
 
   async listMine(userId: string): Promise<ConversationSummary[]> {

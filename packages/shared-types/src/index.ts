@@ -64,6 +64,11 @@ export const ListingSummarySchema = z.object({
   image: z.string().url().optional(),
   badge: BadgeSchema.optional(),
   sellerType: SellerType.optional(),
+  // Só quando sellerType é "partner" — link para a vitrine da loja (/lojas/[slug])
+  // e se ela já passou pela verificação (ainda sem fila de admin para isso —
+  // ver Etapa 1). Nunca afirme "verificada" sem checar este campo.
+  partnerSlug: z.string().optional(),
+  partnerVerified: z.boolean().optional(),
 });
 export type ListingSummary = z.infer<typeof ListingSummarySchema>;
 
@@ -247,6 +252,73 @@ export const SendMessageInputSchema = z.object({
   body: z.string().min(1, "Escreva uma mensagem").max(2000, "Mensagem muito longa"),
 });
 export type SendMessageInput = z.infer<typeof SendMessageInputSchema>;
+
+// Painel do parceiro (lojista/imobiliária) — Etapa 1. MVP: sem convite de
+// equipe, sem upload em lote, sem cobrança de plano de verdade (o schema já
+// tem Plan/Subscription para quando isso for construído).
+export const PartnerType = z.enum(["dealership", "real_estate_agency", "broker"]);
+export type PartnerType = z.infer<typeof PartnerType>;
+
+export const CreatePartnerInputSchema = z.object({
+  type: PartnerType,
+  legalName: z.string().min(3, "Informe a razão social ou nome fantasia"),
+  document: z.string().min(11, "Informe o CNPJ ou CPF"),
+  description: z.string().optional(),
+  address: z.string().optional(),
+});
+export type CreatePartnerInput = z.infer<typeof CreatePartnerInputSchema>;
+
+export const PartnerStatsSchema = z.object({
+  activeListings: z.number().int(),
+  totalListings: z.number().int(),
+  leadsTotal: z.number().int(),
+  leadsNew: z.number().int(),
+  leadsNegotiating: z.number().int(),
+  leadsWon: z.number().int(),
+});
+export type PartnerStats = z.infer<typeof PartnerStatsSchema>;
+
+export const PartnerSchema = z.object({
+  id: z.string(),
+  type: PartnerType,
+  legalName: z.string(),
+  slug: z.string(),
+  description: z.string().optional(),
+  address: z.string().optional(),
+  verified: z.boolean(),
+  planName: z.string().optional(),
+  stats: PartnerStatsSchema,
+});
+export type Partner = z.infer<typeof PartnerSchema>;
+
+export const PartnerStorefrontSchema = z.object({
+  legalName: z.string(),
+  type: PartnerType,
+  description: z.string().optional(),
+  address: z.string().optional(),
+  verified: z.boolean(),
+  listings: z.array(ListingSummarySchema),
+});
+export type PartnerStorefront = z.infer<typeof PartnerStorefrontSchema>;
+
+export const LeadStatus = z.enum(["new", "negotiating", "won", "lost"]);
+export type LeadStatus = z.infer<typeof LeadStatus>;
+
+export const LeadSummarySchema = z.object({
+  id: z.string(),
+  listingId: z.string(),
+  listingTitle: z.string(),
+  buyerName: z.string(),
+  buyerEmail: z.string(),
+  status: LeadStatus,
+  createdAt: z.string(),
+});
+export type LeadSummary = z.infer<typeof LeadSummarySchema>;
+
+export const UpdateLeadStatusInputSchema = z.object({
+  status: LeadStatus,
+});
+export type UpdateLeadStatusInput = z.infer<typeof UpdateLeadStatusInputSchema>;
 
 export function formatBRL(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);

@@ -2,11 +2,16 @@ import type {
   ConversationDetail,
   ConversationSummary,
   CreateListingInput,
+  CreatePartnerInput,
   FinancingSimulationResult,
+  LeadStatus,
+  LeadSummary,
   ListingDetail,
   ListingStatus,
   ListingSummary,
   MyListingSummary,
+  Partner,
+  PartnerStorefront,
 } from "@novoseminovo/shared-types";
 import { getListing, listListings } from "@/lib/mock-data";
 
@@ -184,6 +189,64 @@ export async function sendMessage(conversationId: string, body: string, accessTo
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
     body: JSON.stringify({ body }),
+  });
+  return res.ok;
+}
+
+// Painel do parceiro — igual favoritos/anúncios/chat, exige a API no ar.
+export type CreatePartnerResult = { ok: true; partner: Partner } | { ok: false; error: string };
+
+export async function createPartner(input: CreatePartnerInput, accessToken: string): Promise<CreatePartnerResult> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/partners`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+      body: JSON.stringify(input),
+    });
+    const body = await res.json();
+    if (!res.ok) return { ok: false, error: body.message ?? "Não foi possível cadastrar a loja/imobiliária." };
+    return { ok: true, partner: body as Partner };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
+}
+
+export async function fetchMyPartner(accessToken: string): Promise<Partner | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/partners/mine`, { headers: authHeaders(accessToken) });
+    if (!res.ok) return undefined;
+    const body = await res.json();
+    return body ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function fetchPartnerStorefront(slug: string): Promise<PartnerStorefront | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/partners/${slug}`);
+    if (!res.ok) return undefined;
+    return (await res.json()) as PartnerStorefront;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function fetchPartnerLeads(accessToken: string): Promise<LeadSummary[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/partners/mine/leads`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as LeadSummary[];
+  } catch {
+    return [];
+  }
+}
+
+export async function updateLeadStatus(leadId: string, status: LeadStatus, accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/leads/${leadId}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify({ status }),
   });
   return res.ok;
 }

@@ -137,10 +137,15 @@ export class ListingsService {
   async create(ownerUserId: string, input: CreateListingInput): Promise<MyListingSummary> {
     const { assetType, title, description, price, city, state, neighborhood } = input;
 
+    // Quem tem uma loja/imobiliária cadastrada anuncia sempre em nome dela —
+    // é isso que liga o anúncio ao painel do parceiro (estoque, leads, vitrine).
+    const partner = await this.prisma.partner.findFirst({ where: { ownerUserId } });
+
     const listing = await this.prisma.listing.create({
       data: {
         type: assetType,
         ownerUserId,
+        partnerId: partner?.id,
         title,
         description,
         price,

@@ -48,10 +48,17 @@ export function ListingCard({
         </p>
         <div className="mt-2 flex items-center justify-between text-xs text-ink-muted">
           <span>{listing.location}</span>
-          {listing.sellerType && (
-            <span className={listing.sellerType === "partner" ? "font-bold text-brand-blue" : ""}>
-              {listing.sellerType === "partner" ? "Loja verificada" : "Particular"}
-            </span>
+          {listing.sellerType === "partner" && listing.partnerSlug ? (
+            <Link
+              href={`/lojas/${listing.partnerSlug}`}
+              className="relative z-10 font-bold text-brand-blue hover:underline"
+            >
+              {listing.partnerVerified ? "Loja verificada" : "Ver loja"}
+            </Link>
+          ) : (
+            listing.sellerType && (
+              <span>{listing.sellerType === "partner" ? "Loja parceira" : "Particular"}</span>
+            )
           )}
         </div>
       </div>

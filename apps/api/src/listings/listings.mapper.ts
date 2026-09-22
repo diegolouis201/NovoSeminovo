@@ -92,6 +92,8 @@ export function toListingSummary(listing: ListingWithDetails): ListingSummary {
     image: listing.photos[0]?.url,
     badge: badge(listing),
     sellerType: sellerType(listing),
+    partnerSlug: listing.partner?.slug,
+    partnerVerified: listing.partner ? Boolean(listing.partner.verifiedAt) : undefined,
   };
 }
 

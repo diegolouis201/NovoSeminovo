@@ -69,9 +69,18 @@ export default async function ListingDetailPage({
 
         <aside className="flex flex-col gap-6">
           <div className="flex flex-col gap-3 rounded-brand border border-border bg-surface-raised p-4">
-            <p className="text-sm font-semibold text-ink">
-              {listing.sellerType === "partner" ? "Loja verificada" : "Anunciante particular"}
-            </p>
+            {listing.sellerType === "partner" && listing.partnerSlug ? (
+              <Link
+                href={`/lojas/${listing.partnerSlug}`}
+                className="text-sm font-semibold text-brand-blue hover:underline"
+              >
+                {listing.partnerVerified ? "Loja verificada" : "Loja parceira"} — ver vitrine
+              </Link>
+            ) : (
+              <p className="text-sm font-semibold text-ink">
+                {listing.sellerType === "partner" ? "Loja parceira" : "Anunciante particular"}
+              </p>
+            )}
             {searchParams.erroConversa && (
               <p className="rounded-brand bg-status-danger/10 px-3 py-2 text-xs text-status-danger">
                 {searchParams.erroConversa}

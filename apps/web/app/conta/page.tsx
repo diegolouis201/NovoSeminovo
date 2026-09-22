@@ -53,6 +53,12 @@ export default async function AccountPage() {
         >
           Mensagens
         </Link>
+        <Link
+          href="/parceiro"
+          className="rounded-brand border border-border px-4 py-3 text-sm font-bold text-ink hover:bg-surface-sober"
+        >
+          Painel da loja
+        </Link>
         <form
           action={async () => {
             "use server";
