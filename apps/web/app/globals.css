@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tokens replicados do design system (Etapa 4). Tema light é o :root;
+   dark reage tanto a prefers-color-scheme quanto a um data-theme="dark"
+   manual, para quando o app ganhar um seletor de tema. */
+:root {
+  --surface-page: #fafaf6;
+  --surface-raised: #ffffff;
+  --surface-sober: #eef3f6;
+  --ink: #20261b;
+  --ink-muted: #5c6455;
+  --border: #dee2d2;
+
+  --brand-green: #76b82a;
+  --brand-blue: #006aa4;
+  --brand-orange: #f18e29;
+  --brand-purple: #783b8f;
+  --brand-pink: #fc056e;
+
+  --on-green: #14170f;
+  --on-blue: #ffffff;
+  --on-orange: #14170f;
+  --on-purple: #ffffff;
+  --on-pink: #ffffff;
+
+  --status-danger: #c81e3a;
+
+  --radius-sober: 6px;
+  --radius-md: 14px;
+  --radius-lg: 24px;
+  --radius-full: 999px;
+
+  --shadow-card: 0 1px 2px rgba(32, 38, 27, 0.08), 0 10px 24px rgba(32, 38, 27, 0.1);
+  --shadow-pop: 0 4px 8px rgba(32, 38, 27, 0.1), 0 20px 48px rgba(32, 38, 27, 0.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-page: #14170f;
+    --surface-raised: #1e2317;
+    --surface-sober: #101922;
+    --ink: #edefe6;
+    --ink-muted: #aeb6a2;
+    --border: #2c3223;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 24px rgba(0, 0, 0, 0.55);
+    --shadow-pop: 0 4px 8px rgba(0, 0, 0, 0.55), 0 20px 48px rgba(0, 0, 0, 0.6);
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface-page: #14170f;
+  --surface-raised: #1e2317;
+  --surface-sober: #101922;
+  --ink: #edefe6;
+  --ink-muted: #aeb6a2;
+  --border: #2c3223;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 24px rgba(0, 0, 0, 0.55);
+  --shadow-pop: 0 4px 8px rgba(0, 0, 0, 0.55), 0 20px 48px rgba(0, 0, 0, 0.6);
+}
+
+body {
+  background: var(--surface-page);
+  color: var(--ink);
+}
