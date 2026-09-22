@@ -50,15 +50,21 @@ O site tem onze telas (Etapa 1 → Etapa 4 aplicadas), todas servidas pela API q
 - `/conta/favoritos` — anúncios salvos pela pessoa logada
 - `/conta/anuncios` — "Meus anúncios", com pausar/reativar
 - `/conta/mensagens`, `/conta/mensagens/[id]` — conversas com compradores/vendedores
+- `/parceiro` — painel da loja/imobiliária: onboarding se a pessoa ainda não tem uma, visão geral com estatísticas se já tem
+- `/parceiro/anuncios`, `/parceiro/leads` — estoque do parceiro e funil de leads (Kanban: Novo → Negociando → Ganho/Perdido)
+- `/lojas/[slug]` — vitrine pública da loja/imobiliária, sem precisar estar logado
 
-Login devolve, além dos dados do usuário, um JWT (`POST /auth/login`) que o Auth.js guarda na sessão e reenvia como `Authorization: Bearer` nas chamadas autenticadas: favoritos (`GET /me/favorites`, `GET /me/favorites/ids`, `POST`/`DELETE /listings/:id/favorite`), anúncios próprios (`POST /listings`, `GET /listings/mine`, `PATCH /listings/:id/status`) e chat (`POST /listings/:id/conversations`, `GET /me/conversations`, `GET /conversations/:id`, `POST /conversations/:id/messages`) — todas atrás de `JwtAuthGuard`, com checagem de dono/participante onde faz sentido.
+Login devolve, além dos dados do usuário, um JWT (`POST /auth/login`) que o Auth.js guarda na sessão e reenvia como `Authorization: Bearer` nas chamadas autenticadas: favoritos (`GET /me/favorites`, `GET /me/favorites/ids`, `POST`/`DELETE /listings/:id/favorite`), anúncios próprios (`POST /listings`, `GET /listings/mine`, `PATCH /listings/:id/status`), chat (`POST /listings/:id/conversations`, `GET /me/conversations`, `GET /conversations/:id`, `POST /conversations/:id/messages`) e o painel do parceiro (`POST /partners`, `GET /partners/mine`, `GET /partners/mine/leads`, `PATCH /leads/:id/status`) — todas atrás de `JwtAuthGuard`, com checagem de dono/participante onde faz sentido. `GET /partners/:slug` (vitrine) é a única rota pública dessas.
 
-Se a API não estiver rodando (ex.: sem Postgres configurado), `apps/web/lib/api.ts` cai de volta para os dados de exemplo em `apps/web/lib/mock-data.ts` — mesmo formato dos dois lados, via `@novoseminovo/shared-types` — mas login/cadastro/favoritos/anúncios/chat precisam da API no ar, já que dependem do banco.
+Quem tem uma loja/imobiliária cadastrada anuncia automaticamente em nome dela (`POST /listings` tagueia `partnerId`), e toda conversa iniciada com um anúncio de parceiro vira um lead no funil — é assim que o painel ganha dados reais em vez de ficar vazio.
+
+Se a API não estiver rodando (ex.: sem Postgres configurado), `apps/web/lib/api.ts` cai de volta para os dados de exemplo em `apps/web/lib/mock-data.ts` — mesmo formato dos dois lados, via `@novoseminovo/shared-types` — mas login/cadastro/favoritos/anúncios/chat/parceiro precisam da API no ar, já que dependem do banco.
 
 ## Próximos passos sugeridos
 
-1. Painel do parceiro (lojista/imobiliária): estoque em lote, CRM de leads, planos/assinatura — modelado no schema (`Partner`, `Lead`, `Plan`, `Subscription`), sem API/UI ainda.
-2. Moderação: anúncios criados hoje nascem `active` direto (sem `pending_review`), já que não existe painel de admin para aprová-los ainda.
-3. `apps/mobile` (Expo/React Native) reaproveitando `@novoseminovo/shared-types` e os mesmos endpoints.
-4. Upload de fotos (S3/R2) — hoje um anúncio criado pelo formulário não tem foto real, só o placeholder por categoria.
-5. Chat em tempo real (WebSocket/Socket.IO, ver Etapa 3) — hoje enviar mensagem só faz um `revalidatePath`, sem push ao destinatário.
+1. Moderação: anúncios criados hoje nascem `active` direto (sem `pending_review`), já que não existe painel de admin para aprová-los ainda — isso também define quem "verifica" uma loja (`partner.verifiedAt` só existe no schema, nada ainda o define como `true`).
+2. Plano/assinatura de verdade: `Plan`/`Subscription` já estão no schema, mas `/parceiro` só lê (mostra "Nenhum plano ativo" se não houver); falta o fluxo de contratar um plano e cobrança.
+3. Upload em lote de estoque (CSV) e convite de equipe (`PartnerMember` já modelado) para o painel do parceiro.
+4. `apps/mobile` (Expo/React Native) reaproveitando `@novoseminovo/shared-types` e os mesmos endpoints.
+5. Upload de fotos (S3/R2) — hoje um anúncio criado pelo formulário não tem foto real, só o placeholder por categoria.
+6. Chat em tempo real (WebSocket/Socket.IO, ver Etapa 3) — hoje enviar mensagem só faz um `revalidatePath`, sem push ao destinatário.
