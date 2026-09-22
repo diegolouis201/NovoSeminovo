@@ -28,6 +28,16 @@ export default async function ListingDetailPage({
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
+      {isOwnListing && listing.status === "pending_review" && (
+        <p className="mb-6 rounded-brand bg-brand-orange/10 px-4 py-3 text-sm font-semibold text-brand-orange">
+          Seu anúncio está em análise — ele só aparece na busca depois de aprovado pela moderação.
+        </p>
+      )}
+      {isOwnListing && listing.status === "rejected" && (
+        <p className="mb-6 rounded-brand bg-status-danger/10 px-4 py-3 text-sm font-semibold text-status-danger">
+          Este anúncio foi recusado pela moderação e não aparece na busca.
+        </p>
+      )}
       <div className="grid gap-8 md:grid-cols-[1fr_320px]">
         <div className="flex flex-col gap-6">
           <div className="relative flex h-72 items-center justify-center rounded-brand-lg bg-surface-sober text-6xl md:h-96">

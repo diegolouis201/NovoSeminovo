@@ -123,16 +123,6 @@ export const ListingFinancingSummarySchema = z.object({
 });
 export type ListingFinancingSummary = z.infer<typeof ListingFinancingSummarySchema>;
 
-export const ListingDetailSchema = ListingSummarySchema.extend({
-  description: z.string(),
-  specs: z.array(SpecItemSchema),
-  financing: ListingFinancingSummarySchema,
-  // Só para o site decidir se mostra "Conversar no chat" (não faz sentido
-  // falar com o próprio anúncio) — nunca é o e-mail nem outro dado sensível.
-  ownerUserId: z.string(),
-});
-export type ListingDetail = z.infer<typeof ListingDetailSchema>;
-
 export const ListingStatus = z.enum([
   "draft",
   "pending_review",
@@ -143,6 +133,20 @@ export const ListingStatus = z.enum([
   "expired",
 ]);
 export type ListingStatus = z.infer<typeof ListingStatus>;
+
+export const ListingDetailSchema = ListingSummarySchema.extend({
+  description: z.string(),
+  specs: z.array(SpecItemSchema),
+  financing: ListingFinancingSummarySchema,
+  // Só para o site decidir se mostra "Conversar no chat" (não faz sentido
+  // falar com o próprio anúncio) — nunca é o e-mail nem outro dado sensível.
+  ownerUserId: z.string(),
+  // Só para o dono ver "seu anúncio está em análise" — a busca pública nunca
+  // devolve um anúncio que não esteja active, então esse status aqui só
+  // importa quando quem está olhando é o próprio dono.
+  status: ListingStatus,
+});
+export type ListingDetail = z.infer<typeof ListingDetailSchema>;
 
 // "Meus anúncios" precisa do status (a busca pública, não — só mostra ativos).
 export const MyListingSummarySchema = ListingSummarySchema.extend({
@@ -319,6 +323,37 @@ export const UpdateLeadStatusInputSchema = z.object({
   status: LeadStatus,
 });
 export type UpdateLeadStatusInput = z.infer<typeof UpdateLeadStatusInputSchema>;
+
+// Moderação (Etapa 1 — painel do admin). MVP: um único papel "admin" sem
+// níveis; toda regra é manual, nenhuma automática ainda.
+export const PendingListingSchema = z.object({
+  id: z.string(),
+  assetType: AssetType,
+  title: z.string(),
+  priceLabel: z.string(),
+  location: z.string(),
+  ownerName: z.string(),
+  ownerEmail: z.string(),
+  createdAt: z.string(),
+});
+export type PendingListing = z.infer<typeof PendingListingSchema>;
+
+export const ModerateListingInputSchema = z.object({
+  action: z.enum(["approve", "reject"]),
+  reason: z.string().optional(),
+});
+export type ModerateListingInput = z.infer<typeof ModerateListingInputSchema>;
+
+export const PendingPartnerSchema = z.object({
+  id: z.string(),
+  type: PartnerType,
+  legalName: z.string(),
+  document: z.string(),
+  ownerName: z.string(),
+  ownerEmail: z.string(),
+  createdAt: z.string(),
+});
+export type PendingPartner = z.infer<typeof PendingPartnerSchema>;
 
 export function formatBRL(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);

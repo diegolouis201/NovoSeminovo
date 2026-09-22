@@ -59,6 +59,14 @@ export default async function AccountPage() {
         >
           Painel da loja
         </Link>
+        {session.user.role === "admin" && (
+          <Link
+            href="/admin"
+            className="rounded-brand bg-brand-orange px-4 py-3 text-sm font-bold text-on-orange hover:opacity-90"
+          >
+            Moderação
+          </Link>
+        )}
         <form
           action={async () => {
             "use server";

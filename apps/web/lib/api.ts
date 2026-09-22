@@ -9,9 +9,12 @@ import type {
   ListingDetail,
   ListingStatus,
   ListingSummary,
+  ModerateListingInput,
   MyListingSummary,
   Partner,
   PartnerStorefront,
+  PendingListing,
+  PendingPartner,
 } from "@novoseminovo/shared-types";
 import { getListing, listListings } from "@/lib/mock-data";
 
@@ -247,6 +250,49 @@ export async function updateLeadStatus(leadId: string, status: LeadStatus, acces
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
     body: JSON.stringify({ status }),
+  });
+  return res.ok;
+}
+
+// Moderação — só chamável por quem tem role "admin" (a API confere pelo
+// JWT; um token de não-admin recebe 403 em qualquer uma destas rotas).
+export async function fetchPendingListings(accessToken: string): Promise<PendingListing[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/listings/pending`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as PendingListing[];
+  } catch {
+    return [];
+  }
+}
+
+export async function moderateListing(
+  listingId: string,
+  input: ModerateListingInput,
+  accessToken: string,
+): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/admin/listings/${listingId}/moderate`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify(input),
+  });
+  return res.ok;
+}
+
+export async function fetchPendingPartners(accessToken: string): Promise<PendingPartner[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/partners/pending`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as PendingPartner[];
+  } catch {
+    return [];
+  }
+}
+
+export async function verifyPartner(partnerId: string, accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/admin/partners/${partnerId}/verify`, {
+    method: "PATCH",
+    headers: authHeaders(accessToken),
   });
   return res.ok;
 }

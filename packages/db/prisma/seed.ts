@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
+import { hashSync } from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -7,34 +8,52 @@ function hashPlate(plate: string) {
   return createHash("sha256").update(plate).digest("hex");
 }
 
+// Mesma senha para todo mundo do seed — só para dev local, nunca use em
+// produção. É a senha que os testes manuais deste projeto sempre usaram.
+const DEMO_PASSWORD_HASH = hashSync("senha1234", 10);
+
 async function main() {
   const buyer = await prisma.user.upsert({
     where: { email: "comprador@novoseminovo.com.br" },
-    update: {},
+    update: { passwordHash: DEMO_PASSWORD_HASH },
     create: {
       name: "Ana Ferreira",
       email: "comprador@novoseminovo.com.br",
       role: "buyer",
+      passwordHash: DEMO_PASSWORD_HASH,
     },
   });
 
   const individualSeller = await prisma.user.upsert({
     where: { email: "particular@novoseminovo.com.br" },
-    update: {},
+    update: { passwordHash: DEMO_PASSWORD_HASH },
     create: {
       name: "Marcos Silva",
       email: "particular@novoseminovo.com.br",
       role: "individual_seller",
+      passwordHash: DEMO_PASSWORD_HASH,
     },
   });
 
   const partnerOwner = await prisma.user.upsert({
     where: { email: "loja@novoseminovo.com.br" },
-    update: {},
+    update: { passwordHash: DEMO_PASSWORD_HASH },
     create: {
       name: "Imobiliária Savassi",
       email: "loja@novoseminovo.com.br",
       role: "partner_owner",
+      passwordHash: DEMO_PASSWORD_HASH,
+    },
+  });
+
+  const admin = await prisma.user.upsert({
+    where: { email: "admin@novoseminovo.com.br" },
+    update: { passwordHash: DEMO_PASSWORD_HASH },
+    create: {
+      name: "Administrador NovoSeminovo",
+      email: "admin@novoseminovo.com.br",
+      role: "admin",
+      passwordHash: DEMO_PASSWORD_HASH,
     },
   });
 
@@ -162,6 +181,8 @@ async function main() {
 
   console.log("Seed concluído:", {
     listings: [vehicleListing.id, propertyListing.id],
+    login: "qualquer e-mail do seed + senha: senha1234",
+    admin: admin.email,
   });
 }
 

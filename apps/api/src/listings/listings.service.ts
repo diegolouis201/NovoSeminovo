@@ -152,10 +152,9 @@ export class ListingsService {
         city,
         state,
         neighborhood,
-        // MVP: sem fila de moderação ainda (ver Etapa 1 — painel do admin),
-        // então o anúncio já nasce ativo e visível na busca.
-        status: "active",
-        publishedAt: new Date(),
+        // Vai para a fila do painel do admin — só fica visível na busca
+        // depois de aprovado (ver AdminModule), quando publishedAt é definido.
+        status: "pending_review",
         ...(assetType === "vehicle"
           ? {
               vehicleDetails: {
