@@ -39,24 +39,26 @@ npx auth secret --raw   # ou: openssl rand -base64 33
 pnpm --filter @novoseminovo/web dev            # sobe em http://localhost:3000
 ```
 
-O site tem nove telas (Etapa 1 → Etapa 4 aplicadas), todas servidas pela API quando ela está no ar:
+O site tem onze telas (Etapa 1 → Etapa 4 aplicadas), todas servidas pela API quando ela está no ar:
 
 - `/` — home com busca e destaques
 - `/busca?assetType=vehicle|property` — resultados com filtros
-- `/anuncio/[id]` — detalhe do anúncio, com simulação de financiamento (Tabela Price), favoritar e o bloco no tom "sóbrio"
+- `/anuncio/[id]` — detalhe do anúncio, com simulação de financiamento (Tabela Price), favoritar, "Conversar no chat" e o bloco no tom "sóbrio"
 - `/cadastro`, `/entrar` — criação de conta e login (Auth.js no site, senha validada por `POST /auth/*` na API)
 - `/anunciar` — publicar um anúncio de veículo ou imóvel (protegida)
 - `/conta` — página protegida (redireciona para `/entrar` sem sessão)
 - `/conta/favoritos` — anúncios salvos pela pessoa logada
 - `/conta/anuncios` — "Meus anúncios", com pausar/reativar
+- `/conta/mensagens`, `/conta/mensagens/[id]` — conversas com compradores/vendedores
 
-Login devolve, além dos dados do usuário, um JWT (`POST /auth/login`) que o Auth.js guarda na sessão e reenvia como `Authorization: Bearer` nas chamadas autenticadas: favoritos (`GET /me/favorites`, `GET /me/favorites/ids`, `POST`/`DELETE /listings/:id/favorite`) e anúncios próprios (`POST /listings`, `GET /listings/mine`, `PATCH /listings/:id/status`) — todas atrás de `JwtAuthGuard`, a última também checando que quem edita é o dono.
+Login devolve, além dos dados do usuário, um JWT (`POST /auth/login`) que o Auth.js guarda na sessão e reenvia como `Authorization: Bearer` nas chamadas autenticadas: favoritos (`GET /me/favorites`, `GET /me/favorites/ids`, `POST`/`DELETE /listings/:id/favorite`), anúncios próprios (`POST /listings`, `GET /listings/mine`, `PATCH /listings/:id/status`) e chat (`POST /listings/:id/conversations`, `GET /me/conversations`, `GET /conversations/:id`, `POST /conversations/:id/messages`) — todas atrás de `JwtAuthGuard`, com checagem de dono/participante onde faz sentido.
 
-Se a API não estiver rodando (ex.: sem Postgres configurado), `apps/web/lib/api.ts` cai de volta para os dados de exemplo em `apps/web/lib/mock-data.ts` — mesmo formato dos dois lados, via `@novoseminovo/shared-types` — mas login/cadastro/favoritos/anúncios precisam da API no ar, já que dependem do banco.
+Se a API não estiver rodando (ex.: sem Postgres configurado), `apps/web/lib/api.ts` cai de volta para os dados de exemplo em `apps/web/lib/mock-data.ts` — mesmo formato dos dois lados, via `@novoseminovo/shared-types` — mas login/cadastro/favoritos/anúncios/chat precisam da API no ar, já que dependem do banco.
 
 ## Próximos passos sugeridos
 
-1. Módulos adicionais da API (Etapa 1): chat, painel do parceiro (lojista/imobiliária), moderação, assinaturas.
-2. `apps/mobile` (Expo/React Native) reaproveitando `@novoseminovo/shared-types` e os mesmos endpoints.
-3. Upload de fotos (S3/R2) — hoje um anúncio criado pelo formulário não tem foto real, só o placeholder por categoria.
-4. Fila de moderação: anúncios criados hoje nascem `active` direto (sem `pending_review`), já que não existe painel de admin para aprová-los ainda.
+1. Painel do parceiro (lojista/imobiliária): estoque em lote, CRM de leads, planos/assinatura — modelado no schema (`Partner`, `Lead`, `Plan`, `Subscription`), sem API/UI ainda.
+2. Moderação: anúncios criados hoje nascem `active` direto (sem `pending_review`), já que não existe painel de admin para aprová-los ainda.
+3. `apps/mobile` (Expo/React Native) reaproveitando `@novoseminovo/shared-types` e os mesmos endpoints.
+4. Upload de fotos (S3/R2) — hoje um anúncio criado pelo formulário não tem foto real, só o placeholder por categoria.
+5. Chat em tempo real (WebSocket/Socket.IO, ver Etapa 3) — hoje enviar mensagem só faz um `revalidatePath`, sem push ao destinatário.
