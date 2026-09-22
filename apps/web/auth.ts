@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import type { AuthUser } from "@novoseminovo/shared-types";
+import type { AuthUser, LoginResponse } from "@novoseminovo/shared-types";
 
 // A sessão é gerenciada aqui (cookie do NextAuth), mas quem valida a senha e
 // possui os dados do usuário é sempre apps/api — o site nunca fala com o
@@ -31,17 +31,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
         if (!res.ok) return null;
 
-        const user = (await res.json()) as AuthUser;
-        return user;
+        const { user, accessToken } = (await res.json()) as LoginResponse;
+        return { ...user, accessToken };
       },
     }),
   ],
   callbacks: {
     jwt({ token, user }) {
       if (user) {
-        const authUser = user as AuthUser;
+        const authUser = user as AuthUser & { accessToken: string };
         token.id = authUser.id;
         token.role = authUser.role;
+        token.accessToken = authUser.accessToken;
       }
       return token;
     },
@@ -49,6 +50,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as AuthUser["role"];
+        session.accessToken = token.accessToken as string;
       }
       return session;
     },

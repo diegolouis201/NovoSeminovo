@@ -1,5 +1,6 @@
 import { ListingCard } from "@/components/ListingCard";
 import { fetchListings } from "@/lib/api";
+import { getFavoriteContext } from "@/lib/favorites";
 
 type SearchPageProps = {
   searchParams: { assetType?: string; q?: string };
@@ -7,7 +8,10 @@ type SearchPageProps = {
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const assetType = searchParams.assetType === "property" ? "property" : searchParams.assetType === "vehicle" ? "vehicle" : undefined;
-  const results = await fetchListings({ assetType, q: searchParams.q });
+  const [results, { isAuthenticated, favoriteIds }] = await Promise.all([
+    fetchListings({ assetType, q: searchParams.q }),
+    getFavoriteContext(),
+  ]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -32,7 +36,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
         <div className="flex flex-1 flex-wrap gap-5">
           {results.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              isFavorited={favoriteIds.has(listing.id)}
+              isAuthenticated={isAuthenticated}
+            />
           ))}
           {results.length === 0 && (
             <p className="text-ink-muted">Nenhum anúncio encontrado com esses filtros.</p>

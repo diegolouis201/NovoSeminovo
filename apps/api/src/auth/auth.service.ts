@@ -1,14 +1,18 @@
 import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
 import { compare, hash } from "bcryptjs";
 import { Prisma } from "@novoseminovo/db";
-import type { AuthUser, LoginInput, RegisterInput } from "@novoseminovo/shared-types";
+import type { AuthUser, LoginInput, LoginResponse, RegisterInput } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 
 const SALT_ROUNDS = 10;
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   async register(input: RegisterInput): Promise<AuthUser> {
     const passwordHash = await hash(input.password, SALT_ROUNDS);
@@ -30,7 +34,7 @@ export class AuthService {
     }
   }
 
-  async login(input: LoginInput): Promise<AuthUser> {
+  async login(input: LoginInput): Promise<LoginResponse> {
     const user = await this.prisma.user.findUnique({ where: { email: input.email } });
     if (!user?.passwordHash) throw new UnauthorizedException("E-mail ou senha inválidos.");
 
@@ -38,6 +42,9 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException("E-mail ou senha inválidos.");
     if (user.status === "suspended") throw new UnauthorizedException("Esta conta está suspensa.");
 
-    return { id: user.id, name: user.name, email: user.email, role: user.role };
+    const authUser: AuthUser = { id: user.id, name: user.name, email: user.email, role: user.role };
+    const accessToken = await this.jwtService.signAsync({ sub: user.id, role: user.role });
+
+    return { user: authUser, accessToken };
   }
 }

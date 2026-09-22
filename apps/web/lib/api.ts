@@ -50,6 +50,45 @@ export async function fetchListing(id: string): Promise<ListingDetail | undefine
   }
 }
 
+function authHeaders(accessToken: string): HeadersInit {
+  return { Authorization: `Bearer ${accessToken}` };
+}
+
+// Favoritos exigem a API no ar (não têm equivalente em mock-data.ts — não há
+// conceito de usuário logado nos dados de exemplo). Falha de rede aqui
+// degrada para "nada favoritado" em vez de quebrar a página.
+export async function fetchMyFavoriteIds(accessToken: string): Promise<Set<string>> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/me/favorites/ids`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return new Set((await res.json()) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+export async function fetchMyFavorites(accessToken: string): Promise<ListingSummary[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/me/favorites`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as ListingSummary[];
+  } catch {
+    return [];
+  }
+}
+
+export async function setFavorite(
+  listingId: string,
+  favorited: boolean,
+  accessToken: string,
+): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/favorite`, {
+    method: favorited ? "POST" : "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  return res.ok;
+}
+
 export async function simulateFinancing(
   listingId: string,
   input: { assetPrice: number; downPaymentPct: number; installments: number },

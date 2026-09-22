@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { Button } from "@/components/Button";
@@ -33,17 +34,24 @@ export default async function AccountPage() {
         </div>
       </div>
 
-      <form
-        action={async () => {
-          "use server";
-          await signOut({ redirectTo: "/" });
-        }}
-        className="mt-6"
-      >
-        <Button type="submit" variant="ghost">
-          Sair
-        </Button>
-      </form>
+      <div className="mt-6 flex items-center gap-4">
+        <Link
+          href="/conta/favoritos"
+          className="rounded-brand bg-brand-blue px-4 py-3 text-sm font-bold text-on-blue hover:opacity-90"
+        >
+          Meus favoritos
+        </Link>
+        <form
+          action={async () => {
+            "use server";
+            await signOut({ redirectTo: "/" });
+          }}
+        >
+          <Button type="submit" variant="ghost">
+            Sair
+          </Button>
+        </form>
+      </div>
     </main>
   );
 }

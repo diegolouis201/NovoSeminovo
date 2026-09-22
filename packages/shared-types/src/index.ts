@@ -38,6 +38,15 @@ export const AuthUserSchema = z.object({
 });
 export type AuthUser = z.infer<typeof AuthUserSchema>;
 
+// POST /auth/login também devolve um JWT — é o que apps/web guarda na sessão
+// do Auth.js e reenvia como Bearer token nas chamadas autenticadas à API
+// (favoritos, e o que mais vier a exigir "quem está logado").
+export const LoginResponseSchema = z.object({
+  user: AuthUserSchema,
+  accessToken: z.string(),
+});
+export type LoginResponse = z.infer<typeof LoginResponseSchema>;
+
 export const BadgeSchema = z.object({
   label: z.string(),
   tone: BadgeTone,

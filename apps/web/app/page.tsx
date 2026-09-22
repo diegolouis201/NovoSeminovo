@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { ListingCard } from "@/components/ListingCard";
 import { fetchListings } from "@/lib/api";
+import { getFavoriteContext } from "@/lib/favorites";
 
 export default async function HomePage() {
-  const destaques = await fetchListings({});
+  const [destaques, { isAuthenticated, favoriteIds }] = await Promise.all([
+    fetchListings({}),
+    getFavoriteContext(),
+  ]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16">
@@ -40,7 +44,12 @@ export default async function HomePage() {
         </div>
         <div className="flex flex-wrap gap-5">
           {destaques.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              isFavorited={favoriteIds.has(listing.id)}
+              isAuthenticated={isAuthenticated}
+            />
           ))}
         </div>
       </section>

@@ -1,19 +1,31 @@
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
 import { fetchListing } from "@/lib/api";
+import { getFavoriteContext } from "@/lib/favorites";
 
 export default async function ListingDetailPage({ params }: { params: { id: string } }) {
-  const listing = await fetchListing(params.id);
+  const [listing, { isAuthenticated, favoriteIds }] = await Promise.all([
+    fetchListing(params.id),
+    getFavoriteContext(),
+  ]);
   if (!listing) notFound();
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <div className="grid gap-8 md:grid-cols-[1fr_320px]">
         <div className="flex flex-col gap-6">
-          <div className="flex h-72 items-center justify-center rounded-brand-lg bg-surface-sober text-6xl md:h-96">
+          <div className="relative flex h-72 items-center justify-center rounded-brand-lg bg-surface-sober text-6xl md:h-96">
             <span aria-hidden>{listing.assetType === "property" ? "🏠" : "🚗"}</span>
+            <div className="absolute right-3 top-3">
+              <FavoriteButton
+                listingId={listing.id}
+                initialFavorited={favoriteIds.has(listing.id)}
+                isAuthenticated={isAuthenticated}
+              />
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">
