@@ -39,21 +39,24 @@ npx auth secret --raw   # ou: openssl rand -base64 33
 pnpm --filter @novoseminovo/web dev            # sobe em http://localhost:3000
 ```
 
-O site tem sete telas (Etapa 1 → Etapa 4 aplicadas), todas servidas pela API quando ela está no ar:
+O site tem nove telas (Etapa 1 → Etapa 4 aplicadas), todas servidas pela API quando ela está no ar:
 
 - `/` — home com busca e destaques
 - `/busca?assetType=vehicle|property` — resultados com filtros
 - `/anuncio/[id]` — detalhe do anúncio, com simulação de financiamento (Tabela Price), favoritar e o bloco no tom "sóbrio"
 - `/cadastro`, `/entrar` — criação de conta e login (Auth.js no site, senha validada por `POST /auth/*` na API)
+- `/anunciar` — publicar um anúncio de veículo ou imóvel (protegida)
 - `/conta` — página protegida (redireciona para `/entrar` sem sessão)
 - `/conta/favoritos` — anúncios salvos pela pessoa logada
+- `/conta/anuncios` — "Meus anúncios", com pausar/reativar
 
-Login devolve, além dos dados do usuário, um JWT (`POST /auth/login`) que o Auth.js guarda na sessão e reenvia como `Authorization: Bearer` nas chamadas autenticadas (hoje só favoritos: `GET /me/favorites`, `GET /me/favorites/ids`, `POST`/`DELETE /listings/:id/favorite`, todas atrás de `JwtAuthGuard`).
+Login devolve, além dos dados do usuário, um JWT (`POST /auth/login`) que o Auth.js guarda na sessão e reenvia como `Authorization: Bearer` nas chamadas autenticadas: favoritos (`GET /me/favorites`, `GET /me/favorites/ids`, `POST`/`DELETE /listings/:id/favorite`) e anúncios próprios (`POST /listings`, `GET /listings/mine`, `PATCH /listings/:id/status`) — todas atrás de `JwtAuthGuard`, a última também checando que quem edita é o dono.
 
-Se a API não estiver rodando (ex.: sem Postgres configurado), `apps/web/lib/api.ts` cai de volta para os dados de exemplo em `apps/web/lib/mock-data.ts` — mesmo formato dos dois lados, via `@novoseminovo/shared-types` — mas login/cadastro/favoritos precisam da API no ar, já que dependem do banco.
+Se a API não estiver rodando (ex.: sem Postgres configurado), `apps/web/lib/api.ts` cai de volta para os dados de exemplo em `apps/web/lib/mock-data.ts` — mesmo formato dos dois lados, via `@novoseminovo/shared-types` — mas login/cadastro/favoritos/anúncios precisam da API no ar, já que dependem do banco.
 
 ## Próximos passos sugeridos
 
-1. Módulos adicionais da API (Etapa 1): fluxo de criação de anúncio, chat, painel do parceiro, moderação, assinaturas.
-2. `apps/mobile` (Expo/React Native) reaproveitando `@novoseminovo/shared-types` e os mesmos endpoints (incluindo `/auth/login` e favoritos).
-3. Upload de fotos (S3/R2) — hoje só a leitura de anúncios está implementada, criar ainda depende do fluxo de anúncio do item 1.
+1. Módulos adicionais da API (Etapa 1): chat, painel do parceiro (lojista/imobiliária), moderação, assinaturas.
+2. `apps/mobile` (Expo/React Native) reaproveitando `@novoseminovo/shared-types` e os mesmos endpoints.
+3. Upload de fotos (S3/R2) — hoje um anúncio criado pelo formulário não tem foto real, só o placeholder por categoria.
+4. Fila de moderação: anúncios criados hoje nascem `active` direto (sem `pending_review`), já que não existe painel de admin para aprová-los ainda.
