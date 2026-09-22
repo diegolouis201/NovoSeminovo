@@ -280,7 +280,7 @@ model VehicleDetails {
   fuelType        FuelType          @map("fuel_type")
   color           String
   doors           Int?
-  plateHash       String            @map("plate_hash")
+  plateHash       String?           @map("plate_hash")
   fipeCode        String?           @map("fipe_code")
   fipePrice       Decimal?          @map("fipe_price") @db.Decimal(12, 2)
   condition       VehicleCondition  @default(used)

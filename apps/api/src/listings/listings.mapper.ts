@@ -4,6 +4,7 @@ import {
   type Badge,
   type ListingDetail,
   type ListingSummary,
+  type MyListingSummary,
   type SellerType,
   type SpecItem,
 } from "@novoseminovo/shared-types";
@@ -92,6 +93,10 @@ export function toListingSummary(listing: ListingWithDetails): ListingSummary {
     badge: badge(listing),
     sellerType: sellerType(listing),
   };
+}
+
+export function toMyListingSummary(listing: ListingWithDetails): MyListingSummary {
+  return { ...toListingSummary(listing), status: listing.status };
 }
 
 function specs(listing: ListingWithDetails): SpecItem[] {

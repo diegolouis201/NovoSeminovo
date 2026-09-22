@@ -1,6 +1,13 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@novoseminovo/db";
-import { formatBRL, type FinancingSimulationResult, type ListingSummary } from "@novoseminovo/shared-types";
+import {
+  formatBRL,
+  type CreateListingInput,
+  type FinancingSimulationResult,
+  type ListingSummary,
+  type MyListingSummary,
+  type UpdateListingStatusInput,
+} from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   DEFAULT_RATE,
@@ -8,6 +15,7 @@ import {
   priceAmortization,
   toListingDetail,
   toListingSummary,
+  toMyListingSummary,
 } from "./listings.mapper";
 
 export type ListingSearchQuery = {
@@ -115,5 +123,115 @@ export class ListingsService {
     });
 
     return result;
+  }
+
+  async listMine(ownerUserId: string): Promise<MyListingSummary[]> {
+    const listings = await this.prisma.listing.findMany({
+      where: { ownerUserId },
+      include: listingInclude,
+      orderBy: { createdAt: "desc" },
+    });
+    return listings.map(toMyListingSummary);
+  }
+
+  async create(ownerUserId: string, input: CreateListingInput): Promise<MyListingSummary> {
+    const { assetType, title, description, price, city, state, neighborhood } = input;
+
+    const listing = await this.prisma.listing.create({
+      data: {
+        type: assetType,
+        ownerUserId,
+        title,
+        description,
+        price,
+        city,
+        state,
+        neighborhood,
+        // MVP: sem fila de moderação ainda (ver Etapa 1 — painel do admin),
+        // então o anúncio já nasce ativo e visível na busca.
+        status: "active",
+        publishedAt: new Date(),
+        ...(assetType === "vehicle"
+          ? {
+              vehicleDetails: {
+                create: {
+                  ...(await this.resolveBrandAndModel(input.brand, input.model)),
+                  version: input.version,
+                  yearManufacture: input.yearManufacture,
+                  yearModel: input.yearModel,
+                  mileage: input.mileage,
+                  transmission: input.transmission,
+                  fuelType: input.fuelType,
+                  color: input.color,
+                  doors: input.doors,
+                  condition: "used",
+                },
+              },
+            }
+          : {
+              propertyDetails: {
+                create: {
+                  propertyType: input.propertyType,
+                  purpose: input.purpose,
+                  bedrooms: input.bedrooms,
+                  bathrooms: input.bathrooms,
+                  parkingSpots: input.parkingSpots,
+                  areaM2: input.areaM2,
+                  condoFee: input.condoFee,
+                  iptu: input.iptu,
+                  streetAddress: input.streetAddress,
+                },
+              },
+            }),
+      },
+      include: listingInclude,
+    });
+
+    return toMyListingSummary(listing);
+  }
+
+  async updateStatus(
+    listingId: string,
+    ownerUserId: string,
+    input: UpdateListingStatusInput,
+  ): Promise<MyListingSummary> {
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
+    if (listing.ownerUserId !== ownerUserId) {
+      throw new ForbiddenException("Você só pode editar os seus próprios anúncios.");
+    }
+
+    const updated = await this.prisma.listing.update({
+      where: { id: listingId },
+      data: { status: input.status },
+      include: listingInclude,
+    });
+    return toMyListingSummary(updated);
+  }
+
+  // Marca/modelo são texto livre no formulário (Etapa 1: sem consulta a
+  // Detran/FIPE no MVP) — a primeira pessoa a citar "Fiat Argo" cria as duas
+  // linhas do catálogo, as próximas só reaproveitam (busca por nome
+  // case-insensitive; connectOrCreate não serve aqui porque a constraint de
+  // unicidade do Postgres é case-sensitive).
+  private async resolveBrandAndModel(brandName: string, modelName: string) {
+    let brand = await this.prisma.vehicleBrand.findFirst({
+      where: { name: { equals: brandName, mode: "insensitive" } },
+    });
+    if (!brand) {
+      brand = await this.prisma.vehicleBrand.create({ data: { name: brandName } });
+    }
+
+    let model = await this.prisma.vehicleModel.findFirst({
+      where: { brandId: brand.id, name: { equals: modelName, mode: "insensitive" } },
+    });
+    if (!model) {
+      model = await this.prisma.vehicleModel.create({ data: { name: modelName, brandId: brand.id } });
+    }
+
+    return {
+      brand: { connect: { id: brand.id } },
+      model: { connect: { id: model.id } },
+    };
   }
 }

@@ -1,4 +1,11 @@
-import type { FinancingSimulationResult, ListingDetail, ListingSummary } from "@novoseminovo/shared-types";
+import type {
+  CreateListingInput,
+  FinancingSimulationResult,
+  ListingDetail,
+  ListingStatus,
+  ListingSummary,
+  MyListingSummary,
+} from "@novoseminovo/shared-types";
 import { getListing, listListings } from "@/lib/mock-data";
 
 // apps/api (NestJS) implementa estes três endpoints sobre o schema de
@@ -85,6 +92,50 @@ export async function setFavorite(
   const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/favorite`, {
     method: favorited ? "POST" : "DELETE",
     headers: authHeaders(accessToken),
+  });
+  return res.ok;
+}
+
+// Criar/gerenciar anúncio exige a API no ar, como favoritos — sem
+// equivalente em mock-data.ts.
+export async function fetchMyListings(accessToken: string): Promise<MyListingSummary[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/listings/mine`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as MyListingSummary[];
+  } catch {
+    return [];
+  }
+}
+
+export type CreateListingResult =
+  | { ok: true; listing: MyListingSummary }
+  | { ok: false; error: string };
+
+export async function createListing(input: CreateListingInput, accessToken: string): Promise<CreateListingResult> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/listings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+      body: JSON.stringify(input),
+    });
+    const body = await res.json();
+    if (!res.ok) return { ok: false, error: body.message ?? "Não foi possível criar o anúncio." };
+    return { ok: true, listing: body as MyListingSummary };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
+}
+
+export async function updateListingStatus(
+  listingId: string,
+  status: ListingStatus,
+  accessToken: string,
+): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify({ status }),
   });
   return res.ok;
 }

@@ -125,6 +125,78 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
 });
 export type ListingDetail = z.infer<typeof ListingDetailSchema>;
 
+export const ListingStatus = z.enum([
+  "draft",
+  "pending_review",
+  "active",
+  "paused",
+  "sold",
+  "rejected",
+  "expired",
+]);
+export type ListingStatus = z.infer<typeof ListingStatus>;
+
+// "Meus anúncios" precisa do status (a busca pública, não — só mostra ativos).
+export const MyListingSummarySchema = ListingSummarySchema.extend({
+  status: ListingStatus,
+});
+export type MyListingSummary = z.infer<typeof MyListingSummarySchema>;
+
+// Criar anúncio (MVP): sem geração automática por IA, sem consulta a
+// Detran/FIPE por placa — isso é Fase 2 (ver Etapa 1). A pessoa preenche os
+// campos à mão; marca/modelo do veículo são texto livre (a API cria a
+// entrada no catálogo se ainda não existir).
+const listingCoreFields = {
+  title: z.string().min(5, "Escreva um título com pelo menos 5 caracteres"),
+  description: z.string().min(20, "Descreva o anúncio com pelo menos 20 caracteres"),
+  price: z.number().positive("Informe um preço válido"),
+  city: z.string().min(2, "Informe a cidade"),
+  state: z.string().length(2, "Use a sigla do estado (ex.: MG)"),
+  neighborhood: z.string().optional(),
+};
+
+export const CreateVehicleInputSchema = z.object({
+  assetType: z.literal("vehicle"),
+  ...listingCoreFields,
+  brand: z.string().min(1, "Informe a marca"),
+  model: z.string().min(1, "Informe o modelo"),
+  version: z.string().optional(),
+  yearManufacture: z.number().int().min(1950).max(2100),
+  yearModel: z.number().int().min(1950).max(2100),
+  mileage: z.number().int().min(0),
+  transmission: z.enum(["manual", "automatic"]),
+  fuelType: z.enum(["flex", "gasoline", "ethanol", "diesel", "electric", "hybrid"]),
+  color: z.string().min(1, "Informe a cor"),
+  doors: z.number().int().min(2).max(6).optional(),
+});
+export type CreateVehicleInput = z.infer<typeof CreateVehicleInputSchema>;
+
+export const CreatePropertyInputSchema = z.object({
+  assetType: z.literal("property"),
+  ...listingCoreFields,
+  propertyType: z.enum(["house", "apartment", "land", "commercial"]),
+  purpose: z.enum(["sale", "rent"]),
+  bedrooms: z.number().int().min(0).optional(),
+  bathrooms: z.number().int().min(0).optional(),
+  parkingSpots: z.number().int().min(0).optional(),
+  areaM2: z.number().positive("Informe a área em m²"),
+  condoFee: z.number().min(0).optional(),
+  iptu: z.number().min(0).optional(),
+  streetAddress: z.string().min(5, "Informe o endereço"),
+});
+export type CreatePropertyInput = z.infer<typeof CreatePropertyInputSchema>;
+
+export const CreateListingInputSchema = z.discriminatedUnion("assetType", [
+  CreateVehicleInputSchema,
+  CreatePropertyInputSchema,
+]);
+export type CreateListingInput = z.infer<typeof CreateListingInputSchema>;
+
+export const UpdateListingStatusInputSchema = z.object({
+  status: z.enum(["active", "paused"]),
+});
+export type UpdateListingStatusInput = z.infer<typeof UpdateListingStatusInputSchema>;
+
 // Calculadora do MVP — sem integração bancária real (ver Etapa 3).
 export const FinancingSimulationInputSchema = z.object({
   listingId: z.string(),

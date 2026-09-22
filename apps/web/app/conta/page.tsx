@@ -34,7 +34,13 @@ export default async function AccountPage() {
         </div>
       </div>
 
-      <div className="mt-6 flex items-center gap-4">
+      <div className="mt-6 flex flex-wrap items-center gap-4">
+        <Link
+          href="/conta/anuncios"
+          className="rounded-brand bg-brand-green px-4 py-3 text-sm font-bold text-on-green hover:opacity-90"
+        >
+          Meus anúncios
+        </Link>
         <Link
           href="/conta/favoritos"
           className="rounded-brand bg-brand-blue px-4 py-3 text-sm font-bold text-on-blue hover:opacity-90"
