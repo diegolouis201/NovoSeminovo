@@ -56,9 +56,14 @@ export async function fetchListings(params: SearchParams): Promise<ListingSummar
   }
 }
 
-export async function fetchListing(id: string): Promise<ListingDetail | undefined> {
+// accessToken é opcional (busca pública), mas sem ele o dono não vê o próprio
+// anúncio antes de aprovado — a API só libera pending_review/rejected para
+// quem é dono ou admin (ver ListingsService.getDetail).
+export async function fetchListing(id: string, accessToken?: string): Promise<ListingDetail | undefined> {
   try {
-    const res = await fetchWithTimeout(`${API_URL}/listings/${id}`);
+    const res = await fetchWithTimeout(`${API_URL}/listings/${id}`, {
+      headers: accessToken ? authHeaders(accessToken) : undefined,
+    });
     if (res.status === 404) return undefined;
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return (await res.json()) as ListingDetail;

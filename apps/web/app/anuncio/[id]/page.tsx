@@ -16,10 +16,12 @@ export default async function ListingDetailPage({
   params: { id: string };
   searchParams: { erroConversa?: string };
 }) {
-  const [listing, { isAuthenticated, favoriteIds }, session] = await Promise.all([
-    fetchListing(params.id),
+  // Precisa vir antes do fetchListing: sem o accessToken, o dono não vê o
+  // próprio anúncio pendente de moderação (a API só libera pra dono/admin).
+  const session = await auth();
+  const [listing, { isAuthenticated, favoriteIds }] = await Promise.all([
+    fetchListing(params.id, session?.accessToken),
     getFavoriteContext(),
-    auth(),
   ]);
   if (!listing) notFound();
 

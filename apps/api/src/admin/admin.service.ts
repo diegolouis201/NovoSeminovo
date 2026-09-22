@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import type { ModerateListingInput, PendingListing, PendingPartner } from "@novoseminovo/shared-types";
 import { formatBRL } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
@@ -35,6 +35,9 @@ export class AdminService {
   async moderateListing(adminId: string, listingId: string, input: ModerateListingInput): Promise<void> {
     const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
+    if (listing.status !== "pending_review") {
+      throw new ConflictException("Este anúncio não está mais aguardando moderação.");
+    }
 
     const nextStatus = input.action === "approve" ? "active" : "rejected";
 

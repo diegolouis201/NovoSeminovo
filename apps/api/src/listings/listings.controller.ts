@@ -3,9 +3,11 @@ import {
   CreateListingInputSchema,
   FinancingSimulationInputSchema,
   UpdateListingStatusInputSchema,
+  type Role,
 } from "@novoseminovo/shared-types";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { ListingsService, type ListingSearchQuery } from "./listings.service";
 
@@ -32,9 +34,10 @@ export class ListingsController {
     return this.listingsService.create(user.id, input);
   }
 
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(":id")
-  findOne(@Param("id") id: string) {
-    return this.listingsService.getDetail(id);
+  findOne(@CurrentUser() user: { id: string; role: Role } | undefined, @Param("id") id: string) {
+    return this.listingsService.getDetail(id, user);
   }
 
   @UseGuards(JwtAuthGuard)

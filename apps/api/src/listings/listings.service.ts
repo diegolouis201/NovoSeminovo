@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@novoseminovo/db";
 import {
   formatBRL,
@@ -6,6 +6,7 @@ import {
   type FinancingSimulationResult,
   type ListingSummary,
   type MyListingSummary,
+  type Role,
   type UpdateListingStatusInput,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
@@ -78,14 +79,25 @@ export class ListingsService {
     return listings.map(toListingSummary);
   }
 
-  async getDetail(id: string) {
+  async getDetail(id: string, viewer?: { id: string; role: Role }) {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
       include: listingInclude,
     });
     if (!listing) throw new NotFoundException(`Anúncio ${id} não encontrado`);
 
-    await this.prisma.listing.update({ where: { id }, data: { viewsCount: { increment: 1 } } });
+    // Antes de aprovado (ou depois de recusado/vendido/expirado), só o dono e
+    // um admin podem ver — pra qualquer outra pessoa, isso não existe. 404 em
+    // vez de 403 pra não confirmar que o id é válido.
+    const isOwner = viewer?.id === listing.ownerUserId;
+    const isAdmin = viewer?.role === "admin";
+    if (listing.status !== "active" && !isOwner && !isAdmin) {
+      throw new NotFoundException(`Anúncio ${id} não encontrado`);
+    }
+
+    if (listing.status === "active") {
+      await this.prisma.listing.update({ where: { id }, data: { viewsCount: { increment: 1 } } });
+    }
 
     return toListingDetail(listing);
   }
@@ -205,6 +217,19 @@ export class ListingsService {
       throw new ForbiddenException("Você só pode editar os seus próprios anúncios.");
     }
 
+    // O dono só pode alternar entre ativo e pausado — nunca sair de
+    // pending_review/rejected/sold/expired por aqui. Sem essa checagem,
+    // qualquer um aprovava o próprio anúncio direto, sem passar pela
+    // moderação (ver AdminModule.moderateListing).
+    const validTransition =
+      (listing.status === "active" && input.status === "paused") ||
+      (listing.status === "paused" && input.status === "active");
+    if (!validTransition) {
+      throw new ConflictException(
+        "Este anúncio precisa estar ativo ou pausado pra isso — anúncios em análise, recusados ou encerrados só mudam de status pela moderação.",
+      );
+    }
+
     const updated = await this.prisma.listing.update({
       where: { id: listingId },
       data: { status: input.status },
@@ -223,14 +248,37 @@ export class ListingsService {
       where: { name: { equals: brandName, mode: "insensitive" } },
     });
     if (!brand) {
-      brand = await this.prisma.vehicleBrand.create({ data: { name: brandName } });
+      try {
+        brand = await this.prisma.vehicleBrand.create({ data: { name: brandName } });
+      } catch (error) {
+        // Duas pessoas anunciando a mesma marca nova ao mesmo tempo: quem
+        // perder a corrida do create() só reaproveita o que a outra criou,
+        // em vez de estourar um 500 por violar o @unique de VehicleBrand.name.
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          brand = await this.prisma.vehicleBrand.findFirstOrThrow({
+            where: { name: { equals: brandName, mode: "insensitive" } },
+          });
+        } else {
+          throw error;
+        }
+      }
     }
 
     let model = await this.prisma.vehicleModel.findFirst({
       where: { brandId: brand.id, name: { equals: modelName, mode: "insensitive" } },
     });
     if (!model) {
-      model = await this.prisma.vehicleModel.create({ data: { name: modelName, brandId: brand.id } });
+      try {
+        model = await this.prisma.vehicleModel.create({ data: { name: modelName, brandId: brand.id } });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          model = await this.prisma.vehicleModel.findFirstOrThrow({
+            where: { brandId: brand.id, name: { equals: modelName, mode: "insensitive" } },
+          });
+        } else {
+          throw error;
+        }
+      }
     }
 
     return {

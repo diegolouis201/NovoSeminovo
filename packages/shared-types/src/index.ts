@@ -17,15 +17,21 @@ export const Role = z.enum(["buyer", "individual_seller", "partner_agent", "part
 export type Role = z.infer<typeof Role>;
 
 // Autenticação (apps/api/src/auth) — a senha nunca trafega de volta neste contrato.
+// E-mail sempre normalizado (trim + minúsculas) antes de validar o formato:
+// sem isso, "Diego@X.com" e "diego@x.com" viram duas contas diferentes e a
+// checagem de duplicidade no registro (unique constraint do Postgres é
+// case-sensitive) não pega o conflito.
+const EmailSchema = z.string().trim().toLowerCase().email("E-mail inválido");
+
 export const RegisterInputSchema = z.object({
   name: z.string().min(2, "Nome muito curto"),
-  email: z.string().email("E-mail inválido"),
+  email: EmailSchema,
   password: z.string().min(8, "Mínimo de 8 caracteres"),
 });
 export type RegisterInput = z.infer<typeof RegisterInputSchema>;
 
 export const LoginInputSchema = z.object({
-  email: z.string().email("E-mail inválido"),
+  email: EmailSchema,
   password: z.string().min(1, "Informe a senha"),
 });
 export type LoginInput = z.infer<typeof LoginInputSchema>;
