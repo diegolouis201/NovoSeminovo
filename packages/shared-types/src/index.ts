@@ -13,6 +13,31 @@ export type SellerType = z.infer<typeof SellerType>;
 export const BadgeTone = z.enum(["green", "blue", "orange", "purple", "pink"]);
 export type BadgeTone = z.infer<typeof BadgeTone>;
 
+export const Role = z.enum(["buyer", "individual_seller", "partner_agent", "partner_owner", "admin"]);
+export type Role = z.infer<typeof Role>;
+
+// Autenticação (apps/api/src/auth) — a senha nunca trafega de volta neste contrato.
+export const RegisterInputSchema = z.object({
+  name: z.string().min(2, "Nome muito curto"),
+  email: z.string().email("E-mail inválido"),
+  password: z.string().min(8, "Mínimo de 8 caracteres"),
+});
+export type RegisterInput = z.infer<typeof RegisterInputSchema>;
+
+export const LoginInputSchema = z.object({
+  email: z.string().email("E-mail inválido"),
+  password: z.string().min(1, "Informe a senha"),
+});
+export type LoginInput = z.infer<typeof LoginInputSchema>;
+
+export const AuthUserSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().email(),
+  role: Role,
+});
+export type AuthUser = z.infer<typeof AuthUserSchema>;
+
 export const BadgeSchema = z.object({
   label: z.string(),
   tone: BadgeTone,

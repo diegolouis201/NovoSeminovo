@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { FinancingSimulationInputSchema } from "@novoseminovo/shared-types";
+import { parseOrBadRequest } from "../common/parse";
 import { ListingsService, type ListingSearchQuery } from "./listings.service";
 
 @Controller("listings")
@@ -18,7 +19,7 @@ export class ListingsController {
 
   @Post(":id/financing-simulations")
   simulate(@Param("id") id: string, @Body() body: unknown) {
-    const input = FinancingSimulationInputSchema.omit({ listingId: true }).parse(body);
+    const input = parseOrBadRequest(FinancingSimulationInputSchema.omit({ listingId: true }), body);
     return this.listingsService.simulateFinancing(id, input);
   }
 }

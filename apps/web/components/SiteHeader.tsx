@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { auth } from "@/auth";
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const session = await auth();
+
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-surface-raised">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3">
@@ -27,12 +30,21 @@ export function SiteHeader() {
           <Link href="/anunciar" className="text-ink hover:text-brand-blue">
             Anunciar
           </Link>
-          <Link
-            href="/conta"
-            className="rounded-brand bg-brand-green px-4 py-2 text-on-green hover:opacity-90"
-          >
-            Entrar
-          </Link>
+          {session?.user ? (
+            <Link
+              href="/conta"
+              className="rounded-brand bg-brand-green px-4 py-2 text-on-green hover:opacity-90"
+            >
+              {session.user.name?.split(" ")[0] ?? "Minha conta"}
+            </Link>
+          ) : (
+            <Link
+              href="/entrar"
+              className="rounded-brand bg-brand-green px-4 py-2 text-on-green hover:opacity-90"
+            >
+              Entrar
+            </Link>
+          )}
         </div>
       </div>
     </header>
