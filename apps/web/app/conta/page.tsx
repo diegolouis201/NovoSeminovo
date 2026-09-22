@@ -47,6 +47,12 @@ export default async function AccountPage() {
         >
           Meus favoritos
         </Link>
+        <Link
+          href="/conta/mensagens"
+          className="rounded-brand border border-border px-4 py-3 text-sm font-bold text-ink hover:bg-surface-sober"
+        >
+          Mensagens
+        </Link>
         <form
           action={async () => {
             "use server";

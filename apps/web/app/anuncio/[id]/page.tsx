@@ -1,17 +1,30 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { auth } from "@/auth";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
 import { fetchListing } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
+import { startConversationAction } from "@/lib/actions/conversations";
 
-export default async function ListingDetailPage({ params }: { params: { id: string } }) {
-  const [listing, { isAuthenticated, favoriteIds }] = await Promise.all([
+export default async function ListingDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { erroConversa?: string };
+}) {
+  const [listing, { isAuthenticated, favoriteIds }, session] = await Promise.all([
     fetchListing(params.id),
     getFavoriteContext(),
+    auth(),
   ]);
   if (!listing) notFound();
+
+  const isOwnListing = session?.user?.id === listing.ownerUserId;
+  const startConversationWithListing = startConversationAction.bind(null, listing.id);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -59,7 +72,32 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
             <p className="text-sm font-semibold text-ink">
               {listing.sellerType === "partner" ? "Loja verificada" : "Anunciante particular"}
             </p>
-            <Button variant="primary">Conversar no chat</Button>
+            {searchParams.erroConversa && (
+              <p className="rounded-brand bg-status-danger/10 px-3 py-2 text-xs text-status-danger">
+                {searchParams.erroConversa}
+              </p>
+            )}
+            {isOwnListing ? (
+              <Link
+                href="/conta/anuncios"
+                className="rounded-brand border border-border px-4 py-3 text-center text-sm font-bold text-ink hover:bg-surface-sober"
+              >
+                Este é o seu anúncio
+              </Link>
+            ) : isAuthenticated ? (
+              <form action={startConversationWithListing}>
+                <Button type="submit" variant="primary" className="w-full justify-center">
+                  Conversar no chat
+                </Button>
+              </form>
+            ) : (
+              <Link
+                href="/entrar"
+                className="rounded-brand bg-brand-green px-4 py-3 text-center text-sm font-bold text-on-green hover:opacity-90"
+              >
+                Entrar para conversar
+              </Link>
+            )}
             <Button variant="ghost">Chamar no WhatsApp</Button>
           </div>
 

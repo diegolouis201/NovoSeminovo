@@ -16,6 +16,7 @@ const LISTINGS: ListingDetail[] = [
     location: "Santo Agostinho, Belo Horizonte - MG",
     badge: { label: "Novo", tone: "green" },
     sellerType: "individual",
+    ownerUserId: "mock-owner",
     description:
       "Corolla XEi 2020, único dono, revisões em concessionária em dia. Pneus novos, sem detalhes de pintura. Vendo por motivo de troca.",
     specs: [
@@ -42,6 +43,7 @@ const LISTINGS: ListingDetail[] = [
     location: "Savassi, Belo Horizonte - MG",
     badge: { label: "Loja verificada", tone: "blue" },
     sellerType: "partner",
+    ownerUserId: "mock-owner",
     description:
       "Apartamento reformado, 2 quartos (1 suíte), varanda gourmet, 1 vaga de garagem. A 5 minutos a pé da Praça da Savassi.",
     specs: [
@@ -67,6 +69,7 @@ const LISTINGS: ListingDetail[] = [
     location: "Buritis, Belo Horizonte - MG",
     badge: { label: "Destaque", tone: "purple" },
     sellerType: "partner",
+    ownerUserId: "mock-owner",
     description: "Civic Touring turbo, top de linha, teto solar, interior em couro.",
     specs: [
       { label: "Ano", value: "2019/2019" },
@@ -89,6 +92,7 @@ const LISTINGS: ListingDetail[] = [
     priceLabel: formatBRL(780000),
     location: "Buritis, Belo Horizonte - MG",
     sellerType: "individual",
+    ownerUserId: "mock-owner",
     description: "Casa térrea com quintal, área gourmet e 2 vagas cobertas.",
     specs: [
       { label: "Área construída", value: "180 m²" },

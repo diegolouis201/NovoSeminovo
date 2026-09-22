@@ -122,6 +122,9 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
   description: z.string(),
   specs: z.array(SpecItemSchema),
   financing: ListingFinancingSummarySchema,
+  // Só para o site decidir se mostra "Conversar no chat" (não faz sentido
+  // falar com o próprio anúncio) — nunca é o e-mail nem outro dado sensível.
+  ownerUserId: z.string(),
 });
 export type ListingDetail = z.infer<typeof ListingDetailSchema>;
 
@@ -212,6 +215,38 @@ export const FinancingSimulationResultSchema = z.object({
   rateLabel: z.string(),
 });
 export type FinancingSimulationResult = z.infer<typeof FinancingSimulationResultSchema>;
+
+// Chat comprador↔vendedor (Etapa 1). MVP: sem WebSocket ainda — a página
+// reenvia a lista de mensagens a cada envio via revalidatePath (ver Etapa 3,
+// "Socket.IO" fica para quando o volume de conversas justificar).
+export const MessageSchema = z.object({
+  id: z.string(),
+  body: z.string(),
+  createdAt: z.string(),
+  isMine: z.boolean(),
+  senderName: z.string(),
+});
+export type Message = z.infer<typeof MessageSchema>;
+
+export const ConversationSummarySchema = z.object({
+  id: z.string(),
+  listingId: z.string(),
+  listingTitle: z.string(),
+  otherPartyName: z.string(),
+  lastMessagePreview: z.string().optional(),
+  lastMessageAt: z.string().optional(),
+});
+export type ConversationSummary = z.infer<typeof ConversationSummarySchema>;
+
+export const ConversationDetailSchema = ConversationSummarySchema.extend({
+  messages: z.array(MessageSchema),
+});
+export type ConversationDetail = z.infer<typeof ConversationDetailSchema>;
+
+export const SendMessageInputSchema = z.object({
+  body: z.string().min(1, "Escreva uma mensagem").max(2000, "Mensagem muito longa"),
+});
+export type SendMessageInput = z.infer<typeof SendMessageInputSchema>;
 
 export function formatBRL(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);

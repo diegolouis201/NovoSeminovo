@@ -1,4 +1,6 @@
 import type {
+  ConversationDetail,
+  ConversationSummary,
   CreateListingInput,
   FinancingSimulationResult,
   ListingDetail,
@@ -136,6 +138,52 @@ export async function updateListingStatus(
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
     body: JSON.stringify({ status }),
+  });
+  return res.ok;
+}
+
+// Chat — igual favoritos/anúncios, exige a API no ar.
+export type StartConversationResult = { ok: true; conversationId: string } | { ok: false; error: string };
+
+export async function startConversation(listingId: string, accessToken: string): Promise<StartConversationResult> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/conversations`, {
+      method: "POST",
+      headers: authHeaders(accessToken),
+    });
+    const body = await res.json();
+    if (!res.ok) return { ok: false, error: body.message ?? "Não foi possível iniciar a conversa." };
+    return { ok: true, conversationId: (body as ConversationSummary).id };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
+}
+
+export async function fetchMyConversations(accessToken: string): Promise<ConversationSummary[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/me/conversations`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as ConversationSummary[];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchConversation(id: string, accessToken: string): Promise<ConversationDetail | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/conversations/${id}`, { headers: authHeaders(accessToken) });
+    if (!res.ok) return undefined;
+    return (await res.json()) as ConversationDetail;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function sendMessage(conversationId: string, body: string, accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/conversations/${conversationId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify({ body }),
   });
   return res.ok;
 }

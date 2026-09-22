@@ -160,6 +160,7 @@ export function toListingDetail(listing: ListingWithDetails): ListingDetail {
     ...toListingSummary(listing),
     description: listing.description,
     specs: specs(listing),
+    ownerUserId: listing.ownerUserId,
     financing: {
       price: formatBRL(price),
       downPayment: `${formatBRL(downPayment)} (${Math.round(downPaymentPct * 100)}%)`,
