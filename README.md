@@ -26,7 +26,7 @@ pnpm install
 cp packages/db/.env.example packages/db/.env   # defina DATABASE_URL
 pnpm db:generate
 pnpm db:push
-pnpm db:seed
+pnpm db:seed                                   # cria usuários de teste, senha "senha1234" para todos (ver abaixo)
 
 # api
 cp apps/api/.env.example apps/api/.env         # mesma DATABASE_URL do passo acima; gere um JWT_SECRET (openssl rand -base64 33)
@@ -53,18 +53,28 @@ O site tem onze telas (Etapa 1 → Etapa 4 aplicadas), todas servidas pela API q
 - `/parceiro` — painel da loja/imobiliária: onboarding se a pessoa ainda não tem uma, visão geral com estatísticas se já tem
 - `/parceiro/anuncios`, `/parceiro/leads` — estoque do parceiro e funil de leads (Kanban: Novo → Negociando → Ganho/Perdido)
 - `/lojas/[slug]` — vitrine pública da loja/imobiliária, sem precisar estar logado
+- `/admin` — moderação: fila de anúncios pendentes e de lojas/imobiliárias aguardando verificação (só para `role: admin`; qualquer outra conta vê "Acesso restrito")
 
-Login devolve, além dos dados do usuário, um JWT (`POST /auth/login`) que o Auth.js guarda na sessão e reenvia como `Authorization: Bearer` nas chamadas autenticadas: favoritos (`GET /me/favorites`, `GET /me/favorites/ids`, `POST`/`DELETE /listings/:id/favorite`), anúncios próprios (`POST /listings`, `GET /listings/mine`, `PATCH /listings/:id/status`), chat (`POST /listings/:id/conversations`, `GET /me/conversations`, `GET /conversations/:id`, `POST /conversations/:id/messages`) e o painel do parceiro (`POST /partners`, `GET /partners/mine`, `GET /partners/mine/leads`, `PATCH /leads/:id/status`) — todas atrás de `JwtAuthGuard`, com checagem de dono/participante onde faz sentido. `GET /partners/:slug` (vitrine) é a única rota pública dessas.
+Login devolve, além dos dados do usuário, um JWT (`POST /auth/login`) que o Auth.js guarda na sessão e reenvia como `Authorization: Bearer` nas chamadas autenticadas: favoritos (`GET /me/favorites`, `GET /me/favorites/ids`, `POST`/`DELETE /listings/:id/favorite`), anúncios próprios (`POST /listings`, `GET /listings/mine`, `PATCH /listings/:id/status`), chat (`POST /listings/:id/conversations`, `GET /me/conversations`, `GET /conversations/:id`, `POST /conversations/:id/messages`), o painel do parceiro (`POST /partners`, `GET /partners/mine`, `GET /partners/mine/leads`, `PATCH /leads/:id/status`) e moderação (`GET /admin/listings/pending`, `PATCH /admin/listings/:id/moderate`, `GET /admin/partners/pending`, `PATCH /admin/partners/:id/verify`, atrás de `JwtAuthGuard` + `AdminGuard`) — com checagem de dono/participante/role onde faz sentido. `GET /partners/:slug` (vitrine) é a única rota pública dessas.
 
-Quem tem uma loja/imobiliária cadastrada anuncia automaticamente em nome dela (`POST /listings` tagueia `partnerId`), e toda conversa iniciada com um anúncio de parceiro vira um lead no funil — é assim que o painel ganha dados reais em vez de ficar vazio.
+Quem tem uma loja/imobiliária cadastrada anuncia automaticamente em nome dela (`POST /listings` tagueia `partnerId`), e toda conversa iniciada com um anúncio de parceiro vira um lead no funil. Todo anúncio novo nasce `pending_review` e só aparece na busca depois que um admin aprova em `/admin` — é assim que o painel do parceiro e a moderação ganham dados reais em vez de ficarem vazios.
 
-Se a API não estiver rodando (ex.: sem Postgres configurado), `apps/web/lib/api.ts` cai de volta para os dados de exemplo em `apps/web/lib/mock-data.ts` — mesmo formato dos dois lados, via `@novoseminovo/shared-types` — mas login/cadastro/favoritos/anúncios/chat/parceiro precisam da API no ar, já que dependem do banco.
+**Login de teste** (após `pnpm db:seed`, senha `senha1234` para todos):
+
+| E-mail | Papel |
+|---|---|
+| `admin@novoseminovo.com.br` | Administrador — acessa `/admin` |
+| `loja@novoseminovo.com.br` | Dona da "Imobiliária Savassi" (já verificada no seed) |
+| `particular@novoseminovo.com.br` | Vendedor particular |
+| `comprador@novoseminovo.com.br` | Comprador |
+
+Se a API não estiver rodando (ex.: sem Postgres configurado), `apps/web/lib/api.ts` cai de volta para os dados de exemplo em `apps/web/lib/mock-data.ts` — mesmo formato dos dois lados, via `@novoseminovo/shared-types` — mas login/cadastro/favoritos/anúncios/chat/parceiro/moderação precisam da API no ar, já que dependem do banco.
 
 ## Próximos passos sugeridos
 
-1. Moderação: anúncios criados hoje nascem `active` direto (sem `pending_review`), já que não existe painel de admin para aprová-los ainda — isso também define quem "verifica" uma loja (`partner.verifiedAt` só existe no schema, nada ainda o define como `true`).
-2. Plano/assinatura de verdade: `Plan`/`Subscription` já estão no schema, mas `/parceiro` só lê (mostra "Nenhum plano ativo" se não houver); falta o fluxo de contratar um plano e cobrança.
-3. Upload em lote de estoque (CSV) e convite de equipe (`PartnerMember` já modelado) para o painel do parceiro.
-4. `apps/mobile` (Expo/React Native) reaproveitando `@novoseminovo/shared-types` e os mesmos endpoints.
-5. Upload de fotos (S3/R2) — hoje um anúncio criado pelo formulário não tem foto real, só o placeholder por categoria.
-6. Chat em tempo real (WebSocket/Socket.IO, ver Etapa 3) — hoje enviar mensagem só faz um `revalidatePath`, sem push ao destinatário.
+1. Plano/assinatura de verdade: `Plan`/`Subscription` já estão no schema, mas `/parceiro` só lê (mostra "Nenhum plano ativo" se não houver); falta o fluxo de contratar um plano e cobrança.
+2. Upload em lote de estoque (CSV) e convite de equipe (`PartnerMember` já modelado) para o painel do parceiro.
+3. `apps/mobile` (Expo/React Native) reaproveitando `@novoseminovo/shared-types` e os mesmos endpoints.
+4. Upload de fotos (S3/R2) — hoje um anúncio criado pelo formulário não tem foto real, só o placeholder por categoria.
+5. Chat em tempo real (WebSocket/Socket.IO, ver Etapa 3) — hoje enviar mensagem só faz um `revalidatePath`, sem push ao destinatário.
+6. Regras automáticas de moderação (hoje é 100% manual) e notificação ao dono quando o anúncio é aprovado/recusado.
