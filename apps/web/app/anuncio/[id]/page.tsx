@@ -5,6 +5,7 @@ import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { fetchListing } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
 import { startConversationAction } from "@/lib/actions/conversations";
@@ -119,7 +120,9 @@ export default async function ListingDetailPage({
                 Entrar para conversar
               </Link>
             )}
-            <Button variant="ghost">Chamar no WhatsApp</Button>
+            {!isOwnListing && listing.sellerPhone && (
+              <WhatsAppButton listingId={listing.id} phone={listing.sellerPhone} listingTitle={listing.title} />
+            )}
           </div>
 
           <FinancingCallout

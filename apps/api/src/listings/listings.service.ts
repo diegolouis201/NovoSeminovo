@@ -137,6 +137,26 @@ export class ListingsService {
     return result;
   }
 
+  // Clique em "Chamar no WhatsApp" na página do anúncio. Sem corpo/estado —
+  // só registra o lead pro funil do parceiro (buyerId fica null se quem
+  // clicou não estiver logado; o painel já trata isso como "Contato anônimo").
+  // Anúncio de vendedor individual não gera lead (Lead exige partnerId),
+  // igual ao chat em ConversationsService.startConversation.
+  async registerWhatsappClick(listingId: string, buyerId?: string): Promise<void> {
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
+    if (!listing.partnerId) return;
+
+    const existing = await this.prisma.lead.findFirst({
+      where: { listingId, partnerId: listing.partnerId, source: "whatsapp", buyerId: buyerId ?? null },
+    });
+    if (existing) return;
+
+    await this.prisma.lead.create({
+      data: { partnerId: listing.partnerId, listingId, buyerId, source: "whatsapp", status: "new" },
+    });
+  }
+
   async listMine(ownerUserId: string): Promise<MyListingSummary[]> {
     const listings = await this.prisma.listing.findMany({
       where: { ownerUserId },

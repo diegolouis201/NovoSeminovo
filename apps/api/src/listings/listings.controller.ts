@@ -52,4 +52,10 @@ export class ListingsController {
     const input = parseOrBadRequest(FinancingSimulationInputSchema.omit({ listingId: true }), body);
     return this.listingsService.simulateFinancing(id, input);
   }
+
+  @UseGuards(OptionalJwtAuthGuard)
+  @Post(":id/whatsapp-clicks")
+  registerWhatsappClick(@CurrentUser() user: { id: string } | undefined, @Param("id") id: string) {
+    return this.listingsService.registerWhatsappClick(id, user?.id);
+  }
 }

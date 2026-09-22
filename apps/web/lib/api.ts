@@ -302,6 +302,20 @@ export async function verifyPartner(partnerId: string, accessToken: string): Pro
   return res.ok;
 }
 
+// Fogo-e-esquece: só alimenta o funil de leads do parceiro (ver
+// ListingsService.registerWhatsappClick) — nunca deve travar a abertura do
+// WhatsApp no navegador da pessoa, por isso engole qualquer erro.
+export async function registerWhatsappClick(listingId: string, accessToken?: string): Promise<void> {
+  try {
+    await fetchWithTimeout(`${API_URL}/listings/${listingId}/whatsapp-clicks`, {
+      method: "POST",
+      headers: accessToken ? authHeaders(accessToken) : undefined,
+    });
+  } catch {
+    // ignorado de propósito
+  }
+}
+
 export async function simulateFinancing(
   listingId: string,
   input: { assetPrice: number; downPaymentPct: number; installments: number },

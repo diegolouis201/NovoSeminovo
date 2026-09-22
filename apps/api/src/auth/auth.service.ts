@@ -21,6 +21,7 @@ export class AuthService {
         data: {
           name: input.name,
           email: input.email,
+          phone: input.phone,
           passwordHash,
           role: "buyer",
         },

@@ -27,6 +27,9 @@ export const RegisterInputSchema = z.object({
   name: z.string().min(2, "Nome muito curto"),
   email: EmailSchema,
   password: z.string().min(8, "Mínimo de 8 caracteres"),
+  // Opcional: sem ele o botão "Chamar no WhatsApp" não aparece nos anúncios
+  // da pessoa (ver ListingDetail.sellerPhone) — não trava o cadastro.
+  phone: z.string().min(8, "Informe um telefone válido com DDD").optional(),
 });
 export type RegisterInput = z.infer<typeof RegisterInputSchema>;
 
@@ -155,6 +158,9 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
   // devolve um anúncio que não esteja active, então esse status aqui só
   // importa quando quem está olhando é o próprio dono.
   status: ListingStatus,
+  // Presente só quando o dono cadastrou telefone (RegisterInputSchema.phone é
+  // opcional) — o site só mostra "Chamar no WhatsApp" quando isto vem preenchido.
+  sellerPhone: z.string().optional(),
 });
 export type ListingDetail = z.infer<typeof ListingDetailSchema>;
 
@@ -320,12 +326,16 @@ export type PartnerStorefront = z.infer<typeof PartnerStorefrontSchema>;
 export const LeadStatus = z.enum(["new", "negotiating", "won", "lost"]);
 export type LeadStatus = z.infer<typeof LeadStatus>;
 
+export const LeadSource = z.enum(["chat", "whatsapp", "phone"]);
+export type LeadSource = z.infer<typeof LeadSource>;
+
 export const LeadSummarySchema = z.object({
   id: z.string(),
   listingId: z.string(),
   listingTitle: z.string(),
   buyerName: z.string(),
   buyerEmail: z.string(),
+  source: LeadSource,
   status: LeadStatus,
   createdAt: z.string(),
 });

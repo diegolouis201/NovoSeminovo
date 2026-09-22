@@ -18,6 +18,7 @@ const LISTINGS: ListingDetail[] = [
     sellerType: "individual",
     ownerUserId: "mock-owner",
     status: "active",
+    sellerPhone: "31999998888",
     description:
       "Corolla XEi 2020, único dono, revisões em concessionária em dia. Pneus novos, sem detalhes de pintura. Vendo por motivo de troca.",
     specs: [

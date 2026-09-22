@@ -16,11 +16,12 @@ export default async function RegisterPage({ searchParams }: { searchParams: { e
     const name = String(formData.get("name") ?? "");
     const email = String(formData.get("email") ?? "");
     const password = String(formData.get("password") ?? "");
+    const phone = String(formData.get("phone") ?? "") || undefined;
 
     const res = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, phone }),
     });
 
     if (!res.ok) {
@@ -51,6 +52,13 @@ export default async function RegisterPage({ searchParams }: { searchParams: { e
       <form action={register} className="flex flex-col gap-3">
         <FormField label="Nome" name="name" />
         <FormField label="E-mail" name="email" type="email" />
+        <FormField
+          label="WhatsApp"
+          name="phone"
+          type="tel"
+          required={false}
+          placeholder="(31) 99999-8888"
+        />
         <FormField label="Senha" name="password" type="password" />
         <Button type="submit">Criar conta</Button>
       </form>

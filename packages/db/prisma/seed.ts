@@ -26,10 +26,11 @@ async function main() {
 
   const individualSeller = await prisma.user.upsert({
     where: { email: "particular@novoseminovo.com.br" },
-    update: { passwordHash: DEMO_PASSWORD_HASH },
+    update: { passwordHash: DEMO_PASSWORD_HASH, phone: "31988887777" },
     create: {
       name: "Marcos Silva",
       email: "particular@novoseminovo.com.br",
+      phone: "31988887777",
       role: "individual_seller",
       passwordHash: DEMO_PASSWORD_HASH,
     },
@@ -37,10 +38,11 @@ async function main() {
 
   const partnerOwner = await prisma.user.upsert({
     where: { email: "loja@novoseminovo.com.br" },
-    update: { passwordHash: DEMO_PASSWORD_HASH },
+    update: { passwordHash: DEMO_PASSWORD_HASH, phone: "31977776666" },
     create: {
       name: "Imobiliária Savassi",
       email: "loja@novoseminovo.com.br",
+      phone: "31977776666",
       role: "partner_owner",
       passwordHash: DEMO_PASSWORD_HASH,
     },

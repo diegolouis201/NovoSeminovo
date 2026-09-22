@@ -133,6 +133,7 @@ export class PartnersService {
       listingTitle: lead.listing.title,
       buyerName: lead.buyer?.name ?? "Contato anônimo",
       buyerEmail: lead.buyer?.email ?? "—",
+      source: lead.source,
       status: lead.status,
       createdAt: lead.createdAt.toISOString(),
     }));
@@ -160,6 +161,7 @@ export class PartnersService {
       listingTitle: lead.listing.title,
       buyerName: lead.buyer?.name ?? "Contato anônimo",
       buyerEmail: lead.buyer?.email ?? "—",
+      source: updated.source,
       status: updated.status,
       createdAt: updated.createdAt.toISOString(),
     };

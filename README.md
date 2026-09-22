@@ -43,8 +43,8 @@ O site tem onze telas (Etapa 1 → Etapa 4 aplicadas), todas servidas pela API q
 
 - `/` — home com busca e destaques
 - `/busca?assetType=vehicle|property` — resultados com filtros
-- `/anuncio/[id]` — detalhe do anúncio, com simulação de financiamento interativa (Tabela Price, entrada e parcelas ajustáveis via `POST /listings/:id/financing-simulations`), favoritar, "Conversar no chat" e o bloco no tom "sóbrio"
-- `/cadastro`, `/entrar` — criação de conta e login (Auth.js no site, senha validada por `POST /auth/*` na API)
+- `/anuncio/[id]` — detalhe do anúncio, com simulação de financiamento interativa (Tabela Price, entrada e parcelas ajustáveis via `POST /listings/:id/financing-simulations`), favoritar, "Conversar no chat", "Chamar no WhatsApp" (só aparece quando o dono cadastrou telefone) e o bloco no tom "sóbrio"
+- `/cadastro`, `/entrar` — criação de conta e login (Auth.js no site, senha validada por `POST /auth/*` na API); telefone é opcional no cadastro e alimenta o botão de WhatsApp acima
 - `/anunciar` — publicar um anúncio de veículo ou imóvel (protegida)
 - `/conta` — página protegida (redireciona para `/entrar` sem sessão)
 - `/conta/favoritos` — anúncios salvos pela pessoa logada
@@ -57,7 +57,7 @@ O site tem onze telas (Etapa 1 → Etapa 4 aplicadas), todas servidas pela API q
 
 Login devolve, além dos dados do usuário, um JWT (`POST /auth/login`) que o Auth.js guarda na sessão e reenvia como `Authorization: Bearer` nas chamadas autenticadas: favoritos (`GET /me/favorites`, `GET /me/favorites/ids`, `POST`/`DELETE /listings/:id/favorite`), anúncios próprios (`POST /listings`, `GET /listings/mine`, `PATCH /listings/:id/status`), chat (`POST /listings/:id/conversations`, `GET /me/conversations`, `GET /conversations/:id`, `POST /conversations/:id/messages`), o painel do parceiro (`POST /partners`, `GET /partners/mine`, `GET /partners/mine/leads`, `PATCH /leads/:id/status`) e moderação (`GET /admin/listings/pending`, `PATCH /admin/listings/:id/moderate`, `GET /admin/partners/pending`, `PATCH /admin/partners/:id/verify`, atrás de `JwtAuthGuard` + `AdminGuard`) — com checagem de dono/participante/role onde faz sentido. `GET /partners/:slug` (vitrine) é a única rota pública dessas.
 
-Quem tem uma loja/imobiliária cadastrada anuncia automaticamente em nome dela (`POST /listings` tagueia `partnerId`), e toda conversa iniciada com um anúncio de parceiro vira um lead no funil. Todo anúncio novo nasce `pending_review` e só aparece na busca depois que um admin aprova em `/admin` — é assim que o painel do parceiro e a moderação ganham dados reais em vez de ficarem vazios.
+Quem tem uma loja/imobiliária cadastrada anuncia automaticamente em nome dela (`POST /listings` tagueia `partnerId`), e toda conversa (`source: "chat"`) ou clique em "Chamar no WhatsApp" (`source: "whatsapp"`, via `POST /listings/:id/whatsapp-clicks`) num anúncio de parceiro vira um lead no funil — sem exigir login, então `buyerName` aparece como "Contato anônimo" quando quem clicou não estava autenticado. Todo anúncio novo nasce `pending_review` e só aparece na busca depois que um admin aprova em `/admin` — é assim que o painel do parceiro e a moderação ganham dados reais em vez de ficarem vazios.
 
 **Login de teste** (após `pnpm db:seed`, senha `senha1234` para todos):
 
