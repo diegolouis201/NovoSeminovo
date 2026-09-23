@@ -41,6 +41,11 @@ export default async function ListingDetailPage({
           Este anúncio foi recusado pela moderação e não aparece na busca.
         </p>
       )}
+      {isOwnListing && listing.status === "sold" && (
+        <p className="mb-6 rounded-brand bg-brand-blue/10 px-4 py-3 text-sm font-semibold text-brand-blue">
+          Este anúncio foi marcado como vendido e não aparece mais na busca.
+        </p>
+      )}
       {searchParams.denunciaEnviada && (
         <p className="mb-6 rounded-brand bg-brand-green/10 px-4 py-3 text-sm font-semibold text-brand-green">
           Denúncia enviada. Nossa moderação vai analisar este anúncio.

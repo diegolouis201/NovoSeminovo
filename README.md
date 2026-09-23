@@ -48,7 +48,7 @@ O site tem onze telas (Etapa 1 → Etapa 4 aplicadas), todas servidas pela API q
 - `/anunciar` — publicar um anúncio de veículo ou imóvel (protegida)
 - `/conta` — página protegida (redireciona para `/entrar` sem sessão)
 - `/conta/favoritos` — anúncios salvos pela pessoa logada
-- `/conta/anuncios` — "Meus anúncios", com pausar/reativar
+- `/conta/anuncios` — "Meus anúncios", com pausar/reativar e marcar como vendido (estado terminal — depois de vendido não volta a ativo/pausado)
 - `/conta/mensagens`, `/conta/mensagens/[id]` — conversas com compradores/vendedores
 - `/parceiro` — painel da loja/imobiliária: onboarding se a pessoa ainda não tem uma, visão geral com estatísticas se já tem
 - `/parceiro/anuncios`, `/parceiro/leads` — estoque do parceiro e funil de leads (Kanban: Novo → Negociando → Ganho/Perdido)

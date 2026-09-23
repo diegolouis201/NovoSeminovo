@@ -220,8 +220,10 @@ export const CreateListingInputSchema = z.discriminatedUnion("assetType", [
 ]);
 export type CreateListingInput = z.infer<typeof CreateListingInputSchema>;
 
+// "sold" é terminal: ListingsService.updateStatus não deixa sair dele — uma
+// vez vendido, o jeito de voltar a vender é criar um anúncio novo.
 export const UpdateListingStatusInputSchema = z.object({
-  status: z.enum(["active", "paused"]),
+  status: z.enum(["active", "paused", "sold"]),
 });
 export type UpdateListingStatusInput = z.infer<typeof UpdateListingStatusInputSchema>;
 

@@ -252,16 +252,16 @@ export class ListingsService {
       throw new ForbiddenException("Você só pode editar os seus próprios anúncios.");
     }
 
-    // O dono só pode alternar entre ativo e pausado — nunca sair de
-    // pending_review/rejected/sold/expired por aqui. Sem essa checagem,
-    // qualquer um aprovava o próprio anúncio direto, sem passar pela
-    // moderação (ver AdminModule.moderateListing).
+    // O dono só sai de ativo/pausado por aqui — nunca de pending_review/
+    // rejected/expired (isso é moderação, ver AdminModule.moderateListing) e
+    // nunca de "sold" (é terminal: uma vez vendido, o anúncio não volta a
+    // ativo/pausado — quem quiser vender de novo cria um anúncio novo).
     const validTransition =
-      (listing.status === "active" && input.status === "paused") ||
-      (listing.status === "paused" && input.status === "active");
+      (listing.status === "active" && (input.status === "paused" || input.status === "sold")) ||
+      (listing.status === "paused" && (input.status === "active" || input.status === "sold"));
     if (!validTransition) {
       throw new ConflictException(
-        "Este anúncio precisa estar ativo ou pausado pra isso — anúncios em análise, recusados ou encerrados só mudam de status pela moderação.",
+        "Este anúncio precisa estar ativo ou pausado pra isso — anúncios em análise ou recusados só mudam de status pela moderação, e um anúncio vendido não volta atrás.",
       );
     }
 

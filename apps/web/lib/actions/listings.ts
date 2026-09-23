@@ -86,4 +86,5 @@ export async function updateListingStatusAction(listingId: string, status: Listi
   revalidatePath("/");
   revalidatePath("/busca");
   revalidatePath("/conta/anuncios");
+  revalidatePath(`/anuncio/${listingId}`);
 }

@@ -64,11 +64,18 @@ export default async function MyListingsPage() {
                 </div>
 
                 {canToggle && (
-                  <form action={updateListingStatusAction.bind(null, listing.id, nextStatus)}>
-                    <Button type="submit" variant="ghost">
-                      {listing.status === "active" ? "Pausar" : "Reativar"}
-                    </Button>
-                  </form>
+                  <div className="flex shrink-0 gap-2">
+                    <form action={updateListingStatusAction.bind(null, listing.id, nextStatus)}>
+                      <Button type="submit" variant="ghost">
+                        {listing.status === "active" ? "Pausar" : "Reativar"}
+                      </Button>
+                    </form>
+                    <form action={updateListingStatusAction.bind(null, listing.id, "sold")}>
+                      <Button type="submit" variant="ghost">
+                        Marcar como vendido
+                      </Button>
+                    </form>
+                  </div>
                 )}
               </li>
             );
