@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ListingSummary } from "@novoseminovo/shared-types";
 import { Badge } from "@/components/Badge";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { resolveMediaUrl } from "@/lib/api";
 
 // Mesma anatomia para Carro e Imóvel — só o conteúdo injetado muda.
 // Ver components/ListingCard/README.md no design system (Etapa 4).
@@ -23,7 +24,7 @@ export function ListingCard({
       <div className="relative flex h-40 items-center justify-center bg-surface-sober text-4xl">
         {listing.image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={listing.image} alt={listing.title} className="h-full w-full object-cover" />
+          <img src={resolveMediaUrl(listing.image)} alt={listing.title} className="h-full w-full object-cover" />
         ) : (
           <span aria-hidden>{listing.assetType === "property" ? "🏠" : "🚗"}</span>
         )}

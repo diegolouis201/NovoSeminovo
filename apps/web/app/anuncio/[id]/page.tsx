@@ -6,7 +6,7 @@ import { Button } from "@/components/Button";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
-import { fetchListing } from "@/lib/api";
+import { fetchListing, resolveMediaUrl } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
 import { startConversationAction } from "@/lib/actions/conversations";
 
@@ -61,7 +61,7 @@ export default async function ListingDetailPage({
           <div className="relative flex h-72 items-center justify-center overflow-hidden rounded-brand-lg bg-surface-sober text-6xl md:h-96">
             {listing.photos[0] ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={listing.photos[0].url} alt={listing.title} className="h-full w-full object-cover" />
+              <img src={resolveMediaUrl(listing.photos[0].url)} alt={listing.title} className="h-full w-full object-cover" />
             ) : (
               <span aria-hidden>{listing.assetType === "property" ? "🏠" : "🚗"}</span>
             )}
@@ -79,7 +79,7 @@ export default async function ListingDetailPage({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={photo.id}
-                  src={photo.url}
+                  src={resolveMediaUrl(photo.url)}
                   alt={`Foto ${index + 1} de ${listing.title}`}
                   className="h-16 w-16 shrink-0 rounded-brand border border-border object-cover"
                 />

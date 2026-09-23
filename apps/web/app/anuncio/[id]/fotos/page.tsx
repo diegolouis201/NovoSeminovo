@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { fetchListing } from "@/lib/api";
+import { fetchListing, resolveMediaUrl } from "@/lib/api";
 import { deletePhotoAction, uploadPhotosAction } from "@/lib/actions/listings";
 
 export default async function ListingPhotosPage({
@@ -37,7 +37,7 @@ export default async function ListingPhotosPage({
           {listing.photos.map((photo, index) => (
             <div key={photo.id} className="relative overflow-hidden rounded-brand border border-border">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photo.url} alt={`Foto ${index + 1} de ${listing.title}`} className="aspect-square w-full object-cover" />
+              <img src={resolveMediaUrl(photo.url)} alt={`Foto ${index + 1} de ${listing.title}`} className="aspect-square w-full object-cover" />
               {index === 0 && (
                 <span className="absolute left-2 top-2 rounded-full bg-brand-green px-2 py-0.5 text-[11px] font-bold text-on-green">
                   Capa

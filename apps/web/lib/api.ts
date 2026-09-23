@@ -30,6 +30,14 @@ import { getListing, listListings } from "@/lib/mock-data";
 // de exemplo em lib/mock-data.ts — mesmo formato dos dois lados.
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
+// Fotos de anúncio vêm da API como caminho relativo (/uploads/...), porque é
+// lá que o arquivo é servido (ver apps/api/src/main.ts) — o navegador
+// resolveria isso contra o domínio do site, não da API, então quebra sem
+// este prefixo. URL de mock-data.ts já vem absoluta e passa direto.
+export function resolveMediaUrl(url: string): string {
+  return url.startsWith("http") ? url : `${API_URL}${url}`;
+}
+
 async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 1500) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
