@@ -115,6 +115,47 @@ export const SearchFiltersSchema = z.discriminatedUnion("assetType", [
 ]);
 export type SearchFilters = z.infer<typeof SearchFiltersSchema>;
 
+// Busca salva (/busca -> "Salvar esta busca"). Deliberadamente mais restrito
+// que SearchFiltersSchema acima: só os campos que GET /listings de fato
+// filtra hoje (ver ListingsService.search) — marca/modelo/câmbio/combustível/
+// tipo de imóvel ainda não têm filtro implementado, então não faz sentido
+// deixar salvar um filtro que a busca vai ignorar ao reabrir.
+export const SavedSearchFiltersSchema = z.object({
+  q: z.string().optional(),
+  city: z.string().optional(),
+  priceMin: z.number().optional(),
+  priceMax: z.number().optional(),
+  yearMin: z.number().optional(),
+  yearMax: z.number().optional(),
+  bedroomsMin: z.number().optional(),
+});
+export type SavedSearchFilters = z.infer<typeof SavedSearchFiltersSchema>;
+
+export const CreateSavedSearchInputSchema = z.object({
+  assetType: AssetType,
+  filters: SavedSearchFiltersSchema,
+});
+export type CreateSavedSearchInput = z.infer<typeof CreateSavedSearchInputSchema>;
+
+// alertEnabled já nasce no schema pensando em avisar por e-mail quando um
+// anúncio novo bate com os filtros — isso ainda não existe (sem worker/envio
+// de e-mail no projeto, ver Etapa 3). Por ora é só uma preferência que a
+// pessoa liga/desliga, sem efeito nenhum ainda; o toggle na UI deixa isso
+// explícito.
+export const SavedSearchSchema = z.object({
+  id: z.string(),
+  assetType: AssetType,
+  filters: SavedSearchFiltersSchema,
+  alertEnabled: z.boolean(),
+  createdAt: z.string(),
+});
+export type SavedSearch = z.infer<typeof SavedSearchSchema>;
+
+export const UpdateSavedSearchInputSchema = z.object({
+  alertEnabled: z.boolean(),
+});
+export type UpdateSavedSearchInput = z.infer<typeof UpdateSavedSearchInputSchema>;
+
 export const SpecItemSchema = z.object({
   label: z.string(),
   value: z.string(),

@@ -4,6 +4,7 @@ import type {
   CreateListingInput,
   CreatePartnerInput,
   CreateReviewInput,
+  CreateSavedSearchInput,
   FinancingSimulationResult,
   LeadStatus,
   LeadSummary,
@@ -18,6 +19,7 @@ import type {
   PendingPartner,
   PendingReport,
   ReportStatus,
+  SavedSearch,
 } from "@novoseminovo/shared-types";
 import { getListing, listListings } from "@/lib/mock-data";
 
@@ -402,4 +404,46 @@ export async function simulateFinancing(
   } catch {
     return undefined;
   }
+}
+
+// Buscas salvas — "alertEnabled" ainda não dispara nenhum e-mail de verdade
+// (ver comentário em SavedSearchSchema); por ora é só salvar/reaplicar filtros.
+export async function fetchMySavedSearches(accessToken: string): Promise<SavedSearch[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/saved-searches/mine`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as SavedSearch[];
+  } catch {
+    return [];
+  }
+}
+
+export async function createSavedSearch(input: CreateSavedSearchInput, accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/saved-searches`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify(input),
+  });
+  return res.ok;
+}
+
+export async function updateSavedSearchAlert(
+  id: string,
+  alertEnabled: boolean,
+  accessToken: string,
+): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/saved-searches/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify({ alertEnabled }),
+  });
+  return res.ok;
+}
+
+export async function deleteSavedSearch(id: string, accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/saved-searches/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  return res.ok;
 }

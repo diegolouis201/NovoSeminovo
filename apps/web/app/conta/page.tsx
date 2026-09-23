@@ -54,6 +54,12 @@ export default async function AccountPage() {
           Mensagens
         </Link>
         <Link
+          href="/conta/buscas-salvas"
+          className="rounded-brand border border-border px-4 py-3 text-sm font-bold text-ink hover:bg-surface-sober"
+        >
+          Buscas salvas
+        </Link>
+        <Link
           href="/parceiro"
           className="rounded-brand border border-border px-4 py-3 text-sm font-bold text-ink hover:bg-surface-sober"
         >

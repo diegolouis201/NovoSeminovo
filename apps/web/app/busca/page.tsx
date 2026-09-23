@@ -1,6 +1,7 @@
 import { ListingCard } from "@/components/ListingCard";
 import { fetchListings } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
+import { saveSearchAction } from "@/lib/actions/saved-searches";
 
 type SearchPageProps = {
   searchParams: {
@@ -12,6 +13,7 @@ type SearchPageProps = {
     yearMin?: string;
     yearMax?: string;
     bedroomsMin?: string;
+    buscaSalva?: string;
   };
 };
 
@@ -48,6 +50,16 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <span className="ml-2 text-base font-normal text-ink-muted">({results.length} resultados)</span>
       </h1>
 
+      {searchParams.buscaSalva && (
+        <p className="mt-4 rounded-brand bg-brand-green/10 px-4 py-3 text-sm font-semibold text-brand-green">
+          Busca salva! Encontre ela em{" "}
+          <a href="/conta/buscas-salvas" className="underline">
+            Minhas buscas salvas
+          </a>
+          .
+        </p>
+      )}
+
       <div className="mt-6 flex flex-col gap-8 md:flex-row">
         <aside className="flex w-full shrink-0 flex-col gap-4 rounded-brand border border-border bg-surface-raised p-4 md:w-64">
           <h2 className="text-sm font-bold text-ink">Filtros</h2>
@@ -81,6 +93,15 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             >
               Filtrar
             </button>
+            {isAuthenticated && assetType && (
+              <button
+                type="submit"
+                formAction={saveSearchAction}
+                className="rounded-brand border border-border px-4 py-2 text-sm font-bold text-ink hover:bg-surface-sober"
+              >
+                Salvar esta busca
+              </button>
+            )}
           </form>
         </aside>
 
