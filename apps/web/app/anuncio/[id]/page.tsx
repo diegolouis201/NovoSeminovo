@@ -15,7 +15,7 @@ export default async function ListingDetailPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { erroConversa?: string; denunciaEnviada?: string };
+  searchParams: { erroConversa?: string; denunciaEnviada?: string; avaliacaoEnviada?: string };
 }) {
   // Precisa vir antes do fetchListing: sem o accessToken, o dono não vê o
   // próprio anúncio pendente de moderação (a API só libera pra dono/admin).
@@ -49,6 +49,11 @@ export default async function ListingDetailPage({
       {searchParams.denunciaEnviada && (
         <p className="mb-6 rounded-brand bg-brand-green/10 px-4 py-3 text-sm font-semibold text-brand-green">
           Denúncia enviada. Nossa moderação vai analisar este anúncio.
+        </p>
+      )}
+      {searchParams.avaliacaoEnviada && (
+        <p className="mb-6 rounded-brand bg-brand-green/10 px-4 py-3 text-sm font-semibold text-brand-green">
+          Avaliação enviada. Obrigado pelo retorno!
         </p>
       )}
       <div className="grid gap-8 md:grid-cols-[1fr_320px]">
@@ -132,6 +137,17 @@ export default async function ListingDetailPage({
             )}
             {!isOwnListing && listing.sellerPhone && (
               <WhatsAppButton listingId={listing.id} phone={listing.sellerPhone} listingTitle={listing.title} />
+            )}
+            {listing.reviewStatus === "can_review" && (
+              <Link
+                href={`/anuncio/${listing.id}/avaliar`}
+                className="text-center text-sm font-semibold text-brand-blue hover:underline"
+              >
+                Avaliar anunciante
+              </Link>
+            )}
+            {listing.reviewStatus === "already_reviewed" && (
+              <p className="text-center text-sm text-ink-muted">Você já avaliou este anunciante.</p>
             )}
             {!isOwnListing && isAuthenticated && (
               <Link

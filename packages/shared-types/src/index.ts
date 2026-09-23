@@ -161,6 +161,10 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
   // Presente só quando o dono cadastrou telefone (RegisterInputSchema.phone é
   // opcional) — o site só mostra "Chamar no WhatsApp" quando isto vem preenchido.
   sellerPhone: z.string().optional(),
+  // "not_eligible": visitante anônimo, dono do próprio anúncio, ou nunca
+  // conversou sobre ele. "can_review": já conversou e ainda não avaliou.
+  // "already_reviewed": já avaliou — a API recusa uma segunda vez.
+  reviewStatus: z.enum(["not_eligible", "can_review", "already_reviewed"]),
 });
 export type ListingDetail = z.infer<typeof ListingDetailSchema>;
 
@@ -315,6 +319,21 @@ export const PartnerSchema = z.object({
 });
 export type Partner = z.infer<typeof PartnerSchema>;
 
+export const ReviewSchema = z.object({
+  id: z.string(),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().optional(),
+  reviewerName: z.string(),
+  createdAt: z.string(),
+});
+export type Review = z.infer<typeof ReviewSchema>;
+
+export const CreateReviewInputSchema = z.object({
+  rating: z.number().int().min(1, "Dê uma nota de 1 a 5").max(5, "Dê uma nota de 1 a 5"),
+  comment: z.string().trim().max(500, "Comentário muito longo").optional(),
+});
+export type CreateReviewInput = z.infer<typeof CreateReviewInputSchema>;
+
 export const PartnerStorefrontSchema = z.object({
   legalName: z.string(),
   type: PartnerType,
@@ -322,6 +341,8 @@ export const PartnerStorefrontSchema = z.object({
   address: z.string().optional(),
   verified: z.boolean(),
   listings: z.array(ListingSummarySchema),
+  averageRating: z.number().optional(),
+  reviews: z.array(ReviewSchema),
 });
 export type PartnerStorefront = z.infer<typeof PartnerStorefrontSchema>;
 

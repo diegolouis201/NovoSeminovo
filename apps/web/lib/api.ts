@@ -3,6 +3,7 @@ import type {
   ConversationSummary,
   CreateListingInput,
   CreatePartnerInput,
+  CreateReviewInput,
   FinancingSimulationResult,
   LeadStatus,
   LeadSummary,
@@ -340,6 +341,31 @@ export async function createReport(listingId: string, reason: string, accessToke
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       return { ok: false, error: body.message ?? "Não foi possível enviar a denúncia." };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
+}
+
+// Avaliação de vendedor/loja — só quem já conversou sobre o anúncio pode
+// avaliar (a API confere; ListingDetail.reviewStatus já reflete isso).
+export type CreateReviewResult = { ok: true } | { ok: false; error: string };
+
+export async function createReview(
+  listingId: string,
+  input: CreateReviewInput,
+  accessToken: string,
+): Promise<CreateReviewResult> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/reviews`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { ok: false, error: body.message ?? "Não foi possível enviar a avaliação." };
     }
     return { ok: true };
   } catch {

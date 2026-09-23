@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@ne
 import {
   CreateListingInputSchema,
   CreateReportInputSchema,
+  CreateReviewInputSchema,
   FinancingSimulationInputSchema,
   UpdateListingStatusInputSchema,
   type Role,
@@ -65,5 +66,12 @@ export class ListingsController {
   createReport(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
     const input = parseOrBadRequest(CreateReportInputSchema, body);
     return this.listingsService.createReport(id, user.id, input.reason);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(":id/reviews")
+  createReview(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
+    const input = parseOrBadRequest(CreateReviewInputSchema, body);
+    return this.listingsService.createReview(id, user.id, input);
   }
 }

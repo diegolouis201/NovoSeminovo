@@ -154,7 +154,10 @@ export function priceAmortization(principal: number, monthlyRate: number, instal
   return (principal * monthlyRate * factor) / (factor - 1);
 }
 
-export function toListingDetail(listing: ListingWithDetails): ListingDetail {
+export function toListingDetail(
+  listing: ListingWithDetails,
+  reviewStatus: ListingDetail["reviewStatus"],
+): ListingDetail {
   const price = Number(listing.price);
   const rateInfo = DEFAULT_RATE[listing.type];
   const downPaymentPct = 0.2;
@@ -168,6 +171,7 @@ export function toListingDetail(listing: ListingWithDetails): ListingDetail {
     ownerUserId: listing.ownerUserId,
     status: listing.status,
     sellerPhone: listing.owner.phone ?? undefined,
+    reviewStatus,
     financing: {
       price: formatBRL(price),
       priceValue: price,

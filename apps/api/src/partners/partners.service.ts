@@ -101,11 +101,23 @@ export class PartnersService {
     const partner = await this.prisma.partner.findUnique({ where: { slug } });
     if (!partner) throw new NotFoundException(`Loja "${slug}" não encontrada`);
 
-    const listings = await this.prisma.listing.findMany({
-      where: { partnerId: partner.id, status: "active" },
-      include: listingInclude,
-      orderBy: [{ highlightedUntil: "desc" }, { publishedAt: "desc" }],
-    });
+    const [listings, reviews] = await Promise.all([
+      this.prisma.listing.findMany({
+        where: { partnerId: partner.id, status: "active" },
+        include: listingInclude,
+        orderBy: [{ highlightedUntil: "desc" }, { publishedAt: "desc" }],
+      }),
+      this.prisma.review.findMany({
+        where: { reviewedPartnerId: partner.id },
+        include: { reviewer: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
+    ]);
+
+    const averageRating = reviews.length
+      ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+      : undefined;
 
     return {
       legalName: partner.legalName,
@@ -114,6 +126,14 @@ export class PartnersService {
       address: partner.address ?? undefined,
       verified: Boolean(partner.verifiedAt),
       listings: listings.map(toListingSummary),
+      averageRating,
+      reviews: reviews.map((review) => ({
+        id: review.id,
+        rating: review.rating,
+        comment: review.comment ?? undefined,
+        reviewerName: review.reviewer.name,
+        createdAt: review.createdAt.toISOString(),
+      })),
     };
   }
 

@@ -3,7 +3,9 @@ import { Prisma } from "@novoseminovo/db";
 import {
   formatBRL,
   type CreateListingInput,
+  type CreateReviewInput,
   type FinancingSimulationResult,
+  type ListingDetail,
   type ListingSummary,
   type MyListingSummary,
   type Role,
@@ -99,7 +101,58 @@ export class ListingsService {
       await this.prisma.listing.update({ where: { id }, data: { viewsCount: { increment: 1 } } });
     }
 
-    return toListingDetail(listing);
+    const reviewStatus = await this.getReviewStatus(listing.id, listing.ownerUserId, viewer?.id);
+    return toListingDetail(listing, reviewStatus);
+  }
+
+  // "can_review" exige ter conversado sobre o anúncio — sem isso, qualquer
+  // visitante logado poderia avaliar sem nunca ter interagido com o
+  // vendedor/loja. Dono do próprio anúncio e visitante anônimo nunca avaliam.
+  private async getReviewStatus(
+    listingId: string,
+    ownerUserId: string,
+    viewerId: string | undefined,
+  ): Promise<ListingDetail["reviewStatus"]> {
+    if (!viewerId || viewerId === ownerUserId) return "not_eligible";
+
+    const hasConversation = await this.prisma.conversation.findFirst({
+      where: { listingId, buyerId: viewerId },
+    });
+    if (!hasConversation) return "not_eligible";
+
+    const existingReview = await this.prisma.review.findFirst({
+      where: { listingId, reviewerId: viewerId },
+    });
+    return existingReview ? "already_reviewed" : "can_review";
+  }
+
+  async createReview(listingId: string, reviewerId: string, input: CreateReviewInput): Promise<void> {
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
+    if (listing.ownerUserId === reviewerId) {
+      throw new BadRequestException("Você não pode avaliar o seu próprio anúncio.");
+    }
+
+    const hasConversation = await this.prisma.conversation.findFirst({
+      where: { listingId, buyerId: reviewerId },
+    });
+    if (!hasConversation) {
+      throw new ForbiddenException("Você precisa ter conversado sobre este anúncio pra avaliar.");
+    }
+
+    const existingReview = await this.prisma.review.findFirst({ where: { listingId, reviewerId } });
+    if (existingReview) throw new ConflictException("Você já avaliou este anúncio.");
+
+    await this.prisma.review.create({
+      data: {
+        reviewerId,
+        listingId,
+        rating: input.rating,
+        comment: input.comment,
+        reviewedUserId: listing.partnerId ? undefined : listing.ownerUserId,
+        reviewedPartnerId: listing.partnerId ?? undefined,
+      },
+    });
   }
 
   async simulateFinancing(

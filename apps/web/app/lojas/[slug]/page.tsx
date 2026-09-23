@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Review } from "@novoseminovo/shared-types";
 import { ListingCard } from "@/components/ListingCard";
 import { fetchPartnerStorefront } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
@@ -27,7 +28,16 @@ export default async function PartnerStorefrontPage({ params }: { params: { slug
             </span>
           )}
         </div>
-        <p className="text-sm text-ink-muted">{PARTNER_TYPE_LABEL[storefront.type] ?? storefront.type}</p>
+        <p className="text-sm text-ink-muted">
+          {PARTNER_TYPE_LABEL[storefront.type] ?? storefront.type}
+          {storefront.averageRating !== undefined && (
+            <>
+              {" · "}
+              <span className="font-semibold text-ink">★ {storefront.averageRating.toFixed(1)}</span>{" "}
+              ({storefront.reviews.length} avaliaç{storefront.reviews.length === 1 ? "ão" : "ões"})
+            </>
+          )}
+        </p>
         {storefront.description && <p className="mt-3 text-ink">{storefront.description}</p>}
         {storefront.address && <p className="mt-1 text-sm text-ink-muted">{storefront.address}</p>}
       </div>
@@ -50,6 +60,32 @@ export default async function PartnerStorefrontPage({ params }: { params: { slug
           ))}
         </div>
       )}
+
+      <h2 className="mt-10 font-display text-xl font-semibold text-ink">
+        Avaliações <span className="text-base font-normal text-ink-muted">({storefront.reviews.length})</span>
+      </h2>
+
+      {storefront.reviews.length === 0 ? (
+        <p className="mt-4 text-ink-muted">Ainda sem avaliações.</p>
+      ) : (
+        <ul className="mt-4 flex flex-col gap-3">
+          {storefront.reviews.map((review) => (
+            <ReviewCard key={review.id} review={review} />
+          ))}
+        </ul>
+      )}
     </main>
+  );
+}
+
+function ReviewCard({ review }: { review: Review }) {
+  return (
+    <li className="rounded-brand border border-border bg-surface-raised p-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-ink">{review.reviewerName}</p>
+        <span className="text-sm font-bold text-brand-blue">{"★".repeat(review.rating)}</span>
+      </div>
+      {review.comment && <p className="mt-1 text-sm text-ink">{review.comment}</p>}
+    </li>
   );
 }
