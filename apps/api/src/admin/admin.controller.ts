@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, UseGuards } from "@nestjs/common";
-import { ModerateListingInputSchema } from "@novoseminovo/shared-types";
+import { ModerateListingInputSchema, UpdateReportStatusInputSchema } from "@novoseminovo/shared-types";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
@@ -30,5 +30,16 @@ export class AdminController {
   @Patch("partners/:id/verify")
   verifyPartner(@Param("id") id: string) {
     return this.adminService.verifyPartner(id);
+  }
+
+  @Get("reports")
+  listOpenReports() {
+    return this.adminService.listOpenReports();
+  }
+
+  @Patch("reports/:id")
+  updateReportStatus(@Param("id") id: string, @Body() body: unknown) {
+    const input = parseOrBadRequest(UpdateReportStatusInputSchema, body);
+    return this.adminService.updateReportStatus(id, input.status);
   }
 }

@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
   CreateListingInputSchema,
+  CreateReportInputSchema,
   FinancingSimulationInputSchema,
   UpdateListingStatusInputSchema,
   type Role,
@@ -57,5 +58,12 @@ export class ListingsController {
   @Post(":id/whatsapp-clicks")
   registerWhatsappClick(@CurrentUser() user: { id: string } | undefined, @Param("id") id: string) {
     return this.listingsService.registerWhatsappClick(id, user?.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(":id/reports")
+  createReport(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
+    const input = parseOrBadRequest(CreateReportInputSchema, body);
+    return this.listingsService.createReport(id, user.id, input.reason);
   }
 }

@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@novoseminovo/db";
 import {
   formatBRL,
@@ -154,6 +154,21 @@ export class ListingsService {
 
     await this.prisma.lead.create({
       data: { partnerId: listing.partnerId, listingId, buyerId, source: "whatsapp", status: "new" },
+    });
+  }
+
+  // Denúncia de anúncio. Sem dedupe por enquanto: se a mesma pessoa denunciar
+  // duas vezes, vira duas linhas na fila do admin (menos código, e o admin já
+  // vê o autor/anúncio repetidos de cara).
+  async createReport(listingId: string, reporterId: string, reason: string): Promise<void> {
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
+    if (listing.ownerUserId === reporterId) {
+      throw new BadRequestException("Você não pode denunciar o seu próprio anúncio.");
+    }
+
+    await this.prisma.report.create({
+      data: { listingId, reporterId, reason, status: "open" },
     });
   }
 

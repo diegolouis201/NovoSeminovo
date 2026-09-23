@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import type { PendingListing, PendingPartner } from "@novoseminovo/shared-types";
+import type { PendingListing, PendingPartner, PendingReport } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { fetchPendingListings, fetchPendingPartners } from "@/lib/api";
-import { moderateListingAction, verifyPartnerAction } from "@/lib/actions/admin";
+import { fetchOpenReports, fetchPendingListings, fetchPendingPartners } from "@/lib/api";
+import { moderateListingAction, updateReportStatusAction, verifyPartnerAction } from "@/lib/actions/admin";
 
 const PARTNER_TYPE_LABEL: Record<string, string> = {
   dealership: "Loja de veículos",
@@ -27,9 +27,10 @@ export default async function AdminPage() {
     );
   }
 
-  const [listings, partners] = await Promise.all([
+  const [listings, partners, reports] = await Promise.all([
     fetchPendingListings(session.accessToken),
     fetchPendingPartners(session.accessToken),
+    fetchOpenReports(session.accessToken),
   ]);
 
   return (
@@ -65,6 +66,21 @@ export default async function AdminPage() {
           <ul className="mt-3 flex flex-col gap-3">
             {partners.map((partner) => (
               <PendingPartnerCard key={partner.id} partner={partner} />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="mt-10">
+        <h2 className="font-display text-xl font-semibold text-ink">
+          Denúncias <span className="text-base font-normal text-ink-muted">({reports.length})</span>
+        </h2>
+        {reports.length === 0 ? (
+          <p className="mt-3 text-ink-muted">Nenhuma denúncia esperando análise.</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-3">
+            {reports.map((report) => (
+              <PendingReportCard key={report.id} report={report} />
             ))}
           </ul>
         )}
@@ -123,6 +139,30 @@ function PendingPartnerCard({ partner }: { partner: PendingPartner }) {
       <form action={action}>
         <Button type="submit" variant="primary">
           Verificar
+        </Button>
+      </form>
+    </li>
+  );
+}
+
+function PendingReportCard({ report }: { report: PendingReport }) {
+  const action = updateReportStatusAction.bind(null, report.id);
+
+  return (
+    <li className="flex flex-col gap-3 rounded-brand border border-border bg-surface-raised p-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <p className="font-semibold text-ink">{report.listingTitle}</p>
+        <p className="text-sm text-ink-muted">{report.reason}</p>
+        <p className="text-xs text-ink-muted">
+          Denunciado por {report.reporterName} · {report.reporterEmail}
+        </p>
+      </div>
+      <form action={action} className="flex shrink-0 gap-2">
+        <Button type="submit" name="status" value="reviewed" variant="primary" className="flex-1 justify-center">
+          Marcar como revisada
+        </Button>
+        <Button type="submit" name="status" value="dismissed" variant="ghost" className="flex-1 justify-center">
+          Descartar
         </Button>
       </form>
     </li>

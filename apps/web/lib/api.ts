@@ -15,6 +15,8 @@ import type {
   PartnerStorefront,
   PendingListing,
   PendingPartner,
+  PendingReport,
+  ReportStatus,
 } from "@novoseminovo/shared-types";
 import { getListing, listListings } from "@/lib/mock-data";
 
@@ -303,6 +305,46 @@ export async function verifyPartner(partnerId: string, accessToken: string): Pro
     headers: authHeaders(accessToken),
   });
   return res.ok;
+}
+
+export async function fetchOpenReports(accessToken: string): Promise<PendingReport[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/reports`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as PendingReport[];
+  } catch {
+    return [];
+  }
+}
+
+export async function updateReportStatus(reportId: string, status: ReportStatus, accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/admin/reports/${reportId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify({ status }),
+  });
+  return res.ok;
+}
+
+// Denúncia de anúncio — exige login (a API usa o reporterId pra checar que a
+// pessoa não está denunciando o próprio anúncio).
+export type CreateReportResult = { ok: true } | { ok: false; error: string };
+
+export async function createReport(listingId: string, reason: string, accessToken: string): Promise<CreateReportResult> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/reports`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+      body: JSON.stringify({ reason }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { ok: false, error: body.message ?? "Não foi possível enviar a denúncia." };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
 }
 
 // Fogo-e-esquece: só alimenta o funil de leads do parceiro (ver

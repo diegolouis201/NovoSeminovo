@@ -1,5 +1,11 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import type { ModerateListingInput, PendingListing, PendingPartner } from "@novoseminovo/shared-types";
+import type {
+  ModerateListingInput,
+  PendingListing,
+  PendingPartner,
+  PendingReport,
+  ReportStatus,
+} from "@novoseminovo/shared-types";
 import { formatBRL } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -83,5 +89,30 @@ export class AdminService {
     if (!partner) throw new NotFoundException(`Loja/imobiliária ${partnerId} não encontrada`);
 
     await this.prisma.partner.update({ where: { id: partnerId }, data: { verifiedAt: new Date() } });
+  }
+
+  async listOpenReports(): Promise<PendingReport[]> {
+    const reports = await this.prisma.report.findMany({
+      where: { status: "open" },
+      include: { listing: { select: { title: true } }, reporter: { select: { name: true, email: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return reports.map((report) => ({
+      id: report.id,
+      listingId: report.listingId,
+      listingTitle: report.listing.title,
+      reporterName: report.reporter.name,
+      reporterEmail: report.reporter.email,
+      reason: report.reason,
+      createdAt: report.createdAt.toISOString(),
+    }));
+  }
+
+  async updateReportStatus(reportId: string, status: ReportStatus): Promise<void> {
+    const report = await this.prisma.report.findUnique({ where: { id: reportId } });
+    if (!report) throw new NotFoundException(`Denúncia ${reportId} não encontrada`);
+
+    await this.prisma.report.update({ where: { id: reportId }, data: { status } });
   }
 }

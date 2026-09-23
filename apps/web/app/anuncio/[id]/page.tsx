@@ -15,7 +15,7 @@ export default async function ListingDetailPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { erroConversa?: string };
+  searchParams: { erroConversa?: string; denunciaEnviada?: string };
 }) {
   // Precisa vir antes do fetchListing: sem o accessToken, o dono não vê o
   // próprio anúncio pendente de moderação (a API só libera pra dono/admin).
@@ -39,6 +39,11 @@ export default async function ListingDetailPage({
       {isOwnListing && listing.status === "rejected" && (
         <p className="mb-6 rounded-brand bg-status-danger/10 px-4 py-3 text-sm font-semibold text-status-danger">
           Este anúncio foi recusado pela moderação e não aparece na busca.
+        </p>
+      )}
+      {searchParams.denunciaEnviada && (
+        <p className="mb-6 rounded-brand bg-brand-green/10 px-4 py-3 text-sm font-semibold text-brand-green">
+          Denúncia enviada. Nossa moderação vai analisar este anúncio.
         </p>
       )}
       <div className="grid gap-8 md:grid-cols-[1fr_320px]">
@@ -122,6 +127,14 @@ export default async function ListingDetailPage({
             )}
             {!isOwnListing && listing.sellerPhone && (
               <WhatsAppButton listingId={listing.id} phone={listing.sellerPhone} listingTitle={listing.title} />
+            )}
+            {!isOwnListing && isAuthenticated && (
+              <Link
+                href={`/anuncio/${listing.id}/denunciar`}
+                className="text-center text-xs text-ink-muted hover:underline"
+              >
+                Denunciar anúncio
+              </Link>
             )}
           </div>
 

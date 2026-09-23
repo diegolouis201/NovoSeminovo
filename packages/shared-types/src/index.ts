@@ -377,6 +377,34 @@ export const PendingPartnerSchema = z.object({
 });
 export type PendingPartner = z.infer<typeof PendingPartnerSchema>;
 
+// Denúncia de anúncio (Report já existia no schema do banco desde a Etapa 2,
+// sem nenhum código usando — igual LeadSource.whatsapp estava até o botão de
+// WhatsApp ser ligado). "open" é o único status que aparece na fila do admin;
+// as outras duas são o resultado da revisão.
+export const ReportStatus = z.enum(["open", "reviewed", "dismissed"]);
+export type ReportStatus = z.infer<typeof ReportStatus>;
+
+export const CreateReportInputSchema = z.object({
+  reason: z.string().trim().min(10, "Descreva o motivo com pelo menos 10 caracteres"),
+});
+export type CreateReportInput = z.infer<typeof CreateReportInputSchema>;
+
+export const PendingReportSchema = z.object({
+  id: z.string(),
+  listingId: z.string(),
+  listingTitle: z.string(),
+  reporterName: z.string(),
+  reporterEmail: z.string(),
+  reason: z.string(),
+  createdAt: z.string(),
+});
+export type PendingReport = z.infer<typeof PendingReportSchema>;
+
+export const UpdateReportStatusInputSchema = z.object({
+  status: z.enum(["reviewed", "dismissed"]),
+});
+export type UpdateReportStatusInput = z.infer<typeof UpdateReportStatusInputSchema>;
+
 export function formatBRL(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
