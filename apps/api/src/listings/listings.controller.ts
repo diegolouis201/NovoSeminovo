@@ -1,4 +1,21 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
+import { extname } from "node:path";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFiles,
+  UseGuards,
+  UseInterceptors,
+} from "@nestjs/common";
+import { FilesInterceptor } from "@nestjs/platform-express";
+import { diskStorage } from "multer";
 import {
   CreateListingInputSchema,
   CreateReportInputSchema,
@@ -11,7 +28,25 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
+import { UPLOADS_DIR } from "../common/uploads";
 import { ListingsService, type ListingSearchQuery } from "./listings.service";
+
+const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+const photosInterceptor = FilesInterceptor("photos", 8, {
+  storage: diskStorage({
+    destination: UPLOADS_DIR,
+    filename: (_req, file, callback) => callback(null, `${randomUUID()}${extname(file.originalname).toLowerCase()}`),
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, callback) => {
+    if (!ALLOWED_PHOTO_TYPES.has(file.mimetype)) {
+      callback(new BadRequestException("Envie apenas imagens JPEG, PNG ou WebP."), false);
+      return;
+    }
+    callback(null, true);
+  },
+});
 
 @Controller("listings")
 export class ListingsController {
@@ -73,5 +108,23 @@ export class ListingsController {
   createReview(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
     const input = parseOrBadRequest(CreateReviewInputSchema, body);
     return this.listingsService.createReview(id, user.id, input);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(":id/photos")
+  @UseInterceptors(photosInterceptor)
+  addPhotos(
+    @CurrentUser() user: { id: string },
+    @Param("id") id: string,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    if (!files?.length) throw new BadRequestException("Envie pelo menos uma foto.");
+    return this.listingsService.addPhotos(id, user.id, files);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(":id/photos/:photoId")
+  removePhoto(@CurrentUser() user: { id: string }, @Param("id") id: string, @Param("photoId") photoId: string) {
+    return this.listingsService.removePhoto(id, user.id, photoId);
   }
 }

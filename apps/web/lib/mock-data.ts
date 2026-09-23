@@ -19,6 +19,7 @@ const LISTINGS: ListingDetail[] = [
     ownerUserId: "mock-owner",
     status: "active",
     reviewStatus: "not_eligible",
+    photos: [],
     sellerPhone: "31999998888",
     description:
       "Corolla XEi 2020, único dono, revisões em concessionária em dia. Pneus novos, sem detalhes de pintura. Vendo por motivo de troca.",
@@ -50,6 +51,7 @@ const LISTINGS: ListingDetail[] = [
     ownerUserId: "mock-owner",
     status: "active",
     reviewStatus: "not_eligible",
+    photos: [],
     partnerSlug: "imobiliaria-savassi",
     partnerVerified: true,
     description:
@@ -81,6 +83,7 @@ const LISTINGS: ListingDetail[] = [
     ownerUserId: "mock-owner",
     status: "active",
     reviewStatus: "not_eligible",
+    photos: [],
     description: "Civic Touring turbo, top de linha, teto solar, interior em couro.",
     specs: [
       { label: "Ano", value: "2019/2019" },
@@ -107,6 +110,7 @@ const LISTINGS: ListingDetail[] = [
     ownerUserId: "mock-owner",
     status: "active",
     reviewStatus: "not_eligible",
+    photos: [],
     description: "Casa térrea com quintal, área gourmet e 2 vagas cobertas.",
     specs: [
       { label: "Área construída", value: "180 m²" },

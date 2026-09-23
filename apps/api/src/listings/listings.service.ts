@@ -1,3 +1,5 @@
+import { unlink } from "node:fs/promises";
+import { join } from "node:path";
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@novoseminovo/db";
 import {
@@ -8,10 +10,12 @@ import {
   type ListingDetail,
   type ListingSummary,
   type MyListingSummary,
+  type Photo,
   type Role,
   type UpdateListingStatusInput,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import { UPLOADS_DIR, UPLOADS_URL_PREFIX } from "../common/uploads";
 import {
   DEFAULT_RATE,
   listingInclude,
@@ -324,6 +328,62 @@ export class ListingsService {
       include: listingInclude,
     });
     return toMyListingSummary(updated);
+  }
+
+  async addPhotos(
+    listingId: string,
+    ownerUserId: string,
+    files: Express.Multer.File[],
+  ): Promise<Photo[]> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      include: { photos: true },
+    });
+    if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
+    if (listing.ownerUserId !== ownerUserId) {
+      throw new ForbiddenException("Você só pode editar os seus próprios anúncios.");
+    }
+
+    const startPosition = listing.photos.length;
+    const alreadyHasCover = listing.photos.some((photo) => photo.isCover);
+
+    await this.prisma.photo.createMany({
+      data: files.map((file, index) => ({
+        listingId,
+        url: `${UPLOADS_URL_PREFIX}/${file.filename}`,
+        position: startPosition + index,
+        isCover: !alreadyHasCover && index === 0,
+      })),
+    });
+
+    const photos = await this.prisma.photo.findMany({
+      where: { listingId },
+      orderBy: [{ isCover: "desc" }, { position: "asc" }],
+    });
+    return photos.map((photo) => ({ id: photo.id, url: photo.url }));
+  }
+
+  async removePhoto(listingId: string, ownerUserId: string, photoId: string): Promise<void> {
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
+    if (listing.ownerUserId !== ownerUserId) {
+      throw new ForbiddenException("Você só pode editar os seus próprios anúncios.");
+    }
+
+    const photo = await this.prisma.photo.findUnique({ where: { id: photoId } });
+    if (!photo || photo.listingId !== listingId) {
+      throw new NotFoundException(`Foto ${photoId} não encontrada`);
+    }
+
+    await this.prisma.photo.delete({ where: { id: photoId } });
+    // Arquivo pode já ter sumido do disco (ex.: redeploy sem volume persistente
+    // — ver comentário em UPLOADS_DIR); nunca falha a remoção do registro por isso.
+    await unlink(join(UPLOADS_DIR, photo.url.replace(`${UPLOADS_URL_PREFIX}/`, ""))).catch(() => {});
+
+    if (photo.isCover) {
+      const next = await this.prisma.photo.findFirst({ where: { listingId }, orderBy: { position: "asc" } });
+      if (next) await this.prisma.photo.update({ where: { id: next.id }, data: { isCover: true } });
+    }
   }
 
   // Marca/modelo são texto livre no formulário (Etapa 1: sem consulta a

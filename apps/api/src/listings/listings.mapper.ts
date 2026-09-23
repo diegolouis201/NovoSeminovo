@@ -13,7 +13,9 @@ const listingWithDetails = Prisma.validator<Prisma.ListingDefaultArgs>()({
   include: {
     vehicleDetails: { include: { brand: true, model: true } },
     propertyDetails: true,
-    photos: { orderBy: { position: "asc" } },
+    // Capa primeiro (isCover), depois por posição — photos[0] é sempre a
+    // capa quando existe, com fallback pra primeira enviada.
+    photos: { orderBy: [{ isCover: "desc" }, { position: "asc" }] },
     partner: true,
     // Só o telefone (nunca e-mail) — usado em toListingDetail para o botão
     // "Chamar no WhatsApp"; omitido quando o dono não cadastrou telefone.
@@ -172,6 +174,7 @@ export function toListingDetail(
     status: listing.status,
     sellerPhone: listing.owner.phone ?? undefined,
     reviewStatus,
+    photos: listing.photos.map((photo) => ({ id: photo.id, url: photo.url })),
     financing: {
       price: formatBRL(price),
       priceValue: price,

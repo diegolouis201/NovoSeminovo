@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { CreateListingInput, ListingStatus } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
-import { createListing, updateListingStatus } from "@/lib/api";
+import { createListing, deleteListingPhoto, updateListingStatus, uploadListingPhotos } from "@/lib/api";
 
 function str(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -87,4 +87,31 @@ export async function updateListingStatusAction(listingId: string, status: Listi
   revalidatePath("/busca");
   revalidatePath("/conta/anuncios");
   revalidatePath(`/anuncio/${listingId}`);
+}
+
+export async function uploadPhotosAction(listingId: string, formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const result = await uploadListingPhotos(listingId, formData, session.accessToken);
+  if (!result.ok) {
+    redirect(`/anuncio/${listingId}/fotos?erro=${encodeURIComponent(result.error)}`);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/busca");
+  revalidatePath(`/anuncio/${listingId}`);
+  revalidatePath(`/anuncio/${listingId}/fotos`);
+  redirect(`/anuncio/${listingId}/fotos`);
+}
+
+export async function deletePhotoAction(listingId: string, photoId: string): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  await deleteListingPhoto(listingId, photoId, session.accessToken);
+  revalidatePath("/");
+  revalidatePath("/busca");
+  revalidatePath(`/anuncio/${listingId}`);
+  revalidatePath(`/anuncio/${listingId}/fotos`);
 }

@@ -58,8 +58,13 @@ export default async function ListingDetailPage({
       )}
       <div className="grid gap-8 md:grid-cols-[1fr_320px]">
         <div className="flex flex-col gap-6">
-          <div className="relative flex h-72 items-center justify-center rounded-brand-lg bg-surface-sober text-6xl md:h-96">
-            <span aria-hidden>{listing.assetType === "property" ? "🏠" : "🚗"}</span>
+          <div className="relative flex h-72 items-center justify-center overflow-hidden rounded-brand-lg bg-surface-sober text-6xl md:h-96">
+            {listing.photos[0] ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={listing.photos[0].url} alt={listing.title} className="h-full w-full object-cover" />
+            ) : (
+              <span aria-hidden>{listing.assetType === "property" ? "🏠" : "🚗"}</span>
+            )}
             <div className="absolute right-3 top-3">
               <FavoriteButton
                 listingId={listing.id}
@@ -68,6 +73,27 @@ export default async function ListingDetailPage({
               />
             </div>
           </div>
+          {listing.photos.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto">
+              {listing.photos.map((photo, index) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={photo.id}
+                  src={photo.url}
+                  alt={`Foto ${index + 1} de ${listing.title}`}
+                  className="h-16 w-16 shrink-0 rounded-brand border border-border object-cover"
+                />
+              ))}
+            </div>
+          )}
+          {isOwnListing && (
+            <Link
+              href={`/anuncio/${listing.id}/fotos`}
+              className="self-start text-sm font-semibold text-brand-blue hover:underline"
+            >
+              {listing.photos.length > 0 ? "Gerenciar fotos" : "Adicionar fotos"}
+            </Link>
+          )}
 
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">

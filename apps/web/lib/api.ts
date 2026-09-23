@@ -18,6 +18,7 @@ import type {
   PendingListing,
   PendingPartner,
   PendingReport,
+  Photo,
   ReportStatus,
   SavedSearch,
 } from "@novoseminovo/shared-types";
@@ -148,6 +149,38 @@ export async function createListing(input: CreateListingInput, accessToken: stri
   } catch {
     return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
   }
+}
+
+// Fotos do anúncio — upload em disco local por enquanto (ver
+// apps/api/src/common/uploads.ts). Sem "Content-Type" manual: o runtime
+// define o boundary multipart sozinho a partir do FormData.
+export type UploadPhotosResult = { ok: true; photos: Photo[] } | { ok: false; error: string };
+
+export async function uploadListingPhotos(
+  listingId: string,
+  formData: FormData,
+  accessToken: string,
+): Promise<UploadPhotosResult> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listings/${listingId}/photos`,
+      { method: "POST", headers: authHeaders(accessToken), body: formData },
+      20000,
+    );
+    const body = await res.json();
+    if (!res.ok) return { ok: false, error: body.message ?? "Não foi possível enviar as fotos." };
+    return { ok: true, photos: body as Photo[] };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
+}
+
+export async function deleteListingPhoto(listingId: string, photoId: string, accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/photos/${photoId}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  return res.ok;
 }
 
 export async function updateListingStatus(

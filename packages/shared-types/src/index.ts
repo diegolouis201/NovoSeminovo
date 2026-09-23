@@ -162,6 +162,16 @@ export const SpecItemSchema = z.object({
 });
 export type SpecItem = z.infer<typeof SpecItemSchema>;
 
+// Foto de anúncio. Upload em disco local por enquanto (ver
+// apps/api/src/main.ts) — trocar por S3/R2 é a migração de produção sugerida
+// no README, sem precisar mudar este contrato (url continua sendo só uma
+// string, local ou de um bucket).
+export const PhotoSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+});
+export type Photo = z.infer<typeof PhotoSchema>;
+
 // Bloco de financiamento já exibido na página do anúncio (simulação padrão,
 // 20% de entrada). Distinto de FinancingSimulationResult abaixo, que é o
 // resultado de uma simulação sob medida que a pessoa pede em seguida.
@@ -206,6 +216,12 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
   // conversou sobre ele. "can_review": já conversou e ainda não avaliou.
   // "already_reviewed": já avaliou — a API recusa uma segunda vez.
   reviewStatus: z.enum(["not_eligible", "can_review", "already_reviewed"]),
+  // Todas as fotos do anúncio, capa primeiro (ver Photo.isCover). Vazio até o
+  // dono enviar alguma em /anuncio/:id/fotos — a UI cai pro emoji placeholder
+  // nesse caso (ver ListingSummary.image, que usa a mesma primeira foto). O
+  // id de cada uma é só para a própria página de gerenciar fotos (excluir
+  // uma foto específica); a galeria pública só usa a url.
+  photos: z.array(PhotoSchema),
 });
 export type ListingDetail = z.infer<typeof ListingDetailSchema>;
 
