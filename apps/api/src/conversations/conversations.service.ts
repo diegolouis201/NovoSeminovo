@@ -70,12 +70,15 @@ export class ConversationsService {
     return toSummary(created, buyerId);
   }
 
-  // O chat é hoje a única origem de lead — cada conversa nova com um
-  // anúncio de parceiro vira um cartão no funil do painel (Etapa 1: CRM
-  // básico). Sem unique constraint em (listingId, buyerId): busca antes de
-  // criar, como o resto da base já faz para evitar duplicar.
+  // Cada conversa nova com um anúncio de parceiro vira um cartão no funil do
+  // painel (Etapa 1: CRM básico). O dedupe é por (listingId, buyerId,
+  // source: "chat") — filtrar pela origem é o que garante que um lead que já
+  // veio de WhatsApp (ver ListingsService.registerWhatsappClick) não "engula"
+  // o lead de chat da mesma pessoa: são canais diferentes, cada um com seu
+  // próprio card no Kanban. Sem unique constraint em (listingId, buyerId,
+  // source): busca antes de criar, como o resto da base já faz.
   private async upsertLead(partnerId: string, listingId: string, buyerId: string) {
-    const existing = await this.prisma.lead.findFirst({ where: { listingId, buyerId } });
+    const existing = await this.prisma.lead.findFirst({ where: { listingId, buyerId, source: "chat" } });
     if (existing) return;
     await this.prisma.lead.create({
       data: { partnerId, listingId, buyerId, source: "chat", status: "new" },
