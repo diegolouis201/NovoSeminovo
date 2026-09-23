@@ -74,7 +74,7 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
       </div>
 
       <div className="mt-6">
-        <PartnerNav active="geral" />
+        <PartnerNav active="geral" showEquipe={partner.isOwner} />
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">

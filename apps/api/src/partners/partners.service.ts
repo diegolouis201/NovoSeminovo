@@ -1,9 +1,10 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   CreatePartnerInput,
   LeadStatus,
   LeadSummary,
   Partner,
+  PartnerMember,
   PartnerStorefront,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
@@ -33,6 +34,15 @@ export class PartnersService {
     return slug;
   }
 
+  // Dono ou membro da equipe (ver PartnerMember) — os dois operam o mesmo
+  // painel (anúncios, leads); só "Equipe" fica restrita ao dono (ver
+  // addMember/removeMember).
+  private async findPartnerForUser(userId: string) {
+    return this.prisma.partner.findFirst({
+      where: { OR: [{ ownerUserId: userId }, { members: { some: { userId } } }] },
+    });
+  }
+
   async create(ownerUserId: string, input: CreatePartnerInput): Promise<Partner> {
     const existing = await this.prisma.partner.findFirst({ where: { ownerUserId } });
     if (existing) throw new ConflictException("Você já tem uma loja/imobiliária cadastrada.");
@@ -59,8 +69,8 @@ export class PartnersService {
     return partner;
   }
 
-  async getMine(ownerUserId: string): Promise<Partner | null> {
-    const partner = await this.prisma.partner.findFirst({ where: { ownerUserId } });
+  async getMine(userId: string): Promise<Partner | null> {
+    const partner = await this.findPartnerForUser(userId);
     if (!partner) return null;
 
     const [activeListings, totalListings, leadsByStatus, subscription] = await Promise.all([
@@ -86,6 +96,7 @@ export class PartnersService {
       address: partner.address ?? undefined,
       verified: Boolean(partner.verifiedAt),
       planName: subscription?.plan.name,
+      isOwner: partner.ownerUserId === userId,
       stats: {
         activeListings,
         totalListings,
@@ -137,8 +148,8 @@ export class PartnersService {
     };
   }
 
-  async listLeads(ownerUserId: string): Promise<LeadSummary[]> {
-    const partner = await this.prisma.partner.findFirst({ where: { ownerUserId } });
+  async listLeads(userId: string): Promise<LeadSummary[]> {
+    const partner = await this.findPartnerForUser(userId);
     if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
 
     const leads = await this.prisma.lead.findMany({
@@ -159,17 +170,18 @@ export class PartnersService {
     }));
   }
 
-  async updateLeadStatus(ownerUserId: string, leadId: string, status: LeadStatus): Promise<LeadSummary> {
+  async updateLeadStatus(userId: string, leadId: string, status: LeadStatus): Promise<LeadSummary> {
     const lead = await this.prisma.lead.findUnique({
       where: { id: leadId },
       include: {
-        partner: true,
         listing: { select: { title: true } },
         buyer: { select: { name: true, email: true } },
       },
     });
     if (!lead) throw new NotFoundException(`Lead ${leadId} não encontrado`);
-    if (lead.partner.ownerUserId !== ownerUserId) {
+
+    const partner = await this.findPartnerForUser(userId);
+    if (!partner || lead.partnerId !== partner.id) {
       throw new ForbiddenException("Este lead não pertence à sua loja/imobiliária.");
     }
 
@@ -185,5 +197,61 @@ export class PartnersService {
       status: updated.status,
       createdAt: updated.createdAt.toISOString(),
     };
+  }
+
+  async listMembers(userId: string): Promise<PartnerMember[]> {
+    const partner = await this.prisma.partner.findFirst({
+      where: { OR: [{ ownerUserId: userId }, { members: { some: { userId } } }] },
+      include: { owner: true, members: { include: { user: true } } },
+    });
+    if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
+
+    return [
+      { id: partner.owner.id, name: partner.owner.name, email: partner.owner.email, role: "owner" as const },
+      ...partner.members.map((member) => ({
+        id: member.id,
+        name: member.user.name,
+        email: member.user.email,
+        role: "agent" as const,
+      })),
+    ];
+  }
+
+  // Convite direto (ver comentário em AddPartnerMemberInputSchema): só o
+  // dono convida, nunca um agente — evita uma corrente de convites sem
+  // controle. A pessoa convidada precisa já ter conta na plataforma.
+  async addMember(ownerUserId: string, email: string): Promise<PartnerMember> {
+    const partner = await this.prisma.partner.findFirst({ where: { ownerUserId } });
+    if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
+
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new BadRequestException("Essa pessoa ainda não tem conta no NovoSeminovo — peça pra ela se cadastrar primeiro.");
+    }
+    if (user.id === ownerUserId) {
+      throw new ConflictException("Você já é o dono desta loja/imobiliária.");
+    }
+
+    const existing = await this.prisma.partnerMember.findUnique({
+      where: { partnerId_userId: { partnerId: partner.id, userId: user.id } },
+    });
+    if (existing) throw new ConflictException("Esta pessoa já faz parte da sua equipe.");
+
+    const member = await this.prisma.partnerMember.create({
+      data: { partnerId: partner.id, userId: user.id, role: "agent" },
+    });
+    return { id: member.id, name: user.name, email: user.email, role: "agent" };
+  }
+
+  async removeMember(ownerUserId: string, memberId: string): Promise<void> {
+    const partner = await this.prisma.partner.findFirst({ where: { ownerUserId } });
+    if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
+
+    const member = await this.prisma.partnerMember.findUnique({ where: { id: memberId } });
+    if (!member || member.partnerId !== partner.id) {
+      throw new NotFoundException(`Membro ${memberId} não encontrado`);
+    }
+
+    await this.prisma.partnerMember.delete({ where: { id: memberId } });
   }
 }

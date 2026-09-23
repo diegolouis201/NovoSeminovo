@@ -14,6 +14,7 @@ import type {
   ModerateListingInput,
   MyListingSummary,
   Partner,
+  PartnerMember,
   PartnerStorefront,
   PendingListing,
   PendingPartner,
@@ -304,6 +305,41 @@ export async function updateLeadStatus(leadId: string, status: LeadStatus, acces
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
     body: JSON.stringify({ status }),
+  });
+  return res.ok;
+}
+
+// Equipe do parceiro — só o dono convida/remove (a API confere; ver
+// Partner.isOwner para a UI já não oferecer o que vai dar 403).
+export async function fetchPartnerMembers(accessToken: string): Promise<PartnerMember[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/partners/mine/members`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as PartnerMember[];
+  } catch {
+    return [];
+  }
+}
+
+export type AddPartnerMemberResult = { ok: true } | { ok: false; error: string };
+
+export async function addPartnerMember(email: string, accessToken: string): Promise<AddPartnerMemberResult> {
+  const res = await fetchWithTimeout(`${API_URL}/partners/mine/members`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    return { ok: false, error: body.message ?? "Não foi possível adicionar essa pessoa à equipe." };
+  }
+  return { ok: true };
+}
+
+export async function removePartnerMember(memberId: string, accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/partners/mine/members/${memberId}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
   });
   return res.ok;
 }

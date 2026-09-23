@@ -29,7 +29,7 @@ export default async function PartnerListingsPage() {
     <main className="mx-auto max-w-4xl px-4 py-12">
       <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
       <div className="mt-6">
-        <PartnerNav active="anuncios" />
+        <PartnerNav active="anuncios" showEquipe={partner.isOwner} />
       </div>
 
       <div className="mt-6 flex items-center justify-between">

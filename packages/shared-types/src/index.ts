@@ -338,9 +338,9 @@ export const SendMessageInputSchema = z.object({
 });
 export type SendMessageInput = z.infer<typeof SendMessageInputSchema>;
 
-// Painel do parceiro (lojista/imobiliária) — Etapa 1. MVP: sem convite de
-// equipe, sem upload em lote, sem cobrança de plano de verdade (o schema já
-// tem Plan/Subscription para quando isso for construído).
+// Painel do parceiro (lojista/imobiliária) — Etapa 1. MVP: sem upload em
+// lote de estoque, sem cobrança de plano de verdade (o schema já tem
+// Plan/Subscription para quando isso for construído).
 export const PartnerType = z.enum(["dealership", "real_estate_agency", "broker"]);
 export type PartnerType = z.infer<typeof PartnerType>;
 
@@ -373,8 +373,33 @@ export const PartnerSchema = z.object({
   verified: z.boolean(),
   planName: z.string().optional(),
   stats: PartnerStatsSchema,
+  // Só o dono convida/remove gente da equipe (ver /parceiro/equipe) — um
+  // agente vê e opera o painel (anúncios, leads) igual, mas essa aba some
+  // pra ele.
+  isOwner: z.boolean(),
 });
 export type Partner = z.infer<typeof PartnerSchema>;
+
+// Convite de equipe é direto: o dono digita o e-mail de alguém que já tem
+// conta na plataforma e essa pessoa vira "agent" na hora — sem link de
+// convite nem e-mail transacional (não existe envio de e-mail no projeto
+// ainda, ver README "Próximos passos"). Quem ainda não tem conta precisa se
+// cadastrar primeiro.
+export const PartnerMemberRole = z.enum(["owner", "agent"]);
+export type PartnerMemberRole = z.infer<typeof PartnerMemberRole>;
+
+export const PartnerMemberSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string(),
+  role: PartnerMemberRole,
+});
+export type PartnerMember = z.infer<typeof PartnerMemberSchema>;
+
+export const AddPartnerMemberInputSchema = z.object({
+  email: EmailSchema,
+});
+export type AddPartnerMemberInput = z.infer<typeof AddPartnerMemberInputSchema>;
 
 export const ReviewSchema = z.object({
   id: z.string(),

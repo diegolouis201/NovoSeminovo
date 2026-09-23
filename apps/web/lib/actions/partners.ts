@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { CreatePartnerInput, LeadStatus, PartnerType } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
-import { createPartner, updateLeadStatus } from "@/lib/api";
+import { addPartnerMember, createPartner, removePartnerMember, updateLeadStatus } from "@/lib/api";
 
 export async function createPartnerAction(formData: FormData): Promise<void> {
   const session = await auth();
@@ -35,4 +35,26 @@ export async function updateLeadStatusAction(leadId: string, formData: FormData)
   await updateLeadStatus(leadId, status, session.accessToken);
   revalidatePath("/parceiro");
   revalidatePath("/parceiro/leads");
+}
+
+export async function addPartnerMemberAction(formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const email = String(formData.get("email") ?? "").trim();
+  const result = await addPartnerMember(email, session.accessToken);
+  if (!result.ok) {
+    redirect(`/parceiro/equipe?error=${encodeURIComponent(result.error)}`);
+  }
+
+  revalidatePath("/parceiro/equipe");
+  redirect("/parceiro/equipe");
+}
+
+export async function removePartnerMemberAction(memberId: string): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  await removePartnerMember(memberId, session.accessToken);
+  revalidatePath("/parceiro/equipe");
 }

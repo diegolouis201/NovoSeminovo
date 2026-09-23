@@ -32,7 +32,7 @@ export default async function PartnerLeadsPage() {
     <main className="mx-auto max-w-6xl px-4 py-12">
       <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
       <div className="mt-6">
-        <PartnerNav active="leads" />
+        <PartnerNav active="leads" showEquipe={partner.isOwner} />
       </div>
 
       <h2 className="mt-6 font-display text-xl font-semibold text-ink">Leads</h2>

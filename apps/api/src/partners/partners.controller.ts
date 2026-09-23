@@ -1,5 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
-import { CreatePartnerInputSchema, UpdateLeadStatusInputSchema } from "@novoseminovo/shared-types";
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import {
+  AddPartnerMemberInputSchema,
+  CreatePartnerInputSchema,
+  UpdateLeadStatusInputSchema,
+} from "@novoseminovo/shared-types";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
@@ -38,5 +42,24 @@ export class PartnersController {
   updateLeadStatus(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
     const input = parseOrBadRequest(UpdateLeadStatusInputSchema, body);
     return this.partnersService.updateLeadStatus(user.id, id, input.status);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("partners/mine/members")
+  listMembers(@CurrentUser() user: { id: string }) {
+    return this.partnersService.listMembers(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("partners/mine/members")
+  addMember(@CurrentUser() user: { id: string }, @Body() body: unknown) {
+    const input = parseOrBadRequest(AddPartnerMemberInputSchema, body);
+    return this.partnersService.addMember(user.id, input.email);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete("partners/mine/members/:memberId")
+  removeMember(@CurrentUser() user: { id: string }, @Param("memberId") memberId: string) {
+    return this.partnersService.removeMember(user.id, memberId);
   }
 }
