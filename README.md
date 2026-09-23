@@ -42,7 +42,7 @@ pnpm --filter @novoseminovo/web dev            # sobe em http://localhost:3000
 O site tem onze telas (Etapa 1 → Etapa 4 aplicadas), todas servidas pela API quando ela está no ar:
 
 - `/` — home com busca e destaques
-- `/busca?assetType=vehicle|property` — resultados com filtros
+- `/busca?assetType=vehicle|property` — resultados com filtros de preço, cidade e ano (veículo) ou quartos mínimos (imóvel), todos aplicados de verdade em `GET /listings` (sem JS: formulário `GET` que recarrega a página com os parâmetros na URL)
 - `/anuncio/[id]` — detalhe do anúncio, com simulação de financiamento interativa (Tabela Price, entrada e parcelas ajustáveis via `POST /listings/:id/financing-simulations`), favoritar, "Conversar no chat", "Chamar no WhatsApp" (só aparece quando o dono cadastrou telefone) e o bloco no tom "sóbrio"
 - `/cadastro`, `/entrar` — criação de conta e login (Auth.js no site, senha validada por `POST /auth/*` na API); telefone é opcional no cadastro e alimenta o botão de WhatsApp acima
 - `/anunciar` — publicar um anúncio de veículo ou imóvel (protegida)

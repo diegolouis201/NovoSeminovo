@@ -40,6 +40,9 @@ export type SearchParams = {
   city?: string;
   priceMin?: number;
   priceMax?: number;
+  yearMin?: number;
+  yearMax?: number;
+  bedroomsMin?: number;
 };
 
 export async function fetchListings(params: SearchParams): Promise<ListingSummary[]> {
