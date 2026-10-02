@@ -510,6 +510,34 @@ export const UpdateReportStatusInputSchema = z.object({
 });
 export type UpdateReportStatusInput = z.infer<typeof UpdateReportStatusInputSchema>;
 
+// Notification já existia no schema do banco desde a Etapa 2, sem nenhum
+// código usando — mesmo padrão de "modelo morto" do Report e do SavedSearch.
+// O título/corpo de cada notificação é montado no backend a partir do tipo +
+// payload (nunca no front): assim um tipo novo não exige nenhuma mudança na
+// tela, só um `case` a mais em `toNotification` na API.
+export const NotificationType = z.enum([
+  "listing_approved",
+  "listing_rejected",
+  "new_message",
+  "partner_verified",
+  "new_review",
+]);
+export type NotificationType = z.infer<typeof NotificationType>;
+
+export const NotificationSchema = z.object({
+  id: z.string(),
+  type: NotificationType,
+  title: z.string(),
+  body: z.string(),
+  link: z.string().optional(),
+  readAt: z.string().optional(),
+  createdAt: z.string(),
+});
+export type Notification = z.infer<typeof NotificationSchema>;
+
+export const UnreadNotificationsCountSchema = z.object({ count: z.number() });
+export type UnreadNotificationsCount = z.infer<typeof UnreadNotificationsCountSchema>;
+
 export function formatBRL(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }

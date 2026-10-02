@@ -13,6 +13,7 @@ import type {
   ListingSummary,
   ModerateListingInput,
   MyListingSummary,
+  Notification,
   Partner,
   PartnerMember,
   PartnerStorefront,
@@ -520,6 +521,48 @@ export async function updateSavedSearchAlert(
 export async function deleteSavedSearch(id: string, accessToken: string): Promise<boolean> {
   const res = await fetchWithTimeout(`${API_URL}/saved-searches/${id}`, {
     method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  return res.ok;
+}
+
+// Notificações — contagem de não lidas é usada no sininho do cabeçalho
+// (SiteHeader), calculada no servidor a cada carregamento de página (sem
+// polling nem WebSocket, mesmo padrão "zero JS por padrão" do resto do site).
+export async function fetchMyNotifications(accessToken: string): Promise<Notification[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/me/notifications`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as Notification[];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchUnreadNotificationsCount(accessToken: string): Promise<number> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/me/notifications/unread-count`, {
+      headers: authHeaders(accessToken),
+    });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    const data = (await res.json()) as { count: number };
+    return data.count;
+  } catch {
+    return 0;
+  }
+}
+
+export async function markNotificationRead(id: string, accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/me/notifications/${id}/read`, {
+    method: "PATCH",
+    headers: authHeaders(accessToken),
+  });
+  return res.ok;
+}
+
+export async function markAllNotificationsRead(accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/me/notifications/read-all`, {
+    method: "PATCH",
     headers: authHeaders(accessToken),
   });
   return res.ok;

@@ -8,6 +8,7 @@ import type {
 } from "@novoseminovo/shared-types";
 import { formatBRL } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 function location(listing: { city: string; state: string; neighborhood: string | null }): string {
   return listing.neighborhood
@@ -17,7 +18,10 @@ function location(listing: { city: string; state: string; neighborhood: string |
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async listPendingListings(): Promise<PendingListing[]> {
     const listings = await this.prisma.listing.findMany({
@@ -64,6 +68,12 @@ export class AdminService {
         },
       }),
     ]);
+
+    await this.notifications.notify(
+      listing.ownerUserId,
+      nextStatus === "active" ? "listing_approved" : "listing_rejected",
+      { listingId: listing.id, listingTitle: listing.title, reason: input.reason },
+    );
   }
 
   async listPendingPartners(): Promise<PendingPartner[]> {
@@ -89,6 +99,11 @@ export class AdminService {
     if (!partner) throw new NotFoundException(`Loja/imobiliária ${partnerId} não encontrada`);
 
     await this.prisma.partner.update({ where: { id: partnerId }, data: { verifiedAt: new Date() } });
+
+    await this.notifications.notify(partner.ownerUserId, "partner_verified", {
+      partnerId: partner.id,
+      partnerName: partner.legalName,
+    });
   }
 
   async listOpenReports(): Promise<PendingReport[]> {

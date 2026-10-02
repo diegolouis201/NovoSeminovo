@@ -6,6 +6,7 @@ import type {
   Message as MessageDto,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 const conversationWithParties = {
   listing: { select: { id: true, title: true, ownerUserId: true } },
@@ -38,7 +39,10 @@ function toSummary(conversation: ConversationWithParties, userId: string, lastMe
 
 @Injectable()
 export class ConversationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   private assertParticipant(conversation: { buyerId: string; sellerUserId: string | null }, userId: string) {
     if (conversation.buyerId !== userId && conversation.sellerUserId !== userId) {
@@ -121,7 +125,10 @@ export class ConversationsService {
   }
 
   async sendMessage(conversationId: string, userId: string, body: string): Promise<MessageDto> {
-    const conversation = await this.prisma.conversation.findUnique({ where: { id: conversationId } });
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: conversationWithParties,
+    });
     if (!conversation) throw new NotFoundException(`Conversa ${conversationId} não encontrada`);
     this.assertParticipant(conversation, userId);
 
@@ -132,6 +139,15 @@ export class ConversationsService {
       }),
       this.prisma.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: new Date() } }),
     ]);
+
+    const recipientId = conversation.buyer.id === userId ? conversation.sellerUserId : conversation.buyer.id;
+    if (recipientId) {
+      await this.notifications.notify(recipientId, "new_message", {
+        conversationId,
+        listingTitle: conversation.listing.title,
+        senderName: message.sender.name,
+      });
+    }
 
     return {
       id: message.id,

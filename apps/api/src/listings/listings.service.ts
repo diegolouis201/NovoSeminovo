@@ -15,6 +15,7 @@ import {
   type UpdateListingStatusInput,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { UPLOADS_DIR, UPLOADS_URL_PREFIX } from "../common/uploads";
 import {
   DEFAULT_RATE,
@@ -44,7 +45,10 @@ function toNumber(value: string | undefined): number | undefined {
 
 @Injectable()
 export class ListingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async search(query: ListingSearchQuery): Promise<ListingSummary[]> {
     const priceMin = toNumber(query.priceMin);
@@ -157,6 +161,17 @@ export class ListingsService {
         reviewedPartnerId: listing.partnerId ?? undefined,
       },
     });
+
+    const recipientId = listing.partnerId
+      ? (await this.prisma.partner.findUnique({ where: { id: listing.partnerId } }))?.ownerUserId
+      : listing.ownerUserId;
+    if (recipientId) {
+      await this.notifications.notify(recipientId, "new_review", {
+        listingId: listing.id,
+        listingTitle: listing.title,
+        rating: input.rating,
+      });
+    }
   }
 
   async simulateFinancing(

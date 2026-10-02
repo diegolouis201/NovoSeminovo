@@ -8,6 +8,7 @@ import { ConversationsModule } from "./conversations/conversations.module";
 import { PartnersModule } from "./partners/partners.module";
 import { AdminModule } from "./admin/admin.module";
 import { SavedSearchesModule } from "./saved-searches/saved-searches.module";
+import { NotificationsModule } from "./notifications/notifications.module";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SavedSearchesModule } from "./saved-searches/saved-searches.module";
     PartnersModule,
     AdminModule,
     SavedSearchesModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}
