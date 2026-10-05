@@ -510,6 +510,23 @@ export const UpdateReportStatusInputSchema = z.object({
 });
 export type UpdateReportStatusInput = z.infer<typeof UpdateReportStatusInputSchema>;
 
+// ModerationLog já existia no schema desde a Etapa 2 — AdminService.moderateListing
+// sempre gravou uma linha a cada aprovação/recusão, mas nada lia de volta
+// (grava e esquece). Isso vira o histórico no fim de /admin.
+export const ModerationActionType = z.enum(["approved", "rejected", "suspended"]);
+export type ModerationActionType = z.infer<typeof ModerationActionType>;
+
+export const ModerationLogEntrySchema = z.object({
+  id: z.string(),
+  listingId: z.string(),
+  listingTitle: z.string(),
+  adminName: z.string(),
+  action: ModerationActionType,
+  reason: z.string().optional(),
+  createdAt: z.string(),
+});
+export type ModerationLogEntry = z.infer<typeof ModerationLogEntrySchema>;
+
 // Notification já existia no schema do banco desde a Etapa 2, sem nenhum
 // código usando — mesmo padrão de "modelo morto" do Report e do SavedSearch.
 // O título/corpo de cada notificação é montado no backend a partir do tipo +

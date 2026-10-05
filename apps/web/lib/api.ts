@@ -12,6 +12,7 @@ import type {
   ListingStatus,
   ListingSummary,
   ModerateListingInput,
+  ModerationLogEntry,
   MyListingSummary,
   Notification,
   Partner,
@@ -405,6 +406,16 @@ export async function updateReportStatus(reportId: string, status: ReportStatus,
     body: JSON.stringify({ status }),
   });
   return res.ok;
+}
+
+export async function fetchModerationLog(accessToken: string): Promise<ModerationLogEntry[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/moderation-log`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as ModerationLogEntry[];
+  } catch {
+    return [];
+  }
 }
 
 // Denúncia de anúncio — exige login (a API usa o reporterId pra checar que a

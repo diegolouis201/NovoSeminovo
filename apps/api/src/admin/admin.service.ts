@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   ModerateListingInput,
+  ModerationLogEntry,
   PendingListing,
   PendingPartner,
   PendingReport,
@@ -129,5 +130,23 @@ export class AdminService {
     if (!report) throw new NotFoundException(`Denúncia ${reportId} não encontrada`);
 
     await this.prisma.report.update({ where: { id: reportId }, data: { status } });
+  }
+
+  async listModerationLog(): Promise<ModerationLogEntry[]> {
+    const entries = await this.prisma.moderationLog.findMany({
+      include: { listing: { select: { title: true } }, admin: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+
+    return entries.map((entry) => ({
+      id: entry.id,
+      listingId: entry.listingId,
+      listingTitle: entry.listing.title,
+      adminName: entry.admin.name,
+      action: entry.action,
+      reason: entry.reason ?? undefined,
+      createdAt: entry.createdAt.toISOString(),
+    }));
   }
 }

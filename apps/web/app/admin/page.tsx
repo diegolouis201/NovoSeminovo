@@ -1,8 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { PendingListing, PendingPartner, PendingReport } from "@novoseminovo/shared-types";
+import type { ModerationLogEntry, PendingListing, PendingPartner, PendingReport } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { fetchOpenReports, fetchPendingListings, fetchPendingPartners } from "@/lib/api";
+import { fetchModerationLog, fetchOpenReports, fetchPendingListings, fetchPendingPartners } from "@/lib/api";
 import { moderateListingAction, updateReportStatusAction, verifyPartnerAction } from "@/lib/actions/admin";
 
 const PARTNER_TYPE_LABEL: Record<string, string> = {
@@ -27,10 +28,11 @@ export default async function AdminPage() {
     );
   }
 
-  const [listings, partners, reports] = await Promise.all([
+  const [listings, partners, reports, moderationLog] = await Promise.all([
     fetchPendingListings(session.accessToken),
     fetchPendingPartners(session.accessToken),
     fetchOpenReports(session.accessToken),
+    fetchModerationLog(session.accessToken),
   ]);
 
   return (
@@ -85,7 +87,49 @@ export default async function AdminPage() {
           </ul>
         )}
       </section>
+
+      <section className="mt-10">
+        <h2 className="font-display text-xl font-semibold text-ink">
+          Histórico de moderação <span className="text-base font-normal text-ink-muted">(últimas {moderationLog.length})</span>
+        </h2>
+        {moderationLog.length === 0 ? (
+          <p className="mt-3 text-ink-muted">Nenhuma aprovação ou recusa registrada ainda.</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2">
+            {moderationLog.map((entry) => (
+              <ModerationLogRow key={entry.id} entry={entry} />
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
+  );
+}
+
+const ACTION_LABEL: Record<ModerationLogEntry["action"], string> = {
+  approved: "Aprovado",
+  rejected: "Recusado",
+  suspended: "Suspenso",
+};
+
+function ModerationLogRow({ entry }: { entry: ModerationLogEntry }) {
+  const colorClass = entry.action === "approved" ? "text-brand-green" : "text-status-danger";
+
+  return (
+    <li className="flex flex-col gap-1 rounded-brand border border-border bg-surface-raised p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <Link href={`/anuncio/${entry.listingId}`} className="font-semibold text-ink hover:underline">
+          {entry.listingTitle}
+        </Link>
+        {entry.reason && <p className="text-xs text-ink-muted">Motivo: {entry.reason}</p>}
+      </div>
+      <div className="shrink-0 text-right">
+        <span className={`font-bold ${colorClass}`}>{ACTION_LABEL[entry.action]}</span>
+        <p className="text-xs text-ink-muted">
+          por {entry.adminName} · {new Date(entry.createdAt).toLocaleDateString("pt-BR")}
+        </p>
+      </div>
+    </li>
   );
 }
 

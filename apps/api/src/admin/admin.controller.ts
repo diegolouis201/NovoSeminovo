@@ -42,4 +42,9 @@ export class AdminController {
     const input = parseOrBadRequest(UpdateReportStatusInputSchema, body);
     return this.adminService.updateReportStatus(id, input.status);
   }
+
+  @Get("moderation-log")
+  listModerationLog() {
+    return this.adminService.listModerationLog();
+  }
 }
