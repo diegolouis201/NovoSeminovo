@@ -54,6 +54,7 @@ O site tem onze telas (Etapa 1 → Etapa 4 aplicadas), todas servidas pela API q
 - `/conta/notificacoes` — anúncio aprovado/recusado, nova mensagem, loja verificada e nova avaliação viram notificação aqui, com o sininho no cabeçalho mostrando quantas estão sem ler (calculado no servidor a cada carregamento de página, sem polling nem WebSocket)
 - `/parceiro` — painel da loja/imobiliária: onboarding se a pessoa ainda não tem uma, visão geral com estatísticas se já tem
 - `/parceiro/anuncios`, `/parceiro/leads` — estoque do parceiro e funil de leads (Kanban: Novo → Negociando → Ganho/Perdido)
+- `/parceiro/anuncios/importar` — upload de CSV pra criar vários anúncios de uma vez (modelo pra baixar na própria tela); cada linha passa pela mesma validação e pelo mesmo `pending_review` de um anúncio criado manualmente — uma linha com erro não derruba as outras, o resumo mostra o que entrou e o que falhou (com o motivo)
 - `/parceiro/equipe` — convidar/remover gente da equipe (só o dono vê essa aba); convite é direto por e-mail de quem já tem conta — sem link de convite nem e-mail transacional
 - `/lojas/[slug]` — vitrine pública da loja/imobiliária, com nota média e lista de avaliações, sem precisar estar logado
 - `/admin` — moderação: fila de anúncios pendentes, de lojas/imobiliárias aguardando verificação, de denúncias abertas e histórico de moderação (últimas 50 aprovações/recusas, com link pro anúncio) (só para `role: admin`; qualquer outra conta vê "Acesso restrito")
@@ -77,10 +78,9 @@ Se a API não estiver rodando (ex.: sem Postgres configurado), `apps/web/lib/api
 
 ## Próximos passos sugeridos
 
-1. Plano/assinatura de verdade: `Plan`/`Subscription` já estão no schema, mas `/parceiro` só lê (mostra "Nenhum plano ativo" se não houver); falta o fluxo de contratar um plano e cobrança.
-2. Upload em lote de estoque (CSV) para o painel do parceiro.
-3. `apps/mobile` (Expo/React Native) reaproveitando `@novoseminovo/shared-types` e os mesmos endpoints.
-4. Trocar o storage de fotos por S3/R2 — hoje `POST /listings/:id/photos` salva em disco local (`apps/api/uploads/`, servido como estático) e funciona ponta a ponta, mas não sobrevive a um redeploy sem volume persistente; a troca é só dentro de `ListingsService.addPhotos`/`removePhoto`, o contrato (`Photo.url` como string) não muda.
-5. Chat em tempo real (WebSocket/Socket.IO, ver Etapa 3) — hoje enviar mensagem só faz um `revalidatePath`, sem push ao destinatário; a notificação de nova mensagem (ver `/conta/notificacoes`) só aparece quando a pessoa recarrega uma página, não na hora.
-6. Regras automáticas de moderação (hoje é 100% manual) — a notificação ao dono quando o anúncio é aprovado/recusado já existe.
-7. Alerta por e-mail das buscas salvas quando surge um anúncio novo que bate com os filtros — `SavedSearch.alertEnabled` já existe e a pessoa liga/desliga em `/conta/buscas-salvas`, mas nada dispara o envio ainda (precisa de worker + envio de e-mail); o mesmo vale pra notificação em si, que só existe dentro do site (sem e-mail/push por enquanto).
+1. Plano/assinatura de verdade: `Plan`/`Subscription` já estão no schema, mas `/parceiro` só lê (mostra "Nenhum plano ativo" se não houver); falta o fluxo de contratar um plano e cobrança — depende de escolher um gateway de pagamento antes de dar pra construir.
+2. `apps/mobile` (Expo/React Native) reaproveitando `@novoseminovo/shared-types` e os mesmos endpoints.
+3. Trocar o storage de fotos por S3/R2 — hoje `POST /listings/:id/photos` salva em disco local (`apps/api/uploads/`, servido como estático) e funciona ponta a ponta, mas não sobrevive a um redeploy sem volume persistente; a troca é só dentro de `ListingsService.addPhotos`/`removePhoto`, o contrato (`Photo.url` como string) não muda.
+4. Chat em tempo real (WebSocket/Socket.IO, ver Etapa 3) — hoje enviar mensagem só faz um `revalidatePath`, sem push ao destinatário; a notificação de nova mensagem (ver `/conta/notificacoes`) só aparece quando a pessoa recarrega uma página, não na hora.
+5. Regras automáticas de moderação (hoje é 100% manual) — a notificação ao dono quando o anúncio é aprovado/recusado já existe.
+6. Alerta por e-mail das buscas salvas quando surge um anúncio novo que bate com os filtros — `SavedSearch.alertEnabled` já existe e a pessoa liga/desliga em `/conta/buscas-salvas`, mas nada dispara o envio ainda (precisa de worker + envio de e-mail); o mesmo vale pra notificação em si, que só existe dentro do site (sem e-mail/push por enquanto) — ambos dependem de uma conta de envio de e-mail (SendGrid, Resend, SES etc.).

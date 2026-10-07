@@ -34,12 +34,20 @@ export default async function PartnerListingsPage() {
 
       <div className="mt-6 flex items-center justify-between">
         <h2 className="font-display text-xl font-semibold text-ink">Estoque</h2>
-        <Link
-          href="/anunciar"
-          className="rounded-brand bg-brand-green px-4 py-2 text-sm font-bold text-on-green hover:opacity-90"
-        >
-          + Anunciar
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/parceiro/anuncios/importar"
+            className="rounded-brand border border-border px-4 py-2 text-sm font-bold text-ink hover:bg-surface-sober"
+          >
+            Importar CSV
+          </Link>
+          <Link
+            href="/anunciar"
+            className="rounded-brand bg-brand-green px-4 py-2 text-sm font-bold text-on-green hover:opacity-90"
+          >
+            + Anunciar
+          </Link>
+        </div>
       </div>
 
       {listings.length === 0 ? (

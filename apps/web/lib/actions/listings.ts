@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import type { CreateListingInput, ListingStatus } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { createListing, deleteListingPhoto, updateListingStatus, uploadListingPhotos } from "@/lib/api";
+import { parseListingsCsv } from "@/lib/csv-listings";
 
 function str(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -114,4 +115,51 @@ export async function deletePhotoAction(listingId: string, photoId: string): Pro
   revalidatePath("/busca");
   revalidatePath(`/anuncio/${listingId}`);
   revalidatePath(`/anuncio/${listingId}/fotos`);
+}
+
+export type ImportListingsRowError = { row: number; ok: false; error?: string; title?: string };
+type ImportListingsRowResult = { row: number; ok: true; title?: string } | ImportListingsRowError;
+export type ImportListingsSummary = { total: number; success: number; errors: ImportListingsRowError[] };
+
+// Importação em lote: cada linha do CSV vira uma chamada normal a
+// createListing (mesma validação, mesmo "nasce pending_review" de sempre) —
+// uma linha ruim não derruba as outras, só entra no resumo como erro. Sem
+// endpoint novo na API: é a mesma POST /listings de sempre, repetida.
+export async function importListingsCsvAction(formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    redirect(`/parceiro/anuncios/importar?error=${encodeURIComponent("Selecione um arquivo CSV.")}`);
+  }
+
+  const text = await file.text();
+  const parsedRows = parseListingsCsv(text);
+  if (parsedRows.length === 0) {
+    redirect(`/parceiro/anuncios/importar?error=${encodeURIComponent("O CSV está vazio ou não tem linhas de dados.")}`);
+  }
+
+  const results: ImportListingsRowResult[] = [];
+  for (const { row, result } of parsedRows) {
+    if (!result.ok) {
+      results.push({ row, ok: false, error: result.error });
+      continue;
+    }
+    const created = await createListing(result.input, session.accessToken);
+    results.push(
+      created.ok
+        ? { row, ok: true, title: created.listing.title }
+        : { row, ok: false, error: created.error, title: result.input.title },
+    );
+  }
+
+  revalidatePath("/");
+  revalidatePath("/busca");
+  revalidatePath("/conta/anuncios");
+  revalidatePath("/parceiro/anuncios");
+
+  const allErrors = results.filter((r) => !r.ok);
+  const summary = { total: results.length, success: results.length - allErrors.length, errors: allErrors.slice(0, 20) };
+  redirect(`/parceiro/anuncios/importar?resultado=${encodeURIComponent(JSON.stringify(summary))}`);
 }

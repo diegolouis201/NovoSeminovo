@@ -1,0 +1,3 @@
+assetType,title,description,price,city,state,neighborhood,brand,model,version,yearManufacture,yearModel,mileage,transmission,fuelType,color,doors,propertyType,purpose,bedrooms,bathrooms,parkingSpots,areaM2,condoFee,iptu,streetAddress
+vehicle,Corolla XEi 2020 único dono,"Carro revisado na concessionária, sempre guardado em garagem",112000,Belo Horizonte,MG,Savassi,Toyota,Corolla,XEi 2.0,2020,2020,38000,automatic,flex,prata,4,,,,,,,,
+property,Apartamento 2 quartos — Savassi,Apartamento reformado perto do metrô e de mercados,420000,Belo Horizonte,MG,Savassi,,,,,,,,,,,apartment,sale,2,1,1,65,480,120,Rua Pernambuco 123
