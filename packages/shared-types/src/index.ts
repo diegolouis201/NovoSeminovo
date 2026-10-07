@@ -318,6 +318,19 @@ export const MessageSchema = z.object({
 });
 export type Message = z.infer<typeof MessageSchema>;
 
+// Payload do WebSocket (ConversationsGateway, evento "message") — diferente
+// de MessageSchema porque "isMine" não faz sentido num broadcast: quem
+// recebe é que decide comparando senderId com o próprio id.
+export const RealtimeMessageSchema = z.object({
+  id: z.string(),
+  conversationId: z.string(),
+  body: z.string(),
+  createdAt: z.string(),
+  senderId: z.string(),
+  senderName: z.string(),
+});
+export type RealtimeMessage = z.infer<typeof RealtimeMessageSchema>;
+
 export const ConversationSummarySchema = z.object({
   id: z.string(),
   listingId: z.string(),

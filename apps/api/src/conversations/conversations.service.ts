@@ -7,6 +7,7 @@ import type {
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { ConversationsGateway } from "./conversations.gateway";
 
 const conversationWithParties = {
   listing: { select: { id: true, title: true, ownerUserId: true } },
@@ -42,6 +43,7 @@ export class ConversationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly gateway: ConversationsGateway,
   ) {}
 
   private assertParticipant(conversation: { buyerId: string; sellerUserId: string | null }, userId: string) {
@@ -148,6 +150,15 @@ export class ConversationsService {
         senderName: message.sender.name,
       });
     }
+
+    this.gateway.emitNewMessage({
+      id: message.id,
+      conversationId,
+      body: message.body,
+      createdAt: message.createdAt.toISOString(),
+      senderId: userId,
+      senderName: message.sender.name,
+    });
 
     return {
       id: message.id,

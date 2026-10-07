@@ -1,9 +1,14 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { Button } from "@/components/Button";
+import { ConversationLive } from "@/components/ConversationLive";
 import { getMyConversation, sendMessageAction } from "@/lib/actions/conversations";
 
 export default async function ConversationPage({ params }: { params: { id: string } }) {
+  const session = await auth();
+  if (!session?.accessToken || !session.user) redirect("/entrar");
+
   const conversation = await getMyConversation(params.id);
   if (!conversation) notFound();
 
@@ -44,6 +49,12 @@ export default async function ConversationPage({ params }: { params: { id: strin
             </p>
           </div>
         ))}
+        <ConversationLive
+          key={conversation.messages.length}
+          conversationId={conversation.id}
+          currentUserId={session.user.id}
+          accessToken={session.accessToken}
+        />
       </div>
 
       <form action={send} className="flex gap-2 border-t border-border pt-4">
