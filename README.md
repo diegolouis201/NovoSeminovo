@@ -65,6 +65,8 @@ Quem tem uma loja/imobiliária cadastrada anuncia automaticamente em nome dela (
 
 Cinco eventos geram notificação pra quem precisa saber: anúncio aprovado ou recusado (pro dono), nova mensagem numa conversa (pra quem não enviou), loja/imobiliária verificada (pro dono) e nova avaliação (pro dono do anúncio ou da loja). O título/corpo de cada uma é montado no backend a partir do tipo + payload — o front só recebe texto pronto pra mostrar.
 
+Fotos (`POST /listings/:id/photos`) ficam atrás de uma pequena abstração (`apps/api/src/common/storage.ts`): sem nenhuma variável `S3_*` configurada, salva em disco local (`apps/api/uploads/`, servido como estático — funciona ponta a ponta, mas não sobrevive a um redeploy sem volume persistente); configurando `S3_BUCKET` + `S3_PUBLIC_URL_BASE` (e `S3_ENDPOINT`/`S3_REGION` pra R2 ou outro provedor compatível com S3 que não seja a AWS), passa a gravar lá — mesmo contrato dos dois lados (`Photo.url` como string), sem mudar quem chama `ListingsService.addPhotos`/`removePhoto`. Testado de ponta a ponta nos dois modos (local e contra um servidor HTTP que fala o protocolo do S3), não só que compila.
+
 **Login de teste** (após `pnpm db:seed`, senha `senha1234` para todos):
 
 | E-mail | Papel |
@@ -80,7 +82,6 @@ Se a API não estiver rodando (ex.: sem Postgres configurado), `apps/web/lib/api
 
 1. Plano/assinatura de verdade: `Plan`/`Subscription` já estão no schema, mas `/parceiro` só lê (mostra "Nenhum plano ativo" se não houver); falta o fluxo de contratar um plano e cobrança — depende de escolher um gateway de pagamento antes de dar pra construir.
 2. `apps/mobile` (Expo/React Native) reaproveitando `@novoseminovo/shared-types` e os mesmos endpoints.
-3. Trocar o storage de fotos por S3/R2 — hoje `POST /listings/:id/photos` salva em disco local (`apps/api/uploads/`, servido como estático) e funciona ponta a ponta, mas não sobrevive a um redeploy sem volume persistente; a troca é só dentro de `ListingsService.addPhotos`/`removePhoto`, o contrato (`Photo.url` como string) não muda.
-4. Regras automáticas de moderação (hoje é 100% manual) — a notificação ao dono quando o anúncio é aprovado/recusado já existe.
-5. Alerta por e-mail das buscas salvas quando surge um anúncio novo que bate com os filtros — `SavedSearch.alertEnabled` já existe e a pessoa liga/desliga em `/conta/buscas-salvas`, mas nada dispara o envio ainda (precisa de worker + envio de e-mail); o mesmo vale pra notificação em si, que só existe dentro do site (sem e-mail/push por enquanto) — ambos dependem de uma conta de envio de e-mail (SendGrid, Resend, SES etc.).
-6. O WebSocket do chat (ver abaixo) autentica com o mesmo JWT de 30 dias usado em toda chamada HTTP, só que agora ele também chega ao navegador (vira prop de Client Component) — numa versão de produção de verdade isso devia virar um token de curta duração específico pra essa conexão.
+3. Regras automáticas de moderação (hoje é 100% manual) — a notificação ao dono quando o anúncio é aprovado/recusado já existe.
+4. Alerta por e-mail das buscas salvas quando surge um anúncio novo que bate com os filtros — `SavedSearch.alertEnabled` já existe e a pessoa liga/desliga em `/conta/buscas-salvas`, mas nada dispara o envio ainda (precisa de worker + envio de e-mail); o mesmo vale pra notificação em si, que só existe dentro do site (sem e-mail/push por enquanto) — ambos dependem de uma conta de envio de e-mail (SendGrid, Resend, SES etc.).
+5. O WebSocket do chat (ver abaixo) autentica com o mesmo JWT de 30 dias usado em toda chamada HTTP, só que agora ele também chega ao navegador (vira prop de Client Component) — numa versão de produção de verdade isso devia virar um token de curta duração específico pra essa conexão.

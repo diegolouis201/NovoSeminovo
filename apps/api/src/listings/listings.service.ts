@@ -1,5 +1,3 @@
-import { unlink } from "node:fs/promises";
-import { join } from "node:path";
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@novoseminovo/db";
 import {
@@ -16,7 +14,7 @@ import {
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
-import { UPLOADS_DIR, UPLOADS_URL_PREFIX } from "../common/uploads";
+import { getPhotoStorage } from "../common/storage";
 import {
   DEFAULT_RATE,
   listingInclude,
@@ -365,10 +363,13 @@ export class ListingsService {
     const startPosition = listing.photos.length;
     const alreadyHasCover = listing.photos.some((photo) => photo.isCover);
 
+    const storage = getPhotoStorage();
+    const urls = await Promise.all(files.map((file) => storage.save(file.buffer, file.originalname, file.mimetype)));
+
     await this.prisma.photo.createMany({
-      data: files.map((file, index) => ({
+      data: urls.map((url, index) => ({
         listingId,
-        url: `${UPLOADS_URL_PREFIX}/${file.filename}`,
+        url,
         position: startPosition + index,
         isCover: !alreadyHasCover && index === 0,
       })),
@@ -394,9 +395,9 @@ export class ListingsService {
     }
 
     await this.prisma.photo.delete({ where: { id: photoId } });
-    // Arquivo pode já ter sumido do disco (ex.: redeploy sem volume persistente
-    // — ver comentário em UPLOADS_DIR); nunca falha a remoção do registro por isso.
-    await unlink(join(UPLOADS_DIR, photo.url.replace(`${UPLOADS_URL_PREFIX}/`, ""))).catch(() => {});
+    // PhotoStorage.remove nunca lança (ver common/storage.ts) — um arquivo
+    // que já sumiu do backend não deve impedir a remoção do registro.
+    await getPhotoStorage().remove(photo.url);
 
     if (photo.isCover) {
       const next = await this.prisma.photo.findFirst({ where: { listingId }, orderBy: { position: "asc" } });

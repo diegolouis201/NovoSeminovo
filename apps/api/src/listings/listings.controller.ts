@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-import { extname } from "node:path";
 import {
   BadRequestException,
   Body,
@@ -15,7 +13,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
-import { diskStorage } from "multer";
+import { memoryStorage } from "multer";
 import {
   CreateListingInputSchema,
   CreateReportInputSchema,
@@ -28,16 +26,15 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
-import { UPLOADS_DIR } from "../common/uploads";
 import { ListingsService, type ListingSearchQuery } from "./listings.service";
 
 const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+// Buffer em memória em vez de gravar direto no disco (diskStorage): quem
+// decide onde o arquivo final mora é ListingsService.addPhotos, via
+// PhotoStorage (disco local ou S3/R2 — ver common/storage.ts), não o multer.
 const photosInterceptor = FilesInterceptor("photos", 8, {
-  storage: diskStorage({
-    destination: UPLOADS_DIR,
-    filename: (_req, file, callback) => callback(null, `${randomUUID()}${extname(file.originalname).toLowerCase()}`),
-  }),
+  storage: memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, callback) => {
     if (!ALLOWED_PHOTO_TYPES.has(file.mimetype)) {

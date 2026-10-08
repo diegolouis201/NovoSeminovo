@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
-import { UPLOADS_DIR, UPLOADS_URL_PREFIX } from "./common/uploads";
+import { UPLOADS_DIR, UPLOADS_URL_PREFIX } from "./common/storage";
 
 async function bootstrap() {
   // O multer não cria o diretório de destino sozinho — sem isso, o primeiro
