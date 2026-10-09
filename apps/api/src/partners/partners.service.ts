@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { formatBRL } from "@novoseminovo/shared-types";
 import type {
   CreatePartnerInput,
   LeadStatus,
@@ -6,9 +7,25 @@ import type {
   Partner,
   PartnerMember,
   PartnerStorefront,
+  Plan,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { listingInclude, toListingSummary } from "../listings/listings.mapper";
+
+// Quantas vagas de anúncio um plano "ocupa": tudo que não é um estado final
+// (vendido/recusado/expirado) conta contra o limite, porque senão dava pra
+// furar o limite só deixando um monte de anúncio pausado ou em análise.
+export const LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA = ["active", "pending_review", "paused"] as const;
+
+function toPlan(plan: { id: string; name: string; maxActiveListings: number; highlightCredits: number; priceMonth: unknown }): Plan {
+  return {
+    id: plan.id,
+    name: plan.name,
+    maxActiveListings: plan.maxActiveListings,
+    highlightCredits: plan.highlightCredits,
+    priceLabel: formatBRL(Number(plan.priceMonth)),
+  };
+}
 
 function slugify(text: string): string {
   return text
@@ -95,7 +112,16 @@ export class PartnersService {
       description: partner.description ?? undefined,
       address: partner.address ?? undefined,
       verified: Boolean(partner.verifiedAt),
-      planName: subscription?.plan.name,
+      subscription: subscription
+        ? {
+            planId: subscription.plan.id,
+            planName: subscription.plan.name,
+            priceLabel: formatBRL(Number(subscription.plan.priceMonth)),
+            maxActiveListings: subscription.plan.maxActiveListings,
+            highlightCredits: subscription.plan.highlightCredits,
+            currentPeriodEnd: subscription.currentPeriodEnd.toISOString(),
+          }
+        : undefined,
       isOwner: partner.ownerUserId === userId,
       stats: {
         activeListings,
@@ -253,5 +279,52 @@ export class PartnersService {
     }
 
     await this.prisma.partnerMember.delete({ where: { id: memberId } });
+  }
+
+  async listPlans(): Promise<Plan[]> {
+    const plans = await this.prisma.plan.findMany({ orderBy: { priceMonth: "asc" } });
+    return plans.map(toPlan);
+  }
+
+  // "Contratar" só o dono decide (mesma regra de Equipe) — e é uma
+  // simulação: ativa a assinatura na hora, sem falar com gateway de
+  // pagamento nenhum (ver comentário em PartnerSubscriptionSchema).
+  async subscribe(ownerUserId: string, planId: string): Promise<Partner> {
+    const partner = await this.prisma.partner.findFirst({ where: { ownerUserId } });
+    if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
+
+    const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
+    if (!plan) throw new NotFoundException(`Plano ${planId} não encontrado`);
+
+    const now = new Date();
+    const currentPeriodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    await this.prisma.$transaction([
+      this.prisma.subscription.updateMany({
+        where: { partnerId: partner.id, status: "active" },
+        data: { status: "canceled" },
+      }),
+      this.prisma.subscription.create({
+        data: { partnerId: partner.id, planId, status: "active", currentPeriodStart: now, currentPeriodEnd },
+      }),
+    ]);
+
+    const result = await this.getMine(ownerUserId);
+    if (!result) throw new Error("Falha inesperada ao contratar o plano.");
+    return result;
+  }
+
+  async cancelSubscription(ownerUserId: string): Promise<Partner> {
+    const partner = await this.prisma.partner.findFirst({ where: { ownerUserId } });
+    if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
+
+    await this.prisma.subscription.updateMany({
+      where: { partnerId: partner.id, status: "active" },
+      data: { status: "canceled" },
+    });
+
+    const result = await this.getMine(ownerUserId);
+    if (!result) throw new Error("Falha inesperada ao cancelar o plano.");
+    return result;
   }
 }

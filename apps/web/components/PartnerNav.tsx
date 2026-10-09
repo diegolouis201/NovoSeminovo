@@ -5,21 +5,24 @@ const TABS = [
   { key: "anuncios", href: "/parceiro/anuncios", label: "Anúncios" },
   { key: "importar", href: "/parceiro/anuncios/importar", label: "Importar CSV" },
   { key: "leads", href: "/parceiro/leads", label: "Leads" },
+  { key: "plano", href: "/parceiro/plano", label: "Plano" },
   { key: "equipe", href: "/parceiro/equipe", label: "Equipe" },
 ] as const;
+
+// Equipe e Plano são decisão do dono (ver Partner.isOwner) — um agente opera
+// o resto do painel igual, mas essas duas abas somem pra ele.
+const OWNER_ONLY_TABS = new Set(["equipe", "plano"]);
 
 export function PartnerNav({
   active,
   showEquipe = true,
 }: {
   active: (typeof TABS)[number]["key"];
-  // Só o dono convida/remove gente da equipe — some pra quem entra como
-  // agente (ver Partner.isOwner).
   showEquipe?: boolean;
 }) {
   return (
     <nav className="inline-flex gap-1 rounded-full bg-surface-sober p-1">
-      {TABS.filter((tab) => tab.key !== "equipe" || showEquipe).map((tab) => (
+      {TABS.filter((tab) => !OWNER_ONLY_TABS.has(tab.key) || showEquipe).map((tab) => (
         <Link
           key={tab.key}
           href={tab.href}

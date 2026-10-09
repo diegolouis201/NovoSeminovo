@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@n
 import {
   AddPartnerMemberInputSchema,
   CreatePartnerInputSchema,
+  SubscribeToPlanInputSchema,
   UpdateLeadStatusInputSchema,
 } from "@novoseminovo/shared-types";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -61,5 +62,23 @@ export class PartnersController {
   @Delete("partners/mine/members/:memberId")
   removeMember(@CurrentUser() user: { id: string }, @Param("memberId") memberId: string) {
     return this.partnersService.removeMember(user.id, memberId);
+  }
+
+  @Get("plans")
+  listPlans() {
+    return this.partnersService.listPlans();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("partners/mine/subscription")
+  subscribe(@CurrentUser() user: { id: string }, @Body() body: unknown) {
+    const input = parseOrBadRequest(SubscribeToPlanInputSchema, body);
+    return this.partnersService.subscribe(user.id, input.planId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete("partners/mine/subscription")
+  cancelSubscription(@CurrentUser() user: { id: string }) {
+    return this.partnersService.cancelSubscription(user.id);
   }
 }

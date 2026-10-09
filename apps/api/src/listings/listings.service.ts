@@ -15,6 +15,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { getPhotoStorage } from "../common/storage";
+import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA } from "../partners/partners.service";
 import {
   DEFAULT_RATE,
   listingInclude,
@@ -260,6 +261,26 @@ export class ListingsService {
     const partner = await this.prisma.partner.findFirst({
       where: { OR: [{ ownerUserId }, { members: { some: { userId: ownerUserId } } }] },
     });
+
+    // Limite de anúncios só existe pra quem tem plano ativo — sem isso, o
+    // comportamento de sempre (sem limite nenhum) continua valendo, inclusive
+    // pra quem tem loja mas nunca contratou um plano.
+    if (partner) {
+      const subscription = await this.prisma.subscription.findFirst({
+        where: { partnerId: partner.id, status: "active" },
+        include: { plan: true },
+      });
+      if (subscription) {
+        const currentCount = await this.prisma.listing.count({
+          where: { partnerId: partner.id, status: { in: [...LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA] } },
+        });
+        if (currentCount >= subscription.plan.maxActiveListings) {
+          throw new ConflictException(
+            `Seu plano atual (${subscription.plan.name}) permite até ${subscription.plan.maxActiveListings} anúncios. Pause ou encerre um anúncio, ou contrate um plano com mais limite em /parceiro/plano.`,
+          );
+        }
+      }
+    }
 
     const listing = await this.prisma.listing.create({
       data: {

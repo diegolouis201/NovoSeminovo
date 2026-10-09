@@ -59,6 +59,19 @@ async function main() {
     },
   });
 
+  await prisma.plan.upsert({
+    where: { id: "plan-basico-seed" },
+    update: {},
+    create: {
+      id: "plan-basico-seed",
+      name: "Básico",
+      maxActiveListings: 10,
+      highlightCredits: 0,
+      priceMonth: 49.9,
+      features: { crm: true },
+    },
+  });
+
   const plan = await prisma.plan.upsert({
     where: { id: "plan-pro-seed" },
     update: {},

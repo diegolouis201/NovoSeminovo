@@ -22,6 +22,7 @@ import type {
   PendingPartner,
   PendingReport,
   Photo,
+  Plan,
   ReportStatus,
   SavedSearch,
 } from "@novoseminovo/shared-types";
@@ -340,6 +341,41 @@ export async function addPartnerMember(email: string, accessToken: string): Prom
 
 export async function removePartnerMember(memberId: string, accessToken: string): Promise<boolean> {
   const res = await fetchWithTimeout(`${API_URL}/partners/mine/members/${memberId}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  return res.ok;
+}
+
+// Planos — "contratar" é uma simulação sem gateway de pagamento nenhum (ver
+// comentário em PartnerSubscriptionSchema no shared-types).
+export async function fetchPlans(): Promise<Plan[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/plans`);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as Plan[];
+  } catch {
+    return [];
+  }
+}
+
+export type SubscribeToPlanResult = { ok: true } | { ok: false; error: string };
+
+export async function subscribeToPlan(planId: string, accessToken: string): Promise<SubscribeToPlanResult> {
+  const res = await fetchWithTimeout(`${API_URL}/partners/mine/subscription`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify({ planId }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    return { ok: false, error: body.message ?? "Não foi possível contratar esse plano." };
+  }
+  return { ok: true };
+}
+
+export async function cancelSubscription(accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/partners/mine/subscription`, {
     method: "DELETE",
     headers: authHeaders(accessToken),
   });

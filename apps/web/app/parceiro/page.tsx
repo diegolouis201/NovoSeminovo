@@ -84,12 +84,17 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
         <StatCard label="Leads novos" value={partner.stats.leadsNew} tone="text-brand-orange" />
       </div>
 
-      <div className="mt-6 rounded-brand border border-border bg-surface-raised p-4">
+      <Link
+        href="/parceiro/plano"
+        className="mt-6 block rounded-brand border border-border bg-surface-raised p-4 hover:bg-surface-sober"
+      >
         <p className="text-xs text-ink-muted">Plano</p>
         <p className="font-semibold text-ink">
-          {partner.planName ?? "Nenhum plano ativo ainda"}
+          {partner.subscription
+            ? `${partner.subscription.planName} · até ${partner.subscription.maxActiveListings} anúncios`
+            : "Nenhum plano ativo ainda"}
         </p>
-      </div>
+      </Link>
     </main>
   );
 }

@@ -376,6 +376,36 @@ export const PartnerStatsSchema = z.object({
 });
 export type PartnerStats = z.infer<typeof PartnerStatsSchema>;
 
+// Plan/Subscription já estavam no schema do banco desde a Etapa 2 — o seed
+// cria um Plan e assina a loja de demonstração nele, mas `/parceiro` só lia
+// (""Nenhum plano ativo ainda""); não existia como contratar um plano de
+// verdade. "Contratar" aqui é uma simulação (sem gateway de pagamento
+// nenhum, ver README "Próximos passos") — ativa a assinatura na hora, sem
+// cobrar nada de ninguém.
+export const PlanSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  maxActiveListings: z.number().int(),
+  highlightCredits: z.number().int(),
+  priceLabel: z.string(),
+});
+export type Plan = z.infer<typeof PlanSchema>;
+
+export const PartnerSubscriptionSchema = z.object({
+  planId: z.string(),
+  planName: z.string(),
+  priceLabel: z.string(),
+  maxActiveListings: z.number().int(),
+  highlightCredits: z.number().int(),
+  currentPeriodEnd: z.string(),
+});
+export type PartnerSubscription = z.infer<typeof PartnerSubscriptionSchema>;
+
+export const SubscribeToPlanInputSchema = z.object({
+  planId: z.string(),
+});
+export type SubscribeToPlanInput = z.infer<typeof SubscribeToPlanInputSchema>;
+
 export const PartnerSchema = z.object({
   id: z.string(),
   type: PartnerType,
@@ -384,11 +414,11 @@ export const PartnerSchema = z.object({
   description: z.string().optional(),
   address: z.string().optional(),
   verified: z.boolean(),
-  planName: z.string().optional(),
+  subscription: PartnerSubscriptionSchema.optional(),
   stats: PartnerStatsSchema,
-  // Só o dono convida/remove gente da equipe (ver /parceiro/equipe) — um
-  // agente vê e opera o painel (anúncios, leads) igual, mas essa aba some
-  // pra ele.
+  // Só o dono convida/remove gente da equipe (ver /parceiro/equipe) e
+  // contrata/cancela plano (ver /parceiro/plano) — um agente vê e opera o
+  // painel (anúncios, leads) igual, mas essas duas abas somem pra ele.
   isOwner: z.boolean(),
 });
 export type Partner = z.infer<typeof PartnerSchema>;
