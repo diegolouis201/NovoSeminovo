@@ -18,6 +18,7 @@ import { getPhotoStorage } from "../common/storage";
 import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA } from "../partners/partners.service";
 import {
   DEFAULT_RATE,
+  buildListingFilterWhere,
   listingInclude,
   priceAmortization,
   toListingDetail,
@@ -50,32 +51,18 @@ export class ListingsService {
   ) {}
 
   async search(query: ListingSearchQuery): Promise<ListingSummary[]> {
-    const priceMin = toNumber(query.priceMin);
-    const priceMax = toNumber(query.priceMax);
-    const yearMin = toNumber(query.yearMin);
-    const yearMax = toNumber(query.yearMax);
-    const bedroomsMin = toNumber(query.bedroomsMin);
-
+    const assetType = query.assetType === "vehicle" || query.assetType === "property" ? query.assetType : undefined;
     const where: Prisma.ListingWhereInput = {
       status: "active",
-      ...(query.assetType === "vehicle" || query.assetType === "property"
-        ? { type: query.assetType }
-        : {}),
-      ...(query.city ? { city: { equals: query.city, mode: "insensitive" } } : {}),
-      ...(priceMin !== undefined || priceMax !== undefined
-        ? { price: { ...(priceMin !== undefined ? { gte: priceMin } : {}), ...(priceMax !== undefined ? { lte: priceMax } : {}) } }
-        : {}),
-      ...(query.q
-        ? { title: { contains: query.q, mode: "insensitive" } }
-        : {}),
-      ...(yearMin !== undefined || yearMax !== undefined
-        ? {
-            vehicleDetails: {
-              yearModel: { ...(yearMin !== undefined ? { gte: yearMin } : {}), ...(yearMax !== undefined ? { lte: yearMax } : {}) },
-            },
-          }
-        : {}),
-      ...(bedroomsMin !== undefined ? { propertyDetails: { bedrooms: { gte: bedroomsMin } } } : {}),
+      ...buildListingFilterWhere(assetType, {
+        q: query.q,
+        city: query.city,
+        priceMin: toNumber(query.priceMin),
+        priceMax: toNumber(query.priceMax),
+        yearMin: toNumber(query.yearMin),
+        yearMax: toNumber(query.yearMax),
+        bedroomsMin: toNumber(query.bedroomsMin),
+      }),
     };
 
     const listings = await this.prisma.listing.findMany({

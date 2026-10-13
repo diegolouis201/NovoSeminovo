@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@novoseminovo/db";
 import type { Notification, NotificationType } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import { EmailService } from "../email/email.service";
+import { renderNotificationEmail } from "../email/email-template";
 
 type NotificationRow = {
   id: string;
@@ -63,17 +65,38 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: `Você recebeu uma avaliação de ${payload.rating} estrela(s) sobre "${payload.listingTitle}".`,
         link: `/anuncio/${payload.listingId}`,
       };
+    case "saved_search_match":
+      return {
+        title: "Novo anúncio compatível com sua busca",
+        body: `"${payload.listingTitle}" acabou de ser aprovado e bate com uma busca salva sua.`,
+        link: `/anuncio/${payload.listingId}`,
+      };
   }
 }
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly email: EmailService,
+  ) {}
 
+  // Grava a notificação dentro do site sempre; manda uma cópia por e-mail
+  // só quando EmailService.isEnabled() (ver README "Próximos passos") — o
+  // título/corpo é o mesmo dos dois lados, computado uma vez por describe().
   async notify(userId: string, type: NotificationType, payload: Record<string, unknown>): Promise<void> {
     await this.prisma.notification.create({
       data: { userId, type, payload: payload as Prisma.InputJsonValue },
     });
+
+    if (!this.email.isEnabled()) return;
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } });
+    if (!user) return;
+
+    const { title, body, link } = describe(type, payload);
+    const html = renderNotificationEmail({ userName: user.name, title, body, link });
+    await this.email.send(user.email, title, html);
   }
 
   async listMine(userId: string): Promise<Notification[]> {

@@ -10,6 +10,7 @@ import type {
 import { formatBRL } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { SavedSearchesService } from "../saved-searches/saved-searches.service";
 
 function location(listing: { city: string; state: string; neighborhood: string | null }): string {
   return listing.neighborhood
@@ -22,6 +23,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly savedSearches: SavedSearchesService,
   ) {}
 
   async listPendingListings(): Promise<PendingListing[]> {
@@ -75,6 +77,10 @@ export class AdminService {
       nextStatus === "active" ? "listing_approved" : "listing_rejected",
       { listingId: listing.id, listingTitle: listing.title, reason: input.reason },
     );
+
+    if (nextStatus === "active") {
+      await this.savedSearches.notifyMatches(listing.id);
+    }
   }
 
   async listPendingPartners(): Promise<PendingPartner[]> {

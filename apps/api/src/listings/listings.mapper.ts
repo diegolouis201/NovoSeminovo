@@ -27,6 +27,45 @@ export type ListingWithDetails = Prisma.ListingGetPayload<typeof listingWithDeta
 
 export const listingInclude = listingWithDetails.include;
 
+export type ListingFilterValues = {
+  q?: string;
+  city?: string;
+  priceMin?: number;
+  priceMax?: number;
+  yearMin?: number;
+  yearMax?: number;
+  bedroomsMin?: number;
+};
+
+// Compartilhado entre a busca pública (ListingsService.search, que faz o
+// parse de string pra number antes de chamar isto) e o alerta de busca
+// salva (SavedSearchesService.notifyMatches, que já recebe os valores
+// tipados vindos do JSON salvo) — mesma regra de filtro nos dois lugares,
+// uma pessoa só recebe alerta de anúncio que bateria nos filtros dela.
+export function buildListingFilterWhere(
+  assetType: "vehicle" | "property" | undefined,
+  filters: ListingFilterValues,
+): Prisma.ListingWhereInput {
+  const { q, city, priceMin, priceMax, yearMin, yearMax, bedroomsMin } = filters;
+
+  return {
+    ...(assetType ? { type: assetType } : {}),
+    ...(city ? { city: { equals: city, mode: "insensitive" } } : {}),
+    ...(priceMin !== undefined || priceMax !== undefined
+      ? { price: { ...(priceMin !== undefined ? { gte: priceMin } : {}), ...(priceMax !== undefined ? { lte: priceMax } : {}) } }
+      : {}),
+    ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
+    ...(yearMin !== undefined || yearMax !== undefined
+      ? {
+          vehicleDetails: {
+            yearModel: { ...(yearMin !== undefined ? { gte: yearMin } : {}), ...(yearMax !== undefined ? { lte: yearMax } : {}) },
+          },
+        }
+      : {}),
+    ...(bedroomsMin !== undefined ? { propertyDetails: { bedrooms: { gte: bedroomsMin } } } : {}),
+  };
+}
+
 const TRANSMISSION_LABEL: Record<string, string> = {
   manual: "Manual",
   automatic: "Automático",

@@ -596,6 +596,7 @@ export const NotificationType = z.enum([
   "new_message",
   "partner_verified",
   "new_review",
+  "saved_search_match",
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
