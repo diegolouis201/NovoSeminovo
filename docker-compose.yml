@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: novoseminovo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: novoseminovo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://novoseminovo:${POSTGRES_PASSWORD}@postgres:5432/novoseminovo?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      WEB_ORIGIN: https://${DOMAIN}
+      # Vazias por padrão: sem isso, cada integração cai sozinha pro modo
+      # simulado de sempre (ver PaymentsService/EmailService) — preencha no
+      # .env quando tiver as chaves de verdade.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_PUBLIC_URL_BASE: ${S3_PUBLIC_URL_BASE:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+    volumes:
+      # Sem isso, foto enviada sumiria a cada "docker compose up --build"
+      # (ver common/storage.ts) — só dispensável se configurar S3_BUCKET.
+      - uploads_data:/app/apps/api/uploads
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: https://${DOMAIN}
+      NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+
+volumes:
+  postgres_data:
+  uploads_data:
+  caddy_data:
+  caddy_config:

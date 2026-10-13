@@ -1,0 +1,9 @@
+{$DOMAIN} {
+	reverse_proxy web:3000
+}
+
+api.{$DOMAIN} {
+	# WebSocket do chat (Socket.IO, ver ConversationsGateway) passa por aqui
+	# sem configuração extra — o Caddy detecta o cabeçalho Upgrade sozinho.
+	reverse_proxy api:4000
+}
