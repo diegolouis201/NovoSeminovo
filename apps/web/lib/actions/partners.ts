@@ -7,8 +7,10 @@ import { auth } from "@/auth";
 import {
   addPartnerMember,
   cancelSubscription,
+  confirmCheckoutSession,
   createPartner,
   removePartnerMember,
+  startCheckoutSession,
   subscribeToPlan,
   updateLeadStatus,
 } from "@/lib/api";
@@ -87,4 +89,34 @@ export async function cancelSubscriptionAction(): Promise<void> {
   await cancelSubscription(session.accessToken);
   revalidatePath("/parceiro");
   revalidatePath("/parceiro/plano");
+}
+
+// Com Stripe configurado na API, "Contratar" usa isto em vez de
+// subscribeToPlanAction: cria a sessão de Checkout e manda o navegador pra
+// página do Stripe de verdade (redirect aceita URL externa numa Server
+// Action, o navegador segue normalmente).
+export async function startCheckoutAction(planId: string): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const result = await startCheckoutSession(planId, session.accessToken);
+  if (!result.ok) {
+    redirect(`/parceiro/plano?error=${encodeURIComponent(result.error)}`);
+  }
+
+  redirect(result.url);
+}
+
+// Chamado pela própria página quando a pessoa volta do Checkout com
+// ?checkout_session_id= na URL — confirma e ativa a assinatura antes de
+// redirecionar pra uma URL limpa (sem o parâmetro, pra não confirmar de novo
+// se a pessoa der F5).
+export async function confirmCheckoutAction(sessionId: string): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const ok = await confirmCheckoutSession(sessionId, session.accessToken);
+  revalidatePath("/parceiro");
+  revalidatePath("/parceiro/plano");
+  redirect(ok ? "/parceiro/plano" : "/parceiro/plano?error=Não foi possível confirmar o pagamento ainda. Tente recarregar em alguns segundos.");
 }

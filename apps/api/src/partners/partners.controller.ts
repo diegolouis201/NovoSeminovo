@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
   AddPartnerMemberInputSchema,
   CreatePartnerInputSchema,
@@ -80,5 +80,24 @@ export class PartnersController {
   @Delete("partners/mine/subscription")
   cancelSubscription(@CurrentUser() user: { id: string }) {
     return this.partnersService.cancelSubscription(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("partners/mine/checkout-session")
+  createCheckoutSession(@CurrentUser() user: { id: string }, @Body() body: unknown) {
+    const input = parseOrBadRequest(SubscribeToPlanInputSchema, body);
+    const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
+    const successUrl = `${webOrigin}/parceiro/plano?checkout_session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${webOrigin}/parceiro/plano?checkout=cancelado`;
+    return this.partnersService
+      .createCheckoutSession(user.id, input.planId, successUrl, cancelUrl)
+      .then((url) => ({ url }));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("partners/mine/checkout-session/confirm")
+  confirmCheckoutSession(@CurrentUser() user: { id: string }, @Query("session_id") sessionId?: string) {
+    if (!sessionId) throw new BadRequestException("session_id é obrigatório");
+    return this.partnersService.confirmCheckoutSession(user.id, sessionId);
   }
 }

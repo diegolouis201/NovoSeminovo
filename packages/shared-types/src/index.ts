@@ -406,6 +406,21 @@ export const SubscribeToPlanInputSchema = z.object({
 });
 export type SubscribeToPlanInput = z.infer<typeof SubscribeToPlanInputSchema>;
 
+// Cobrança de verdade via Stripe é opcional (ver README "Próximos passos"):
+// sem STRIPE_SECRET_KEY configurada na API, POST /partners/mine/subscription
+// continua sendo a simulação de sempre. Com a chave configurada, o front
+// troca pra criar uma sessão de Checkout de verdade — PaymentsStatus é como
+// ele descobre qual dos dois caminhos usar.
+export const PaymentsStatusSchema = z.object({
+  stripeEnabled: z.boolean(),
+});
+export type PaymentsStatus = z.infer<typeof PaymentsStatusSchema>;
+
+export const CheckoutSessionResultSchema = z.object({
+  url: z.string(),
+});
+export type CheckoutSessionResult = z.infer<typeof CheckoutSessionResultSchema>;
+
 export const PartnerSchema = z.object({
   id: z.string(),
   type: PartnerType,

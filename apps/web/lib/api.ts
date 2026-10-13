@@ -21,6 +21,7 @@ import type {
   PendingListing,
   PendingPartner,
   PendingReport,
+  PaymentsStatus,
   Photo,
   Plan,
   ReportStatus,
@@ -347,8 +348,10 @@ export async function removePartnerMember(memberId: string, accessToken: string)
   return res.ok;
 }
 
-// Planos — "contratar" é uma simulação sem gateway de pagamento nenhum (ver
-// comentário em PartnerSubscriptionSchema no shared-types).
+// Planos — sem Stripe configurado na API, "contratar" é uma simulação sem
+// gateway de pagamento nenhum (ver comentário em PartnerSubscriptionSchema
+// no shared-types); com Stripe configurado, startCheckoutSession abaixo é
+// quem o front usa de verdade.
 export async function fetchPlans(): Promise<Plan[]> {
   try {
     const res = await fetchWithTimeout(`${API_URL}/plans`);
@@ -377,6 +380,38 @@ export async function subscribeToPlan(planId: string, accessToken: string): Prom
 export async function cancelSubscription(accessToken: string): Promise<boolean> {
   const res = await fetchWithTimeout(`${API_URL}/partners/mine/subscription`, {
     method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  return res.ok;
+}
+
+export async function fetchPaymentsStatus(): Promise<PaymentsStatus> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/payments/status`);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as PaymentsStatus;
+  } catch {
+    return { stripeEnabled: false };
+  }
+}
+
+export type StartCheckoutResult = { ok: true; url: string } | { ok: false; error: string };
+
+export async function startCheckoutSession(planId: string, accessToken: string): Promise<StartCheckoutResult> {
+  const res = await fetchWithTimeout(`${API_URL}/partners/mine/checkout-session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify({ planId }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { ok: false, error: body.message ?? "Não foi possível iniciar o checkout." };
+  }
+  return { ok: true, url: body.url as string };
+}
+
+export async function confirmCheckoutSession(sessionId: string, accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/partners/mine/checkout-session/confirm?session_id=${encodeURIComponent(sessionId)}`, {
     headers: authHeaders(accessToken),
   });
   return res.ok;

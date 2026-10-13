@@ -160,18 +160,21 @@ model User {
 }
 
 model Partner {
-  id          String      @id @default(cuid())
-  ownerUserId String      @map("owner_user_id")
-  owner       User        @relation("PartnerOwner", fields: [ownerUserId], references: [id])
-  type        PartnerType
-  legalName   String      @map("legal_name")
-  document    String
-  verifiedAt  DateTime?   @map("verified_at")
-  slug        String      @unique
-  logoUrl     String?     @map("logo_url")
-  description String?
-  address     String?
-  createdAt   DateTime    @default(now()) @map("created_at")
+  id               String      @id @default(cuid())
+  ownerUserId      String      @map("owner_user_id")
+  owner            User        @relation("PartnerOwner", fields: [ownerUserId], references: [id])
+  type             PartnerType
+  legalName        String      @map("legal_name")
+  document         String
+  verifiedAt       DateTime?   @map("verified_at")
+  slug             String      @unique
+  logoUrl          String?     @map("logo_url")
+  description      String?
+  address          String?
+  // Reaproveitado entre tentativas de checkout — sem isso, cada contratação
+  // criaria um Customer novo no Stripe pra mesma loja.
+  stripeCustomerId String?     @map("stripe_customer_id")
+  createdAt        DateTime    @default(now()) @map("created_at")
 
   members       PartnerMember[]
   listings      Listing[]
@@ -203,6 +206,10 @@ model Plan {
   highlightCredits   Int      @default(0) @map("highlight_credits")
   priceMonth         Decimal  @map("price_month") @db.Decimal(10, 2)
   features           Json     @default("{}")
+  // Price de teste criado via API (ver PaymentsService.ensureStripeCatalog)
+  // na primeira vez que o servidor sobe com STRIPE_SECRET_KEY configurado —
+  // nulo enquanto não tiver chave nenhuma, aí "contratar" cai na simulação.
+  stripePriceId      String?  @map("stripe_price_id")
 
   subscriptions Subscription[]
 

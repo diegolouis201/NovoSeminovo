@@ -10,6 +10,7 @@ import type {
   Plan,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import { PaymentsService } from "../payments/payments.service";
 import { listingInclude, toListingSummary } from "../listings/listings.mapper";
 
 // Quantas vagas de anúncio um plano "ocupa": tudo que não é um estado final
@@ -38,7 +39,10 @@ function slugify(text: string): string {
 
 @Injectable()
 export class PartnersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly payments: PaymentsService,
+  ) {}
 
   private async uniqueSlug(base: string): Promise<string> {
     const root = slugify(base) || "loja";
@@ -286,9 +290,30 @@ export class PartnersService {
     return plans.map(toPlan);
   }
 
-  // "Contratar" só o dono decide (mesma regra de Equipe) — e é uma
-  // simulação: ativa a assinatura na hora, sem falar com gateway de
-  // pagamento nenhum (ver comentário em PartnerSubscriptionSchema).
+  // Cancela qualquer assinatura ativa da loja e cria a nova já ativa —
+  // usado tanto pela simulação (subscribe, sem paymentProviderRef) quanto
+  // pela confirmação de um checkout de verdade (com o id da Subscription
+  // no Stripe, pra cancelSubscription saber o que cancelar lá também).
+  private async activateSubscription(partnerId: string, planId: string, paymentProviderRef?: string): Promise<void> {
+    const now = new Date();
+    const currentPeriodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    await this.prisma.$transaction([
+      this.prisma.subscription.updateMany({
+        where: { partnerId, status: "active" },
+        data: { status: "canceled" },
+      }),
+      this.prisma.subscription.create({
+        data: { partnerId, planId, status: "active", currentPeriodStart: now, currentPeriodEnd, paymentProviderRef },
+      }),
+    ]);
+  }
+
+  // "Contratar" só o dono decide (mesma regra de Equipe). Sem Stripe
+  // configurado (ver PaymentsService.isEnabled), é uma simulação: ativa a
+  // assinatura na hora, sem falar com gateway de pagamento nenhum (ver
+  // comentário em PartnerSubscriptionSchema) — com Stripe configurado, o
+  // controller chama createCheckoutSession em vez deste método.
   async subscribe(ownerUserId: string, planId: string): Promise<Partner> {
     const partner = await this.prisma.partner.findFirst({ where: { ownerUserId } });
     if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
@@ -296,27 +321,52 @@ export class PartnersService {
     const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
     if (!plan) throw new NotFoundException(`Plano ${planId} não encontrado`);
 
-    const now = new Date();
-    const currentPeriodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-    await this.prisma.$transaction([
-      this.prisma.subscription.updateMany({
-        where: { partnerId: partner.id, status: "active" },
-        data: { status: "canceled" },
-      }),
-      this.prisma.subscription.create({
-        data: { partnerId: partner.id, planId, status: "active", currentPeriodStart: now, currentPeriodEnd },
-      }),
-    ]);
+    await this.activateSubscription(partner.id, planId);
 
     const result = await this.getMine(ownerUserId);
     if (!result) throw new Error("Falha inesperada ao contratar o plano.");
     return result;
   }
 
+  async createCheckoutSession(ownerUserId: string, planId: string, successUrl: string, cancelUrl: string): Promise<string> {
+    const partner = await this.prisma.partner.findFirst({ where: { ownerUserId } });
+    if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
+
+    const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
+    if (!plan) throw new NotFoundException(`Plano ${planId} não encontrado`);
+
+    return this.payments.createCheckoutSession(partner, plan, successUrl, cancelUrl);
+  }
+
+  // Chamado quando a pessoa volta do Checkout do Stripe — confirma direto na
+  // API do Stripe (não confia só no redirecionamento do navegador) antes de
+  // ativar a assinatura. O webhook (ver WebhooksController) faz a mesma
+  // ativação de forma independente, pro caso de a pessoa fechar a aba antes
+  // de voltar.
+  async confirmCheckoutSession(ownerUserId: string, sessionId: string): Promise<Partner> {
+    const partner = await this.prisma.partner.findFirst({ where: { ownerUserId } });
+    if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
+
+    const confirmed = await this.payments.confirmCheckoutSession(sessionId);
+    if (!confirmed || confirmed.metadata.partnerId !== partner.id) {
+      throw new BadRequestException("Checkout não encontrado ou ainda não confirmado pelo Stripe.");
+    }
+
+    await this.activateSubscription(partner.id, confirmed.metadata.planId, confirmed.stripeSubscriptionId);
+
+    const result = await this.getMine(ownerUserId);
+    if (!result) throw new Error("Falha inesperada ao confirmar o plano.");
+    return result;
+  }
+
   async cancelSubscription(ownerUserId: string): Promise<Partner> {
     const partner = await this.prisma.partner.findFirst({ where: { ownerUserId } });
     if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
+
+    const active = await this.prisma.subscription.findFirst({ where: { partnerId: partner.id, status: "active" } });
+    if (active?.paymentProviderRef) {
+      await this.payments.cancelStripeSubscription(active.paymentProviderRef);
+    }
 
     await this.prisma.subscription.updateMany({
       where: { partnerId: partner.id, status: "active" },
@@ -326,5 +376,12 @@ export class PartnersService {
     const result = await this.getMine(ownerUserId);
     if (!result) throw new Error("Falha inesperada ao cancelar o plano.");
     return result;
+  }
+
+  // Usado pelo WebhooksController (checkout.session.completed) — mesma
+  // ativação de confirmCheckoutSession, mas sem JWT: quem garante que é
+  // legítimo é a assinatura do webhook, verificada antes de chegar aqui.
+  async activateSubscriptionFromWebhook(partnerId: string, planId: string, stripeSubscriptionId: string): Promise<void> {
+    await this.activateSubscription(partnerId, planId, stripeSubscriptionId);
   }
 }

@@ -9,6 +9,8 @@ import { PartnersModule } from "./partners/partners.module";
 import { AdminModule } from "./admin/admin.module";
 import { SavedSearchesModule } from "./saved-searches/saved-searches.module";
 import { NotificationsModule } from "./notifications/notifications.module";
+import { PaymentsModule } from "./payments/payments.module";
+import { WebhooksModule } from "./webhooks/webhooks.module";
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { NotificationsModule } from "./notifications/notifications.module";
     AdminModule,
     SavedSearchesModule,
     NotificationsModule,
+    PaymentsModule,
+    WebhooksModule,
   ],
 })
 export class AppModule {}
