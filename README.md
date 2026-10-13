@@ -15,6 +15,8 @@ packages/
 
 O design system com os tokens de marca (cores, tipografia, espaçamento, componentes) vive à parte, publicado em: https://claude.ai/artifact/CSeA1cBYwztNm288vfMK28 — `apps/web/tailwind.config.ts` e `apps/web/app/globals.css` replicam os mesmos tokens; mude lá primeiro e replique aqui.
 
+Pra publicar o site de verdade (fora do seu computador), ver [`DEPLOY.md`](./DEPLOY.md) — Vercel pro site, Render pra API + banco, domínio apontado de onde já estiver registrado.
+
 ## Como rodar
 
 Pré-requisitos: Node 20+, pnpm 9+, um PostgreSQL local (ou remoto) para `packages/db`.
