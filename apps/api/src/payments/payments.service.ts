@@ -21,7 +21,12 @@ export class PaymentsService {
     if (!this.client) {
       const key = process.env.STRIPE_SECRET_KEY;
       if (!key) throw new Error("STRIPE_SECRET_KEY não configurada");
-      this.client = new Stripe(key);
+      // Cliente baseado em fetch (em vez do cliente HTTP padrão baseado em
+      // node:http) porque o fetch nativo do Node respeita HTTPS_PROXY quando
+      // o processo roda com NODE_USE_ENV_PROXY=1 — necessário em ambientes
+      // atrás de um proxy de saída (ex.: este sandbox). Sem isso configurado,
+      // comporta-se como conexão direta normal.
+      this.client = new Stripe(key, { httpClient: Stripe.createFetchHttpClient() });
     }
     return this.client;
   }
