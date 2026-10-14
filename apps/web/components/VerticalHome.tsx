@@ -20,7 +20,7 @@ const COPY = {
     destaquesTitle: "Carros em destaque",
   },
   property: {
-    headline: "Comprar e vender imóvel não precisa ser chato.",
+    headline: "Comprar e vender imóveis ficou mais fácil.",
     placeholder: "Apartamento na Savassi, casa no Buritis...",
     destaquesTitle: "Imóveis em destaque",
   },
@@ -43,13 +43,13 @@ export async function VerticalHome({ assetType }: { assetType?: "vehicle" | "pro
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-12 px-4 pb-16">
-      <section className="flex flex-col gap-4 pt-10 md:pt-14">
+      <section className="flex flex-col items-center gap-4 pt-10 text-center md:pt-14">
         <h1 className="max-w-2xl font-display text-4xl font-bold leading-tight text-ink md:text-5xl">{copy.headline}</h1>
         <p className="max-w-xl text-ink-muted">
           Busque, converse com o anunciante e já saia simulando o financiamento — tudo no mesmo lugar.
         </p>
 
-        <form action="/busca" className="mt-4 flex max-w-xl flex-col gap-2 sm:flex-row">
+        <form action="/busca" className="mt-4 flex w-full max-w-xl flex-col gap-2 sm:flex-row">
           {assetType && <input type="hidden" name="assetType" value={assetType} />}
           <input
             name="q"
