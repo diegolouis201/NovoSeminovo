@@ -90,9 +90,10 @@ const MOCK_FEATURED_PARTNERS: FeaturedPartner[] = [
   { slug: "veiculos-buritis", legalName: "Veículos Buritis" },
 ];
 
-export async function fetchFeaturedPartners(): Promise<FeaturedPartner[]> {
+export async function fetchFeaturedPartners(forAssetType?: "vehicle" | "property"): Promise<FeaturedPartner[]> {
   try {
-    const res = await fetchWithTimeout(`${API_URL}/partners`);
+    const query = forAssetType ? `?for=${forAssetType}` : "";
+    const res = await fetchWithTimeout(`${API_URL}/partners${query}`);
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return (await res.json()) as FeaturedPartner[];
   } catch {

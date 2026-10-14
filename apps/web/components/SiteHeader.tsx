@@ -17,13 +17,13 @@ export async function SiteHeader() {
 
         <nav className="flex items-center gap-1 rounded-full bg-surface-sober p-1">
           <Link
-            href="/busca?assetType=vehicle"
+            href="/carros"
             className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-raised"
           >
             <Car size={18} weight="bold" /> Carros
           </Link>
           <Link
-            href="/busca?assetType=property"
+            href="/imoveis"
             className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-raised"
           >
             <House size={18} weight="bold" /> Imóveis

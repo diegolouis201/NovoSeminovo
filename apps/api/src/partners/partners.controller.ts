@@ -31,8 +31,9 @@ export class PartnersController {
   // sem segmento nenhum não bateria com ":slug" de qualquer forma, mas a ordem
   // deixa a intenção clara.
   @Get("partners")
-  listFeatured() {
-    return this.partnersService.listFeatured();
+  listFeatured(@Query("for") forParam?: string) {
+    const forAssetType = forParam === "vehicle" || forParam === "property" ? forParam : undefined;
+    return this.partnersService.listFeatured(forAssetType);
   }
 
   @Get("partners/:slug")

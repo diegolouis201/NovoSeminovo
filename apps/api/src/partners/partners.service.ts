@@ -141,10 +141,17 @@ export class PartnersService {
 
   // "Lojas parceiras em destaque" na home — só quem tem o selo de
   // verificado E pelo menos um anúncio ativo (loja verificada mas sem
-  // vitrine nenhuma não ajuda ninguém a decidir clicar).
-  async listFeatured(limit = 8): Promise<FeaturedPartner[]> {
+  // vitrine nenhuma não ajuda ninguém a decidir clicar). "/carros" e
+  // "/imoveis" passam forAssetType pra só mostrar loja do ramo certo —
+  // "dealership" vende carro, "real_estate_agency"/"broker" vende imóvel.
+  async listFeatured(forAssetType?: "vehicle" | "property", limit = 8): Promise<FeaturedPartner[]> {
     const partners = await this.prisma.partner.findMany({
-      where: { verifiedAt: { not: null }, listings: { some: { status: "active" } } },
+      where: {
+        verifiedAt: { not: null },
+        listings: { some: { status: "active" } },
+        ...(forAssetType === "vehicle" ? { type: "dealership" } : {}),
+        ...(forAssetType === "property" ? { type: { in: ["real_estate_agency", "broker"] } } : {}),
+      },
       orderBy: { listings: { _count: "desc" } },
       take: limit,
       select: { slug: true, legalName: true, logoUrl: true },
