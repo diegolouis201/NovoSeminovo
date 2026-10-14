@@ -1,40 +1,43 @@
 // Wordmark da identidade visual original (ver PDF de marca, Etapa de
 // branding): três blocos coloridos — azul/laranja/verde — fechando com um
-// ")" que funciona como sorriso. "stacked" reproduz o lockup de 3 linhas do
-// manual (favicon, rodapé, telas de autenticação); "inline" é a adaptação
-// pra caber numa barra de topo de altura normal (cabeçalho do site).
+// ")" grande e inclinado que funciona como sorriso. "stacked" reproduz o
+// lockup de 3 linhas do manual (usado no cabeçalho e em contextos quadrados
+// como favicon/rodapé/telas de autenticação); "inline" é uma adaptação de
+// uma linha só, pra espaços bem estreitos onde 3 linhas não cabem.
 type LogoProps = {
   variant?: "inline" | "stacked";
   className?: string;
 };
 
-export function Logo({ variant = "inline", className }: LogoProps) {
-  const smile = (
-    <span aria-hidden className="inline-block -rotate-6">
+function Smile() {
+  return (
+    <span aria-hidden className="ml-1 inline-block -translate-y-[0.08em] -rotate-12 text-[1.75em] leading-none">
       )
     </span>
   );
+}
 
+export function Logo({ variant = "inline", className }: LogoProps) {
   if (variant === "stacked") {
     return (
-      <span className={`flex flex-col font-display text-2xl font-bold leading-[0.85] ${className ?? ""}`}>
-        <span className="text-brand-blue">NOVO</span>
-        <span className="text-brand-orange">SEMI</span>
-        <span className="text-brand-green">
-          NOVO
-          {smile}
+      <span className={`flex flex-col font-display font-bold uppercase leading-[0.82] tracking-tight ${className ?? ""}`}>
+        <span className="text-brand-blue">Novo</span>
+        <span className="text-brand-orange">Semi</span>
+        <span className="flex items-center text-brand-green">
+          Novo
+          <Smile />
         </span>
       </span>
     );
   }
 
   return (
-    <span className={`font-display font-bold tracking-tight ${className ?? ""}`}>
+    <span className={`inline-flex items-center font-display font-bold tracking-tight ${className ?? ""}`}>
       <span className="text-brand-blue">Novo</span>
       <span className="text-brand-orange">Semi</span>
-      <span className="text-brand-green">
+      <span className="flex items-center text-brand-green">
         Novo
-        {smile}
+        <Smile />
       </span>
     </span>
   );

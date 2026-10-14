@@ -11,8 +11,8 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-surface-raised">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3">
-        <Link href="/" className="text-xl">
-          <Logo />
+        <Link href="/" className="text-sm">
+          <Logo variant="stacked" />
         </Link>
 
         <nav className="flex items-center gap-1 rounded-full bg-surface-sober p-1">
