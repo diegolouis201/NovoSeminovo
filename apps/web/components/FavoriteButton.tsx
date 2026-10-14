@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Heart } from "@phosphor-icons/react";
 import { useState, useTransition } from "react";
 import { toggleFavoriteAction } from "@/lib/actions/favorites";
 
@@ -23,7 +24,7 @@ export function FavoriteButton({
   if (!isAuthenticated) {
     return (
       <Link href="/entrar" aria-label="Entrar para favoritar" className={baseClass}>
-        ♡
+        <Heart size={18} weight="bold" />
       </Link>
     );
   }
@@ -44,7 +45,7 @@ export function FavoriteButton({
         });
       }}
     >
-      <span className={favorited ? "text-status-danger" : undefined}>{favorited ? "♥" : "♡"}</span>
+      <Heart size={18} weight={favorited ? "fill" : "bold"} className={favorited ? "text-status-danger" : undefined} />
     </button>
   );
 }

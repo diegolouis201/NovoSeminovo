@@ -1,5 +1,6 @@
 "use client";
 
+import { WhatsappLogo } from "@phosphor-icons/react";
 import { registerWhatsappClickAction } from "@/lib/actions/whatsapp";
 
 function toWhatsappDigits(phone: string): string {
@@ -22,6 +23,7 @@ export function WhatsAppButton({ listingId, phone, listingTitle }: { listingId: 
       }}
       className="inline-flex items-center gap-2 rounded-brand border border-border bg-transparent px-4 py-3 text-sm font-bold text-ink transition-opacity hover:opacity-90"
     >
+      <WhatsappLogo size={20} weight="fill" className="text-brand-green" />
       Chamar no WhatsApp
     </a>
   );

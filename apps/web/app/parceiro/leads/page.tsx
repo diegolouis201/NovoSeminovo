@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ChatCircle, Phone, WhatsappLogo } from "@phosphor-icons/react/dist/ssr";
 import type { LeadSource, LeadStatus, LeadSummary } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
@@ -13,10 +14,10 @@ const COLUMNS: { status: LeadStatus; label: string }[] = [
   { status: "lost", label: "Perdido" },
 ];
 
-const SOURCE_LABEL: Record<LeadSource, string> = {
-  chat: "💬 Chat",
-  whatsapp: "📱 WhatsApp",
-  phone: "☎️ Telefone",
+const SOURCE_LABEL: Record<LeadSource, { icon: typeof ChatCircle; label: string }> = {
+  chat: { icon: ChatCircle, label: "Chat" },
+  whatsapp: { icon: WhatsappLogo, label: "WhatsApp" },
+  phone: { icon: Phone, label: "Telefone" },
 };
 
 export default async function PartnerLeadsPage() {
@@ -67,12 +68,15 @@ export default async function PartnerLeadsPage() {
 
 function LeadCard({ lead }: { lead: LeadSummary }) {
   const action = updateLeadStatusAction.bind(null, lead.id);
+  const source = SOURCE_LABEL[lead.source];
 
   return (
     <div className="flex flex-col gap-2 rounded-brand border border-border bg-surface-raised p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold text-ink">{lead.buyerName}</p>
-        <span className="whitespace-nowrap text-xs text-ink-muted">{SOURCE_LABEL[lead.source]}</span>
+        <span className="flex items-center gap-1 whitespace-nowrap text-xs text-ink-muted">
+          <source.icon size={14} weight="bold" /> {source.label}
+        </span>
       </div>
       <p className="truncate text-xs text-ink-muted">{lead.listingTitle}</p>
       <p className="text-xs text-ink-muted">{lead.buyerEmail}</p>

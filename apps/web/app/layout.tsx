@@ -1,20 +1,26 @@
 import type { Metadata } from "next";
-import { Fredoka, Nunito_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { SiteHeader } from "@/components/SiteHeader";
 
 // Placeholder tipográfico até a Valken Regular (fonte institucional original)
-// chegar como arquivo — ver README do design system (Etapa 4).
-const display = Fredoka({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
+// chegar como arquivo — ver README do design system (Etapa 4). Arquivos
+// hospedados localmente (em vez de next/font/google) de propósito: next/font
+// baixa a fonte do Google *durante o build*, e essa rede falhando (já
+// aconteceu — ver DEPLOY.md) derruba o build inteiro sem mensagem de erro
+// clara. Self-hosted remove essa dependência de rede do build.
+const display = localFont({
+  src: "../assets/fonts/Fredoka-Variable-latin.woff2",
+  weight: "500 700",
   variable: "--font-display",
+  display: "swap",
 });
 
-const sans = Nunito_Sans({
-  subsets: ["latin"],
-  weight: ["400", "600", "700", "800"],
+const sans = localFont({
+  src: "../assets/fonts/NunitoSans-Variable-latin.woff2",
+  weight: "400 800",
   variable: "--font-sans",
+  display: "swap",
 });
 
 export const metadata: Metadata = {

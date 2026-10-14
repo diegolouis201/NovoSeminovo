@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Car, House } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
@@ -62,8 +63,10 @@ export default async function ListingDetailPage({
             {listing.photos[0] ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={resolveMediaUrl(listing.photos[0].url)} alt={listing.title} className="h-full w-full object-cover" />
+            ) : listing.assetType === "property" ? (
+              <House size={64} weight="duotone" className="text-ink-muted" />
             ) : (
-              <span aria-hidden>{listing.assetType === "property" ? "🏠" : "🚗"}</span>
+              <Car size={64} weight="duotone" className="text-ink-muted" />
             )}
             <div className="absolute right-3 top-3">
               <FavoriteButton

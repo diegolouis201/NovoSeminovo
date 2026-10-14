@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Car, House } from "@phosphor-icons/react/dist/ssr";
 import type { ListingSummary } from "@novoseminovo/shared-types";
 import { Badge } from "@/components/Badge";
 import { FavoriteButton } from "@/components/FavoriteButton";
@@ -25,8 +26,10 @@ export function ListingCard({
         {listing.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={resolveMediaUrl(listing.image)} alt={listing.title} className="h-full w-full object-cover" />
+        ) : listing.assetType === "property" ? (
+          <House size={40} weight="duotone" className="text-ink-muted" />
         ) : (
-          <span aria-hidden>{listing.assetType === "property" ? "🏠" : "🚗"}</span>
+          <Car size={40} weight="duotone" className="text-ink-muted" />
         )}
         <div className="absolute right-2 top-2">
           <FavoriteButton
