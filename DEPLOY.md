@@ -43,7 +43,7 @@ cp .env.docker.example .env
 nano .env   # preencha DOMAIN e gere POSTGRES_PASSWORD / JWT_SECRET / AUTH_SECRET
 ```
 
-Pra gerar cada segredo: `openssl rand -base64 33`.
+Pra gerar cada segredo: `openssl rand -hex 32`. Use `-hex` (não `-base64`) especificamente pro `POSTGRES_PASSWORD` — ele entra numa URL de conexão (`postgresql://usuario:SENHA@postgres:5432/...`) e o base64 às vezes sorteia `/`, `+` ou `=`, que quebram essa URL (o Prisma recusa com "invalid port number" ou erro parecido). Hex só usa `0-9a-f`, sempre seguro.
 
 ## 5. Subir tudo
 
