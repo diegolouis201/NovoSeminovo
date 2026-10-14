@@ -13,7 +13,7 @@ export default async function HomePage() {
     <main className="mx-auto max-w-6xl px-4 pb-16">
       <section className="flex flex-col gap-4 py-12 md:py-16">
         <h1 className="max-w-2xl font-display text-4xl font-bold leading-tight text-ink md:text-5xl">
-          Comprar e vender carro (ou imóvel) não precisa ser chato.
+          Comprar e vender não precisa ser chato.
         </h1>
         <p className="max-w-xl text-ink-muted">
           Busque, converse com o anunciante e já saia simulando o financiamento — tudo no mesmo
