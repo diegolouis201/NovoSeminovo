@@ -14,7 +14,9 @@ RUN corepack enable
 WORKDIR /app
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @novoseminovo/web build
+# "turbo run build" compila @novoseminovo/shared-types (TS -> dist/*.js)
+# antes do site — ver o comentário equivalente no Dockerfile da API.
+RUN pnpm turbo run build --filter=@novoseminovo/web
 
 FROM node:20-slim
 RUN corepack enable

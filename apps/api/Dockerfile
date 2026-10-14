@@ -15,7 +15,13 @@ COPY . .
 ENV DATABASE_URL="postgresql://user:password@localhost:5432/db"
 RUN pnpm install --frozen-lockfile
 RUN pnpm db:generate
-RUN pnpm --filter @novoseminovo/api build
+# "turbo run build" (não "pnpm --filter ... build" direto) é essencial aqui:
+# o turbo.json declara build.dependsOn "^build", ou seja, compila
+# @novoseminovo/db e @novoseminovo/shared-types (de TS pra dist/*.js) antes
+# da API — sem isso, o dist/main.js da API faz require() desses pacotes e
+# cai no "main" do package.json deles, que sem essa build aponta pro .ts
+# cru, que o Node puro não consegue interpretar (SyntaxError em runtime).
+RUN pnpm turbo run build --filter=@novoseminovo/api
 
 FROM node:20-slim
 RUN corepack enable
