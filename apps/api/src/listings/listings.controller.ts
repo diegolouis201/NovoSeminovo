@@ -54,6 +54,13 @@ export class ListingsController {
     return this.listingsService.search(query);
   }
 
+  // Precisa vir antes de ":id" — mesmo motivo do "mine" abaixo: "popular-brands"
+  // seria casado como um :id senão.
+  @Get("popular-brands")
+  popularBrands() {
+    return this.listingsService.popularBrands();
+  }
+
   // Precisa vir antes de ":id" — senão o Nest casaria "mine" como um :id.
   @UseGuards(JwtAuthGuard)
   @Get("mine")

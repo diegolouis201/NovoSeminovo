@@ -486,6 +486,16 @@ export const PartnerStorefrontSchema = z.object({
 });
 export type PartnerStorefront = z.infer<typeof PartnerStorefrontSchema>;
 
+// Usado só na vitrine da home ("Lojas parceiras em destaque") — por isso é
+// bem mais enxuto que PartnerStorefrontSchema, que carrega anúncios e
+// avaliações inteiras.
+export const FeaturedPartnerSchema = z.object({
+  slug: z.string(),
+  legalName: z.string(),
+  logoUrl: z.string().optional(),
+});
+export type FeaturedPartner = z.infer<typeof FeaturedPartnerSchema>;
+
 export const LeadStatus = z.enum(["new", "negotiating", "won", "lost"]);
 export type LeadStatus = z.infer<typeof LeadStatus>;
 

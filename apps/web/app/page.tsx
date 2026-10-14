@@ -1,17 +1,23 @@
 import Link from "next/link";
+import { FeaturedPartners } from "@/components/FeaturedPartners";
 import { ListingCard } from "@/components/ListingCard";
-import { fetchListings } from "@/lib/api";
+import { PromoCarousel } from "@/components/PromoCarousel";
+import { QuickCategories } from "@/components/QuickCategories";
+import { SolutionsGrid } from "@/components/SolutionsGrid";
+import { fetchFeaturedPartners, fetchListings, fetchPopularBrands } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
 
 export default async function HomePage() {
-  const [destaques, { isAuthenticated, favoriteIds }] = await Promise.all([
+  const [destaques, { isAuthenticated, favoriteIds }, popularBrands, featuredPartners] = await Promise.all([
     fetchListings({}),
     getFavoriteContext(),
+    fetchPopularBrands(),
+    fetchFeaturedPartners(),
   ]);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-16">
-      <section className="flex flex-col gap-4 py-12 md:py-16">
+    <main className="mx-auto flex max-w-6xl flex-col gap-12 px-4 pb-16">
+      <section className="flex flex-col gap-4 pt-10 md:pt-14">
         <h1 className="max-w-2xl font-display text-4xl font-bold leading-tight text-ink md:text-5xl">
           Comprar e vender não precisa ser chato.
         </h1>
@@ -35,6 +41,10 @@ export default async function HomePage() {
         </form>
       </section>
 
+      <PromoCarousel />
+
+      <QuickCategories brands={popularBrands} />
+
       <section className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between">
           <h2 className="font-display text-2xl font-semibold text-ink">Destaques</h2>
@@ -53,6 +63,10 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      <FeaturedPartners partners={featuredPartners} />
+
+      <SolutionsGrid />
     </main>
   );
 }

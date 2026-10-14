@@ -27,6 +27,14 @@ export class PartnersController {
     return this.partnersService.getMine(user.id);
   }
 
+  // Precisa vir antes de "partners/:slug" — mesmo caso do "mine" acima, "/partners"
+  // sem segmento nenhum não bateria com ":slug" de qualquer forma, mas a ordem
+  // deixa a intenção clara.
+  @Get("partners")
+  listFeatured() {
+    return this.partnersService.listFeatured();
+  }
+
   @Get("partners/:slug")
   getStorefront(@Param("slug") slug: string) {
     return this.partnersService.getStorefront(slug);

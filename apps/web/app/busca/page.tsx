@@ -13,8 +13,17 @@ type SearchPageProps = {
     yearMin?: string;
     yearMax?: string;
     bedroomsMin?: string;
+    brand?: string;
+    propertyType?: string;
     buscaSalva?: string;
   };
+};
+
+const PROPERTY_TYPE_LABEL: Record<string, string> = {
+  house: "Casas",
+  apartment: "Apartamentos",
+  land: "Terrenos",
+  commercial: "Comercial",
 };
 
 function toNumber(value: string | undefined): number | undefined {
@@ -38,7 +47,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       city: searchParams.city || undefined,
       priceMin,
       priceMax,
-      ...(assetType === "property" ? { bedroomsMin } : { yearMin, yearMax }),
+      ...(assetType === "property"
+        ? { bedroomsMin, propertyType: searchParams.propertyType }
+        : { yearMin, yearMax, brand: searchParams.brand }),
     }),
     getFavoriteContext(),
   ]);
@@ -46,7 +57,15 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="font-display text-2xl font-semibold text-ink">
-        {assetType === "property" ? "Imóveis" : assetType === "vehicle" ? "Carros" : "Todos os anúncios"}
+        {searchParams.brand
+          ? `${searchParams.brand} — Carros`
+          : PROPERTY_TYPE_LABEL[searchParams.propertyType ?? ""]
+            ? `${PROPERTY_TYPE_LABEL[searchParams.propertyType ?? ""]}`
+            : assetType === "property"
+              ? "Imóveis"
+              : assetType === "vehicle"
+                ? "Carros"
+                : "Todos os anúncios"}
         <span className="ml-2 text-base font-normal text-ink-muted">({results.length} resultados)</span>
       </h1>
 
@@ -66,6 +85,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           <form action="/busca" className="flex flex-col gap-4">
             {searchParams.q && <input type="hidden" name="q" value={searchParams.q} />}
             {assetType && <input type="hidden" name="assetType" value={assetType} />}
+            {searchParams.brand && <input type="hidden" name="brand" value={searchParams.brand} />}
+            {searchParams.propertyType && <input type="hidden" name="propertyType" value={searchParams.propertyType} />}
 
             <RangeGroup
               label="Preço"

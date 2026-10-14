@@ -35,12 +35,29 @@ export type ListingSearchQuery = {
   yearMin?: string;
   yearMax?: string;
   bedroomsMin?: string;
+  brand?: string;
+  model?: string;
+  transmission?: string;
+  fuelType?: string;
+  mileageMax?: string;
+  propertyType?: string;
 };
 
 function toNumber(value: string | undefined): number | undefined {
   if (!value) return undefined;
   const n = Number(value);
   return Number.isFinite(n) ? n : undefined;
+}
+
+// Query string é texto livre — nunca confiar que "transmission=qualquercoisa"
+// bate com o enum do Prisma. Valor fora da lista vira "sem filtro" em vez de
+// estourar erro 500 no banco.
+const TRANSMISSION_VALUES = new Set(["manual", "automatic"]);
+const FUEL_TYPE_VALUES = new Set(["flex", "gasoline", "ethanol", "diesel", "electric", "hybrid"]);
+const PROPERTY_TYPE_VALUES = new Set(["house", "apartment", "land", "commercial"]);
+
+function toEnum<T extends string>(value: string | undefined, allowed: Set<T>): T | undefined {
+  return value && allowed.has(value as T) ? (value as T) : undefined;
 }
 
 @Injectable()
@@ -62,6 +79,12 @@ export class ListingsService {
         yearMin: toNumber(query.yearMin),
         yearMax: toNumber(query.yearMax),
         bedroomsMin: toNumber(query.bedroomsMin),
+        brand: query.brand,
+        model: query.model,
+        transmission: toEnum(query.transmission, TRANSMISSION_VALUES),
+        fuelType: toEnum(query.fuelType, FUEL_TYPE_VALUES),
+        mileageMax: toNumber(query.mileageMax),
+        propertyType: toEnum(query.propertyType, PROPERTY_TYPE_VALUES),
       }),
     };
 
@@ -73,6 +96,20 @@ export class ListingsService {
     });
 
     return listings.map(toListingSummary);
+  }
+
+  // "Categorias rápidas" na home — marcas com pelo menos um anúncio ativo,
+  // ordenadas pelas mais anunciadas. Sem campo de carroceria no schema
+  // (SUV/Hatch/Sedã etc., como a Webmotors usa) pra oferecer algo parecido,
+  // marca é o recorte mais próximo que já temos de verdade no banco.
+  async popularBrands(limit = 8): Promise<string[]> {
+    const brands = await this.prisma.vehicleBrand.findMany({
+      where: { details: { some: { listing: { status: "active" } } } },
+      orderBy: { details: { _count: "desc" } },
+      take: limit,
+      select: { name: true },
+    });
+    return brands.map((brand) => brand.name);
   }
 
   async getDetail(id: string, viewer?: { id: string; role: Role }) {

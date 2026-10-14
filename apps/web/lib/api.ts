@@ -5,6 +5,7 @@ import type {
   CreatePartnerInput,
   CreateReviewInput,
   CreateSavedSearchInput,
+  FeaturedPartner,
   FinancingSimulationResult,
   LeadStatus,
   LeadSummary,
@@ -62,6 +63,8 @@ export type SearchParams = {
   yearMin?: number;
   yearMax?: number;
   bedroomsMin?: number;
+  brand?: string;
+  propertyType?: string;
 };
 
 export async function fetchListings(params: SearchParams): Promise<ListingSummary[]> {
@@ -81,6 +84,34 @@ export async function fetchListings(params: SearchParams): Promise<ListingSummar
 // accessToken é opcional (busca pública), mas sem ele o dono não vê o próprio
 // anúncio antes de aprovado — a API só libera pending_review/rejected para
 // quem é dono ou admin (ver ListingsService.getDetail).
+const MOCK_FEATURED_PARTNERS: FeaturedPartner[] = [
+  { slug: "imobiliaria-savassi", legalName: "Imobiliária Savassi" },
+  { slug: "auto-center-bh", legalName: "Auto Center BH" },
+  { slug: "veiculos-buritis", legalName: "Veículos Buritis" },
+];
+
+export async function fetchFeaturedPartners(): Promise<FeaturedPartner[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/partners`);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as FeaturedPartner[];
+  } catch {
+    return MOCK_FEATURED_PARTNERS;
+  }
+}
+
+const MOCK_POPULAR_BRANDS = ["Toyota", "Honda", "Volkswagen", "Hyundai", "Jeep", "Chevrolet"];
+
+export async function fetchPopularBrands(): Promise<string[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/listings/popular-brands`);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as string[];
+  } catch {
+    return MOCK_POPULAR_BRANDS;
+  }
+}
+
 export async function fetchListing(id: string, accessToken?: string): Promise<ListingDetail | undefined> {
   try {
     const res = await fetchWithTimeout(`${API_URL}/listings/${id}`, {

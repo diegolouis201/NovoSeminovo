@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { formatBRL } from "@novoseminovo/shared-types";
 import type {
   CreatePartnerInput,
+  FeaturedPartner,
   LeadStatus,
   LeadSummary,
   Partner,
@@ -136,6 +137,24 @@ export class PartnersService {
         leadsWon: countByStatus("won"),
       },
     };
+  }
+
+  // "Lojas parceiras em destaque" na home — só quem tem o selo de
+  // verificado E pelo menos um anúncio ativo (loja verificada mas sem
+  // vitrine nenhuma não ajuda ninguém a decidir clicar).
+  async listFeatured(limit = 8): Promise<FeaturedPartner[]> {
+    const partners = await this.prisma.partner.findMany({
+      where: { verifiedAt: { not: null }, listings: { some: { status: "active" } } },
+      orderBy: { listings: { _count: "desc" } },
+      take: limit,
+      select: { slug: true, legalName: true, logoUrl: true },
+    });
+
+    return partners.map((partner) => ({
+      slug: partner.slug,
+      legalName: partner.legalName,
+      logoUrl: partner.logoUrl ?? undefined,
+    }));
   }
 
   async getStorefront(slug: string): Promise<PartnerStorefront> {

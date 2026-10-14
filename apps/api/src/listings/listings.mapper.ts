@@ -1,4 +1,4 @@
-import { Prisma } from "@novoseminovo/db";
+import { Prisma, type FuelType, type PropertyType, type Transmission } from "@novoseminovo/db";
 import {
   formatBRL,
   type Badge,
@@ -35,6 +35,12 @@ export type ListingFilterValues = {
   yearMin?: number;
   yearMax?: number;
   bedroomsMin?: number;
+  brand?: string;
+  model?: string;
+  transmission?: string;
+  fuelType?: string;
+  mileageMax?: number;
+  propertyType?: string;
 };
 
 // Compartilhado entre a busca pública (ListingsService.search, que faz o
@@ -46,7 +52,26 @@ export function buildListingFilterWhere(
   assetType: "vehicle" | "property" | undefined,
   filters: ListingFilterValues,
 ): Prisma.ListingWhereInput {
-  const { q, city, priceMin, priceMax, yearMin, yearMax, bedroomsMin } = filters;
+  const { q, city, priceMin, priceMax, yearMin, yearMax, bedroomsMin, brand, model, transmission, fuelType, mileageMax, propertyType } =
+    filters;
+
+  // vehicleDetails e propertyDetails acumulam condições em vez de serem
+  // setados de uma vez só — "yearMin" (geral) e "brand"/"transmission"/etc.
+  // (Etapa de categorias rápidas) são filtros independentes que podem vir
+  // juntos, e um Prisma where só aceita uma chave "vehicleDetails" por nível.
+  const vehicleDetails: Prisma.VehicleDetailsWhereInput = {};
+  if (yearMin !== undefined || yearMax !== undefined) {
+    vehicleDetails.yearModel = { ...(yearMin !== undefined ? { gte: yearMin } : {}), ...(yearMax !== undefined ? { lte: yearMax } : {}) };
+  }
+  if (brand) vehicleDetails.brand = { name: { equals: brand, mode: "insensitive" } };
+  if (model) vehicleDetails.model = { name: { equals: model, mode: "insensitive" } };
+  if (transmission) vehicleDetails.transmission = transmission as Transmission;
+  if (fuelType) vehicleDetails.fuelType = fuelType as FuelType;
+  if (mileageMax !== undefined) vehicleDetails.mileage = { lte: mileageMax };
+
+  const propertyDetails: Prisma.PropertyDetailsWhereInput = {};
+  if (bedroomsMin !== undefined) propertyDetails.bedrooms = { gte: bedroomsMin };
+  if (propertyType) propertyDetails.propertyType = propertyType as PropertyType;
 
   return {
     ...(assetType ? { type: assetType } : {}),
@@ -55,14 +80,8 @@ export function buildListingFilterWhere(
       ? { price: { ...(priceMin !== undefined ? { gte: priceMin } : {}), ...(priceMax !== undefined ? { lte: priceMax } : {}) } }
       : {}),
     ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
-    ...(yearMin !== undefined || yearMax !== undefined
-      ? {
-          vehicleDetails: {
-            yearModel: { ...(yearMin !== undefined ? { gte: yearMin } : {}), ...(yearMax !== undefined ? { lte: yearMax } : {}) },
-          },
-        }
-      : {}),
-    ...(bedroomsMin !== undefined ? { propertyDetails: { bedrooms: { gte: bedroomsMin } } } : {}),
+    ...(Object.keys(vehicleDetails).length ? { vehicleDetails } : {}),
+    ...(Object.keys(propertyDetails).length ? { propertyDetails } : {}),
   };
 }
 
