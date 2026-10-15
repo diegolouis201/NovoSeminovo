@@ -13,9 +13,21 @@ type LogoProps = {
 // O ")" do manual não é a letra de parêntese da fonte — é um traço grosso e
 // arredondado (mesma espessura das letras), bem mais parecido com uma lua
 // crescente do que com tipografia. Um caractere ")" girado via CSS nunca
-// reproduz essa forma (fica fino e torto); por isso é um SVG próprio, com
-// "currentColor" pra herdar a cor verde do texto ao lado.
-function Smile() {
+// reproduz essa forma; por isso é um SVG próprio, com "currentColor" pra
+// herdar a cor verde do texto ao lado.
+//
+// "tall" existe porque no lockup empilhado o ")" não acompanha só a última
+// linha — ele abraça a altura do bloco de 3 linhas inteiro (conferido direto
+// no frame final do vídeo da campanha). 2.46em ≈ 3 linhas em leading-[0.82].
+function Smile({ tall = false }: { tall?: boolean }) {
+  if (tall) {
+    return (
+      <svg viewBox="0 0 26 100" className="ml-1 h-[2.46em] w-[0.5em] self-center text-brand-green" fill="none" aria-hidden>
+        <path d="M7 6 Q 22 50 7 94" stroke="currentColor" strokeWidth="11" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 22 32" className="ml-1 h-[1.05em] w-[0.75em]" fill="none" aria-hidden>
       <path d="M6 4 Q 18 16 6 28" stroke="currentColor" strokeWidth="5.5" strokeLinecap="round" />
@@ -26,13 +38,13 @@ function Smile() {
 export function Logo({ variant = "inline", className }: LogoProps) {
   if (variant === "stacked") {
     return (
-      <span className={`flex flex-col font-display font-bold uppercase leading-[0.82] tracking-tight ${className ?? ""}`}>
-        <span className="text-brand-blue">Novo</span>
-        <span className="text-brand-orange">Semi</span>
-        <span className="flex items-center text-brand-green">
-          Novo
-          <Smile />
+      <span className={`inline-flex items-center ${className ?? ""}`}>
+        <span className="flex flex-col font-display font-bold uppercase leading-[0.82] tracking-tight">
+          <span className="text-brand-blue">Novo</span>
+          <span className="text-brand-orange">Semi</span>
+          <span className="text-brand-green">Novo</span>
         </span>
+        <Smile tall />
       </span>
     );
   }
