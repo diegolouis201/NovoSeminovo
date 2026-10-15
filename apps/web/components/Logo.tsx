@@ -46,7 +46,7 @@ export function Logo({ variant = "inline", className }: LogoProps) {
           <span className="flex flex-col">
             <span>
               <span className="text-brand-orange">Sem</span>
-              <span className="text-brand-green">i</span>
+              <span className="ml-[0.37em] text-brand-green">i</span>
             </span>
             <span>
               <span className="text-brand-orange">Nov</span>
