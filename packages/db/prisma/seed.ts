@@ -124,6 +124,23 @@ async function main() {
     create: { brandId: toyota.id, name: "Corolla" },
   });
 
+  // Vehicle separado do Listing (ver Passaporte Digital): mesmo carro citado
+  // no plano de negócio ("Corolla 2020 na cor prata... nunca bati").
+  const corollaVehicle = await prisma.vehicle.upsert({
+    where: { plateHash: hashPlate("ABC1D23") },
+    update: {},
+    create: {
+      plateHash: hashPlate("ABC1D23"),
+      plateMasked: "ABC**23",
+      brandId: toyota.id,
+      modelId: corolla.id,
+      yearManufacture: 2020,
+      yearModel: 2020,
+      color: "Prata",
+      currentOwnerId: individualSeller.id,
+    },
+  });
+
   const vehicleListing = await prisma.listing.create({
     data: {
       type: "vehicle",
@@ -149,12 +166,24 @@ async function main() {
           fuelType: "flex",
           color: "Prata",
           doors: 4,
-          plateHash: hashPlate("ABC1D23"),
+          vehicleId: corollaVehicle.id,
           fipeCode: "002061-0",
           fipePrice: 96200,
           condition: "used",
         },
       },
+    },
+  });
+
+  await prisma.vehicleEvent.create({
+    data: {
+      vehicleId: corollaVehicle.id,
+      type: "listing_published",
+      source: "system",
+      title: "Anúncio publicado",
+      description: vehicleListing.title,
+      occurredAt: new Date(),
+      createdByUserId: individualSeller.id,
     },
   });
 
