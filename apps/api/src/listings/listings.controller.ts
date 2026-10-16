@@ -61,6 +61,15 @@ export class ListingsController {
     return this.listingsService.popularBrands();
   }
 
+  // Mesmo motivo de "popular-brands" acima.
+  @Get("price-suggestion")
+  suggestPrice(
+    @Query()
+    query: { assetType?: string; brand?: string; model?: string; propertyType?: string; city?: string },
+  ) {
+    return this.listingsService.suggestPrice(query);
+  }
+
   // Precisa vir antes de ":id" — senão o Nest casaria "mine" como um :id.
   @UseGuards(JwtAuthGuard)
   @Get("mine")

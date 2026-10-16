@@ -4,6 +4,7 @@ import { Car, House } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField, SelectField, TextAreaField } from "@/components/FormField";
+import { PriceSuggestionHint } from "@/components/PriceSuggestionHint";
 import { createListingAction } from "@/lib/actions/listings";
 import { FUEL_OPTIONS, PROPERTY_TYPE_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
 
@@ -68,6 +69,7 @@ export default async function CreateListingPage({
             <FormField label="Área (m²)" name="areaM2" type="number" min={1} step={1} />
           )}
         </div>
+        <PriceSuggestionHint assetType={assetType} />
 
         <div className="grid grid-cols-3 gap-4">
           <FormField label="Cidade" name="city" defaultValue="Belo Horizonte" />

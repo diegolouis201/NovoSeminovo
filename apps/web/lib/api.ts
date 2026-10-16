@@ -25,6 +25,7 @@ import type {
   PaymentsStatus,
   Photo,
   Plan,
+  PriceSuggestion,
   ReportStatus,
   SavedSearch,
   PendingServiceConfirmation,
@@ -118,6 +119,29 @@ export async function fetchPopularBrands(): Promise<string[]> {
     return (await res.json()) as string[];
   } catch {
     return MOCK_POPULAR_BRANDS;
+  }
+}
+
+// "IA" de preço (ver ListingsService.suggestPrice) — sem mock fallback de
+// propósito: sem API, melhor não sugerir nada do que inventar um preço.
+export async function fetchPriceSuggestion(query: {
+  assetType: "vehicle" | "property";
+  brand?: string;
+  model?: string;
+  propertyType?: string;
+  city?: string;
+}): Promise<PriceSuggestion | undefined> {
+  try {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value) params.set(key, value);
+    }
+    const res = await fetchWithTimeout(`${API_URL}/listings/price-suggestion?${params.toString()}`);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    const body = await res.json();
+    return body?.suggestedPrice ? (body as PriceSuggestion) : undefined;
+  } catch {
+    return undefined;
   }
 }
 

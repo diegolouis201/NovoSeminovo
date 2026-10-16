@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma } from "@novoseminovo/db";
+import { Prisma, type PropertyType } from "@novoseminovo/db";
 import {
   formatBRL,
   type CreateListingInput,
@@ -9,6 +9,7 @@ import {
   type ListingSummary,
   type MyListingSummary,
   type Photo,
+  type PriceSuggestion,
   type Role,
   type UpdateListingStatusInput,
 } from "@novoseminovo/shared-types";
@@ -112,6 +113,44 @@ export class ListingsService {
       select: { name: true },
     });
     return brands.map((brand) => brand.name);
+  }
+
+  // "IA" aqui é estatística simples, de propósito: média de anúncios ativos
+  // parecidos já na própria base, sem depender de nenhuma chave de API.
+  // Menos de 3 anúncios parecidos = amostra pequena demais pra significar
+  // algo, devolve undefined (o site esconde a sugestão nesse caso).
+  async suggestPrice(query: {
+    assetType?: string;
+    brand?: string;
+    model?: string;
+    propertyType?: string;
+    city?: string;
+  }): Promise<PriceSuggestion | undefined> {
+    const assetType = query.assetType === "vehicle" ? "vehicle" : query.assetType === "property" ? "property" : undefined;
+    if (!assetType) return undefined;
+
+    const where: Prisma.ListingWhereInput = { status: "active", type: assetType };
+    if (assetType === "vehicle") {
+      if (!query.brand || !query.model) return undefined;
+      where.vehicleDetails = {
+        brand: { name: { equals: query.brand, mode: "insensitive" } },
+        model: { name: { equals: query.model, mode: "insensitive" } },
+      };
+    } else {
+      const propertyType = toEnum(query.propertyType, PROPERTY_TYPE_VALUES);
+      if (!propertyType || !query.city) return undefined;
+      where.propertyDetails = { propertyType: propertyType as PropertyType };
+      where.city = { equals: query.city, mode: "insensitive" };
+    }
+
+    const matches = await this.prisma.listing.findMany({ where, select: { price: true }, take: 200 });
+    if (matches.length < 3) return undefined;
+
+    const prices = matches.map((m) => Number(m.price)).sort((a, b) => a - b);
+    const mid = Math.floor(prices.length / 2);
+    const median = prices.length % 2 === 0 ? (prices[mid - 1]! + prices[mid]!) / 2 : prices[mid]!;
+
+    return { suggestedPrice: Math.round(median), sampleSize: prices.length };
   }
 
   async getDetail(id: string, viewer?: { id: string; role: Role }) {

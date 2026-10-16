@@ -217,6 +217,70 @@ async function main() {
     },
   });
 
+  // Mais alguns anúncios parecidos — só pra sugestão de preço (ver
+  // ListingsService.suggestPrice) ter uma amostra de verdade pra comparar,
+  // em vez de ficar sempre "sem dados suficientes" num banco com 1 anúncio
+  // de cada tipo.
+  for (const [price, mileage] of [
+    [89900, 55000],
+    [99900, 31000],
+  ] as const) {
+    await prisma.listing.create({
+      data: {
+        type: "vehicle",
+        ownerUserId: individualSeller.id,
+        title: "Corolla XEi 2020",
+        description: "Corolla XEi 2020 bem conservado.",
+        price,
+        status: "active",
+        city: "Belo Horizonte",
+        state: "MG",
+        publishedAt: new Date(),
+        vehicleDetails: {
+          create: {
+            brandId: toyota.id,
+            modelId: corolla.id,
+            yearManufacture: 2020,
+            yearModel: 2020,
+            mileage,
+            transmission: "automatic",
+            fuelType: "flex",
+            color: "Prata",
+            condition: "used",
+          },
+        },
+      },
+    });
+  }
+
+  for (const price of [495000, 545000] as const) {
+    await prisma.listing.create({
+      data: {
+        type: "property",
+        ownerUserId: partnerOwner.id,
+        partnerId: partner.id,
+        title: "Apartamento 2 quartos — Savassi",
+        description: "Apartamento 2 quartos na região da Savassi.",
+        price,
+        status: "active",
+        city: "Belo Horizonte",
+        state: "MG",
+        neighborhood: "Savassi",
+        publishedAt: new Date(),
+        propertyDetails: {
+          create: {
+            propertyType: "apartment",
+            purpose: "sale",
+            bedrooms: 2,
+            bathrooms: 2,
+            areaM2: 65,
+            streetAddress: "Savassi, Belo Horizonte - MG",
+          },
+        },
+      },
+    });
+  }
+
   await prisma.favorite.upsert({
     where: { userId_listingId: { userId: buyer.id, listingId: vehicleListing.id } },
     update: {},

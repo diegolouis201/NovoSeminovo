@@ -408,6 +408,34 @@ export const RegisterVehicleInputSchema = z.object({
 });
 export type RegisterVehicleInput = z.infer<typeof RegisterVehicleInputSchema>;
 
+// ---------- IA no anúncio (Fase 3) ----------
+
+// Sugestão de preço dinâmico — média/mediana de anúncios ativos parecidos já
+// na própria base (sem IA nenhuma, é estatística simples). undefined quando
+// a amostra é pequena demais pra significar algo.
+export const PriceSuggestionSchema = z.object({
+  suggestedPrice: z.number(),
+  sampleSize: z.number(),
+});
+export type PriceSuggestion = z.infer<typeof PriceSuggestionSchema>;
+
+// Texto livre -> rascunho de anúncio via LLM (ver AiService na API). Exige
+// ANTHROPIC_API_KEY configurada no backend — sem isso, o endpoint devolve
+// 503 e o site esconde o gerador (mesmo padrão de STRIPE_SECRET_KEY/
+// RESEND_API_KEY: funcionalidade opcional, nunca quebra sem a chave).
+export const GenerateListingDraftInputSchema = z.object({
+  assetType: AssetType,
+  freeText: z.string().min(10, "Descreva em pelo menos algumas palavras"),
+});
+export type GenerateListingDraftInput = z.infer<typeof GenerateListingDraftInputSchema>;
+
+export const ListingDraftSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  suggestedPrice: z.number().optional(),
+});
+export type ListingDraft = z.infer<typeof ListingDraftSchema>;
+
 // Calculadora do MVP — sem integração bancária real (ver Etapa 3).
 export const FinancingSimulationInputSchema = z.object({
   listingId: z.string(),

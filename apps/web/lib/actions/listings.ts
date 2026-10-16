@@ -2,13 +2,33 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import type { CreateListingInput, ListingStatus } from "@novoseminovo/shared-types";
+import type { CreateListingInput, ListingStatus, PriceSuggestion } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
-import { createListing, deleteListingPhoto, updateListingStatus, uploadListingPhotos } from "@/lib/api";
+import {
+  createListing,
+  deleteListingPhoto,
+  fetchPriceSuggestion,
+  updateListingStatus,
+  uploadListingPhotos,
+} from "@/lib/api";
 import { parseListingsCsv } from "@/lib/csv-listings";
 
 function str(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
+}
+
+// Chamada direta por PriceSuggestionHint (client component) — uma Server
+// Action evita o navegador precisar falar com a API (que só libera CORS pra
+// WEB_ORIGIN) e mantém o mesmo limite de sempre: o site nunca fala com a API
+// de dentro do navegador, só o servidor do Next.
+export async function suggestPriceAction(query: {
+  assetType: "vehicle" | "property";
+  brand?: string;
+  model?: string;
+  propertyType?: string;
+  city?: string;
+}): Promise<PriceSuggestion | undefined> {
+  return fetchPriceSuggestion(query);
 }
 
 function num(formData: FormData, key: string): number | undefined {
