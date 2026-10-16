@@ -62,11 +62,11 @@ export default async function CreateListingPage({
         <FormField label="Título do anúncio" name="title" placeholder="Ex.: Corolla XEi 2020, único dono" />
         <TextAreaField label="Descrição" name="description" minLength={20} />
         <div className="grid grid-cols-2 gap-4">
-          <FormField label="Preço (R$)" name="price" type="number" min={0} step={100} />
+          <FormField label="Preço (R$)" name="price" type="number" min={0} />
           {assetType === "vehicle" ? (
             <FormField label="Cor" name="color" />
           ) : (
-            <FormField label="Área (m²)" name="areaM2" type="number" min={1} step={1} />
+            <FormField label="Área (m²)" name="areaM2" type="number" min={1} step={0.01} />
           )}
         </div>
         <PriceSuggestionHint assetType={assetType} />
@@ -94,7 +94,7 @@ export default async function CreateListingPage({
             <div className="grid grid-cols-3 gap-4">
               <FormField label="Ano de fabricação" name="yearManufacture" type="number" min={1950} />
               <FormField label="Ano do modelo" name="yearModel" type="number" min={1950} />
-              <FormField label="Km rodados" name="mileage" type="number" min={0} step={1000} />
+              <FormField label="Km rodados" name="mileage" type="number" min={0} />
             </div>
             <div className="grid grid-cols-3 gap-4">
               <SelectField label="Câmbio" name="transmission" options={TRANSMISSION_OPTIONS} />
