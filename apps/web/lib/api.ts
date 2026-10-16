@@ -50,7 +50,13 @@ export function resolveMediaUrl(url: string): string {
   return url.startsWith("http") ? url : `${API_URL}${url}`;
 }
 
-async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 1500) {
+// 1.5s era o padrão original — curto demais pra uma chamada de verdade
+// passando pela internet (fica instantâneo em dev local contra a API no
+// mesmo host, então isso só dava problema em produção; ver bug real
+// reportado em /anuncio/[id], "Não foi possível simular agora"). 4s dá
+// folga suficiente sem deixar a UI travada se a API estiver genuinamente
+// fora do ar — quem precisa de mais (upload de foto) já passa um valor maior.
+async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 4000) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -746,11 +752,19 @@ export async function simulateFinancing(
   input: { assetPrice: number; downPaymentPct: number; installments: number },
 ): Promise<FinancingSimulationResult | undefined> {
   try {
-    const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/financing-simulations`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
+    // Timeout padrão (1.5s) é curto demais pra uma chamada de verdade
+    // passando pela internet (fica instantâneo em dev local, por isso esse
+    // problema só apareceu em produção) — 5s dá folga sem deixar a pessoa
+    // esperando demais se a API estiver genuinamente fora do ar.
+    const res = await fetchWithTimeout(
+      `${API_URL}/listings/${listingId}/financing-simulations`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      },
+      5000,
+    );
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return (await res.json()) as FinancingSimulationResult;
   } catch {

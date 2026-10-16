@@ -441,9 +441,10 @@ export const FinancingSimulationInputSchema = z.object({
   listingId: z.string(),
   assetPrice: z.number().positive(),
   downPaymentPct: z.number().min(0).max(0.9),
-  // 360 cobre financiamento imobiliário (até 30 anos); veículo usa no máximo
-  // 84 no front-end, mas o schema não distingue por assetType.
-  installments: z.number().int().min(1).max(360),
+  // 420 cobre financiamento imobiliário (até 35 anos, teto de alguns
+  // bancos); veículo usa no máximo 84 no front-end, mas o schema não
+  // distingue por assetType.
+  installments: z.number().int().min(1).max(420),
 });
 export type FinancingSimulationInput = z.infer<typeof FinancingSimulationInputSchema>;
 

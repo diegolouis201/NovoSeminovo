@@ -13,7 +13,9 @@ const DEFAULT_DOWN_PAYMENT_PCT: Record<"vehicle" | "property", number> = {
 };
 const INSTALLMENT_OPTIONS: Record<"vehicle" | "property", number[]> = {
   vehicle: [12, 24, 36, 48, 60, 72, 84],
-  property: [120, 180, 240, 300, 360],
+  // 420x (35 anos) é o teto de alguns bancos pra financiamento imobiliário —
+  // além do padrão de mercado de 360x (30 anos).
+  property: [120, 180, 240, 300, 360, 420],
 };
 
 // Único bloco deliberadamente "sério" da interface: surface-sober + radius-sober,
