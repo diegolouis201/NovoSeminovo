@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Car, House } from "@phosphor-icons/react/dist/ssr";
+import { Bank, Car, House } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
@@ -10,6 +10,12 @@ import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { fetchListing, resolveMediaUrl } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
 import { startConversationAction } from "@/lib/actions/conversations";
+
+// Parceria com a Loft/CrediHome pra crédito imobiliário de verdade (bancos
+// reais, proposta de verdade) — diferente do FinancingCallout abaixo, que é
+// só uma calculadora local sem integração bancária nenhuma. Só faz sentido
+// pra imóvel: não existe parceria equivalente pra veículo ainda.
+const CREDIHOME_SIMULATOR_URL = "https://simular.credihome.com.br/novoseminovo";
 
 export default async function ListingDetailPage({
   params,
@@ -197,6 +203,18 @@ export default async function ListingDetailPage({
             installments={listing.financing.installments}
             rate={listing.financing.rate}
           />
+
+          {listing.assetType === "property" && (
+            <a
+              href={CREDIHOME_SIMULATOR_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full max-w-sm items-center justify-center gap-2 rounded-brand border border-brand-blue px-4 py-3 text-sm font-bold text-brand-blue transition-colors hover:bg-brand-blue hover:text-on-blue"
+            >
+              <Bank size={18} weight="bold" />
+              Simular crédito com um banco de verdade
+            </a>
+          )}
         </aside>
       </div>
     </main>
