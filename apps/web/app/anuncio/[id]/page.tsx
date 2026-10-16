@@ -4,6 +4,7 @@ import { Bank, Car, House } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
+import { ConsorcioCallout } from "@/components/ConsorcioCallout";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
@@ -215,6 +216,8 @@ export default async function ListingDetailPage({
               Simular crédito com um banco de verdade
             </a>
           )}
+
+          <ConsorcioCallout assetType={listing.assetType} />
         </aside>
       </div>
     </main>
