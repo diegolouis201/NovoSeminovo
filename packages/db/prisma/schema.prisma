@@ -36,6 +36,7 @@ enum PartnerType {
   dealership
   real_estate_agency
   broker
+  workshop
 }
 
 enum PartnerMemberRole {
@@ -199,6 +200,7 @@ model Partner {
   subscriptions Subscription[]
   leads         Lead[]
   reviews       Review[]        @relation("ReviewPartnerTarget")
+  verifiedVehicleEvents VehicleEvent[]
 
   @@map("partners")
 }
@@ -364,9 +366,19 @@ model VehicleEvent {
   description     String?
   mileageAtEvent  Int?                @map("mileage_at_event")
   occurredAt      DateTime            @map("occurred_at")
+  // Comprovante (nota fiscal, ordem de serviço, foto do serviço) — exigido
+  // pra registrar qualquer evento autoanunciado (ver VehiclesController.addEvent),
+  // pra não virar um campo de texto livre sem nenhuma prova por trás.
+  photoUrls       String[]            @default([]) @map("photo_urls")
   createdByUserId String?             @map("created_by_user_id")
   createdByUser   User?               @relation(fields: [createdByUserId], references: [id])
   createdAt       DateTime            @default(now()) @map("created_at")
+  // Oficina marcada pelo dono como responsável pelo serviço — enquanto
+  // source continuar "owner_reported", é uma confirmação pendente; quando a
+  // própria oficina confirma (ver VehiclesService.confirmService), source
+  // vira "partner_verified" e este campo passa a dizer quem verificou.
+  verifiedByPartnerId String?         @map("verified_by_partner_id")
+  verifiedByPartner   Partner?        @relation(fields: [verifiedByPartnerId], references: [id])
 
   @@index([vehicleId, occurredAt])
   @@map("vehicle_events")

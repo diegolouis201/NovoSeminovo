@@ -328,6 +328,12 @@ export const VehicleEventSchema = z.object({
   description: z.string().optional(),
   mileageAtEvent: z.number().optional(),
   occurredAt: z.string(),
+  // Comprovante anexado na hora de registrar (ver CreateVehicleEventInputSchema) —
+  // sempre tem pelo menos uma foto pra eventos autoanunciados.
+  photos: z.array(z.string()),
+  // Nome da oficina que confirmou (só quando source === "partner_verified"),
+  // ou que foi marcada e ainda não confirmou (source ainda "owner_reported").
+  verifiedByPartnerName: z.string().optional(),
 });
 export type VehicleEvent = z.infer<typeof VehicleEventSchema>;
 
@@ -351,15 +357,41 @@ export const VehicleProfileSchema = z.object({
 export type VehicleProfile = z.infer<typeof VehicleProfileSchema>;
 
 // Tipos que o próprio dono pode registrar — troca de dono e publicação de
-// anúncio ficam de fora de propósito (ver comentário da seção acima).
+// anúncio ficam de fora de propósito (ver comentário da seção acima). Vem
+// sempre como multipart (ver VehiclesController.addEvent): o comprovante
+// (foto) é obrigatório e validado à parte, não dá pra expressar "pelo menos
+// um arquivo" neste schema de metadados.
 export const CreateVehicleEventInputSchema = z.object({
   type: z.enum(["revision", "repair", "inspection", "other"]),
   title: z.string().min(3, "Dê um título pro evento"),
   description: z.string().optional(),
   mileageAtEvent: z.number().int().min(0).optional(),
   occurredAt: z.string().optional(),
+  // Oficina cadastrada (ver PartnerType.workshop) marcada como responsável
+  // pelo serviço — opcional; quando informada, vira uma confirmação
+  // pendente até a própria oficina validar (ver VehiclesService.confirmService).
+  workshopPartnerId: z.string().optional(),
 });
 export type CreateVehicleEventInput = z.infer<typeof CreateVehicleEventInputSchema>;
+
+export const WorkshopOptionSchema = z.object({
+  id: z.string(),
+  legalName: z.string(),
+});
+export type WorkshopOption = z.infer<typeof WorkshopOptionSchema>;
+
+// Linha da fila de confirmação de uma oficina — ver /parceiro/servicos.
+export const PendingServiceConfirmationSchema = z.object({
+  eventId: z.string(),
+  vehicleId: z.string(),
+  vehicleLabel: z.string(),
+  title: z.string(),
+  description: z.string().optional(),
+  mileageAtEvent: z.number().optional(),
+  occurredAt: z.string(),
+  photos: z.array(z.string()),
+});
+export type PendingServiceConfirmation = z.infer<typeof PendingServiceConfirmationSchema>;
 
 // Cadastrar um veículo direto, sem precisar anunciar — pra quem quer começar
 // o Passaporte Digital do carro enquanto ainda é dono (construindo o
@@ -442,7 +474,7 @@ export type SendMessageInput = z.infer<typeof SendMessageInputSchema>;
 // Painel do parceiro (lojista/imobiliária) — Etapa 1. MVP: sem upload em
 // lote de estoque, sem cobrança de plano de verdade (o schema já tem
 // Plan/Subscription para quando isso for construído).
-export const PartnerType = z.enum(["dealership", "real_estate_agency", "broker"]);
+export const PartnerType = z.enum(["dealership", "real_estate_agency", "broker", "workshop"]);
 export type PartnerType = z.infer<typeof PartnerType>;
 
 export const CreatePartnerInputSchema = z.object({
@@ -695,6 +727,7 @@ export const NotificationType = z.enum([
   "partner_verified",
   "new_review",
   "saved_search_match",
+  "service_confirmation_requested",
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 

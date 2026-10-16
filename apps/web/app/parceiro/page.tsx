@@ -11,12 +11,14 @@ const PARTNER_TYPE_OPTIONS = [
   { value: "dealership", label: "Loja de veículos" },
   { value: "real_estate_agency", label: "Imobiliária" },
   { value: "broker", label: "Corretor(a) autônomo(a)" },
+  { value: "workshop", label: "Oficina mecânica" },
 ];
 
 const PARTNER_TYPE_LABEL: Record<string, string> = {
   dealership: "Loja de veículos",
   real_estate_agency: "Imobiliária",
   broker: "Corretor(a) autônomo(a)",
+  workshop: "Oficina mecânica",
 };
 
 export default async function PartnerHomePage({ searchParams }: { searchParams: { error?: string } }) {
@@ -74,7 +76,7 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
       </div>
 
       <div className="mt-6">
-        <PartnerNav active="geral" showEquipe={partner.isOwner} />
+        <PartnerNav active="geral" showEquipe={partner.isOwner} showServicos={partner.type === "workshop"} />
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">

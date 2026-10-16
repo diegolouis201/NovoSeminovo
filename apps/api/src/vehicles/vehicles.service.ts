@@ -1,14 +1,18 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@novoseminovo/db";
 import type {
   CreateVehicleEventInput,
+  PendingServiceConfirmation,
   RegisterVehicleInput,
   VehicleEvent,
   VehicleProfile,
+  WorkshopOption,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { getPhotoStorage } from "../common/storage";
 import { hashPlate, maskPlate } from "./plate.util";
-import { toVehicleProfile, vehicleInclude } from "./vehicles.mapper";
+import { toVehicleEvent, toVehicleProfile, vehicleInclude } from "./vehicles.mapper";
 
 export type ResolveVehicleForListingInput = {
   plate: string;
@@ -22,7 +26,10 @@ export type ResolveVehicleForListingInput = {
 
 @Injectable()
 export class VehiclesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   // Chamado na criação de anúncio de veículo quando a placa foi informada.
   // Mesma placa já vista antes = mesmo Vehicle (o histórico persiste entre
@@ -175,14 +182,57 @@ export class VehiclesService {
     return toVehicleProfile(vehicle, viewerId);
   }
 
+  // Único jeito de olhar o Passaporte sem ter o link direto — mesmo hash da
+  // placa usado em resolveForListing, nunca comparamos a placa em texto puro.
+  async findByPlate(plate: string, viewerId: string | undefined): Promise<VehicleProfile | undefined> {
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { plateHash: hashPlate(plate) },
+      include: vehicleInclude,
+    });
+    return vehicle ? toVehicleProfile(vehicle, viewerId) : undefined;
+  }
+
+  // Lista pro <select> de "oficina que realizou o serviço" — só parceiros do
+  // tipo workshop e já verificados pela moderação, pra não virar uma lista
+  // de oficina fantasma que qualquer um cadastra só pra "autoconfirmar".
+  async listWorkshops(): Promise<WorkshopOption[]> {
+    const workshops = await this.prisma.partner.findMany({
+      where: { type: "workshop", verifiedAt: { not: null } },
+      orderBy: { legalName: "asc" },
+      select: { id: true, legalName: true },
+    });
+    return workshops;
+  }
+
   // Só o dono atual pode registrar um evento — sem isso, qualquer pessoa
   // logada poderia inflar (ou sujar) o histórico de um carro que não é dela.
-  async addEvent(vehicleId: string, userId: string, input: CreateVehicleEventInput): Promise<VehicleEvent> {
+  // Comprovante (files) é obrigatório — validado no controller antes de
+  // chegar aqui, porque é sobre a requisição (multipart), não sobre dado.
+  async addEvent(
+    vehicleId: string,
+    userId: string,
+    input: CreateVehicleEventInput,
+    files: Express.Multer.File[],
+  ): Promise<VehicleEvent> {
     const vehicle = await this.prisma.vehicle.findUnique({ where: { id: vehicleId } });
     if (!vehicle) throw new NotFoundException(`Veículo ${vehicleId} não encontrado`);
     if (vehicle.currentOwnerId !== userId) {
       throw new ForbiddenException("Só o dono atual pode adicionar um evento ao histórico deste veículo.");
     }
+
+    let workshop: { id: string; legalName: string; ownerUserId: string } | null = null;
+    if (input.workshopPartnerId) {
+      workshop = await this.prisma.partner.findFirst({
+        where: { id: input.workshopPartnerId, type: "workshop", verifiedAt: { not: null } },
+        select: { id: true, legalName: true, ownerUserId: true },
+      });
+      if (!workshop) throw new BadRequestException("Oficina inválida.");
+    }
+
+    const storage = getPhotoStorage();
+    const photoUrls = await Promise.all(
+      files.map((file) => storage.save(file.buffer, file.originalname, file.mimetype)),
+    );
 
     const event = await this.prisma.vehicleEvent.create({
       data: {
@@ -193,18 +243,70 @@ export class VehiclesService {
         description: input.description,
         mileageAtEvent: input.mileageAtEvent,
         occurredAt: input.occurredAt ? new Date(input.occurredAt) : new Date(),
+        photoUrls,
         createdByUserId: userId,
+        verifiedByPartnerId: workshop?.id,
       },
+      include: vehicleInclude.events.include,
     });
 
-    return {
-      id: event.id,
-      type: event.type,
-      source: event.source,
+    if (workshop) {
+      const owner = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+      await this.notifications.notify(workshop.ownerUserId, "service_confirmation_requested", {
+        eventId: event.id,
+        ownerName: owner?.name,
+        eventTitle: event.title,
+        vehicleLabel: [vehicle.yearModel, vehicle.color].filter(Boolean).join(" "),
+      });
+    }
+
+    return toVehicleEvent(event);
+  }
+
+  // Fila de confirmação da oficina logada — precisa achar o Partner dela
+  // igual ListingsService.create faz pro dono de loja (dono OU membro da
+  // equipe operam o mesmo painel).
+  private async findWorkshopForUser(userId: string) {
+    const partner = await this.prisma.partner.findFirst({
+      where: { type: "workshop", OR: [{ ownerUserId: userId }, { members: { some: { userId } } }] },
+    });
+    if (!partner) throw new ForbiddenException("Você precisa de uma oficina cadastrada e verificada pra isso.");
+    return partner;
+  }
+
+  async listPendingConfirmations(userId: string): Promise<PendingServiceConfirmation[]> {
+    const workshop = await this.findWorkshopForUser(userId);
+    const events = await this.prisma.vehicleEvent.findMany({
+      where: { verifiedByPartnerId: workshop.id, source: "owner_reported" },
+      include: { vehicle: { include: { brand: true, model: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return events.map((event) => ({
+      eventId: event.id,
+      vehicleId: event.vehicleId,
+      vehicleLabel:
+        [event.vehicle.brand?.name, event.vehicle.model?.name, event.vehicle.yearModel]
+          .filter(Boolean)
+          .join(" ") || "Veículo",
       title: event.title,
       description: event.description ?? undefined,
       mileageAtEvent: event.mileageAtEvent ?? undefined,
       occurredAt: event.occurredAt.toISOString(),
-    };
+      photos: event.photoUrls,
+    }));
+  }
+
+  // A própria oficina confirmando que o serviço realmente foi feito — é o
+  // único jeito de um evento sair de "owner_reported" pra "partner_verified"
+  // (ver comentário em VehicleEvent no schema.prisma).
+  async confirmService(userId: string, eventId: string): Promise<void> {
+    const workshop = await this.findWorkshopForUser(userId);
+    const event = await this.prisma.vehicleEvent.findUnique({ where: { id: eventId } });
+    if (!event || event.verifiedByPartnerId !== workshop.id) {
+      throw new NotFoundException(`Confirmação ${eventId} não encontrada`);
+    }
+
+    await this.prisma.vehicleEvent.update({ where: { id: eventId }, data: { source: "partner_verified" } });
   }
 }

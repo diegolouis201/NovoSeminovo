@@ -57,6 +57,10 @@ export default async function MyVehiclesPage() {
           </p>
         )}
       </div>
+
+      <Link href="/consultar-veiculo" className="mt-8 block text-sm font-semibold text-brand-blue hover:underline">
+        Ou consulte o histórico de outro veículo pela placa →
+      </Link>
     </main>
   );
 }

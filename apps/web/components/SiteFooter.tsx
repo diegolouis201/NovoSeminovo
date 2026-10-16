@@ -8,6 +8,10 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-4 py-8 text-center sm:flex-row sm:justify-between sm:text-left">
         <Logo variant="stacked" className="text-sm" />
 
+        <Link href="/consultar-veiculo" className="text-sm font-semibold text-brand-blue hover:underline">
+          Consultar Passaporte Digital de um veículo
+        </Link>
+
         <div className="flex items-center gap-4">
           <p className="text-sm text-ink-muted">© {new Date().getFullYear()} NovoSeminovo</p>
           <Link

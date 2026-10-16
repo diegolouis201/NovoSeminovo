@@ -27,10 +27,11 @@ import type {
   Plan,
   ReportStatus,
   SavedSearch,
-  CreateVehicleEventInput,
+  PendingServiceConfirmation,
   RegisterVehicleInput,
   VehicleEvent,
   VehicleProfile,
+  WorkshopOption,
 } from "@novoseminovo/shared-types";
 import { getListing, getVehicleProfile, listListings } from "@/lib/mock-data";
 
@@ -186,24 +187,82 @@ export async function registerVehicle(
   }
 }
 
+// Multipart, não JSON: o comprovante (foto) é obrigatório (ver
+// VehiclesController.addEvent na API), então metadados e arquivo viajam
+// juntos numa requisição só.
 export async function addVehicleEvent(
   vehicleId: string,
-  input: CreateVehicleEventInput,
+  formData: FormData,
   accessToken: string,
 ): Promise<{ ok: true; event: VehicleEvent } | { ok: false; error: string }> {
   try {
-    const res = await fetchWithTimeout(`${API_URL}/vehicles/${vehicleId}/events`, {
+    const res = await fetchWithTimeout(
+      `${API_URL}/vehicles/${vehicleId}/events`,
+      { method: "POST", headers: authHeaders(accessToken), body: formData },
+      20000,
+    );
+    const body = await res.json().catch(() => undefined);
+    if (!res.ok) return { ok: false, error: body?.message ?? `API respondeu ${res.status}` };
+    return { ok: true, event: body as VehicleEvent };
+  } catch {
+    return { ok: false, error: "Não foi possível registrar o evento agora. Tente de novo em instantes." };
+  }
+}
+
+// Consulta pública por placa — "Passaporte consultável" sem precisar do link
+// direto do anúncio ou de "Meus veículos". Sem mock fallback: é uma busca ao
+// vivo, não tem dado de exemplo que faça sentido "encontrar".
+export async function fetchVehicleByPlate(plate: string, accessToken?: string): Promise<VehicleProfile | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/vehicles/by-plate/${encodeURIComponent(plate)}`, {
+      headers: accessToken ? authHeaders(accessToken) : undefined,
+    });
+    if (res.status === 404) return undefined;
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as VehicleProfile;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function fetchWorkshopOptions(): Promise<WorkshopOption[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/vehicles/workshops`);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as WorkshopOption[];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchPendingServiceConfirmations(accessToken: string): Promise<PendingServiceConfirmation[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/vehicles/pending-confirmations`, {
+      headers: authHeaders(accessToken),
+    });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as PendingServiceConfirmation[];
+  } catch {
+    return [];
+  }
+}
+
+export async function confirmVehicleService(
+  eventId: string,
+  accessToken: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/vehicles/events/${eventId}/confirm`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
-      body: JSON.stringify(input),
+      headers: authHeaders(accessToken),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => undefined);
       return { ok: false, error: body?.message ?? `API respondeu ${res.status}` };
     }
-    return { ok: true, event: (await res.json()) as VehicleEvent };
+    return { ok: true };
   } catch {
-    return { ok: false, error: "Não foi possível registrar o evento agora. Tente de novo em instantes." };
+    return { ok: false, error: "Não foi possível confirmar agora. Tente de novo em instantes." };
   }
 }
 

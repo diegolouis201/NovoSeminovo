@@ -31,7 +31,7 @@ export default async function PartnerPlanPage({
     <main className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
       <div className="mt-6">
-        <PartnerNav active="plano" showEquipe={partner.isOwner} />
+        <PartnerNav active="plano" showEquipe={partner.isOwner} showServicos={partner.type === "workshop"} />
       </div>
 
       <h2 className="mt-6 font-display text-xl font-semibold text-ink">Plano</h2>

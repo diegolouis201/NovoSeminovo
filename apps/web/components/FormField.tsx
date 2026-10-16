@@ -43,23 +43,28 @@ export function SelectField({
   name,
   options,
   required = true,
+  defaultValue,
 }: {
   label: string;
   name: string;
   options: { value: string; label: string }[];
   required?: boolean;
+  defaultValue?: string;
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
-      <span className="font-semibold text-ink">{label}</span>
+      <span className="font-semibold text-ink">
+        {label}
+        {!required && <span className="font-normal text-ink-muted"> (opcional)</span>}
+      </span>
       <select
         name={name}
         required={required}
-        defaultValue=""
+        defaultValue={defaultValue ?? ""}
         className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink"
       >
-        <option value="" disabled>
-          Selecione
+        <option value="" disabled={required}>
+          {required ? "Selecione" : "Nenhuma"}
         </option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>

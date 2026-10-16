@@ -71,6 +71,12 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: `"${payload.listingTitle}" acabou de ser aprovado e bate com uma busca salva sua.`,
         link: `/anuncio/${payload.listingId}`,
       };
+    case "service_confirmation_requested":
+      return {
+        title: "Confirmação de serviço pendente",
+        body: `${payload.ownerName ?? "Um cliente"} registrou "${payload.eventTitle}" no veículo ${payload.vehicleLabel} e pediu a sua confirmação.`,
+        link: "/parceiro/servicos",
+      };
   }
 }
 

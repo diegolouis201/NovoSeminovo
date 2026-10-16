@@ -5,14 +5,17 @@ const vehicleWithDetails = Prisma.validator<Prisma.VehicleDefaultArgs>()({
   include: {
     brand: true,
     model: true,
-    events: { orderBy: { occurredAt: "desc" } },
+    events: {
+      orderBy: { occurredAt: "desc" },
+      include: { verifiedByPartner: { select: { legalName: true } } },
+    },
   },
 });
 
 export type VehicleWithDetails = Prisma.VehicleGetPayload<typeof vehicleWithDetails>;
 export const vehicleInclude = vehicleWithDetails.include;
 
-function toVehicleEvent(event: VehicleWithDetails["events"][number]): VehicleEvent {
+export function toVehicleEvent(event: VehicleWithDetails["events"][number]): VehicleEvent {
   return {
     id: event.id,
     type: event.type,
@@ -21,6 +24,8 @@ function toVehicleEvent(event: VehicleWithDetails["events"][number]): VehicleEve
     description: event.description ?? undefined,
     mileageAtEvent: event.mileageAtEvent ?? undefined,
     occurredAt: event.occurredAt.toISOString(),
+    photos: event.photoUrls,
+    verifiedByPartnerName: event.verifiedByPartner?.legalName,
   };
 }
 
