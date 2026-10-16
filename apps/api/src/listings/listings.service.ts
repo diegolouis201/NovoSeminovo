@@ -16,6 +16,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { VehiclesService } from "../vehicles/vehicles.service";
+import { FipeService } from "../vehicles/fipe.service";
 import { getPhotoStorage } from "../common/storage";
 import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA } from "../partners/partners.service";
 import {
@@ -68,6 +69,7 @@ export class ListingsService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly vehicles: VehiclesService,
+    private readonly fipe: FipeService,
   ) {}
 
   async search(query: ListingSearchQuery): Promise<ListingSummary[]> {
@@ -352,8 +354,12 @@ export class ListingsService {
     // mesma placa — ver VehiclesService.resolveForListing.
     let vehicleBrandModel: Awaited<ReturnType<typeof this.vehicles.resolveBrandAndModel>> | undefined;
     let linkedVehicleId: string | undefined;
+    let fipeMatch: { fipeCode: string; price: number } | undefined;
     if (assetType === "vehicle") {
       vehicleBrandModel = await this.vehicles.resolveBrandAndModel(input.brand, input.model);
+      // Best-effort — nunca atrasa nem derruba a criação do anúncio se a
+      // FIPE estiver fora do ar ou não reconhecer marca/modelo (ver FipeService).
+      fipeMatch = await this.fipe.lookupPrice(input.brand, input.model, input.yearModel);
       if (input.plate) {
         linkedVehicleId = await this.vehicles.resolveForListing({
           plate: input.plate,
@@ -395,6 +401,8 @@ export class ListingsService {
                   color: input.color,
                   doors: input.doors,
                   condition: "used",
+                  fipeCode: fipeMatch?.fipeCode,
+                  fipePrice: fipeMatch?.price,
                   ...(linkedVehicleId ? { vehicle: { connect: { id: linkedVehicleId } } } : {}),
                 },
               },
