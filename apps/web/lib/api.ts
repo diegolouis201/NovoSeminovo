@@ -1,4 +1,5 @@
 import type {
+  AiStatus,
   ConversationDetail,
   ConversationSummary,
   CreateListingInput,
@@ -28,6 +29,8 @@ import type {
   PriceSuggestion,
   ReportStatus,
   SavedSearch,
+  GenerateListingDraftInput,
+  ListingDraft,
   PendingServiceConfirmation,
   RegisterVehicleInput,
   VehicleEvent,
@@ -581,6 +584,40 @@ export async function cancelSubscription(accessToken: string): Promise<boolean> 
     headers: authHeaders(accessToken),
   });
   return res.ok;
+}
+
+export async function fetchAiStatus(): Promise<AiStatus> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/listings/ai-status`);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as AiStatus;
+  } catch {
+    return { aiEnabled: false };
+  }
+}
+
+export type GenerateListingDraftResult = { ok: true; draft: ListingDraft } | { ok: false; error: string };
+
+export async function generateListingDraft(
+  input: GenerateListingDraftInput,
+  accessToken: string,
+): Promise<GenerateListingDraftResult> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listings/generate-draft`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+        body: JSON.stringify(input),
+      },
+      15000,
+    );
+    const body = await res.json().catch(() => undefined);
+    if (!res.ok) return { ok: false, error: body?.message ?? "Não foi possível gerar o anúncio agora." };
+    return { ok: true, draft: body as ListingDraft };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
 }
 
 export async function fetchPaymentsStatus(): Promise<PaymentsStatus> {

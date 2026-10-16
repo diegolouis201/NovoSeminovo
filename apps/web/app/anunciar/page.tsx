@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Car, House } from "@phosphor-icons/react/dist/ssr";
+import { Car, House, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField, SelectField, TextAreaField } from "@/components/FormField";
 import { PriceSuggestionHint } from "@/components/PriceSuggestionHint";
-import { createListingAction } from "@/lib/actions/listings";
+import { createListingAction, generateListingDraftAction } from "@/lib/actions/listings";
+import { fetchAiStatus } from "@/lib/api";
 import { FUEL_OPTIONS, PROPERTY_TYPE_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
 
 const PURPOSE_OPTIONS = [
@@ -16,12 +17,13 @@ const PURPOSE_OPTIONS = [
 export default async function CreateListingPage({
   searchParams,
 }: {
-  searchParams: { tipo?: string; error?: string };
+  searchParams: { tipo?: string; error?: string; draftTitle?: string; draftDescription?: string; draftPrice?: string };
 }) {
   const session = await auth();
   if (!session?.user) redirect("/entrar");
 
   const assetType = searchParams.tipo === "property" ? "property" : "vehicle";
+  const { aiEnabled } = await fetchAiStatus();
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
@@ -56,13 +58,50 @@ export default async function CreateListingPage({
         </p>
       )}
 
+      {aiEnabled && (
+        <form
+          action={generateListingDraftAction}
+          className="mt-6 flex flex-col gap-3 rounded-brand border border-brand-blue/30 bg-brand-blue/5 p-4"
+        >
+          <input type="hidden" name="assetType" value={assetType} />
+          <p className="flex items-center gap-1.5 text-sm font-bold text-brand-blue">
+            <Sparkle size={16} weight="fill" />
+            Gerar anúncio com IA
+          </p>
+          <p className="text-xs text-ink-muted">
+            Escreve como se tivesse contando pra um amigo — a IA transforma isso num título e descrição
+            prontos, que você ainda pode ajustar antes de publicar.
+          </p>
+          <textarea
+            name="freeText"
+            required
+            minLength={10}
+            rows={3}
+            placeholder={
+              assetType === "vehicle"
+                ? "Ex.: meu Corolla 2020, prata, bem conservado, revisões em dia, vendo porque comprei outro carro"
+                : "Ex.: apartamento de 2 quartos na Savassi, reformado, 1 vaga, vendo porque vou me mudar"
+            }
+            className="rounded-brand border border-border bg-surface-page px-3 py-2 text-sm text-ink placeholder:text-ink-muted"
+          />
+          <Button type="submit" variant="secondary" className="self-start">
+            Gerar
+          </Button>
+        </form>
+      )}
+
       <form action={createListingAction} className="mt-6 flex flex-col gap-4">
         <input type="hidden" name="assetType" value={assetType} />
 
-        <FormField label="Título do anúncio" name="title" placeholder="Ex.: Corolla XEi 2020, único dono" />
-        <TextAreaField label="Descrição" name="description" minLength={20} />
+        <FormField
+          label="Título do anúncio"
+          name="title"
+          placeholder="Ex.: Corolla XEi 2020, único dono"
+          defaultValue={searchParams.draftTitle}
+        />
+        <TextAreaField label="Descrição" name="description" minLength={20} defaultValue={searchParams.draftDescription} />
         <div className="grid grid-cols-2 gap-4">
-          <FormField label="Preço (R$)" name="price" type="number" min={0} />
+          <FormField label="Preço (R$)" name="price" type="number" min={0} defaultValue={searchParams.draftPrice} />
           {assetType === "vehicle" ? (
             <FormField label="Cor" name="color" />
           ) : (

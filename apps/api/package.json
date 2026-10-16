@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
     "@aws-sdk/client-s3": "^3.1148.0",
     "@nestjs/common": "^10.4.4",
     "@nestjs/config": "^3.2.3",

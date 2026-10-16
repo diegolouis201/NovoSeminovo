@@ -8,6 +8,7 @@ import {
   createListing,
   deleteListingPhoto,
   fetchPriceSuggestion,
+  generateListingDraft,
   updateListingStatus,
   uploadListingPhotos,
 } from "@/lib/api";
@@ -36,6 +37,27 @@ function num(formData: FormData, key: string): number | undefined {
   if (raw === null || raw === "") return undefined;
   const n = Number(raw);
   return Number.isFinite(n) ? n : undefined;
+}
+
+// Gera o rascunho e manda de volta pro próprio /anunciar via querystring
+// (?draftTitle=...), que o formulário lê como defaultValue — evita
+// transformar a tela inteira num client component só pra pré-preencher
+// título/descrição (mesma técnica do "preset" no Passaporte Digital).
+export async function generateListingDraftAction(formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const assetType = formData.get("assetType") === "property" ? "property" : "vehicle";
+  const freeText = str(formData, "freeText");
+
+  const result = await generateListingDraft({ assetType, freeText }, session.accessToken);
+  if (!result.ok) {
+    redirect(`/anunciar?tipo=${assetType}&error=${encodeURIComponent(result.error)}`);
+  }
+
+  const params = new URLSearchParams({ tipo: assetType, draftTitle: result.draft.title, draftDescription: result.draft.description });
+  if (result.draft.suggestedPrice) params.set("draftPrice", String(result.draft.suggestedPrice));
+  redirect(`/anunciar?${params.toString()}`);
 }
 
 export async function createListingAction(formData: FormData): Promise<void> {

@@ -81,11 +81,13 @@ export function TextAreaField({
   name,
   required = true,
   minLength,
+  defaultValue,
 }: {
   label: string;
   name: string;
   required?: boolean;
   minLength?: number;
+  defaultValue?: string;
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
@@ -94,6 +96,7 @@ export function TextAreaField({
         name={name}
         required={required}
         minLength={minLength}
+        defaultValue={defaultValue}
         rows={4}
         className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink placeholder:text-ink-muted"
       />

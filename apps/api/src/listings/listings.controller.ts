@@ -19,6 +19,7 @@ import {
   CreateReportInputSchema,
   CreateReviewInputSchema,
   FinancingSimulationInputSchema,
+  GenerateListingDraftInputSchema,
   UpdateListingStatusInputSchema,
   type Role,
 } from "@novoseminovo/shared-types";
@@ -26,6 +27,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
+import { AiService } from "./ai.service";
 import { ListingsService, type ListingSearchQuery } from "./listings.service";
 
 const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -47,7 +49,23 @@ const photosInterceptor = FilesInterceptor("photos", 8, {
 
 @Controller("listings")
 export class ListingsController {
-  constructor(private readonly listingsService: ListingsService) {}
+  constructor(
+    private readonly listingsService: ListingsService,
+    private readonly aiService: AiService,
+  ) {}
+
+  // Precisa vir antes de ":id" — mesmo caso de "popular-brands"/"mine".
+  @Get("ai-status")
+  aiStatus() {
+    return { aiEnabled: this.aiService.isEnabled() };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("generate-draft")
+  generateDraft(@Body() body: unknown) {
+    const input = parseOrBadRequest(GenerateListingDraftInputSchema, body);
+    return this.aiService.generateDraft(input.assetType, input.freeText);
+  }
 
   @Get()
   findAll(@Query() query: ListingSearchQuery) {

@@ -436,6 +436,13 @@ export const ListingDraftSchema = z.object({
 });
 export type ListingDraft = z.infer<typeof ListingDraftSchema>;
 
+// Mesmo padrão de PaymentsStatusSchema — o site usa isto pra decidir se
+// mostra o gerador de anúncio por IA.
+export const AiStatusSchema = z.object({
+  aiEnabled: z.boolean(),
+});
+export type AiStatus = z.infer<typeof AiStatusSchema>;
+
 // Calculadora do MVP — sem integração bancária real (ver Etapa 3).
 export const FinancingSimulationInputSchema = z.object({
   listingId: z.string(),
