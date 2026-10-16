@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import Stripe from "stripe";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -73,27 +73,40 @@ export class PaymentsService {
     successUrl: string,
     cancelUrl: string,
   ): Promise<string> {
-    await this.ensureStripeCatalog();
-    const client = this.getClient();
-    const customerId = await this.ensureCustomer(partner);
+    // Qualquer falha de rede/API do Stripe aqui (fora do ar, chave inválida,
+    // timeout) vira uma mensagem clara em vez do "Internal server error"
+    // genérico do filtro padrão do Nest — quem está tentando contratar um
+    // plano não devia ver um erro de infraestrutura cru.
+    try {
+      await this.ensureStripeCatalog();
+      const client = this.getClient();
+      const customerId = await this.ensureCustomer(partner);
 
-    // stripePriceId pode ter acabado de ser criado por ensureStripeCatalog —
-    // relê em vez de confiar no valor que chegou por parâmetro.
-    const freshPlan = await this.prisma.plan.findUniqueOrThrow({ where: { id: plan.id } });
-    if (!freshPlan.stripePriceId) throw new Error(`Plano ${plan.id} sem stripePriceId mesmo depois de ensureStripeCatalog`);
+      // stripePriceId pode ter acabado de ser criado por ensureStripeCatalog —
+      // relê em vez de confiar no valor que chegou por parâmetro.
+      const freshPlan = await this.prisma.plan.findUniqueOrThrow({ where: { id: plan.id } });
+      if (!freshPlan.stripePriceId) {
+        throw new Error(`Plano ${plan.id} sem stripePriceId mesmo depois de ensureStripeCatalog`);
+      }
 
-    const session = await client.checkout.sessions.create({
-      mode: "subscription",
-      customer: customerId,
-      line_items: [{ price: freshPlan.stripePriceId, quantity: 1 }],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      metadata: { partnerId: partner.id, planId: plan.id },
-      subscription_data: { metadata: { partnerId: partner.id, planId: plan.id } },
-    });
+      const session = await client.checkout.sessions.create({
+        mode: "subscription",
+        customer: customerId,
+        line_items: [{ price: freshPlan.stripePriceId, quantity: 1 }],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: { partnerId: partner.id, planId: plan.id },
+        subscription_data: { metadata: { partnerId: partner.id, planId: plan.id } },
+      });
 
-    if (!session.url) throw new Error("Stripe não devolveu uma URL de checkout");
-    return session.url;
+      if (!session.url) throw new Error("Stripe não devolveu uma URL de checkout");
+      return session.url;
+    } catch (error) {
+      this.logger.error(`Falha ao criar checkout Stripe pro parceiro ${partner.id}: ${error}`);
+      throw new ServiceUnavailableException(
+        "Não foi possível iniciar o checkout agora — o Stripe está indisponível. Tente novamente em instantes.",
+      );
+    }
   }
 
   // Chamado quando a pessoa volta do Checkout (success_url) — confirma

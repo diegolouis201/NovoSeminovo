@@ -320,7 +320,20 @@ export class PartnersService {
   // usado tanto pela simulação (subscribe, sem paymentProviderRef) quanto
   // pela confirmação de um checkout de verdade (com o id da Subscription
   // no Stripe, pra cancelSubscription saber o que cancelar lá também).
+  // Chamado por dois caminhos independentes pro mesmo checkout (ver
+  // confirmCheckoutSession e activateSubscriptionFromWebhook) — sem essa
+  // checagem, uma confirmação síncrona seguida do webhook (ou vice-versa,
+  // em qualquer ordem) duplicava a linha de Subscription pra mesma
+  // assinatura do Stripe, mesmo o resultado final (status active) ficando
+  // certo de qualquer jeito.
   private async activateSubscription(partnerId: string, planId: string, paymentProviderRef?: string): Promise<void> {
+    if (paymentProviderRef) {
+      const alreadyActive = await this.prisma.subscription.findFirst({
+        where: { partnerId, paymentProviderRef, status: "active" },
+      });
+      if (alreadyActive) return;
+    }
+
     const now = new Date();
     const currentPeriodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
