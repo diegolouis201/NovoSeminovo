@@ -10,6 +10,7 @@ const PARTNER_TYPE_LABEL: Record<string, string> = {
   dealership: "Loja de veículos",
   real_estate_agency: "Imobiliária",
   broker: "Corretor(a) autônomo(a)",
+  workshop: "Oficina mecânica",
 };
 
 export default async function AdminPage() {
