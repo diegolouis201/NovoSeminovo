@@ -1,0 +1,26 @@
+import Link from "next/link";
+import { InstagramLogo } from "@phosphor-icons/react/dist/ssr";
+import { Logo } from "@/components/Logo";
+
+export function SiteFooter() {
+  return (
+    <footer className="mt-16 border-t border-border bg-surface-raised">
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-4 py-8 text-center sm:flex-row sm:justify-between sm:text-left">
+        <Logo variant="inline" className="text-lg" />
+
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-ink-muted">© {new Date().getFullYear()} NovoSeminovo</p>
+          <Link
+            href="https://instagram.com/novoseminovooficial"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="NovoSeminovo no Instagram"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-ink transition-colors hover:border-brand-pink hover:text-brand-pink"
+          >
+            <InstagramLogo size={20} weight="bold" />
+          </Link>
+        </div>
+      </div>
+    </footer>
+  );
+}
