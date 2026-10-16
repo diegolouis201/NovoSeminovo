@@ -2,9 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Tokens replicados do design system (Etapa 4). Tema light é o :root;
-   dark reage tanto a prefers-color-scheme quanto a um data-theme="dark"
-   manual, para quando o app ganhar um seletor de tema. */
+/* Tokens replicados do design system (Etapa 4). Tema light é o :root e é
+   sempre o padrão — a marca é claro e colorido de propósito (ver
+   AskUserQuestion respondida nesta sessão), então o site NÃO troca sozinho
+   pra dark com base no prefers-color-scheme do aparelho de quem visita;
+   dark só liga manualmente via data-theme="dark" (hoje nada seta esse
+   atributo — fica pronto pra um seletor de tema futuro, se um dia existir). */
 :root {
   --surface-page: #fafaf6;
   --surface-raised: #ffffff;
@@ -34,19 +37,6 @@
 
   --shadow-card: 0 1px 2px rgba(32, 38, 27, 0.08), 0 10px 24px rgba(32, 38, 27, 0.1);
   --shadow-pop: 0 4px 8px rgba(32, 38, 27, 0.1), 0 20px 48px rgba(32, 38, 27, 0.16);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --surface-page: #14170f;
-    --surface-raised: #1e2317;
-    --surface-sober: #101922;
-    --ink: #edefe6;
-    --ink-muted: #aeb6a2;
-    --border: #2c3223;
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 24px rgba(0, 0, 0, 0.55);
-    --shadow-pop: 0 4px 8px rgba(0, 0, 0, 0.55), 0 20px 48px rgba(0, 0, 0, 0.6);
-  }
 }
 
 :root[data-theme="dark"] {
