@@ -64,6 +64,9 @@ export type SearchParams = {
   yearMax?: number;
   bedroomsMin?: number;
   brand?: string;
+  transmission?: string;
+  fuelType?: string;
+  mileageMax?: number;
   propertyType?: string;
 };
 

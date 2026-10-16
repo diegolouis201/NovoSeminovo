@@ -5,27 +5,7 @@ import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField, SelectField, TextAreaField } from "@/components/FormField";
 import { createListingAction } from "@/lib/actions/listings";
-
-const TRANSMISSION_OPTIONS = [
-  { value: "manual", label: "Manual" },
-  { value: "automatic", label: "Automático" },
-];
-
-const FUEL_OPTIONS = [
-  { value: "flex", label: "Flex" },
-  { value: "gasoline", label: "Gasolina" },
-  { value: "ethanol", label: "Etanol" },
-  { value: "diesel", label: "Diesel" },
-  { value: "electric", label: "Elétrico" },
-  { value: "hybrid", label: "Híbrido" },
-];
-
-const PROPERTY_TYPE_OPTIONS = [
-  { value: "house", label: "Casa" },
-  { value: "apartment", label: "Apartamento" },
-  { value: "land", label: "Terreno" },
-  { value: "commercial", label: "Comercial" },
-];
+import { FUEL_OPTIONS, PROPERTY_TYPE_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
 
 const PURPOSE_OPTIONS = [
   { value: "sale", label: "Venda" },

@@ -1,7 +1,8 @@
 import { ListingCard } from "@/components/ListingCard";
-import { fetchListings } from "@/lib/api";
+import { fetchListings, fetchPopularBrands } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
 import { saveSearchAction } from "@/lib/actions/saved-searches";
+import { FUEL_OPTIONS, PROPERTY_TYPE_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
 
 type SearchPageProps = {
   searchParams: {
@@ -14,6 +15,9 @@ type SearchPageProps = {
     yearMax?: string;
     bedroomsMin?: string;
     brand?: string;
+    transmission?: string;
+    fuelType?: string;
+    mileageMax?: string;
     propertyType?: string;
     buscaSalva?: string;
   };
@@ -34,24 +38,27 @@ function toNumber(value: string | undefined): number | undefined {
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const assetType = searchParams.assetType === "property" ? "property" : searchParams.assetType === "vehicle" ? "vehicle" : undefined;
+  const isProperty = assetType === "property";
   const priceMin = toNumber(searchParams.priceMin);
   const priceMax = toNumber(searchParams.priceMax);
   const yearMin = toNumber(searchParams.yearMin);
   const yearMax = toNumber(searchParams.yearMax);
   const bedroomsMin = toNumber(searchParams.bedroomsMin);
+  const mileageMax = toNumber(searchParams.mileageMax);
 
-  const [results, { isAuthenticated, favoriteIds }] = await Promise.all([
+  const [results, { isAuthenticated, favoriteIds }, popularBrands] = await Promise.all([
     fetchListings({
       assetType,
       q: searchParams.q,
       city: searchParams.city || undefined,
       priceMin,
       priceMax,
-      ...(assetType === "property"
+      ...(isProperty
         ? { bedroomsMin, propertyType: searchParams.propertyType }
-        : { yearMin, yearMax, brand: searchParams.brand }),
+        : { yearMin, yearMax, brand: searchParams.brand, transmission: searchParams.transmission, fuelType: searchParams.fuelType, mileageMax }),
     }),
     getFavoriteContext(),
+    isProperty ? Promise.resolve([]) : fetchPopularBrands(),
   ]);
 
   return (
@@ -85,8 +92,22 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           <form action="/busca" className="flex flex-col gap-4">
             {searchParams.q && <input type="hidden" name="q" value={searchParams.q} />}
             {assetType && <input type="hidden" name="assetType" value={assetType} />}
-            {searchParams.brand && <input type="hidden" name="brand" value={searchParams.brand} />}
-            {searchParams.propertyType && <input type="hidden" name="propertyType" value={searchParams.propertyType} />}
+
+            {isProperty ? (
+              <SelectGroup
+                label="Tipo de imóvel"
+                name="propertyType"
+                options={PROPERTY_TYPE_OPTIONS}
+                defaultValue={searchParams.propertyType}
+              />
+            ) : (
+              <SelectGroup
+                label="Marca"
+                name="brand"
+                options={popularBrands.map((brand) => ({ value: brand, label: brand }))}
+                defaultValue={searchParams.brand}
+              />
+            )}
 
             <RangeGroup
               label="Preço"
@@ -95,16 +116,27 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
               minDefault={searchParams.priceMin}
               maxDefault={searchParams.priceMax}
             />
-            {assetType === "property" ? (
+            {isProperty ? (
               <FilterGroup label="Quartos (mín.)" name="bedroomsMin" placeholder="Qualquer" defaultValue={searchParams.bedroomsMin} />
             ) : (
-              <RangeGroup
-                label="Ano"
-                minName="yearMin"
-                maxName="yearMax"
-                minDefault={searchParams.yearMin}
-                maxDefault={searchParams.yearMax}
-              />
+              <>
+                <RangeGroup
+                  label="Ano"
+                  minName="yearMin"
+                  maxName="yearMax"
+                  minDefault={searchParams.yearMin}
+                  maxDefault={searchParams.yearMax}
+                />
+                <SelectGroup label="Câmbio" name="transmission" options={TRANSMISSION_OPTIONS} defaultValue={searchParams.transmission} />
+                <SelectGroup label="Combustível" name="fuelType" options={FUEL_OPTIONS} defaultValue={searchParams.fuelType} />
+                <FilterGroup
+                  label="Km máxima"
+                  name="mileageMax"
+                  placeholder="Qualquer"
+                  defaultValue={searchParams.mileageMax}
+                  type="number"
+                />
+              </>
             )}
             <FilterGroup label="Cidade" name="city" placeholder="Belo Horizonte" defaultValue={searchParams.city} />
 
@@ -149,21 +181,54 @@ function FilterGroup({
   name,
   placeholder,
   defaultValue,
+  type = "text",
 }: {
   label: string;
   name: string;
   placeholder: string;
   defaultValue?: string;
+  type?: string;
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
       <span className="font-semibold text-ink">{label}</span>
       <input
         name={name}
+        type={type}
         defaultValue={defaultValue}
         placeholder={placeholder}
         className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink placeholder:text-ink-muted"
       />
+    </label>
+  );
+}
+
+function SelectGroup({
+  label,
+  name,
+  options,
+  defaultValue,
+}: {
+  label: string;
+  name: string;
+  options: { value: string; label: string }[];
+  defaultValue?: string;
+}) {
+  return (
+    <label className="flex flex-col gap-1 text-sm">
+      <span className="font-semibold text-ink">{label}</span>
+      <select
+        name={name}
+        defaultValue={defaultValue ?? ""}
+        className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink"
+      >
+        <option value="">Qualquer</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }
