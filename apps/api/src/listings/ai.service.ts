@@ -57,7 +57,7 @@ export class AiService {
         model: MODEL,
         max_tokens: 1024,
         tools: [DRAFT_TOOL],
-        tool_choice: { type: "tool", name: "gerar_anuncio" },
+        tool_choice: { type: "auto" },
         messages: [
           {
             role: "user",
