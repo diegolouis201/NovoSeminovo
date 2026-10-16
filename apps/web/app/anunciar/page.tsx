@@ -82,6 +82,13 @@ export default async function CreateListingPage({
               <FormField label="Modelo" name="model" placeholder="Corolla" />
             </div>
             <FormField label="Versão" name="version" required={false} placeholder="XEi 2.0" />
+            <div className="flex flex-col gap-1">
+              <FormField label="Placa" name="plate" required={false} placeholder="ABC1D23" />
+              <p className="text-xs text-ink-muted">
+                Ajuda a começar o histórico verificado deste carro (revisões, donos, anúncios anteriores) —
+                a placa nunca é exibida publicamente, só usada para reconhecer o veículo.
+              </p>
+            </div>
             <div className="grid grid-cols-3 gap-4">
               <FormField label="Ano de fabricação" name="yearManufacture" type="number" min={1950} />
               <FormField label="Ano do modelo" name="yearModel" type="number" min={1950} />

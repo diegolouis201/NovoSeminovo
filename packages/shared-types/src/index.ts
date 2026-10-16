@@ -222,6 +222,10 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
   // id de cada uma é só para a própria página de gerenciar fotos (excluir
   // uma foto específica); a galeria pública só usa a url.
   photos: z.array(PhotoSchema),
+  // Só em anúncio de veículo cuja placa já foi informada (ver
+  // CreateVehicleInputSchema.plate) — o site usa isto pra mostrar "Ver
+  // histórico completo deste veículo" linkando pro Passaporte Digital.
+  vehicleId: z.string().optional(),
 });
 export type ListingDetail = z.infer<typeof ListingDetailSchema>;
 
@@ -234,7 +238,10 @@ export type MyListingSummary = z.infer<typeof MyListingSummarySchema>;
 // Criar anúncio (MVP): sem geração automática por IA, sem consulta a
 // Detran/FIPE por placa — isso é Fase 2 (ver Etapa 1). A pessoa preenche os
 // campos à mão; marca/modelo do veículo são texto livre (a API cria a
-// entrada no catálogo se ainda não existir).
+// entrada no catálogo se ainda não existir). A placa (abaixo, em
+// CreateVehicleInputSchema) já liga o anúncio ao Passaporte Digital do
+// veículo (ver VehicleProfileSchema) — sem consultar Detran ainda, só pra
+// reconhecer "é o mesmo carro de um anúncio anterior".
 const listingCoreFields = {
   title: z.string().min(5, "Escreva um título com pelo menos 5 caracteres"),
   description: z.string().min(20, "Descreva o anúncio com pelo menos 20 caracteres"),
@@ -257,6 +264,10 @@ export const CreateVehicleInputSchema = z.object({
   fuelType: z.enum(["flex", "gasoline", "ethanol", "diesel", "electric", "hybrid"]),
   color: z.string().min(1, "Informe a cor"),
   doors: z.number().int().min(2).max(6).optional(),
+  // Opcional de propósito — não barra quem não tem a placa em mãos agora,
+  // mas sem ela a API não consegue reconhecer "é o mesmo carro de um
+  // anúncio anterior" (ver VehiclesService.resolveForListing na API).
+  plate: z.string().min(7, "Informe uma placa válida").max(8).optional(),
 });
 export type CreateVehicleInput = z.infer<typeof CreateVehicleInputSchema>;
 
@@ -287,6 +298,68 @@ export const UpdateListingStatusInputSchema = z.object({
   status: z.enum(["active", "paused", "sold"]),
 });
 export type UpdateListingStatusInput = z.infer<typeof UpdateListingStatusInputSchema>;
+
+// ---------- Passaporte Digital do Veículo ----------
+// "Ativo" separado do anúncio: um carro pode ter vários anúncios ao longo da
+// vida, mas o Vehicle (e seu histórico) é um só, identificado pela placa.
+// ownership_change e listing_published são gerados só pelo backend (nunca
+// pelo próprio dono, ver CreateVehicleEventInputSchema) — o resto é
+// autoanunciado até existir parceiro verificado alimentando isso de verdade.
+
+export const VehicleEventType = z.enum([
+  "ownership_change",
+  "revision",
+  "repair",
+  "accident",
+  "inspection",
+  "listing_published",
+  "other",
+]);
+export type VehicleEventType = z.infer<typeof VehicleEventType>;
+
+export const VehicleEventSource = z.enum(["owner_reported", "partner_verified", "system"]);
+export type VehicleEventSource = z.infer<typeof VehicleEventSource>;
+
+export const VehicleEventSchema = z.object({
+  id: z.string(),
+  type: VehicleEventType,
+  source: VehicleEventSource,
+  title: z.string(),
+  description: z.string().optional(),
+  mileageAtEvent: z.number().optional(),
+  occurredAt: z.string(),
+});
+export type VehicleEvent = z.infer<typeof VehicleEventSchema>;
+
+export const VehicleProfileSchema = z.object({
+  id: z.string(),
+  brand: z.string().optional(),
+  model: z.string().optional(),
+  yearManufacture: z.number().optional(),
+  yearModel: z.number().optional(),
+  color: z.string().optional(),
+  plateMasked: z.string().optional(),
+  // Nº de donos registrados nesta plataforma — não é o histórico real de
+  // propriedade do Detran, só o que a própria base já viu (1 + quantos
+  // "ownership_change" o Vehicle acumulou).
+  ownersCount: z.number(),
+  // true só quando quem está vendo é o dono atual — controla se o site
+  // mostra o formulário de "adicionar evento".
+  isOwner: z.boolean(),
+  events: z.array(VehicleEventSchema),
+});
+export type VehicleProfile = z.infer<typeof VehicleProfileSchema>;
+
+// Tipos que o próprio dono pode registrar — troca de dono e publicação de
+// anúncio ficam de fora de propósito (ver comentário da seção acima).
+export const CreateVehicleEventInputSchema = z.object({
+  type: z.enum(["revision", "repair", "inspection", "other"]),
+  title: z.string().min(3, "Dê um título pro evento"),
+  description: z.string().optional(),
+  mileageAtEvent: z.number().int().min(0).optional(),
+  occurredAt: z.string().optional(),
+});
+export type CreateVehicleEventInput = z.infer<typeof CreateVehicleEventInputSchema>;
 
 // Calculadora do MVP — sem integração bancária real (ver Etapa 3).
 export const FinancingSimulationInputSchema = z.object({

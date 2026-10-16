@@ -233,6 +233,7 @@ export function toListingDetail(
     sellerPhone: listing.owner.phone ?? undefined,
     reviewStatus,
     photos: listing.photos.map((photo) => ({ id: photo.id, url: photo.url })),
+    vehicleId: listing.type === "vehicle" ? listing.vehicleDetails?.vehicleId ?? undefined : undefined,
     financing: {
       price: formatBRL(price),
       priceValue: price,

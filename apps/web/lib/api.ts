@@ -27,8 +27,11 @@ import type {
   Plan,
   ReportStatus,
   SavedSearch,
+  CreateVehicleEventInput,
+  VehicleEvent,
+  VehicleProfile,
 } from "@novoseminovo/shared-types";
-import { getListing, listListings } from "@/lib/mock-data";
+import { getListing, getVehicleProfile, listListings } from "@/lib/mock-data";
 
 // apps/api (NestJS) implementa estes três endpoints sobre o schema de
 // packages/db. Sem NEXT_PUBLIC_API_URL configurada, ou com a API fora do ar
@@ -131,6 +134,44 @@ export async function fetchListing(id: string, accessToken?: string): Promise<Li
 
 function authHeaders(accessToken: string): HeadersInit {
   return { Authorization: `Bearer ${accessToken}` };
+}
+
+// Passaporte Digital do veículo — perfil persistente do carro, separado do
+// anúncio (ver GET /vehicles/:id na API). Público de propósito: funciona
+// como prova de confiança só se qualquer comprador conseguir ver antes de
+// comprar, sem precisar estar logado.
+export async function fetchVehicleProfile(id: string, accessToken?: string): Promise<VehicleProfile | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/vehicles/${id}`, {
+      headers: accessToken ? authHeaders(accessToken) : undefined,
+    });
+    if (res.status === 404) return undefined;
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as VehicleProfile;
+  } catch {
+    return getVehicleProfile(id);
+  }
+}
+
+export async function addVehicleEvent(
+  vehicleId: string,
+  input: CreateVehicleEventInput,
+  accessToken: string,
+): Promise<{ ok: true; event: VehicleEvent } | { ok: false; error: string }> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/vehicles/${vehicleId}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => undefined);
+      return { ok: false, error: body?.message ?? `API respondeu ${res.status}` };
+    }
+    return { ok: true, event: (await res.json()) as VehicleEvent };
+  } catch {
+    return { ok: false, error: "Não foi possível registrar o evento agora. Tente de novo em instantes." };
+  }
 }
 
 // Favoritos exigem a API no ar (não têm equivalente em mock-data.ts — não há

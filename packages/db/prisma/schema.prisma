@@ -126,6 +126,22 @@ enum ModerationAction {
   suspended
 }
 
+enum VehicleEventType {
+  ownership_change
+  revision
+  repair
+  accident
+  inspection
+  listing_published
+  other
+}
+
+enum VehicleEventSource {
+  owner_reported
+  partner_verified
+  system
+}
+
 // ---------- Core: users & partners ----------
 
 model User {
@@ -155,6 +171,8 @@ model User {
   reports            Report[]
   moderationLogs     ModerationLog[]
   notifications      Notification[]
+  vehiclesOwned      Vehicle[]             @relation("VehicleCurrentOwner")
+  vehicleEvents      VehicleEvent[]
 
   @@map("users")
 }
@@ -287,13 +305,71 @@ model VehicleDetails {
   fuelType        FuelType          @map("fuel_type")
   color           String
   doors           Int?
-  plateHash       String?           @map("plate_hash")
   fipeCode        String?           @map("fipe_code")
   fipePrice       Decimal?          @map("fipe_price") @db.Decimal(12, 2)
   condition       VehicleCondition  @default(used)
+  // Ligação com o "prontuário" do carro de verdade (ver Vehicle abaixo) —
+  // opcional porque a pessoa pode não informar a placa ao anunciar; sem
+  // placa, não dá pra saber com certeza que é o mesmo carro de um anúncio
+  // anterior, então o anúncio fica sem histórico em vez de criar um Vehicle
+  // "órfão" que nunca vai casar com nada.
+  vehicleId       String?           @map("vehicle_id")
+  vehicle         Vehicle?          @relation(fields: [vehicleId], references: [id])
 
   @@index([brandId, modelId, yearModel])
   @@map("vehicle_details")
+}
+
+// O "Ativo" do carro, separado do anúncio: um Corolla pode passar por três
+// donos e seis anúncios ao longo da vida, mas é um Vehicle só, identificado
+// pela placa (normalizada e com hash — nunca guardamos a placa em texto
+// puro, só um hash pra comparar "é o mesmo carro?" e uma versão mascarada
+// pra exibir). Ver VehiclesService.resolveForListing: anúncio novo com a
+// mesma placa de um Vehicle existente vira um evento no histórico dele, em
+// vez de um registro novo do zero.
+model Vehicle {
+  id              String    @id @default(cuid())
+  plateHash       String?   @unique @map("plate_hash")
+  plateMasked     String?   @map("plate_masked")
+  brandId         String?   @map("brand_id")
+  brand           VehicleBrand? @relation(fields: [brandId], references: [id])
+  modelId         String?   @map("model_id")
+  model           VehicleModel? @relation(fields: [modelId], references: [id])
+  yearManufacture Int?      @map("year_manufacture")
+  yearModel       Int?      @map("year_model")
+  color           String?
+  currentOwnerId  String?   @map("current_owner_id")
+  currentOwner    User?     @relation("VehicleCurrentOwner", fields: [currentOwnerId], references: [id])
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  listings VehicleDetails[]
+  events   VehicleEvent[]
+
+  @@map("vehicles")
+}
+
+// Uma linha da timeline do Vehicle ("prontuário"). ownership_change e
+// listing_published nunca são criados pelo próprio usuário via API (ver
+// CreateVehicleEventInputSchema) — só o backend gera esses dois, pra não
+// virarem algo que o dono forja sobre si mesmo. revision/repair/inspection/
+// other são autoanunciados (source=owner_reported) até existir parceiro
+// verificado (oficina, despachante) alimentando isso de verdade.
+model VehicleEvent {
+  id              String              @id @default(cuid())
+  vehicleId       String              @map("vehicle_id")
+  vehicle         Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type            VehicleEventType
+  source          VehicleEventSource  @default(owner_reported)
+  title           String
+  description     String?
+  mileageAtEvent  Int?                @map("mileage_at_event")
+  occurredAt      DateTime            @map("occurred_at")
+  createdByUserId String?             @map("created_by_user_id")
+  createdByUser   User?               @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime            @default(now()) @map("created_at")
+
+  @@index([vehicleId, occurredAt])
+  @@map("vehicle_events")
 }
 
 model PropertyDetails {
@@ -315,20 +391,22 @@ model PropertyDetails {
 }
 
 model VehicleBrand {
-  id      String           @id @default(cuid())
-  name    String           @unique
-  models  VehicleModel[]
-  details VehicleDetails[]
+  id       String           @id @default(cuid())
+  name     String           @unique
+  models   VehicleModel[]
+  details  VehicleDetails[]
+  vehicles Vehicle[]
 
   @@map("vehicle_brands")
 }
 
 model VehicleModel {
-  id      String           @id @default(cuid())
-  brandId String           @map("brand_id")
-  brand   VehicleBrand     @relation(fields: [brandId], references: [id])
-  name    String
-  details VehicleDetails[]
+  id       String           @id @default(cuid())
+  brandId  String           @map("brand_id")
+  brand    VehicleBrand     @relation(fields: [brandId], references: [id])
+  name     String
+  details  VehicleDetails[]
+  vehicles Vehicle[]
 
   @@unique([brandId, name])
   @@map("vehicle_models")

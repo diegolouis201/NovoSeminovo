@@ -14,6 +14,7 @@ import {
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { VehiclesService } from "../vehicles/vehicles.service";
 import { getPhotoStorage } from "../common/storage";
 import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA } from "../partners/partners.service";
 import {
@@ -65,6 +66,7 @@ export class ListingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly vehicles: VehiclesService,
   ) {}
 
   async search(query: ListingSearchQuery): Promise<ListingSummary[]> {
@@ -306,6 +308,26 @@ export class ListingsService {
       }
     }
 
+    // Resolvido antes do create: precisamos do brandId/modelId já definidos
+    // (como string, não como { connect }) pra procurar/criar o Vehicle com a
+    // mesma placa — ver VehiclesService.resolveForListing.
+    let vehicleBrandModel: Awaited<ReturnType<typeof this.resolveBrandAndModel>> | undefined;
+    let linkedVehicleId: string | undefined;
+    if (assetType === "vehicle") {
+      vehicleBrandModel = await this.resolveBrandAndModel(input.brand, input.model);
+      if (input.plate) {
+        linkedVehicleId = await this.vehicles.resolveForListing({
+          plate: input.plate,
+          ownerUserId,
+          brandId: vehicleBrandModel.brand.connect.id,
+          modelId: vehicleBrandModel.model.connect.id,
+          yearManufacture: input.yearManufacture,
+          yearModel: input.yearModel,
+          color: input.color,
+        });
+      }
+    }
+
     const listing = await this.prisma.listing.create({
       data: {
         type: assetType,
@@ -324,7 +346,7 @@ export class ListingsService {
           ? {
               vehicleDetails: {
                 create: {
-                  ...(await this.resolveBrandAndModel(input.brand, input.model)),
+                  ...vehicleBrandModel!,
                   version: input.version,
                   yearManufacture: input.yearManufacture,
                   yearModel: input.yearModel,
@@ -334,6 +356,7 @@ export class ListingsService {
                   color: input.color,
                   doors: input.doors,
                   condition: "used",
+                  ...(linkedVehicleId ? { vehicle: { connect: { id: linkedVehicleId } } } : {}),
                 },
               },
             }
@@ -355,6 +378,10 @@ export class ListingsService {
       },
       include: listingInclude,
     });
+
+    if (linkedVehicleId) {
+      await this.vehicles.logListingPublished(linkedVehicleId, ownerUserId, listing.title);
+    }
 
     return toMyListingSummary(listing);
   }

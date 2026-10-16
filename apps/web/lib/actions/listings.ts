@@ -53,6 +53,7 @@ export async function createListingAction(formData: FormData): Promise<void> {
             | "hybrid",
           color: str(formData, "color"),
           doors: num(formData, "doors"),
+          plate: str(formData, "plate") || undefined,
         }
       : {
           assetType: "property",
