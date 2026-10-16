@@ -361,6 +361,21 @@ export const CreateVehicleEventInputSchema = z.object({
 });
 export type CreateVehicleEventInput = z.infer<typeof CreateVehicleEventInputSchema>;
 
+// Cadastrar um veículo direto, sem precisar anunciar — pra quem quer começar
+// o Passaporte Digital do carro enquanto ainda é dono (construindo o
+// histórico ao longo do tempo), não só no momento de vender. Marca e modelo
+// obrigatórios, resto opcional de propósito: menos campos pra preencher,
+// maior chance da pessoa concluir o cadastro na hora.
+export const RegisterVehicleInputSchema = z.object({
+  plate: z.string().min(7, "Informe uma placa válida").max(8),
+  brand: z.string().min(1, "Informe a marca"),
+  model: z.string().min(1, "Informe o modelo"),
+  yearManufacture: z.number().int().min(1950).max(2100).optional(),
+  yearModel: z.number().int().min(1950).max(2100).optional(),
+  color: z.string().optional(),
+});
+export type RegisterVehicleInput = z.infer<typeof RegisterVehicleInputSchema>;
+
 // Calculadora do MVP — sem integração bancária real (ver Etapa 3).
 export const FinancingSimulationInputSchema = z.object({
   listingId: z.string(),

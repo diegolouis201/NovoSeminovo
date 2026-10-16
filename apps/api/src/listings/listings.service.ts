@@ -311,10 +311,10 @@ export class ListingsService {
     // Resolvido antes do create: precisamos do brandId/modelId já definidos
     // (como string, não como { connect }) pra procurar/criar o Vehicle com a
     // mesma placa — ver VehiclesService.resolveForListing.
-    let vehicleBrandModel: Awaited<ReturnType<typeof this.resolveBrandAndModel>> | undefined;
+    let vehicleBrandModel: Awaited<ReturnType<typeof this.vehicles.resolveBrandAndModel>> | undefined;
     let linkedVehicleId: string | undefined;
     if (assetType === "vehicle") {
-      vehicleBrandModel = await this.resolveBrandAndModel(input.brand, input.model);
+      vehicleBrandModel = await this.vehicles.resolveBrandAndModel(input.brand, input.model);
       if (input.plate) {
         linkedVehicleId = await this.vehicles.resolveForListing({
           plate: input.plate,
@@ -477,52 +477,4 @@ export class ListingsService {
     }
   }
 
-  // Marca/modelo são texto livre no formulário (Etapa 1: sem consulta a
-  // Detran/FIPE no MVP) — a primeira pessoa a citar "Fiat Argo" cria as duas
-  // linhas do catálogo, as próximas só reaproveitam (busca por nome
-  // case-insensitive; connectOrCreate não serve aqui porque a constraint de
-  // unicidade do Postgres é case-sensitive).
-  private async resolveBrandAndModel(brandName: string, modelName: string) {
-    let brand = await this.prisma.vehicleBrand.findFirst({
-      where: { name: { equals: brandName, mode: "insensitive" } },
-    });
-    if (!brand) {
-      try {
-        brand = await this.prisma.vehicleBrand.create({ data: { name: brandName } });
-      } catch (error) {
-        // Duas pessoas anunciando a mesma marca nova ao mesmo tempo: quem
-        // perder a corrida do create() só reaproveita o que a outra criou,
-        // em vez de estourar um 500 por violar o @unique de VehicleBrand.name.
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-          brand = await this.prisma.vehicleBrand.findFirstOrThrow({
-            where: { name: { equals: brandName, mode: "insensitive" } },
-          });
-        } else {
-          throw error;
-        }
-      }
-    }
-
-    let model = await this.prisma.vehicleModel.findFirst({
-      where: { brandId: brand.id, name: { equals: modelName, mode: "insensitive" } },
-    });
-    if (!model) {
-      try {
-        model = await this.prisma.vehicleModel.create({ data: { name: modelName, brandId: brand.id } });
-      } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-          model = await this.prisma.vehicleModel.findFirstOrThrow({
-            where: { brandId: brand.id, name: { equals: modelName, mode: "insensitive" } },
-          });
-        } else {
-          throw error;
-        }
-      }
-    }
-
-    return {
-      brand: { connect: { id: brand.id } },
-      model: { connect: { id: model.id } },
-    };
-  }
 }

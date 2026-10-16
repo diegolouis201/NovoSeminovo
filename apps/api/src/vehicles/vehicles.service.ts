@@ -1,5 +1,11 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import type { CreateVehicleEventInput, VehicleEvent, VehicleProfile } from "@novoseminovo/shared-types";
+import { Prisma } from "@novoseminovo/db";
+import type {
+  CreateVehicleEventInput,
+  RegisterVehicleInput,
+  VehicleEvent,
+  VehicleProfile,
+} from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { hashPlate, maskPlate } from "./plate.util";
 import { toVehicleProfile, vehicleInclude } from "./vehicles.mapper";
@@ -9,9 +15,9 @@ export type ResolveVehicleForListingInput = {
   ownerUserId: string;
   brandId: string;
   modelId: string;
-  yearManufacture: number;
-  yearModel: number;
-  color: string;
+  yearManufacture?: number;
+  yearModel?: number;
+  color?: string;
 };
 
 @Injectable()
@@ -81,6 +87,83 @@ export class VehiclesService {
         createdByUserId: userId,
       },
     });
+  }
+
+  // Marca/modelo são texto livre (sem consulta a Detran/FIPE no MVP) — a
+  // primeira pessoa a citar "Fiat Argo" cria as duas linhas do catálogo, as
+  // próximas só reaproveitam (busca case-insensitive; connectOrCreate não
+  // serve aqui porque a constraint de unicidade do Postgres é case-sensitive).
+  // Compartilhado entre ListingsService.create e registerOwned abaixo — único
+  // lugar que resolve marca/modelo, pra nunca ter duas grafias da mesma marca.
+  async resolveBrandAndModel(brandName: string, modelName: string) {
+    let brand = await this.prisma.vehicleBrand.findFirst({
+      where: { name: { equals: brandName, mode: "insensitive" } },
+    });
+    if (!brand) {
+      try {
+        brand = await this.prisma.vehicleBrand.create({ data: { name: brandName } });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          brand = await this.prisma.vehicleBrand.findFirstOrThrow({
+            where: { name: { equals: brandName, mode: "insensitive" } },
+          });
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    let model = await this.prisma.vehicleModel.findFirst({
+      where: { brandId: brand.id, name: { equals: modelName, mode: "insensitive" } },
+    });
+    if (!model) {
+      try {
+        model = await this.prisma.vehicleModel.create({ data: { name: modelName, brandId: brand.id } });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          model = await this.prisma.vehicleModel.findFirstOrThrow({
+            where: { brandId: brand.id, name: { equals: modelName, mode: "insensitive" } },
+          });
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    return {
+      brand: { connect: { id: brand.id } },
+      model: { connect: { id: model.id } },
+    };
+  }
+
+  // Cadastro direto do veículo pelo dono — sem anúncio nenhum envolvido.
+  // É a porta de entrada pra quem quer começar o histórico do carro agora e
+  // só pensar em vender daqui a um tempo. Mesma lógica de
+  // "placa já existe = mesmo Vehicle" do resolveForListing.
+  async registerOwned(ownerUserId: string, input: RegisterVehicleInput): Promise<VehicleProfile> {
+    const brandModel = await this.resolveBrandAndModel(input.brand, input.model);
+    const vehicleId = await this.resolveForListing({
+      plate: input.plate,
+      ownerUserId,
+      brandId: brandModel.brand.connect.id,
+      modelId: brandModel.model.connect.id,
+      yearManufacture: input.yearManufacture,
+      yearModel: input.yearModel,
+      color: input.color,
+    });
+    return this.getProfile(vehicleId, ownerUserId);
+  }
+
+  // "Meus veículos" — tudo que a pessoa é dona atual, com ou sem anúncio
+  // publicado. Perfil completo (com timeline) porque a lista tende a ser
+  // curta: poucas pessoas têm dezenas de carros cadastrados.
+  async findMine(ownerUserId: string): Promise<VehicleProfile[]> {
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: { currentOwnerId: ownerUserId },
+      include: vehicleInclude,
+      orderBy: { createdAt: "desc" },
+    });
+    return vehicles.map((vehicle) => toVehicleProfile(vehicle, ownerUserId));
   }
 
   async getProfile(vehicleId: string, viewerId: string | undefined): Promise<VehicleProfile> {

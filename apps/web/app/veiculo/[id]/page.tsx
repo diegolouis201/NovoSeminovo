@@ -32,6 +32,18 @@ const EVENT_TYPE_OPTIONS = [
   { value: "other", label: "Outro" },
 ];
 
+// Um toque = um evento registrado, sem abrir formulário nenhum — é o que faz
+// o hábito pegar (ver pedido do Diego: "mínimo de cliques possível", igual
+// um app de registrar refeição). O formulário completo abaixo continua
+// existindo pra quem quiser detalhar.
+const QUICK_EVENTS: { type: "revision" | "repair" | "other"; title: string }[] = [
+  { type: "revision", title: "Troca de óleo" },
+  { type: "revision", title: "Revisão na concessionária" },
+  { type: "repair", title: "Troca de pneus" },
+  { type: "repair", title: "Alinhamento e balanceamento" },
+  { type: "other", title: "Lavagem / higienização" },
+];
+
 function formatEventDate(iso: string): string {
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(iso));
 }
@@ -129,7 +141,27 @@ export default async function VehiclePassportPage({
       {vehicle.isOwner && (
         <section className="mt-8 rounded-brand border border-border bg-surface-raised p-4">
           <h2 className="font-display text-base font-semibold text-ink">Adicionar evento ao histórico</h2>
-          <form action={addEventWithId} className="mt-4 flex flex-col gap-4">
+          <p className="mt-1 text-sm text-ink-muted">Um toque já registra — sem precisar preencher nada.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {QUICK_EVENTS.map((preset) => (
+              <form key={preset.title} action={addEventWithId}>
+                <input type="hidden" name="type" value={preset.type} />
+                <input type="hidden" name="title" value={preset.title} />
+                <button
+                  type="submit"
+                  className="rounded-full border border-border px-3 py-1.5 text-sm font-semibold text-ink hover:bg-surface-sober"
+                >
+                  + {preset.title}
+                </button>
+              </form>
+            ))}
+          </div>
+
+          <details className="mt-4">
+            <summary className="cursor-pointer text-sm font-semibold text-brand-blue">
+              Registrar outro evento com detalhes
+            </summary>
+            <form action={addEventWithId} className="mt-4 flex flex-col gap-4">
             <SelectField label="Tipo" name="type" options={EVENT_TYPE_OPTIONS} />
             <FormField label="Título" name="title" placeholder="Revisão dos 60.000 km" />
             <TextAreaField label="Descrição" name="description" required={false} />
@@ -137,7 +169,8 @@ export default async function VehiclePassportPage({
             <Button type="submit" className="self-start">
               Adicionar evento
             </Button>
-          </form>
+            </form>
+          </details>
         </section>
       )}
     </main>

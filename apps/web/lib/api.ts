@@ -28,6 +28,7 @@ import type {
   ReportStatus,
   SavedSearch,
   CreateVehicleEventInput,
+  RegisterVehicleInput,
   VehicleEvent,
   VehicleProfile,
 } from "@novoseminovo/shared-types";
@@ -150,6 +151,38 @@ export async function fetchVehicleProfile(id: string, accessToken?: string): Pro
     return (await res.json()) as VehicleProfile;
   } catch {
     return getVehicleProfile(id);
+  }
+}
+
+// "Meus veículos" — sem mock fallback de propósito: é uma lista pessoal
+// (depende de quem está logado), não tem sentido mostrar dado de exemplo.
+export async function fetchMyVehicles(accessToken: string): Promise<VehicleProfile[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/vehicles/mine`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as VehicleProfile[];
+  } catch {
+    return [];
+  }
+}
+
+export async function registerVehicle(
+  input: RegisterVehicleInput,
+  accessToken: string,
+): Promise<{ ok: true; vehicle: VehicleProfile } | { ok: false; error: string }> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/vehicles`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => undefined);
+      return { ok: false, error: body?.message ?? `API respondeu ${res.status}` };
+    }
+    return { ok: true, vehicle: (await res.json()) as VehicleProfile };
+  } catch {
+    return { ok: false, error: "Não foi possível cadastrar o veículo agora. Tente de novo em instantes." };
   }
 }
 
