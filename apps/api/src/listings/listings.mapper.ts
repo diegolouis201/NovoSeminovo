@@ -203,9 +203,17 @@ function specs(listing: ListingWithDetails): SpecItem[] {
 // Taxas padrão para a simulação exibida direto na página do anúncio (Etapa 3:
 // calculadora do MVP, sem integração bancária real). A simulação sob medida
 // (POST /listings/:id/financing-simulations) usa a mesma taxa por tipo.
+// defaultDownPaymentPct é só o chute inicial mostrado antes da pessoa mexer
+// em qualquer coisa — financiamento de veículo no Brasil costuma ser
+// anunciado "sem entrada"; imóvel usa o padrão de mercado de 20%.
 export const DEFAULT_RATE = {
-  vehicle: { monthly: 0.0139, label: "a partir de 1,39% a.m.", defaultInstallments: 48 },
-  property: { monthly: Math.pow(1.109, 1 / 12) - 1, label: "a partir de 10,9% a.a. + TR", defaultInstallments: 360 },
+  vehicle: { monthly: 0.0139, label: "a partir de 1,39% a.m.", defaultInstallments: 48, defaultDownPaymentPct: 0 },
+  property: {
+    monthly: Math.pow(1.109, 1 / 12) - 1,
+    label: "a partir de 10,9% a.a. + TR",
+    defaultInstallments: 360,
+    defaultDownPaymentPct: 0.2,
+  },
 } as const;
 
 export function priceAmortization(principal: number, monthlyRate: number, installments: number): number {
@@ -220,7 +228,7 @@ export function toListingDetail(
 ): ListingDetail {
   const price = Number(listing.price);
   const rateInfo = DEFAULT_RATE[listing.type];
-  const downPaymentPct = 0.2;
+  const downPaymentPct = rateInfo.defaultDownPaymentPct;
   const downPayment = price * downPaymentPct;
   const installment = priceAmortization(price - downPayment, rateInfo.monthly, rateInfo.defaultInstallments);
 

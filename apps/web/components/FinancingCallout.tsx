@@ -4,7 +4,13 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/Button";
 import { simulateFinancingAction } from "@/lib/actions/financing";
 
-const DOWN_PAYMENT_OPTIONS = [0.1, 0.2, 0.3, 0.4, 0.5];
+// Veículo entra na lista com 0% — financiamento de carro no Brasil costuma
+// ser anunciado "sem entrada"; imóvel usa o padrão de mercado de 20%.
+const DOWN_PAYMENT_OPTIONS = [0, 0.1, 0.2, 0.3, 0.4, 0.5];
+const DEFAULT_DOWN_PAYMENT_PCT: Record<"vehicle" | "property", number> = {
+  vehicle: 0,
+  property: 0.2,
+};
 const INSTALLMENT_OPTIONS: Record<"vehicle" | "property", number[]> = {
   vehicle: [12, 24, 36, 48, 60, 72, 84],
   property: [120, 180, 240, 300, 360],
@@ -31,7 +37,7 @@ export function FinancingCallout({
   rate: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [downPaymentPct, setDownPaymentPct] = useState(0.2);
+  const [downPaymentPct, setDownPaymentPct] = useState(DEFAULT_DOWN_PAYMENT_PCT[assetType]);
   const installmentOptions = INSTALLMENT_OPTIONS[assetType];
   const [selectedInstallments, setSelectedInstallments] = useState(
     installmentOptions[Math.floor(installmentOptions.length / 2)]!,
