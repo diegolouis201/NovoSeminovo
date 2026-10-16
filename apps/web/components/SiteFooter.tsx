@@ -6,7 +6,7 @@ export function SiteFooter() {
   return (
     <footer className="mt-16 border-t border-border bg-surface-raised">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-4 py-8 text-center sm:flex-row sm:justify-between sm:text-left">
-        <Logo variant="inline" className="text-lg" />
+        <Logo variant="stacked" className="text-sm" />
 
         <div className="flex items-center gap-4">
           <p className="text-sm text-ink-muted">© {new Date().getFullYear()} NovoSeminovo</p>
