@@ -489,6 +489,7 @@ export const PropertyProfileInputSchema = z.object({
   installments: z.number().int().min(12).max(420),
   householdSize: z.number().int().positive().optional(),
   preferredCity: z.string().optional(),
+  preferredNeighborhood: z.string().optional(),
   minBedrooms: z.number().int().nonnegative().optional(),
   priority: PropertyPriority,
   notes: z.string().max(500).optional(),

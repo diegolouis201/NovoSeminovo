@@ -293,6 +293,7 @@ Perfil da pessoa:
 - Parcelas desejadas: ${profile.installments}x
 - Pessoas que vão morar no imóvel: ${profile.householdSize ?? "não informado"}
 - Cidade de preferência: ${profile.preferredCity ?? "não informado"}
+- Bairro de preferência: ${profile.preferredNeighborhood ?? "não informado"}
 - Quartos mínimos: ${profile.minBedrooms ?? "não informado"}
 - Prioridade: ${PROPERTY_PRIORITY_LABEL[profile.priority] ?? profile.priority}
 - Observações da própria pessoa: ${profile.notes ?? "nenhuma"}

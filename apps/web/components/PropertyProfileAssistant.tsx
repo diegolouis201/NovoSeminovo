@@ -32,6 +32,7 @@ export function PropertyProfileAssistant() {
       const householdSize = formData.get("householdSize");
       const minBedrooms = formData.get("minBedrooms");
       const preferredCity = String(formData.get("preferredCity") ?? "").trim();
+      const preferredNeighborhood = String(formData.get("preferredNeighborhood") ?? "").trim();
       const notes = String(formData.get("notes") ?? "").trim();
       const response = await recommendPropertyAction({
         monthlyIncome: Number(formData.get("monthlyIncome")),
@@ -40,6 +41,7 @@ export function PropertyProfileAssistant() {
         installments: Number(formData.get("installments")),
         householdSize: householdSize ? Number(householdSize) : undefined,
         preferredCity: preferredCity || undefined,
+        preferredNeighborhood: preferredNeighborhood || undefined,
         minBedrooms: minBedrooms ? Number(minBedrooms) : undefined,
         priority: formData.get("priority") as PropertyPriority,
         notes: notes || undefined,
@@ -96,6 +98,7 @@ export function PropertyProfileAssistant() {
           placeholder="Ex.: 2"
         />
         <FormField label="Cidade de preferência" name="preferredCity" required={false} placeholder="Ex.: Belo Horizonte" />
+        <FormField label="Bairro de preferência" name="preferredNeighborhood" required={false} placeholder="Ex.: Savassi" />
         <SelectField label="Prioridade" name="priority" options={PRIORITY_OPTIONS} />
         <div className="sm:col-span-2">
           <label className="flex flex-col gap-1 text-sm">

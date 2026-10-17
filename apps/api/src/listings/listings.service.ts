@@ -332,6 +332,9 @@ export class ListingsService {
     const budgetRangeMin = Math.round(Math.max(0, budgetRangeMax * 0.6));
 
     const cityFilter = profile.preferredCity ? { city: { equals: profile.preferredCity, mode: "insensitive" as const } } : {};
+    const neighborhoodFilter = profile.preferredNeighborhood
+      ? { neighborhood: { equals: profile.preferredNeighborhood, mode: "insensitive" as const } }
+      : {};
     const bedroomsFilter = profile.minBedrooms !== undefined ? { bedrooms: { gte: profile.minBedrooms } } : {};
 
     let candidates = await this.prisma.listing.findMany({
@@ -340,6 +343,7 @@ export class ListingsService {
         type: "property",
         price: { gte: budgetRangeMin * 0.7, lte: Math.max(budgetRangeMax * 1.15, 1) },
         ...cityFilter,
+        ...neighborhoodFilter,
         propertyDetails: { purpose: "sale", ...bedroomsFilter },
       },
       include: listingInclude,
@@ -347,14 +351,31 @@ export class ListingsService {
       take: 25,
     });
 
-    // Igual a recommendVehicle: faixa de preço pode não ter nenhum imóvel
-    // ativo — alarga primeiro soltando o preço (mantém cidade/quartos, que
-    // foram escolha explícita da pessoa) e, se ainda assim não achar nada,
-    // solta tudo e mostra qualquer imóvel à venda disponível.
+    // Igual a recommendVehicle, mas em mais estágios: bairro é uma escolha
+    // bem mais estreita que cidade, então alarga soltando nessa ordem —
+    // preço (calculado pelo sistema) primeiro, depois bairro (mais estreito),
+    // depois cidade, e só por último os quartos mínimos — até achar algo ou
+    // sobrar só "à venda".
     const withinBudget = candidates.length > 0;
     if (!withinBudget) {
       candidates = await this.prisma.listing.findMany({
+        where: { status: "active", type: "property", ...cityFilter, ...neighborhoodFilter, propertyDetails: { purpose: "sale", ...bedroomsFilter } },
+        include: listingInclude,
+        orderBy: { price: "asc" },
+        take: 25,
+      });
+    }
+    if (candidates.length === 0) {
+      candidates = await this.prisma.listing.findMany({
         where: { status: "active", type: "property", ...cityFilter, propertyDetails: { purpose: "sale", ...bedroomsFilter } },
+        include: listingInclude,
+        orderBy: { price: "asc" },
+        take: 25,
+      });
+    }
+    if (candidates.length === 0) {
+      candidates = await this.prisma.listing.findMany({
+        where: { status: "active", type: "property", propertyDetails: { purpose: "sale", ...bedroomsFilter } },
         include: listingInclude,
         orderBy: { price: "asc" },
         take: 25,
