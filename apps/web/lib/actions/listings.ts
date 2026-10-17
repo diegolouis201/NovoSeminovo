@@ -6,6 +6,7 @@ import type {
   CreateListingInput,
   ListingStatus,
   PriceSuggestion,
+  PropertyProfileInput,
   VehicleProfileInput,
 } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
@@ -14,7 +15,9 @@ import {
   deleteListingPhoto,
   fetchPriceSuggestion,
   generateListingDraft,
+  recommendProperty,
   recommendVehicle,
+  type RecommendPropertyResult,
   type RecommendVehicleResult,
   updateListingStatus,
   uploadListingPhotos,
@@ -43,6 +46,11 @@ export async function suggestPriceAction(query: {
 // suggestPriceAction acima: evita o navegador falar direto com a API.
 export async function recommendVehicleAction(input: VehicleProfileInput): Promise<RecommendVehicleResult> {
   return recommendVehicle(input);
+}
+
+// Mesma ideia acima, pra imóvel.
+export async function recommendPropertyAction(input: PropertyProfileInput): Promise<RecommendPropertyResult> {
+  return recommendProperty(input);
 }
 
 function num(formData: FormData, key: string): number | undefined {

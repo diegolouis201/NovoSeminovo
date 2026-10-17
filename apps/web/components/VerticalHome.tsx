@@ -65,15 +65,15 @@ export async function VerticalHome({ assetType }: { assetType?: "vehicle" | "pro
           </button>
         </form>
 
-        {assetType !== "property" && (
-          <Link
-            href="/assistente-compra"
-            className="flex items-center gap-1.5 text-sm font-semibold text-brand-blue hover:underline"
-          >
-            <Sparkle size={16} weight="fill" />
-            Não sabe qual carro escolher? Deixa a IA te ajudar
-          </Link>
-        )}
+        <Link
+          href={assetType === "property" ? "/assistente-compra?tipo=property" : "/assistente-compra"}
+          className="flex items-center gap-1.5 text-sm font-semibold text-brand-blue hover:underline"
+        >
+          <Sparkle size={16} weight="fill" />
+          {assetType === "property"
+            ? "Não sabe qual imóvel escolher? Deixa a IA te ajudar"
+            : "Não sabe qual carro escolher? Deixa a IA te ajudar"}
+        </Link>
       </section>
 
       <PromoCarousel />

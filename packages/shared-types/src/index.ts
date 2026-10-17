@@ -474,6 +474,34 @@ export const VehicleRecommendationSchema = z.object({
 });
 export type VehicleRecommendation = z.infer<typeof VehicleRecommendationSchema>;
 
+// Mesma ideia acima, pra imóvel — regra prática diferente (financiamento
+// imobiliário brasileiro costuma limitar a parcela a ~30% da renda bruta,
+// não os 10-15% do carro) e prioridades diferentes (ex.: abrir mão de espaço
+// por localização/trânsito, conforme a matéria que inspirou a feature).
+export const PropertyPriority = z.enum(["location", "space", "price", "condo_amenities", "low_maintenance"]);
+export type PropertyPriority = z.infer<typeof PropertyPriority>;
+
+export const PropertyProfileInputSchema = z.object({
+  monthlyIncome: z.number().positive(),
+  monthlyFixedExpenses: z.number().nonnegative(),
+  availableDownPayment: z.number().nonnegative(),
+  installments: z.number().int().min(12).max(420),
+  householdSize: z.number().int().positive().optional(),
+  preferredCity: z.string().optional(),
+  minBedrooms: z.number().int().nonnegative().optional(),
+  priority: PropertyPriority,
+  notes: z.string().max(500).optional(),
+});
+export type PropertyProfileInput = z.infer<typeof PropertyProfileInputSchema>;
+
+export const PropertyRecommendationSchema = z.object({
+  budgetRangeMin: z.number(),
+  budgetRangeMax: z.number(),
+  summary: z.string(),
+  recommendations: z.array(ListingSummarySchema),
+});
+export type PropertyRecommendation = z.infer<typeof PropertyRecommendationSchema>;
+
 // Calculadora do MVP — sem integração bancária real (ver Etapa 3).
 export const FinancingSimulationInputSchema = z.object({
   listingId: z.string(),

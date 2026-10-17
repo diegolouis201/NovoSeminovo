@@ -12,6 +12,8 @@ import {
   type PriceSuggestion,
   type Role,
   type UpdateListingStatusInput,
+  type PropertyProfileInput,
+  type PropertyRecommendation,
   type VehicleProfileInput,
   type VehicleRecommendation,
 } from "@novoseminovo/shared-types";
@@ -231,6 +233,83 @@ export class ListingsService {
         fallbackRecommendations.length > 0
           ? `Com base na sua renda e gastos, o ideal é um carro entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)}, considerando ${profile.installments}x de financiamento.`
           : `Com base na sua renda e gastos, o ideal é um carro entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)} — não encontramos anúncios ativos nessa faixa agora.`,
+      recommendations: fallbackRecommendations,
+    };
+  }
+
+  // Mesma ideia de recommendVehicle acima, pra imóvel — regra prática
+  // diferente (bancos brasileiros costumam limitar a parcela do
+  // financiamento imobiliário a ~30% da renda bruta, não os 10-15% do
+  // carro) e filtra só imóveis à venda (não faz sentido recomendar aluguel
+  // pra quem está calculando financiamento).
+  async recommendProperty(profile: PropertyProfileInput): Promise<PropertyRecommendation> {
+    const rate = DEFAULT_RATE.property.monthly;
+    const disposableIncome = profile.monthlyIncome - profile.monthlyFixedExpenses;
+    const ruleOfThumbMax = profile.monthlyIncome * 0.3;
+    const safeMonthlyHousingBudget = Math.max(0, Math.min(ruleOfThumbMax, disposableIncome * 0.6));
+    // Do orçamento mensal com o imóvel, uma parte vira parcela e o resto
+    // cobre condomínio + IPTU.
+    const installmentBudget = safeMonthlyHousingBudget * 0.75;
+    const principal = principalFromInstallment(installmentBudget, rate, profile.installments);
+    const budgetRangeMax = Math.round(principal + profile.availableDownPayment);
+    const budgetRangeMin = Math.round(Math.max(0, budgetRangeMax * 0.6));
+
+    const candidates = await this.prisma.listing.findMany({
+      where: {
+        status: "active",
+        type: "property",
+        price: { gte: budgetRangeMin * 0.7, lte: Math.max(budgetRangeMax * 1.15, 1) },
+        ...(profile.preferredCity ? { city: { equals: profile.preferredCity, mode: "insensitive" } } : {}),
+        propertyDetails: {
+          purpose: "sale",
+          ...(profile.minBedrooms !== undefined ? { bedrooms: { gte: profile.minBedrooms } } : {}),
+        },
+      },
+      include: listingInclude,
+      orderBy: { price: "asc" },
+      take: 25,
+    });
+
+    if (this.ai.isEnabled() && candidates.length > 0) {
+      const candidateInfo = candidates
+        .filter((c) => c.propertyDetails)
+        .map((c) => ({
+          id: c.id,
+          title: c.title,
+          price: Number(c.price),
+          propertyType: c.propertyDetails!.propertyType,
+          areaM2: Number(c.propertyDetails!.areaM2),
+          bedrooms: c.propertyDetails!.bedrooms ?? undefined,
+          city: c.city,
+          neighborhood: c.neighborhood ?? undefined,
+        }));
+      const summaries = new Map(candidates.map((c) => [c.id, toListingSummary(c)]));
+      const { summary, recommendedListingIds } = await this.ai.recommendProperty(
+        profile,
+        { min: budgetRangeMin, max: budgetRangeMax },
+        candidateInfo,
+      );
+      return {
+        budgetRangeMin,
+        budgetRangeMax,
+        summary,
+        recommendations: recommendedListingIds.map((id) => summaries.get(id)).filter((s): s is ListingSummary => Boolean(s)),
+      };
+    }
+
+    const fallbackRecommendations = candidates
+      .slice()
+      .sort((a, b) => Math.abs(Number(a.price) - budgetRangeMax) - Math.abs(Number(b.price) - budgetRangeMax))
+      .slice(0, 5)
+      .map(toListingSummary);
+
+    return {
+      budgetRangeMin,
+      budgetRangeMax,
+      summary:
+        fallbackRecommendations.length > 0
+          ? `Com base na sua renda e gastos, o ideal é um imóvel entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)}, considerando ${profile.installments}x de financiamento.`
+          : `Com base na sua renda e gastos, o ideal é um imóvel entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)} — não encontramos anúncios ativos nessa faixa agora.`,
       recommendations: fallbackRecommendations,
     };
   }

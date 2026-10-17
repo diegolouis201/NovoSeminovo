@@ -32,6 +32,8 @@ import type {
   GenerateListingDraftInput,
   ListingDraft,
   PendingServiceConfirmation,
+  PropertyProfileInput,
+  PropertyRecommendation,
   RegisterVehicleInput,
   VehicleEvent,
   VehicleProfile,
@@ -641,6 +643,31 @@ export async function recommendVehicle(input: VehicleProfileInput): Promise<Reco
     const body = await res.json().catch(() => undefined);
     if (!res.ok) return { ok: false, error: body?.message ?? "Não foi possível gerar a recomendação agora." };
     return { ok: true, recommendation: body as VehicleRecommendation };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
+}
+
+export type RecommendPropertyResult =
+  | { ok: true; recommendation: PropertyRecommendation }
+  | { ok: false; error: string };
+
+// Mesma ideia de recommendVehicle acima, pra imóvel (ver
+// ListingsService.recommendProperty).
+export async function recommendProperty(input: PropertyProfileInput): Promise<RecommendPropertyResult> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listings/recommend-property`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      },
+      15000,
+    );
+    const body = await res.json().catch(() => undefined);
+    if (!res.ok) return { ok: false, error: body?.message ?? "Não foi possível gerar a recomendação agora." };
+    return { ok: true, recommendation: body as PropertyRecommendation };
   } catch {
     return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
   }

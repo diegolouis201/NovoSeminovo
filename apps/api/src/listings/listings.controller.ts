@@ -20,6 +20,7 @@ import {
   CreateReviewInputSchema,
   FinancingSimulationInputSchema,
   GenerateListingDraftInputSchema,
+  PropertyProfileInputSchema,
   UpdateListingStatusInputSchema,
   VehicleProfileInputSchema,
   type Role,
@@ -95,6 +96,13 @@ export class ListingsController {
   recommendVehicle(@Body() body: unknown) {
     const input = parseOrBadRequest(VehicleProfileInputSchema, body);
     return this.listingsService.recommendVehicle(input);
+  }
+
+  // Mesma ideia acima, pra imóvel.
+  @Post("recommend-property")
+  recommendProperty(@Body() body: unknown) {
+    const input = parseOrBadRequest(PropertyProfileInputSchema, body);
+    return this.listingsService.recommendProperty(input);
   }
 
   // Precisa vir antes de ":id" — senão o Nest casaria "mine" como um :id.

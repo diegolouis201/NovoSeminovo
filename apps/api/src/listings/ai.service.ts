@@ -1,6 +1,6 @@
 import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import Anthropic from "@anthropic-ai/sdk";
-import type { AssetType, ListingDraft, VehicleProfileInput } from "@novoseminovo/shared-types";
+import type { AssetType, ListingDraft, PropertyProfileInput, VehicleProfileInput } from "@novoseminovo/shared-types";
 
 const MODEL = "claude-sonnet-5-5";
 
@@ -73,6 +73,48 @@ export type VehicleCandidate = {
   mileage: number;
   fuelType: string;
   transmission: string;
+};
+
+const PROPERTY_RECOMMEND_TOOL = {
+  name: "recomendar_imovel",
+  description:
+    "Escolhe, dentre os anúncios de imóveis oferecidos, os que melhor encaixam no perfil financeiro e de uso da pessoa, e escreve um resumo consultivo explicando o raciocínio.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      summary: {
+        type: "string",
+        description:
+          "Resumo em português, direto e consultivo (3 a 5 frases), explicando a faixa de orçamento recomendada e por que os imóveis escolhidos (ou a falta deles) fazem sentido pro perfil da pessoa — inclua, quando fizer sentido, o trade-off entre tamanho/preço e localização/trânsito. Nunca garante aprovação de crédito nem promete financiamento.",
+      },
+      recommendedListingIds: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Até 5 ids, escolhidos SOMENTE entre os anúncios fornecidos na lista, ordenados do mais recomendado pro menos recomendado. Lista vazia se nenhum fizer sentido pro perfil.",
+      },
+    },
+    required: ["summary", "recommendedListingIds"],
+  },
+};
+
+const PROPERTY_PRIORITY_LABEL: Record<string, string> = {
+  location: "localização/proximidade (vale abrir mão de espaço pra reduzir trânsito e deslocamento)",
+  space: "espaço/tamanho do imóvel",
+  price: "menor preço possível",
+  condo_amenities: "infraestrutura do condomínio (lazer, segurança)",
+  low_maintenance: "baixo custo de manutenção/condomínio",
+};
+
+export type PropertyCandidate = {
+  id: string;
+  title: string;
+  price: number;
+  propertyType: string;
+  areaM2: number;
+  bedrooms?: number;
+  city: string;
+  neighborhood?: string;
 };
 
 // Gating idêntico ao de PaymentsService/EmailService (ver comentário lá):
@@ -199,6 +241,75 @@ Use a ferramenta "recomendar_veiculo" pra escolher os melhores (se houver algum 
       return { summary: input.summary, recommendedListingIds };
     } catch (error) {
       this.logger.error(`Falha ao gerar recomendação de veículo com IA: ${error}`);
+      throw new ServiceUnavailableException(
+        "Não foi possível gerar a recomendação com IA agora. Tente de novo em instantes.",
+      );
+    }
+  }
+
+  // Mesma lógica de recommendVehicle acima, só que pro imóvel — ver
+  // ListingsService.recommendProperty pro cálculo da faixa de orçamento.
+  async recommendProperty(
+    profile: PropertyProfileInput,
+    budgetRange: { min: number; max: number },
+    candidates: PropertyCandidate[],
+  ): Promise<{ summary: string; recommendedListingIds: string[] }> {
+    try {
+      const client = this.getClient();
+      const candidatesText = candidates
+        .map(
+          (c) =>
+            `- id=${c.id} | ${c.title} | R$ ${c.price} | ${c.propertyType} | ${c.areaM2} m² | ${
+              c.bedrooms ? `${c.bedrooms} quartos` : "quartos não informado"
+            } | ${c.neighborhood ? `${c.neighborhood}, ` : ""}${c.city}`,
+        )
+        .join("\n");
+
+      const message = await client.messages.create({
+        model: MODEL,
+        max_tokens: 1024,
+        tools: [PROPERTY_RECOMMEND_TOOL],
+        tool_choice: { type: "auto" },
+        messages: [
+          {
+            role: "user",
+            content: `Você ajuda um comprador a escolher o imóvel ideal no Novo Seminovo (marketplace brasileiro de veículos e imóveis usados), com base no perfil financeiro dele. O imóvel ideal é o que cabe no orçamento sem comprometer o resto da vida financeira da pessoa — às vezes isso significa abrir mão de um imóvel maior em troca de uma localização melhor (menos trânsito, mais perto do trabalho).
+
+Perfil da pessoa:
+- Renda mensal: R$ ${profile.monthlyIncome}
+- Gastos fixos mensais: R$ ${profile.monthlyFixedExpenses}
+- Entrada disponível: R$ ${profile.availableDownPayment}
+- Parcelas desejadas: ${profile.installments}x
+- Pessoas que vão morar no imóvel: ${profile.householdSize ?? "não informado"}
+- Cidade de preferência: ${profile.preferredCity ?? "não informado"}
+- Quartos mínimos: ${profile.minBedrooms ?? "não informado"}
+- Prioridade: ${PROPERTY_PRIORITY_LABEL[profile.priority] ?? profile.priority}
+- Observações da própria pessoa: ${profile.notes ?? "nenhuma"}
+
+Faixa de orçamento já calculada pelo sistema (use como referência, não precisa recalcular): R$ ${budgetRange.min} a R$ ${budgetRange.max}.
+
+Anúncios de imóveis à venda disponíveis agora na plataforma:
+${candidatesText || "(nenhum anúncio disponível no momento)"}
+
+Use a ferramenta "recomendar_imovel" pra escolher os melhores (se houver algum que faça sentido) e escrever o resumo.`,
+          },
+        ],
+      });
+
+      const toolUse = message.content.find((block) => block.type === "tool_use");
+      if (!toolUse || toolUse.type !== "tool_use") {
+        throw new Error("Claude não devolveu a recomendação estruturada esperada");
+      }
+
+      const input = toolUse.input as { summary?: string; recommendedListingIds?: string[] };
+      if (!input.summary) throw new Error("Recomendação da IA veio sem resumo");
+
+      const validIds = new Set(candidates.map((c) => c.id));
+      const recommendedListingIds = (input.recommendedListingIds ?? []).filter((id) => validIds.has(id)).slice(0, 5);
+
+      return { summary: input.summary, recommendedListingIds };
+    } catch (error) {
+      this.logger.error(`Falha ao gerar recomendação de imóvel com IA: ${error}`);
       throw new ServiceUnavailableException(
         "Não foi possível gerar a recomendação com IA agora. Tente de novo em instantes.",
       );
