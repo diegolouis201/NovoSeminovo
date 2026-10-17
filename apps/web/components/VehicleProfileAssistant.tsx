@@ -38,6 +38,7 @@ export function VehicleProfileAssistant() {
     setError(null);
     startTransition(async () => {
       const familySize = formData.get("familySize");
+      const preferredCity = String(formData.get("preferredCity") ?? "").trim();
       const notes = String(formData.get("notes") ?? "").trim();
       const response = await recommendVehicleAction({
         monthlyIncome: Number(formData.get("monthlyIncome")),
@@ -47,6 +48,7 @@ export function VehicleProfileAssistant() {
         mainUse: formData.get("mainUse") as MainUse,
         familySize: familySize ? Number(familySize) : undefined,
         priority: formData.get("priority") as Priority,
+        preferredCity: preferredCity || undefined,
         notes: notes || undefined,
       });
       if (response.ok) setResult(response.recommendation);
@@ -94,6 +96,7 @@ export function VehicleProfileAssistant() {
           required={false}
           placeholder="Ex.: 4"
         />
+        <FormField label="Cidade de preferência" name="preferredCity" required={false} placeholder="Ex.: Belo Horizonte" />
         <div className="sm:col-span-2">
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-semibold text-ink">

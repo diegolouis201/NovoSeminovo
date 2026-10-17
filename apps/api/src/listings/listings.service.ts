@@ -225,11 +225,14 @@ export class ListingsService {
     const budgetRangeMax = Math.round(principal + profile.availableDownPayment);
     const budgetRangeMin = Math.round(Math.max(0, budgetRangeMax * 0.6));
 
+    const cityFilter = profile.preferredCity ? { city: { equals: profile.preferredCity, mode: "insensitive" as const } } : {};
+
     let candidates = await this.prisma.listing.findMany({
       where: {
         status: "active",
         type: "vehicle",
         price: { gte: budgetRangeMin * 0.7, lte: Math.max(budgetRangeMax * 1.15, 1) },
+        ...cityFilter,
       },
       include: listingInclude,
       orderBy: { price: "asc" },
@@ -237,11 +240,19 @@ export class ListingsService {
     });
 
     // Faixa calculada pode não ter nenhum anúncio ativo (catálogo pequeno,
-    // ou perfil muito apertado) — em vez de devolver vazio, alarga pra
-    // qualquer veículo ativo e deixa claro no resumo que são as opções mais
-    // próximas, não as ideais.
+    // ou perfil muito apertado) — em vez de devolver vazio, alarga primeiro
+    // soltando o preço (mantém a cidade, que foi escolha explícita da
+    // pessoa) e, se ainda assim não achar nada, solta tudo.
     const withinBudget = candidates.length > 0;
     if (!withinBudget) {
+      candidates = await this.prisma.listing.findMany({
+        where: { status: "active", type: "vehicle", ...cityFilter },
+        include: listingInclude,
+        orderBy: { price: "asc" },
+        take: 25,
+      });
+    }
+    if (candidates.length === 0) {
       candidates = await this.prisma.listing.findMany({
         where: { status: "active", type: "vehicle" },
         include: listingInclude,
@@ -262,6 +273,7 @@ export class ListingsService {
           fuelType: c.vehicleDetails!.fuelType,
           transmission: c.vehicleDetails!.transmission,
           doors: c.vehicleDetails!.doors ?? undefined,
+          city: c.city,
         }));
       const summaries = new Map(candidates.map((c) => [c.id, toListingSummary(c)]));
       const { summary, recommendedListingIds } = await this.ai.recommendVehicle(

@@ -74,6 +74,7 @@ export type VehicleCandidate = {
   fuelType: string;
   transmission: string;
   doors?: number;
+  city: string;
 };
 
 const PROPERTY_RECOMMEND_TOOL = {
@@ -197,7 +198,7 @@ export class AiService {
           (c) =>
             `- id=${c.id} | ${c.title} | R$ ${c.price} | ano ${c.year} | ${c.mileage} km | ${c.fuelType} | ${c.transmission}${
               c.doors ? ` | ${c.doors} portas` : ""
-            }`,
+            } | ${c.city}`,
         )
         .join("\n");
 
@@ -219,6 +220,7 @@ Perfil da pessoa:
 - Uso principal: ${MAIN_USE_LABEL[profile.mainUse] ?? profile.mainUse}
 - Tamanho da família: ${profile.familySize ?? "não informado"}
 - Prioridade: ${PRIORITY_LABEL[profile.priority] ?? profile.priority}
+- Cidade de preferência: ${profile.preferredCity ?? "não informado"}
 - Observações da própria pessoa: ${profile.notes ?? "nenhuma"}
 
 Faixa de orçamento já calculada pelo sistema (use como referência, não precisa recalcular): R$ ${budgetRange.min} a R$ ${budgetRange.max}.

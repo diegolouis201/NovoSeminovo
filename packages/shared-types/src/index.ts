@@ -462,6 +462,7 @@ export const VehicleProfileInputSchema = z.object({
   mainUse: MainUse,
   familySize: z.number().int().positive().optional(),
   priority: Priority,
+  preferredCity: z.string().optional(),
   notes: z.string().max(500).optional(),
 });
 export type VehicleProfileInput = z.infer<typeof VehicleProfileInputSchema>;
