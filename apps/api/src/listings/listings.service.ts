@@ -12,6 +12,8 @@ import {
   type PriceSuggestion,
   type Role,
   type UpdateListingStatusInput,
+  type VehicleProfileInput,
+  type VehicleRecommendation,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -19,11 +21,13 @@ import { VehiclesService } from "../vehicles/vehicles.service";
 import { FipeService } from "../vehicles/fipe.service";
 import { getPhotoStorage } from "../common/storage";
 import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA } from "../partners/partners.service";
+import { AiService } from "./ai.service";
 import {
   DEFAULT_RATE,
   buildListingFilterWhere,
   listingInclude,
   priceAmortization,
+  principalFromInstallment,
   toListingDetail,
   toListingSummary,
   toMyListingSummary,
@@ -70,6 +74,7 @@ export class ListingsService {
     private readonly notifications: NotificationsService,
     private readonly vehicles: VehiclesService,
     private readonly fipe: FipeService,
+    private readonly ai: AiService,
   ) {}
 
   async search(query: ListingSearchQuery): Promise<ListingSummary[]> {
@@ -153,6 +158,81 @@ export class ListingsService {
     const median = prices.length % 2 === 0 ? (prices[mid - 1]! + prices[mid]!) / 2 : prices[mid]!;
 
     return { suggestedPrice: Math.round(median), sampleSize: prices.length };
+  }
+
+  // Botão "qual carro é ideal pra mim?". A faixa de orçamento (regra prática
+  // de 10-15% da renda comprometida com o carro, nunca mais que metade do que
+  // sobra depois dos gastos fixos) é calculada aqui, sem depender de IA —
+  // só a escolha entre os candidatos elegíveis e o resumo consultivo usam
+  // AiService, e tudo funciona em modo degradado (sem IA) se a chave não
+  // estiver configurada, igual suggestPrice acima.
+  async recommendVehicle(profile: VehicleProfileInput): Promise<VehicleRecommendation> {
+    const rate = DEFAULT_RATE.vehicle.monthly;
+    const disposableIncome = profile.monthlyIncome - profile.monthlyFixedExpenses;
+    const ruleOfThumbMax = profile.monthlyIncome * 0.15;
+    const safeMonthlyCarBudget = Math.max(0, Math.min(ruleOfThumbMax, disposableIncome * 0.5));
+    // Do orçamento mensal com o carro, uma parte vira parcela e o resto cobre
+    // seguro + combustível (não dá pra comprometer 100% com a parcela).
+    const installmentBudget = safeMonthlyCarBudget * 0.7;
+    const principal = principalFromInstallment(installmentBudget, rate, profile.installments);
+    const budgetRangeMax = Math.round(principal + profile.availableDownPayment);
+    const budgetRangeMin = Math.round(Math.max(0, budgetRangeMax * 0.6));
+
+    const candidates = await this.prisma.listing.findMany({
+      where: {
+        status: "active",
+        type: "vehicle",
+        price: { gte: budgetRangeMin * 0.7, lte: Math.max(budgetRangeMax * 1.15, 1) },
+      },
+      include: listingInclude,
+      orderBy: { price: "asc" },
+      take: 25,
+    });
+
+    if (this.ai.isEnabled() && candidates.length > 0) {
+      const candidateInfo = candidates
+        .filter((c) => c.vehicleDetails)
+        .map((c) => ({
+          id: c.id,
+          title: c.title,
+          price: Number(c.price),
+          year: c.vehicleDetails!.yearModel,
+          mileage: c.vehicleDetails!.mileage,
+          fuelType: c.vehicleDetails!.fuelType,
+          transmission: c.vehicleDetails!.transmission,
+        }));
+      const summaries = new Map(candidates.map((c) => [c.id, toListingSummary(c)]));
+      const { summary, recommendedListingIds } = await this.ai.recommendVehicle(
+        profile,
+        { min: budgetRangeMin, max: budgetRangeMax },
+        candidateInfo,
+      );
+      return {
+        budgetRangeMin,
+        budgetRangeMax,
+        summary,
+        recommendations: recommendedListingIds.map((id) => summaries.get(id)).filter((s): s is ListingSummary => Boolean(s)),
+      };
+    }
+
+    // Sem IA configurada (ou sem nenhum anúncio na faixa): devolve só a
+    // faixa de orçamento calculada + os anúncios mais próximos do teto, sem
+    // o resumo consultivo — nunca quebra por falta de ANTHROPIC_API_KEY.
+    const fallbackRecommendations = candidates
+      .slice()
+      .sort((a, b) => Math.abs(Number(a.price) - budgetRangeMax) - Math.abs(Number(b.price) - budgetRangeMax))
+      .slice(0, 5)
+      .map(toListingSummary);
+
+    return {
+      budgetRangeMin,
+      budgetRangeMax,
+      summary:
+        fallbackRecommendations.length > 0
+          ? `Com base na sua renda e gastos, o ideal é um carro entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)}, considerando ${profile.installments}x de financiamento.`
+          : `Com base na sua renda e gastos, o ideal é um carro entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)} — não encontramos anúncios ativos nessa faixa agora.`,
+      recommendations: fallbackRecommendations,
+    };
   }
 
   async getDetail(id: string, viewer?: { id: string; role: Role }) {

@@ -21,6 +21,7 @@ import {
   FinancingSimulationInputSchema,
   GenerateListingDraftInputSchema,
   UpdateListingStatusInputSchema,
+  VehicleProfileInputSchema,
   type Role,
 } from "@novoseminovo/shared-types";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -86,6 +87,14 @@ export class ListingsController {
     query: { assetType?: string; brand?: string; model?: string; propertyType?: string; city?: string },
   ) {
     return this.listingsService.suggestPrice(query);
+  }
+
+  // Botão "qual carro é ideal pra mim?" — público (não exige login) porque é
+  // um recurso de pré-venda, útil antes mesmo de a pessoa criar conta.
+  @Post("recommend-vehicle")
+  recommendVehicle(@Body() body: unknown) {
+    const input = parseOrBadRequest(VehicleProfileInputSchema, body);
+    return this.listingsService.recommendVehicle(input);
   }
 
   // Precisa vir antes de ":id" — senão o Nest casaria "mine" como um :id.

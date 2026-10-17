@@ -222,6 +222,17 @@ export function priceAmortization(principal: number, monthlyRate: number, instal
   return (principal * monthlyRate * factor) / (factor - 1);
 }
 
+// Inverso de priceAmortization — usado pelo recomendador de veículo por
+// perfil (ListingsService.recommendVehicle): a pessoa informa quanto cabe no
+// orçamento por mês, isso vira o preço máximo de veículo que essa parcela
+// financia.
+export function principalFromInstallment(installment: number, monthlyRate: number, installments: number): number {
+  if (installment <= 0) return 0;
+  if (monthlyRate === 0) return installment * installments;
+  const factor = Math.pow(1 + monthlyRate, installments);
+  return (installment * (factor - 1)) / (monthlyRate * factor);
+}
+
 export function toListingDetail(
   listing: ListingWithDetails,
   reviewStatus: ListingDetail["reviewStatus"],

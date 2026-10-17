@@ -1,6 +1,6 @@
 import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import Anthropic from "@anthropic-ai/sdk";
-import type { AssetType, ListingDraft } from "@novoseminovo/shared-types";
+import type { AssetType, ListingDraft, VehicleProfileInput } from "@novoseminovo/shared-types";
 
 const MODEL = "claude-sonnet-5-5";
 
@@ -25,6 +25,54 @@ const DRAFT_TOOL = {
     },
     required: ["title", "description"],
   },
+};
+
+const RECOMMEND_TOOL = {
+  name: "recomendar_veiculo",
+  description:
+    "Escolhe, dentre os anúncios de veículos oferecidos, os que melhor encaixam no perfil financeiro e de uso da pessoa, e escreve um resumo consultivo explicando o raciocínio.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      summary: {
+        type: "string",
+        description:
+          "Resumo em português, direto e consultivo (3 a 5 frases), explicando a faixa de orçamento recomendada e por que os veículos escolhidos (ou a falta deles) fazem sentido pro perfil da pessoa. Nunca garante aprovação de crédito nem promete financiamento.",
+      },
+      recommendedListingIds: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Até 5 ids, escolhidos SOMENTE entre os anúncios fornecidos na lista, ordenados do mais recomendado pro menos recomendado. Lista vazia se nenhum fizer sentido pro perfil.",
+      },
+    },
+    required: ["summary", "recommendedListingIds"],
+  },
+};
+
+const MAIN_USE_LABEL: Record<string, string> = {
+  commute: "ir e voltar do trabalho/estudo no dia a dia",
+  family: "uso familiar, levar filhos/dependentes",
+  work: "trabalho (ex.: carregar carga, atender clientes)",
+  leisure: "lazer, viagens de fim de semana",
+};
+
+const PRIORITY_LABEL: Record<string, string> = {
+  economy: "economia (combustível, manutenção barata)",
+  space: "espaço interno/porta-malas",
+  comfort: "conforto",
+  performance: "desempenho/potência",
+  reliability: "confiabilidade/baixo custo de manutenção",
+};
+
+export type VehicleCandidate = {
+  id: string;
+  title: string;
+  price: number;
+  year: number;
+  mileage: number;
+  fuelType: string;
+  transmission: string;
 };
 
 // Gating idêntico ao de PaymentsService/EmailService (ver comentário lá):
@@ -85,6 +133,74 @@ export class AiService {
       this.logger.error(`Falha ao gerar rascunho de anúncio com IA: ${error}`);
       throw new ServiceUnavailableException(
         "Não foi possível gerar o anúncio com IA agora. Tente de novo em instantes, ou preencha manualmente.",
+      );
+    }
+  }
+
+  // ListingsService.recommendVehicle já calculou a faixa de orçamento (regra
+  // de 10-15% da renda) e os candidatos elegíveis — aqui só escolhe entre eles
+  // e escreve o texto consultivo. A IA nunca inventa um anúncio: o filtro por
+  // id (abaixo) garante que só vem o que foi oferecido na lista.
+  async recommendVehicle(
+    profile: VehicleProfileInput,
+    budgetRange: { min: number; max: number },
+    candidates: VehicleCandidate[],
+  ): Promise<{ summary: string; recommendedListingIds: string[] }> {
+    try {
+      const client = this.getClient();
+      const candidatesText = candidates
+        .map(
+          (c) =>
+            `- id=${c.id} | ${c.title} | R$ ${c.price} | ano ${c.year} | ${c.mileage} km | ${c.fuelType} | ${c.transmission}`,
+        )
+        .join("\n");
+
+      const message = await client.messages.create({
+        model: MODEL,
+        max_tokens: 1024,
+        tools: [RECOMMEND_TOOL],
+        tool_choice: { type: "auto" },
+        messages: [
+          {
+            role: "user",
+            content: `Você ajuda um comprador a escolher o carro ideal no Novo Seminovo (marketplace brasileiro de veículos e imóveis usados), com base no perfil financeiro dele. O carro ideal é o que cabe no orçamento sem comprometer o resto da vida financeira da pessoa — nunca o mais bonito, potente ou cheio de tecnologia.
+
+Perfil da pessoa:
+- Renda mensal: R$ ${profile.monthlyIncome}
+- Gastos fixos mensais: R$ ${profile.monthlyFixedExpenses}
+- Entrada disponível: R$ ${profile.availableDownPayment}
+- Parcelas desejadas: ${profile.installments}x
+- Uso principal: ${MAIN_USE_LABEL[profile.mainUse] ?? profile.mainUse}
+- Tamanho da família: ${profile.familySize ?? "não informado"}
+- Prioridade: ${PRIORITY_LABEL[profile.priority] ?? profile.priority}
+- Observações da própria pessoa: ${profile.notes ?? "nenhuma"}
+
+Faixa de orçamento já calculada pelo sistema (use como referência, não precisa recalcular): R$ ${budgetRange.min} a R$ ${budgetRange.max}.
+
+Anúncios de veículos ativos disponíveis agora na plataforma:
+${candidatesText || "(nenhum anúncio disponível no momento)"}
+
+Use a ferramenta "recomendar_veiculo" pra escolher os melhores (se houver algum que faça sentido) e escrever o resumo.`,
+          },
+        ],
+      });
+
+      const toolUse = message.content.find((block) => block.type === "tool_use");
+      if (!toolUse || toolUse.type !== "tool_use") {
+        throw new Error("Claude não devolveu a recomendação estruturada esperada");
+      }
+
+      const input = toolUse.input as { summary?: string; recommendedListingIds?: string[] };
+      if (!input.summary) throw new Error("Recomendação da IA veio sem resumo");
+
+      const validIds = new Set(candidates.map((c) => c.id));
+      const recommendedListingIds = (input.recommendedListingIds ?? []).filter((id) => validIds.has(id)).slice(0, 5);
+
+      return { summary: input.summary, recommendedListingIds };
+    } catch (error) {
+      this.logger.error(`Falha ao gerar recomendação de veículo com IA: ${error}`);
+      throw new ServiceUnavailableException(
+        "Não foi possível gerar a recomendação com IA agora. Tente de novo em instantes.",
       );
     }
   }

@@ -2,13 +2,20 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import type { CreateListingInput, ListingStatus, PriceSuggestion } from "@novoseminovo/shared-types";
+import type {
+  CreateListingInput,
+  ListingStatus,
+  PriceSuggestion,
+  VehicleProfileInput,
+} from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import {
   createListing,
   deleteListingPhoto,
   fetchPriceSuggestion,
   generateListingDraft,
+  recommendVehicle,
+  type RecommendVehicleResult,
   updateListingStatus,
   uploadListingPhotos,
 } from "@/lib/api";
@@ -30,6 +37,12 @@ export async function suggestPriceAction(query: {
   city?: string;
 }): Promise<PriceSuggestion | undefined> {
   return fetchPriceSuggestion(query);
+}
+
+// Botão "qual carro é ideal pra mim?" — mesma lógica de Server Action que
+// suggestPriceAction acima: evita o navegador falar direto com a API.
+export async function recommendVehicleAction(input: VehicleProfileInput): Promise<RecommendVehicleResult> {
+  return recommendVehicle(input);
 }
 
 function num(formData: FormData, key: string): number | undefined {

@@ -443,6 +443,37 @@ export const AiStatusSchema = z.object({
 });
 export type AiStatus = z.infer<typeof AiStatusSchema>;
 
+// Botão "qual carro é ideal pra mim?" — perfil financeiro simples vira faixa
+// de orçamento (regra prática de 10-15% da renda comprometida com o carro) +
+// até 5 anúncios reais do catálogo (ver ListingsService.recommendVehicle).
+// Funciona mesmo sem ANTHROPIC_API_KEY (degradação graciosa: só a faixa de
+// orçamento + anúncios mais próximos dela, sem o resumo consultivo da IA).
+export const MainUse = z.enum(["commute", "family", "work", "leisure"]);
+export type MainUse = z.infer<typeof MainUse>;
+
+export const Priority = z.enum(["economy", "space", "comfort", "performance", "reliability"]);
+export type Priority = z.infer<typeof Priority>;
+
+export const VehicleProfileInputSchema = z.object({
+  monthlyIncome: z.number().positive(),
+  monthlyFixedExpenses: z.number().nonnegative(),
+  availableDownPayment: z.number().nonnegative(),
+  installments: z.number().int().min(12).max(84),
+  mainUse: MainUse,
+  familySize: z.number().int().positive().optional(),
+  priority: Priority,
+  notes: z.string().max(500).optional(),
+});
+export type VehicleProfileInput = z.infer<typeof VehicleProfileInputSchema>;
+
+export const VehicleRecommendationSchema = z.object({
+  budgetRangeMin: z.number(),
+  budgetRangeMax: z.number(),
+  summary: z.string(),
+  recommendations: z.array(ListingSummarySchema),
+});
+export type VehicleRecommendation = z.infer<typeof VehicleRecommendationSchema>;
+
 // Calculadora do MVP — sem integração bancária real (ver Etapa 3).
 export const FinancingSimulationInputSchema = z.object({
   listingId: z.string(),

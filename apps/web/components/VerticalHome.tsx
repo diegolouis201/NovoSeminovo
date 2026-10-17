@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { FeaturedPartners } from "@/components/FeaturedPartners";
 import { ListingCard } from "@/components/ListingCard";
 import { PromoCarousel } from "@/components/PromoCarousel";
@@ -63,6 +64,16 @@ export async function VerticalHome({ assetType }: { assetType?: "vehicle" | "pro
             Buscar
           </button>
         </form>
+
+        {assetType !== "property" && (
+          <Link
+            href="/assistente-compra"
+            className="flex items-center gap-1.5 text-sm font-semibold text-brand-blue hover:underline"
+          >
+            <Sparkle size={16} weight="fill" />
+            Não sabe qual carro escolher? Deixa a IA te ajudar
+          </Link>
+        )}
       </section>
 
       <PromoCarousel />

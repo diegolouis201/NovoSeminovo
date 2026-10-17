@@ -35,6 +35,8 @@ import type {
   RegisterVehicleInput,
   VehicleEvent,
   VehicleProfile,
+  VehicleProfileInput,
+  VehicleRecommendation,
   WorkshopOption,
 } from "@novoseminovo/shared-types";
 import { getListing, getVehicleProfile, listListings } from "@/lib/mock-data";
@@ -615,6 +617,30 @@ export async function generateListingDraft(
     const body = await res.json().catch(() => undefined);
     if (!res.ok) return { ok: false, error: body?.message ?? "Não foi possível gerar o anúncio agora." };
     return { ok: true, draft: body as ListingDraft };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
+}
+
+export type RecommendVehicleResult = { ok: true; recommendation: VehicleRecommendation } | { ok: false; error: string };
+
+// Botão "qual carro é ideal pra mim?" (ver ListingsService.recommendVehicle).
+// Público — não exige login, igual fetchPriceSuggestion acima — mas usa POST
+// porque o perfil financeiro não cabe bem numa querystring.
+export async function recommendVehicle(input: VehicleProfileInput): Promise<RecommendVehicleResult> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listings/recommend-vehicle`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      },
+      15000,
+    );
+    const body = await res.json().catch(() => undefined);
+    if (!res.ok) return { ok: false, error: body?.message ?? "Não foi possível gerar a recomendação agora." };
+    return { ok: true, recommendation: body as VehicleRecommendation };
   } catch {
     return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
   }
