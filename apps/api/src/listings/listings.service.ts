@@ -12,6 +12,8 @@ import {
   type PriceSuggestion,
   type Role,
   type UpdateListingStatusInput,
+  type Priority,
+  type PropertyPriority,
   type PropertyProfileInput,
   type PropertyRecommendation,
   type VehicleProfileInput,
@@ -33,7 +35,50 @@ import {
   toListingDetail,
   toListingSummary,
   toMyListingSummary,
+  type ListingWithDetails,
 } from "./listings.mapper";
+
+// Não existe campo de "tipo de carroceria" (SUV/hatch/sedã) no schema (ver
+// comentário em popularBrands acima) — esses atributos de VehicleDetails são
+// o proxy mais próximo que já temos pra cada prioridade de perfil, usados
+// tanto pra ordenar o fallback sem IA quanto, via candidateInfo, pro
+// AiService.recommendVehicle levar isso em conta na escolha.
+function vehicleProfileScore(listing: ListingWithDetails, budgetRangeMax: number, priority: Priority): number {
+  const priceScore = Math.abs(Number(listing.price) - budgetRangeMax);
+  const details = listing.vehicleDetails;
+  if (!details) return priceScore;
+
+  const ECONOMY_FUEL = new Set(["flex", "ethanol", "hybrid", "electric"]);
+  let bonus = 0;
+  if (priority === "economy" && ECONOMY_FUEL.has(details.fuelType)) bonus -= 3000;
+  if (priority === "space" && (details.doors ?? 0) >= 4) bonus -= 3000;
+  if (priority === "comfort" && details.transmission === "automatic") bonus -= 3000;
+  if (priority === "reliability") bonus -= Math.max(0, 5000 - details.mileage * 0.02);
+
+  return priceScore + bonus;
+}
+
+// Mesma ideia de vehicleProfileScore acima, pra imóvel. Sem campo de
+// distância/trânsito no schema, "location" não tem proxy melhor que preço —
+// cai de volta pro mesmo critério de proximidade do teto do orçamento.
+function propertyProfileScore(listing: ListingWithDetails, budgetRangeMax: number, priority: PropertyPriority): number {
+  const price = Number(listing.price);
+  if (priority === "price") return price;
+
+  const priceScore = Math.abs(price - budgetRangeMax);
+  const details = listing.propertyDetails;
+  if (!details) return priceScore;
+
+  let bonus = 0;
+  if (priority === "space") bonus -= Number(details.areaM2) * 10;
+  if (priority === "condo_amenities" && details.condoFee) bonus -= 3000;
+  if (priority === "low_maintenance") {
+    if (details.propertyType === "apartment") bonus -= 2000;
+    if (details.condoFee) bonus += Number(details.condoFee) * 2;
+  }
+
+  return priceScore + bonus;
+}
 
 export type ListingSearchQuery = {
   assetType?: string;
@@ -180,7 +225,7 @@ export class ListingsService {
     const budgetRangeMax = Math.round(principal + profile.availableDownPayment);
     const budgetRangeMin = Math.round(Math.max(0, budgetRangeMax * 0.6));
 
-    const candidates = await this.prisma.listing.findMany({
+    let candidates = await this.prisma.listing.findMany({
       where: {
         status: "active",
         type: "vehicle",
@@ -190,6 +235,20 @@ export class ListingsService {
       orderBy: { price: "asc" },
       take: 25,
     });
+
+    // Faixa calculada pode não ter nenhum anúncio ativo (catálogo pequeno,
+    // ou perfil muito apertado) — em vez de devolver vazio, alarga pra
+    // qualquer veículo ativo e deixa claro no resumo que são as opções mais
+    // próximas, não as ideais.
+    const withinBudget = candidates.length > 0;
+    if (!withinBudget) {
+      candidates = await this.prisma.listing.findMany({
+        where: { status: "active", type: "vehicle" },
+        include: listingInclude,
+        orderBy: { price: "asc" },
+        take: 25,
+      });
+    }
 
     if (this.ai.isEnabled() && candidates.length > 0) {
       const candidateInfo = candidates
@@ -202,12 +261,14 @@ export class ListingsService {
           mileage: c.vehicleDetails!.mileage,
           fuelType: c.vehicleDetails!.fuelType,
           transmission: c.vehicleDetails!.transmission,
+          doors: c.vehicleDetails!.doors ?? undefined,
         }));
       const summaries = new Map(candidates.map((c) => [c.id, toListingSummary(c)]));
       const { summary, recommendedListingIds } = await this.ai.recommendVehicle(
         profile,
         { min: budgetRangeMin, max: budgetRangeMax },
         candidateInfo,
+        withinBudget,
       );
       return {
         budgetRangeMin,
@@ -217,12 +278,14 @@ export class ListingsService {
       };
     }
 
-    // Sem IA configurada (ou sem nenhum anúncio na faixa): devolve só a
-    // faixa de orçamento calculada + os anúncios mais próximos do teto, sem
-    // o resumo consultivo — nunca quebra por falta de ANTHROPIC_API_KEY.
+    // Sem IA configurada (ou sem nenhum anúncio no catálogo): devolve só a
+    // faixa de orçamento calculada + os anúncios mais alinhados ao perfil
+    // (preço mais próximo do teto + atributo relevante pra prioridade
+    // escolhida), sem o resumo consultivo — nunca quebra por falta de
+    // ANTHROPIC_API_KEY.
     const fallbackRecommendations = candidates
       .slice()
-      .sort((a, b) => Math.abs(Number(a.price) - budgetRangeMax) - Math.abs(Number(b.price) - budgetRangeMax))
+      .sort((a, b) => vehicleProfileScore(a, budgetRangeMax, profile.priority) - vehicleProfileScore(b, budgetRangeMax, profile.priority))
       .slice(0, 5)
       .map(toListingSummary);
 
@@ -230,9 +293,11 @@ export class ListingsService {
       budgetRangeMin,
       budgetRangeMax,
       summary:
-        fallbackRecommendations.length > 0
-          ? `Com base na sua renda e gastos, o ideal é um carro entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)}, considerando ${profile.installments}x de financiamento.`
-          : `Com base na sua renda e gastos, o ideal é um carro entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)} — não encontramos anúncios ativos nessa faixa agora.`,
+        fallbackRecommendations.length === 0
+          ? `Com base na sua renda e gastos, o ideal é um carro entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)} — não encontramos nenhum anúncio ativo no catálogo agora.`
+          : withinBudget
+            ? `Com base na sua renda e gastos, o ideal é um carro entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)}, considerando ${profile.installments}x de financiamento.`
+            : `Com base na sua renda e gastos, o ideal seria um carro entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)} — não há anúncios ativos exatamente nessa faixa agora, então mostramos as opções mais próximas do catálogo.`,
       recommendations: fallbackRecommendations,
     };
   }
@@ -254,21 +319,43 @@ export class ListingsService {
     const budgetRangeMax = Math.round(principal + profile.availableDownPayment);
     const budgetRangeMin = Math.round(Math.max(0, budgetRangeMax * 0.6));
 
-    const candidates = await this.prisma.listing.findMany({
+    const cityFilter = profile.preferredCity ? { city: { equals: profile.preferredCity, mode: "insensitive" as const } } : {};
+    const bedroomsFilter = profile.minBedrooms !== undefined ? { bedrooms: { gte: profile.minBedrooms } } : {};
+
+    let candidates = await this.prisma.listing.findMany({
       where: {
         status: "active",
         type: "property",
         price: { gte: budgetRangeMin * 0.7, lte: Math.max(budgetRangeMax * 1.15, 1) },
-        ...(profile.preferredCity ? { city: { equals: profile.preferredCity, mode: "insensitive" } } : {}),
-        propertyDetails: {
-          purpose: "sale",
-          ...(profile.minBedrooms !== undefined ? { bedrooms: { gte: profile.minBedrooms } } : {}),
-        },
+        ...cityFilter,
+        propertyDetails: { purpose: "sale", ...bedroomsFilter },
       },
       include: listingInclude,
       orderBy: { price: "asc" },
       take: 25,
     });
+
+    // Igual a recommendVehicle: faixa de preço pode não ter nenhum imóvel
+    // ativo — alarga primeiro soltando o preço (mantém cidade/quartos, que
+    // foram escolha explícita da pessoa) e, se ainda assim não achar nada,
+    // solta tudo e mostra qualquer imóvel à venda disponível.
+    const withinBudget = candidates.length > 0;
+    if (!withinBudget) {
+      candidates = await this.prisma.listing.findMany({
+        where: { status: "active", type: "property", ...cityFilter, propertyDetails: { purpose: "sale", ...bedroomsFilter } },
+        include: listingInclude,
+        orderBy: { price: "asc" },
+        take: 25,
+      });
+    }
+    if (candidates.length === 0) {
+      candidates = await this.prisma.listing.findMany({
+        where: { status: "active", type: "property", propertyDetails: { purpose: "sale" } },
+        include: listingInclude,
+        orderBy: { price: "asc" },
+        take: 25,
+      });
+    }
 
     if (this.ai.isEnabled() && candidates.length > 0) {
       const candidateInfo = candidates
@@ -288,6 +375,7 @@ export class ListingsService {
         profile,
         { min: budgetRangeMin, max: budgetRangeMax },
         candidateInfo,
+        withinBudget,
       );
       return {
         budgetRangeMin,
@@ -299,7 +387,7 @@ export class ListingsService {
 
     const fallbackRecommendations = candidates
       .slice()
-      .sort((a, b) => Math.abs(Number(a.price) - budgetRangeMax) - Math.abs(Number(b.price) - budgetRangeMax))
+      .sort((a, b) => propertyProfileScore(a, budgetRangeMax, profile.priority) - propertyProfileScore(b, budgetRangeMax, profile.priority))
       .slice(0, 5)
       .map(toListingSummary);
 
@@ -307,9 +395,11 @@ export class ListingsService {
       budgetRangeMin,
       budgetRangeMax,
       summary:
-        fallbackRecommendations.length > 0
-          ? `Com base na sua renda e gastos, o ideal é um imóvel entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)}, considerando ${profile.installments}x de financiamento.`
-          : `Com base na sua renda e gastos, o ideal é um imóvel entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)} — não encontramos anúncios ativos nessa faixa agora.`,
+        fallbackRecommendations.length === 0
+          ? `Com base na sua renda e gastos, o ideal é um imóvel entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)} — não encontramos nenhum anúncio à venda no catálogo agora.`
+          : withinBudget
+            ? `Com base na sua renda e gastos, o ideal é um imóvel entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)}, considerando ${profile.installments}x de financiamento.`
+            : `Com base na sua renda e gastos, o ideal seria um imóvel entre ${formatBRL(budgetRangeMin)} e ${formatBRL(budgetRangeMax)} — não há anúncios ativos exatamente nessa faixa agora, então mostramos as opções mais próximas do catálogo.`,
       recommendations: fallbackRecommendations,
     };
   }

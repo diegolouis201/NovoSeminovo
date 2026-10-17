@@ -73,6 +73,7 @@ export type VehicleCandidate = {
   mileage: number;
   fuelType: string;
   transmission: string;
+  doors?: number;
 };
 
 const PROPERTY_RECOMMEND_TOOL = {
@@ -187,13 +188,16 @@ export class AiService {
     profile: VehicleProfileInput,
     budgetRange: { min: number; max: number },
     candidates: VehicleCandidate[],
+    withinBudget = true,
   ): Promise<{ summary: string; recommendedListingIds: string[] }> {
     try {
       const client = this.getClient();
       const candidatesText = candidates
         .map(
           (c) =>
-            `- id=${c.id} | ${c.title} | R$ ${c.price} | ano ${c.year} | ${c.mileage} km | ${c.fuelType} | ${c.transmission}`,
+            `- id=${c.id} | ${c.title} | R$ ${c.price} | ano ${c.year} | ${c.mileage} km | ${c.fuelType} | ${c.transmission}${
+              c.doors ? ` | ${c.doors} portas` : ""
+            }`,
         )
         .join("\n");
 
@@ -219,7 +223,11 @@ Perfil da pessoa:
 
 Faixa de orçamento já calculada pelo sistema (use como referência, não precisa recalcular): R$ ${budgetRange.min} a R$ ${budgetRange.max}.
 
-Anúncios de veículos ativos disponíveis agora na plataforma:
+${
+  withinBudget
+    ? "Anúncios de veículos ativos disponíveis agora na plataforma, já dentro dessa faixa:"
+    : "ATENÇÃO: não há nenhum anúncio ativo dentro dessa faixa de orçamento agora — os anúncios abaixo são os mais próximos disponíveis no catálogo, mas estão fora do ideal. Deixe isso claro no resumo (ex.: custam mais do que o recomendado) em vez de tratá-los como se coubessem perfeitamente no orçamento."
+}
 ${candidatesText || "(nenhum anúncio disponível no momento)"}
 
 Use a ferramenta "recomendar_veiculo" pra escolher os melhores (se houver algum que faça sentido) e escrever o resumo.`,
@@ -253,6 +261,7 @@ Use a ferramenta "recomendar_veiculo" pra escolher os melhores (se houver algum 
     profile: PropertyProfileInput,
     budgetRange: { min: number; max: number },
     candidates: PropertyCandidate[],
+    withinBudget = true,
   ): Promise<{ summary: string; recommendedListingIds: string[] }> {
     try {
       const client = this.getClient();
@@ -288,7 +297,11 @@ Perfil da pessoa:
 
 Faixa de orçamento já calculada pelo sistema (use como referência, não precisa recalcular): R$ ${budgetRange.min} a R$ ${budgetRange.max}.
 
-Anúncios de imóveis à venda disponíveis agora na plataforma:
+${
+  withinBudget
+    ? "Anúncios de imóveis à venda disponíveis agora na plataforma, já dentro dessa faixa:"
+    : "ATENÇÃO: não há nenhum anúncio ativo dentro dessa faixa de orçamento agora — os anúncios abaixo são os mais próximos disponíveis no catálogo, mas estão fora do ideal. Deixe isso claro no resumo (ex.: custam mais do que o recomendado) em vez de tratá-los como se coubessem perfeitamente no orçamento."
+}
 ${candidatesText || "(nenhum anúncio disponível no momento)"}
 
 Use a ferramenta "recomendar_imovel" pra escolher os melhores (se houver algum que faça sentido) e escrever o resumo.`,
