@@ -229,11 +229,10 @@ export async function uploadPhotosAction(listingId: string, formData: FormData):
     redirect(`/anuncio/${listingId}/fotos?erro=${encodeURIComponent(result.error)}`);
   }
 
-  // Melhor esforço: sem IA configurada ou se a chamada falhar,
-  // classifyListingPhotos devolve undefined e as fotos ficam na ordem que
-  // já foram enviadas — nunca trava o upload por causa disso.
-  await classifyListingPhotos(listingId, session.accessToken);
-
+  // A organização por IA roda depois, já na tela de fotos (ver
+  // PhotoGallery.tsx) — chamá-la aqui e esperar o resultado (até ~1min pra
+  // várias fotos) deixava esse envio parecendo travado, sem nenhum aviso de
+  // carregamento na tela.
   revalidatePath("/");
   revalidatePath("/busca");
   revalidatePath(`/anuncio/${listingId}`);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Sparkle, Star } from "@phosphor-icons/react/dist/ssr";
 import type { Photo } from "@novoseminovo/shared-types";
 import { Button } from "@/components/Button";
@@ -87,6 +87,22 @@ export function PhotoGallery({
       }
     });
   }
+
+  // Upload (ver uploadPhotosAction) não espera mais a IA terminar antes de
+  // voltar pra essa tela — senão o envio parecia travado, sem nenhum aviso,
+  // enquanto a IA analisava as fotos (até ~1min). Em vez disso, assim que a
+  // galeria carrega com fotos recém-enviadas (nenhuma com legenda ainda),
+  // dispara a organização automaticamente — com o aviso "Organizando..." já
+  // visível — uma vez só por carregamento de página.
+  const autoClassifyTriggered = useRef(false);
+  useEffect(() => {
+    if (autoClassifyTriggered.current) return;
+    if (!aiEnabled || photos.length === 0) return;
+    if (photos.some((p) => p.caption)) return;
+    autoClassifyTriggered.current = true;
+    handleReclassify();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (photos.length === 0) return null;
 
