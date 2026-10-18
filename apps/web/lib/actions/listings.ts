@@ -85,7 +85,25 @@ export async function generateListingDraftAction(formData: FormData): Promise<vo
     redirect(`/anunciar?tipo=${assetType}&error=${encodeURIComponent(result.error)}`);
   }
 
-  const params = new URLSearchParams({ tipo: assetType, draftTitle: result.draft.title, draftDescription: result.draft.description });
+  // Preserva o que já tinha vindo do CRLV (campos ocultos no formulário, ver
+  // /anunciar) — essa ação só soma título/descrição/preço, nunca apaga o
+  // que já estava preenchido por outra fonte.
+  const params = new URLSearchParams({ tipo: assetType });
+  for (const field of [
+    "draftBrand",
+    "draftModel",
+    "draftVersion",
+    "draftYearManufacture",
+    "draftYearModel",
+    "draftFuelType",
+    "draftColor",
+    "draftPlate",
+  ]) {
+    const value = str(formData, field);
+    if (value) params.set(field, value);
+  }
+  params.set("draftTitle", result.draft.title);
+  params.set("draftDescription", result.draft.description);
   if (result.draft.suggestedPrice) params.set("draftPrice", String(result.draft.suggestedPrice));
   redirect(`/anunciar?${params.toString()}`);
 }
@@ -104,8 +122,16 @@ export async function extractCrlvAction(formData: FormData): Promise<void> {
     redirect(`/anunciar?tipo=vehicle&error=${encodeURIComponent(result.error)}`);
   }
 
-  const data = result.data;
+  // Preserva o que já tinha vindo do gerador de texto por IA (campos ocultos
+  // no formulário) — mesma lógica de generateListingDraftAction acima, só
+  // que na direção contrária.
   const params = new URLSearchParams({ tipo: "vehicle" });
+  for (const field of ["draftTitle", "draftDescription", "draftPrice"]) {
+    const value = str(formData, field);
+    if (value) params.set(field, value);
+  }
+
+  const data = result.data;
   if (data.brand) params.set("draftBrand", data.brand);
   if (data.model) params.set("draftModel", data.model);
   if (data.version) params.set("draftVersion", data.version);

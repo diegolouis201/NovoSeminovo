@@ -79,6 +79,17 @@ export default async function CreateListingPage({
           className="mt-6 flex flex-col gap-3 rounded-brand border border-brand-blue/30 bg-brand-blue/5 p-4"
         >
           <input type="hidden" name="assetType" value={assetType} />
+          {/* Preserva o que já veio do CRLV (se a pessoa leu o documento
+              antes de gerar o texto) — sem isso, essa ação reconstruía a
+              URL do zero e apagava os dados do CRLV. */}
+          <input type="hidden" name="draftBrand" value={searchParams.draftBrand ?? ""} />
+          <input type="hidden" name="draftModel" value={searchParams.draftModel ?? ""} />
+          <input type="hidden" name="draftVersion" value={searchParams.draftVersion ?? ""} />
+          <input type="hidden" name="draftYearManufacture" value={searchParams.draftYearManufacture ?? ""} />
+          <input type="hidden" name="draftYearModel" value={searchParams.draftYearModel ?? ""} />
+          <input type="hidden" name="draftFuelType" value={searchParams.draftFuelType ?? ""} />
+          <input type="hidden" name="draftColor" value={searchParams.draftColor ?? ""} />
+          <input type="hidden" name="draftPlate" value={searchParams.draftPlate ?? ""} />
           <p className="flex items-center gap-1.5 text-sm font-bold text-brand-blue">
             <Sparkle size={16} weight="fill" />
             Gerar anúncio com IA
@@ -111,6 +122,12 @@ export default async function CreateListingPage({
           encType="multipart/form-data"
           className="mt-4 flex flex-col gap-3 rounded-brand border border-brand-blue/30 bg-brand-blue/5 p-4"
         >
+          {/* Preserva o que já veio do gerador de texto acima — mesmo
+              motivo do comentário no form de cima, só que na direção
+              contrária. */}
+          <input type="hidden" name="draftTitle" value={searchParams.draftTitle ?? ""} />
+          <input type="hidden" name="draftDescription" value={searchParams.draftDescription ?? ""} />
+          <input type="hidden" name="draftPrice" value={searchParams.draftPrice ?? ""} />
           <p className="flex items-center gap-1.5 text-sm font-bold text-brand-blue">
             <FileText size={16} weight="fill" />
             Preencher com o CRLV
