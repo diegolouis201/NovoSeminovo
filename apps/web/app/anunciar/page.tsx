@@ -6,6 +6,7 @@ import { Button } from "@/components/Button";
 import { FormField, SelectField, TextAreaField } from "@/components/FormField";
 import { PriceSuggestionHint } from "@/components/PriceSuggestionHint";
 import { PropertyTypeFields } from "@/components/PropertyTypeFields";
+import { SubmitButton } from "@/components/SubmitButton";
 import { createListingAction, extractCrlvAction, generateListingDraftAction } from "@/lib/actions/listings";
 import { fetchAiStatus } from "@/lib/api";
 import { FUEL_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
@@ -110,9 +111,9 @@ export default async function CreateListingPage({
             }
             className="rounded-brand border border-border bg-surface-page px-3 py-2 text-sm text-ink placeholder:text-ink-muted"
           />
-          <Button type="submit" variant="secondary" className="self-start">
+          <SubmitButton variant="secondary" className="self-start" pendingLabel="Gerando...">
             Gerar
-          </Button>
+          </SubmitButton>
         </form>
       )}
 
@@ -152,9 +153,9 @@ export default async function CreateListingPage({
               className="rounded-brand border border-border bg-surface-page px-3 py-2 text-sm text-ink placeholder:text-ink-muted sm:w-40"
             />
           </div>
-          <Button type="submit" variant="secondary" className="self-start">
+          <SubmitButton variant="secondary" className="self-start" pendingLabel="Lendo documento...">
             Ler CRLV automaticamente
-          </Button>
+          </SubmitButton>
         </form>
       )}
 
@@ -246,9 +247,9 @@ export default async function CreateListingPage({
           </>
         )}
 
-        <Button type="submit" className="mt-2 self-start">
+        <SubmitButton className="mt-2 self-start" pendingLabel="Publicando...">
           Publicar anúncio
-        </Button>
+        </SubmitButton>
       </form>
     </main>
   );

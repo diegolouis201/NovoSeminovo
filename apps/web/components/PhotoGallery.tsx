@@ -12,6 +12,37 @@ import {
 } from "@/lib/actions/listings";
 import { resolveMediaUrl } from "@/lib/api";
 
+// Legendas rápidas (ver uso abaixo) — ajudam a padronizar ângulos comuns sem
+// a pessoa precisar digitar toda vez. Lista diferente pra veículo e imóvel,
+// mas em ambos os casos é só um atalho: o campo de texto continua livre.
+const VEHICLE_CAPTION_PRESETS = [
+  "Frente",
+  "Traseira",
+  "Lateral esquerda",
+  "Lateral direita",
+  "Frente - parte interna",
+  "Traseira - parte interna",
+  "Painel",
+  "Bancos",
+  "Porta-malas",
+  "Motor",
+  "Rodas",
+];
+const PROPERTY_CAPTION_PRESETS = [
+  "Fachada",
+  "Sala",
+  "Cozinha",
+  "Quarto",
+  "Suíte",
+  "Banheiro",
+  "Varanda",
+  "Área gourmet",
+  "Piscina",
+  "Jardim",
+  "Garagem",
+  "Vista",
+];
+
 // Galeria arrastar-e-soltar da página de fotos do anúncio. A ordem/legenda
 // sugerida pela IA (ver ListingsService.classifyPhotos, chamado automaticamente
 // depois do upload) é só o ponto de partida — tudo aqui é editável, e nada é
@@ -20,10 +51,12 @@ export function PhotoGallery({
   listingId,
   initialPhotos,
   aiEnabled,
+  assetType,
 }: {
   listingId: string;
   initialPhotos: Photo[];
   aiEnabled: boolean;
+  assetType: "vehicle" | "property";
 }) {
   const [photos, setPhotos] = useState(initialPhotos);
   const [coverId, setCoverId] = useState(initialPhotos[0]?.id);
@@ -34,7 +67,10 @@ export function PhotoGallery({
   const [isDirty, setIsDirty] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isClassifying, startClassify] = useTransition();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [, startDelete] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const captionPresets = assetType === "vehicle" ? VEHICLE_CAPTION_PRESETS : PROPERTY_CAPTION_PRESETS;
 
   function handleDrop(targetIndex: number) {
     if (dragIndex === null || dragIndex === targetIndex) return;
@@ -65,10 +101,43 @@ export function PhotoGallery({
     });
   }
 
-  function handleCaptionBlur(photoId: string) {
-    const caption = captions[photoId] ?? "";
+  function saveCaption(photoId: string, caption: string) {
     startTransition(() => {
       updatePhotoCaptionAction(listingId, photoId, caption);
+    });
+  }
+
+  function handleCaptionBlur(photoId: string) {
+    saveCaption(photoId, captions[photoId] ?? "");
+  }
+
+  function handleCaptionPreset(photoId: string, preset: string) {
+    setCaptions((current) => ({ ...current, [photoId]: preset }));
+    saveCaption(photoId, preset);
+  }
+
+  // Server action não retorna nada pro <form> nativo saber se deu certo, por
+  // isso a exclusão vira chamada direta (mesmo padrão de reorderPhotosAction
+  // acima) — só assim dá pra tirar a foto do estado local (photos) assim que
+  // o backend confirma, sem precisar recarregar a página.
+  function handleDelete(photoId: string) {
+    setMessage(null);
+    setDeletingId(photoId);
+    startDelete(async () => {
+      const ok = await deletePhotoAction(listingId, photoId);
+      setDeletingId(null);
+      if (!ok) {
+        setMessage("Não foi possível excluir a foto. Tente novamente.");
+        return;
+      }
+      const remaining = photos.filter((p) => p.id !== photoId);
+      setPhotos(remaining);
+      setCaptions((current) => {
+        const next = { ...current };
+        delete next[photoId];
+        return next;
+      });
+      if (coverId === photoId) setCoverId(remaining[0]?.id);
     });
   }
 
@@ -149,12 +218,30 @@ export function PhotoGallery({
               >
                 <Star size={14} weight={coverId === photo.id ? "fill" : "regular"} />
               </button>
-              <form action={deletePhotoAction.bind(null, listingId, photo.id)} className="absolute bottom-2 right-2">
-                <Button type="submit" variant="ghost" className="bg-surface-raised px-2 py-1 text-xs">
-                  Excluir
-                </Button>
-              </form>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => handleDelete(photo.id)}
+                disabled={deletingId === photo.id}
+                className="absolute bottom-2 right-2 bg-surface-raised px-2 py-1 text-xs"
+              >
+                {deletingId === photo.id ? "Excluindo..." : "Excluir"}
+              </Button>
             </div>
+            <select
+              value=""
+              onChange={(event) => {
+                if (event.target.value) handleCaptionPreset(photo.id, event.target.value);
+              }}
+              className="mx-2 rounded-brand border border-border bg-surface-page px-2 py-1 text-xs text-ink"
+            >
+              <option value="">Legenda rápida...</option>
+              {captionPresets.map((preset) => (
+                <option key={preset} value={preset}>
+                  {preset}
+                </option>
+              ))}
+            </select>
             <input
               value={captions[photo.id] ?? ""}
               onChange={(event) => setCaptions((current) => ({ ...current, [photo.id]: event.target.value }))}

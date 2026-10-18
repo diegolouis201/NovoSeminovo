@@ -275,15 +275,23 @@ export async function reclassifyPhotosAction(listingId: string): Promise<Photo[]
   return photos;
 }
 
-export async function deletePhotoAction(listingId: string, photoId: string): Promise<void> {
+// Chamado direto como função pela galeria (ver components/PhotoGallery.tsx),
+// não mais como <form action>: precisa devolver se deu certo pra galeria
+// atualizar seu próprio estado local (photos) — um <form action> aqui não
+// retorna nada pro client, então a foto excluída no servidor continuava
+// aparecendo na tela até recarregar a página.
+export async function deletePhotoAction(listingId: string, photoId: string): Promise<boolean> {
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");
 
-  await deleteListingPhoto(listingId, photoId, session.accessToken);
-  revalidatePath("/");
-  revalidatePath("/busca");
-  revalidatePath(`/anuncio/${listingId}`);
-  revalidatePath(`/anuncio/${listingId}/fotos`);
+  const ok = await deleteListingPhoto(listingId, photoId, session.accessToken);
+  if (ok) {
+    revalidatePath("/");
+    revalidatePath("/busca");
+    revalidatePath(`/anuncio/${listingId}`);
+    revalidatePath(`/anuncio/${listingId}/fotos`);
+  }
+  return ok;
 }
 
 export type ImportListingsRowError = { row: number; ok: false; error?: string; title?: string };
