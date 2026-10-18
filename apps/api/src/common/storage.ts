@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { Logger } from "@nestjs/common";
-import { PutObjectCommand, DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 export interface PhotoStorage {
   // Grava o arquivo e devolve a URL pública pra salvar em Photo.url — local
@@ -10,6 +10,9 @@ export interface PhotoStorage {
   // front), S3/R2 já devolve a URL absoluta.
   save(buffer: Buffer, originalName: string, contentType: string): Promise<string>;
   remove(url: string): Promise<void>;
+  // Relê o arquivo já salvo (usado por AiService.classifyVehiclePhotos pra
+  // mandar as fotos existentes do anúncio pra análise visual).
+  read(url: string): Promise<Buffer>;
 }
 
 // MVP (ver README "Próximos passos"): disco local, servido como estático em
@@ -33,6 +36,12 @@ class LocalDiskStorage implements PhotoStorage {
     // Arquivo pode já ter sumido do disco (ex.: redeploy sem volume
     // persistente); nunca falha a remoção do registro por isso.
     await unlink(join(UPLOADS_DIR, filename)).catch(() => {});
+  }
+
+  async read(url: string): Promise<Buffer> {
+    if (!url.startsWith(UPLOADS_URL_PREFIX)) throw new Error(`URL de foto fora do diretório de uploads: ${url}`);
+    const filename = url.slice(`${UPLOADS_URL_PREFIX}/`.length);
+    return readFile(join(UPLOADS_DIR, filename));
   }
 }
 
@@ -83,6 +92,17 @@ class S3PhotoStorage implements PhotoStorage {
     await this.client
       .send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }))
       .catch(() => {});
+  }
+
+  async read(url: string): Promise<Buffer> {
+    if (!url.startsWith(this.publicUrlBase)) throw new Error(`URL de foto fora do bucket configurado: ${url}`);
+    const key = url.slice(`${this.publicUrlBase}/`.length);
+    const result = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+    const chunks: Buffer[] = [];
+    for await (const chunk of result.Body as AsyncIterable<Buffer | Uint8Array>) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
   }
 }
 

@@ -30,6 +30,7 @@ import {
   DEFAULT_RATE,
   buildListingFilterWhere,
   listingInclude,
+  mimeTypeFromUrl,
   priceAmortization,
   principalFromInstallment,
   toListingDetail,
@@ -806,4 +807,114 @@ export class ListingsService {
     }
   }
 
+  // Disparado pela página de fotos logo depois do upload, se a IA estiver
+  // habilitada (ver addPhotos acima). Lê de volta os arquivos já salvos
+  // (PhotoStorage.read) e manda pro AiService classificar/ordenar/legendar.
+  // Sem ANTHROPIC_API_KEY, devolve as fotos como estão, sem quebrar o
+  // upload — a pessoa sempre pode reordenar/legendar na mão depois.
+  async classifyPhotos(listingId: string, ownerUserId: string): Promise<Photo[]> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      include: { photos: { orderBy: { position: "asc" } } },
+    });
+    if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
+    if (listing.ownerUserId !== ownerUserId) {
+      throw new ForbiddenException("Você só pode editar os seus próprios anúncios.");
+    }
+    if (!this.ai.isEnabled() || listing.photos.length === 0) {
+      return listing.photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption ?? undefined }));
+    }
+
+    const storage = getPhotoStorage();
+    const photosForAi = await Promise.all(
+      listing.photos.map(async (photo) => ({
+        id: photo.id,
+        buffer: await storage.read(photo.url),
+        mimeType: mimeTypeFromUrl(photo.url),
+      })),
+    );
+
+    const { photos: classified, coverPhotoId } = await this.ai.classifyVehiclePhotos(photosForAi);
+
+    // Fotos que a IA não devolveu (ex.: resposta parcial) ficam no fim, na
+    // ordem em que já estavam — nunca somem da galeria por causa disso.
+    const classifiedIds = new Set(classified.map((c) => c.photoId));
+    const orderedIds = [
+      ...classified.sort((a, b) => a.order - b.order).map((c) => c.photoId),
+      ...listing.photos.filter((p) => !classifiedIds.has(p.id)).map((p) => p.id),
+    ];
+    const captionByPhotoId = new Map(classified.map((c) => [c.photoId, c.caption]));
+
+    await this.prisma.$transaction(
+      orderedIds.map((photoId, index) =>
+        this.prisma.photo.update({
+          where: { id: photoId },
+          data: {
+            position: index,
+            isCover: coverPhotoId ? photoId === coverPhotoId : index === 0,
+            ...(captionByPhotoId.has(photoId) ? { caption: captionByPhotoId.get(photoId) } : {}),
+          },
+        }),
+      ),
+    );
+
+    const updated = await this.prisma.photo.findMany({ where: { listingId }, orderBy: { position: "asc" } });
+    return updated.map((p) => ({ id: p.id, url: p.url, caption: p.caption ?? undefined }));
+  }
+
+  // Reordenação manual na galeria (arrastar/soltar, escolher capa) — a
+  // sugestão da IA acima nunca é a palavra final, só o ponto de partida.
+  async reorderPhotos(
+    listingId: string,
+    ownerUserId: string,
+    order: string[],
+    coverPhotoId: string | undefined,
+  ): Promise<Photo[]> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      include: { photos: true },
+    });
+    if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
+    if (listing.ownerUserId !== ownerUserId) {
+      throw new ForbiddenException("Você só pode editar os seus próprios anúncios.");
+    }
+
+    const existingIds = new Set(listing.photos.map((p) => p.id));
+    if (order.length !== existingIds.size || !order.every((id) => existingIds.has(id))) {
+      throw new BadRequestException("A lista de ordenação precisa conter exatamente as fotos deste anúncio.");
+    }
+    if (coverPhotoId && !existingIds.has(coverPhotoId)) {
+      throw new BadRequestException("A foto escolhida como capa não pertence a este anúncio.");
+    }
+
+    await this.prisma.$transaction(
+      order.map((photoId, index) =>
+        this.prisma.photo.update({
+          where: { id: photoId },
+          data: {
+            position: index,
+            ...(coverPhotoId ? { isCover: photoId === coverPhotoId } : {}),
+          },
+        }),
+      ),
+    );
+
+    const updated = await this.prisma.photo.findMany({ where: { listingId }, orderBy: { position: "asc" } });
+    return updated.map((p) => ({ id: p.id, url: p.url, caption: p.caption ?? undefined }));
+  }
+
+  async updatePhotoCaption(listingId: string, ownerUserId: string, photoId: string, caption: string): Promise<void> {
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
+    if (listing.ownerUserId !== ownerUserId) {
+      throw new ForbiddenException("Você só pode editar os seus próprios anúncios.");
+    }
+
+    const photo = await this.prisma.photo.findUnique({ where: { id: photoId } });
+    if (!photo || photo.listingId !== listingId) {
+      throw new NotFoundException(`Foto ${photoId} não encontrada`);
+    }
+
+    await this.prisma.photo.update({ where: { id: photoId }, data: { caption } });
+  }
 }

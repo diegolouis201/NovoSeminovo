@@ -5,21 +5,28 @@ import { revalidatePath } from "next/cache";
 import type {
   CreateListingInput,
   ListingStatus,
+  Photo,
   PriceSuggestion,
   PropertyProfileInput,
+  ReorderPhotosInput,
   VehicleProfileInput,
 } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import {
+  classifyListingPhotos,
   createListing,
   deleteListingPhoto,
+  extractCrlvData,
   fetchPriceSuggestion,
   generateListingDraft,
   recommendProperty,
   recommendVehicle,
   type RecommendPropertyResult,
   type RecommendVehicleResult,
+  reorderListingPhotos,
+  type ReorderPhotosResult,
   updateListingStatus,
+  updatePhotoCaption,
   uploadListingPhotos,
 } from "@/lib/api";
 import { parseListingsCsv } from "@/lib/csv-listings";
@@ -78,6 +85,33 @@ export async function generateListingDraftAction(formData: FormData): Promise<vo
 
   const params = new URLSearchParams({ tipo: assetType, draftTitle: result.draft.title, draftDescription: result.draft.description });
   if (result.draft.suggestedPrice) params.set("draftPrice", String(result.draft.suggestedPrice));
+  redirect(`/anunciar?${params.toString()}`);
+}
+
+// Leitura automática do CRLV (ver AiService.extractCrlvData). O formData já
+// chega com o campo "crlv" (File) e "plateStart" — repassa direto pro
+// backend, sem reempacotar, e volta pro próprio /anunciar com os dados
+// extraídos pré-preenchidos via querystring (mesma técnica do rascunho por
+// texto livre acima).
+export async function extractCrlvAction(formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const result = await extractCrlvData(formData, session.accessToken);
+  if (!result.ok) {
+    redirect(`/anunciar?tipo=vehicle&error=${encodeURIComponent(result.error)}`);
+  }
+
+  const data = result.data;
+  const params = new URLSearchParams({ tipo: "vehicle" });
+  if (data.brand) params.set("draftBrand", data.brand);
+  if (data.model) params.set("draftModel", data.model);
+  if (data.version) params.set("draftVersion", data.version);
+  if (data.yearManufacture) params.set("draftYearManufacture", String(data.yearManufacture));
+  if (data.yearModel) params.set("draftYearModel", String(data.yearModel));
+  if (data.fuelType) params.set("draftFuelType", data.fuelType);
+  if (data.color) params.set("draftColor", data.color);
+  if (data.plate) params.set("draftPlate", data.plate);
   redirect(`/anunciar?${params.toString()}`);
 }
 
@@ -163,11 +197,51 @@ export async function uploadPhotosAction(listingId: string, formData: FormData):
     redirect(`/anuncio/${listingId}/fotos?erro=${encodeURIComponent(result.error)}`);
   }
 
+  // Melhor esforço: sem IA configurada ou se a chamada falhar,
+  // classifyListingPhotos devolve undefined e as fotos ficam na ordem que
+  // já foram enviadas — nunca trava o upload por causa disso.
+  await classifyListingPhotos(listingId, session.accessToken);
+
   revalidatePath("/");
   revalidatePath("/busca");
   revalidatePath(`/anuncio/${listingId}`);
   revalidatePath(`/anuncio/${listingId}/fotos`);
   redirect(`/anuncio/${listingId}/fotos`);
+}
+
+// Botões de reorganizar na galeria (ver components/PhotoGallery.tsx) — a
+// sugestão automática acima nunca é a palavra final.
+export async function reorderPhotosAction(listingId: string, input: ReorderPhotosInput): Promise<ReorderPhotosResult> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const result = await reorderListingPhotos(listingId, input, session.accessToken);
+  if (result.ok) {
+    revalidatePath(`/anuncio/${listingId}`);
+    revalidatePath(`/anuncio/${listingId}/fotos`);
+  }
+  return result;
+}
+
+export async function updatePhotoCaptionAction(listingId: string, photoId: string, caption: string): Promise<boolean> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const ok = await updatePhotoCaption(listingId, photoId, caption, session.accessToken);
+  if (ok) revalidatePath(`/anuncio/${listingId}/fotos`);
+  return ok;
+}
+
+export async function reclassifyPhotosAction(listingId: string): Promise<Photo[] | undefined> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const photos = await classifyListingPhotos(listingId, session.accessToken);
+  if (photos) {
+    revalidatePath(`/anuncio/${listingId}`);
+    revalidatePath(`/anuncio/${listingId}/fotos`);
+  }
+  return photos;
 }
 
 export async function deletePhotoAction(listingId: string, photoId: string): Promise<void> {

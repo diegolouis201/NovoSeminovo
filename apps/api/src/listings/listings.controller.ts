@@ -8,11 +8,12 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
-import { FilesInterceptor } from "@nestjs/platform-express";
+import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import {
   CreateListingInputSchema,
@@ -21,7 +22,9 @@ import {
   FinancingSimulationInputSchema,
   GenerateListingDraftInputSchema,
   PropertyProfileInputSchema,
+  ReorderPhotosInputSchema,
   UpdateListingStatusInputSchema,
+  UpdatePhotoCaptionInputSchema,
   VehicleProfileInputSchema,
   type Role,
 } from "@novoseminovo/shared-types";
@@ -49,6 +52,23 @@ const photosInterceptor = FilesInterceptor("photos", 8, {
   },
 });
 
+const ALLOWED_CRLV_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+
+// Mesmo motivo do photosInterceptor acima: buffer em memória, nunca grava
+// em disco. O CRLV carrega dado pessoal do proprietário (nome, CPF) que não
+// faz parte do que o anúncio guarda — ver AiService.extractCrlvData.
+const crlvInterceptor = FileInterceptor("crlv", {
+  storage: memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, callback) => {
+    if (!ALLOWED_CRLV_TYPES.has(file.mimetype)) {
+      callback(new BadRequestException("Envie o CRLV em imagem (JPEG, PNG, WebP) ou PDF."), false);
+      return;
+    }
+    callback(null, true);
+  },
+});
+
 @Controller("listings")
 export class ListingsController {
   constructor(
@@ -67,6 +87,17 @@ export class ListingsController {
   generateDraft(@Body() body: unknown) {
     const input = parseOrBadRequest(GenerateListingDraftInputSchema, body);
     return this.aiService.generateDraft(input.assetType, input.freeText);
+  }
+
+  // Leitura automática do CRLV na página de anunciar (ver AiService ->
+  // extractCrlvData). Stateless de propósito — não depende de um anúncio já
+  // existir, então fica fora do ListingsService.
+  @UseGuards(JwtAuthGuard)
+  @Post("crlv-extract")
+  @UseInterceptors(crlvInterceptor)
+  extractCrlv(@UploadedFile() file: Express.Multer.File, @Body() body: { plateStart?: string }) {
+    if (!file) throw new BadRequestException("Envie o CRLV em imagem ou PDF.");
+    return this.aiService.extractCrlvData(file.buffer, file.mimetype, body.plateStart?.trim() || undefined);
   }
 
   @Get()
@@ -174,5 +205,33 @@ export class ListingsController {
   @Delete(":id/photos/:photoId")
   removePhoto(@CurrentUser() user: { id: string }, @Param("id") id: string, @Param("photoId") photoId: string) {
     return this.listingsService.removePhoto(id, user.id, photoId);
+  }
+
+  // Disparado pela própria página de fotos logo após o upload — ver
+  // AiService.classifyVehiclePhotos. Sem IA habilitada, devolve as fotos
+  // como estão (ver ListingsService.classifyPhotos).
+  @UseGuards(JwtAuthGuard)
+  @Post(":id/photos/classify")
+  classifyPhotos(@CurrentUser() user: { id: string }, @Param("id") id: string) {
+    return this.listingsService.classifyPhotos(id, user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(":id/photos/reorder")
+  reorderPhotos(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
+    const input = parseOrBadRequest(ReorderPhotosInputSchema, body);
+    return this.listingsService.reorderPhotos(id, user.id, input.order, input.coverPhotoId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(":id/photos/:photoId/caption")
+  updatePhotoCaption(
+    @CurrentUser() user: { id: string },
+    @Param("id") id: string,
+    @Param("photoId") photoId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseOrBadRequest(UpdatePhotoCaptionInputSchema, body);
+    return this.listingsService.updatePhotoCaption(id, user.id, photoId, input.caption);
   }
 }

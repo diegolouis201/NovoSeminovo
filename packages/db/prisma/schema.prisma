@@ -432,6 +432,9 @@ model Photo {
   position     Int     @default(0)
   isCover      Boolean @default(false) @map("is_cover")
   qualityScore Int?    @map("quality_score") // reservado para IA de validação de fotos (Fase 2)
+  // Legenda sugerida pela IA ao classificar/ordenar o lote de fotos (ver
+  // AiService.classifyVehiclePhotos) — editável pelo dono na galeria.
+  caption      String?
 
   @@index([listingId])
   @@map("photos")

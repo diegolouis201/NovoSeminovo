@@ -226,6 +226,18 @@ export function priceAmortization(principal: number, monthlyRate: number, instal
 // perfil (ListingsService.recommendVehicle): a pessoa informa quanto cabe no
 // orçamento por mês, isso vira o preço máximo de veículo que essa parcela
 // financia.
+// Photo.url nunca guarda o content-type original — mas o nome do arquivo
+// salvo preserva a extensão de quando foi enviado (ver PhotoStorage.save),
+// e o upload só aceita jpeg/png/webp (ver photosInterceptor), então a
+// extensão já basta pra inferir de volta o mimetype pra reclassificação por
+// IA (AiService.classifyVehiclePhotos).
+export function mimeTypeFromUrl(url: string): "image/jpeg" | "image/png" | "image/webp" {
+  const ext = url.split(".").pop()?.toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  return "image/jpeg";
+}
+
 export function principalFromInstallment(installment: number, monthlyRate: number, installments: number): number {
   if (installment <= 0) return 0;
   if (monthlyRate === 0) return installment * installments;

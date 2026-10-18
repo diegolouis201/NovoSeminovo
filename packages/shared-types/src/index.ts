@@ -169,6 +169,7 @@ export type SpecItem = z.infer<typeof SpecItemSchema>;
 export const PhotoSchema = z.object({
   id: z.string(),
   url: z.string(),
+  caption: z.string().optional(),
 });
 export type Photo = z.infer<typeof PhotoSchema>;
 
@@ -442,6 +443,55 @@ export const AiStatusSchema = z.object({
   aiEnabled: z.boolean(),
 });
 export type AiStatus = z.infer<typeof AiStatusSchema>;
+
+// Leitura automática do CRLV (ver AiService.extractCrlvData) — todos os
+// campos opcionais de propósito: o documento pode vir com foto ruim, mal
+// enquadrado ou parcialmente ilegível, e a IA nunca inventa um valor que não
+// conseguiu confirmar visualmente. O campo da placa só vem preenchido se
+// estiver completamente legível no documento — o início que a pessoa digita
+// à parte é só uma conferência, nunca uma fonte de dados adicionais (não
+// existe integração com Detran neste MVP).
+export const CrlvExtractResultSchema = z.object({
+  brand: z.string().optional(),
+  model: z.string().optional(),
+  version: z.string().optional(),
+  yearManufacture: z.number().int().optional(),
+  yearModel: z.number().int().optional(),
+  fuelType: z.enum(["flex", "gasoline", "ethanol", "diesel", "electric", "hybrid"]).optional(),
+  color: z.string().optional(),
+  plate: z.string().optional(),
+});
+export type CrlvExtractResult = z.infer<typeof CrlvExtractResultSchema>;
+
+// Upload em lote de fotos -> IA classifica, ordena e legenda (ver
+// AiService.classifyVehiclePhotos). Só reordena/legenda fotos que já existem
+// no anúncio — nunca inventa uma categoria sem uma foto real por trás.
+export const PhotoClassificationSchema = z.object({
+  photoId: z.string(),
+  caption: z.string(),
+  order: z.number(),
+});
+export type PhotoClassification = z.infer<typeof PhotoClassificationSchema>;
+
+export const ClassifyPhotosResultSchema = z.object({
+  photos: z.array(PhotoClassificationSchema),
+  coverPhotoId: z.string().optional(),
+});
+export type ClassifyPhotosResult = z.infer<typeof ClassifyPhotosResultSchema>;
+
+// Reordenar/trocar capa na galeria (ver ListingsController PATCH
+// /listings/:id/photos/reorder) — a pessoa sempre tem a palavra final sobre
+// a sugestão automática da IA.
+export const ReorderPhotosInputSchema = z.object({
+  order: z.array(z.string()).min(1),
+  coverPhotoId: z.string().optional(),
+});
+export type ReorderPhotosInput = z.infer<typeof ReorderPhotosInputSchema>;
+
+export const UpdatePhotoCaptionInputSchema = z.object({
+  caption: z.string().max(200),
+});
+export type UpdatePhotoCaptionInput = z.infer<typeof UpdatePhotoCaptionInputSchema>;
 
 // Botão "qual carro é ideal pra mim?" — perfil financeiro simples vira faixa
 // de orçamento (regra prática de 10-15% da renda comprometida com o carro) +

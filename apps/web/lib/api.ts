@@ -6,6 +6,7 @@ import type {
   CreatePartnerInput,
   CreateReviewInput,
   CreateSavedSearchInput,
+  CrlvExtractResult,
   FeaturedPartner,
   FinancingSimulationResult,
   LeadStatus,
@@ -35,6 +36,7 @@ import type {
   PropertyProfileInput,
   PropertyRecommendation,
   RegisterVehicleInput,
+  ReorderPhotosInput,
   VehicleEvent,
   VehicleProfile,
   VehicleProfileInput,
@@ -397,6 +399,78 @@ export async function deleteListingPhoto(listingId: string, photoId: string, acc
   const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/photos/${photoId}`, {
     method: "DELETE",
     headers: authHeaders(accessToken),
+  });
+  return res.ok;
+}
+
+export type ExtractCrlvResult = { ok: true; data: CrlvExtractResult } | { ok: false; error: string };
+
+// Leitura automática do CRLV na página de anunciar (ver AiService ->
+// extractCrlvData). Timeout mais generoso: é uma chamada de visão, demora
+// mais que texto puro.
+export async function extractCrlvData(formData: FormData, accessToken: string): Promise<ExtractCrlvResult> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listings/crlv-extract`,
+      { method: "POST", headers: authHeaders(accessToken), body: formData },
+      30000,
+    );
+    const body = await res.json().catch(() => undefined);
+    if (!res.ok) return { ok: false, error: body?.message ?? "Não foi possível ler o CRLV agora." };
+    return { ok: true, data: body as CrlvExtractResult };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
+}
+
+// Disparado automaticamente pela página de fotos logo após o upload — ver
+// ListingsService.classifyPhotos. Nunca lança: sem IA ou em caso de falha,
+// devolve undefined e a página mantém as fotos como já estavam.
+export async function classifyListingPhotos(listingId: string, accessToken: string): Promise<Photo[] | undefined> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listings/${listingId}/photos/classify`,
+      { method: "POST", headers: authHeaders(accessToken) },
+      60000,
+    );
+    if (!res.ok) return undefined;
+    return (await res.json()) as Photo[];
+  } catch {
+    return undefined;
+  }
+}
+
+export type ReorderPhotosResult = { ok: true; photos: Photo[] } | { ok: false; error: string };
+
+export async function reorderListingPhotos(
+  listingId: string,
+  input: ReorderPhotosInput,
+  accessToken: string,
+): Promise<ReorderPhotosResult> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/photos/reorder`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+      body: JSON.stringify(input),
+    });
+    const body = await res.json().catch(() => undefined);
+    if (!res.ok) return { ok: false, error: body?.message ?? "Não foi possível salvar a ordem das fotos." };
+    return { ok: true, photos: body as Photo[] };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
+}
+
+export async function updatePhotoCaption(
+  listingId: string,
+  photoId: string,
+  caption: string,
+  accessToken: string,
+): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/photos/${photoId}/caption`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify({ caption }),
   });
   return res.ok;
 }

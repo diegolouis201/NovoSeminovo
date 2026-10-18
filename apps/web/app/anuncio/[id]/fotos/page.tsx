@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { fetchListing, resolveMediaUrl } from "@/lib/api";
-import { deletePhotoAction, uploadPhotosAction } from "@/lib/actions/listings";
+import { PhotoGallery } from "@/components/PhotoGallery";
+import { fetchAiStatus, fetchListing } from "@/lib/api";
+import { uploadPhotosAction } from "@/lib/actions/listings";
 
 export default async function ListingPhotosPage({
   params,
@@ -15,7 +16,7 @@ export default async function ListingPhotosPage({
   const session = await auth();
   if (!session?.user) redirect("/entrar");
 
-  const listing = await fetchListing(params.id, session.accessToken);
+  const [listing, { aiEnabled }] = await Promise.all([fetchListing(params.id, session.accessToken), fetchAiStatus()]);
   if (!listing) notFound();
   if (listing.ownerUserId !== session.user.id) redirect(`/anuncio/${listing.id}`);
 
@@ -32,26 +33,9 @@ export default async function ListingPhotosPage({
         </p>
       )}
 
-      {listing.photos.length > 0 && (
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {listing.photos.map((photo, index) => (
-            <div key={photo.id} className="relative overflow-hidden rounded-brand border border-border">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={resolveMediaUrl(photo.url)} alt={`Foto ${index + 1} de ${listing.title}`} className="aspect-square w-full object-cover" />
-              {index === 0 && (
-                <span className="absolute left-2 top-2 rounded-full bg-brand-green px-2 py-0.5 text-[11px] font-bold text-on-green">
-                  Capa
-                </span>
-              )}
-              <form action={deletePhotoAction.bind(null, listing.id, photo.id)} className="absolute bottom-2 right-2">
-                <Button type="submit" variant="ghost" className="bg-surface-raised px-2 py-1 text-xs">
-                  Excluir
-                </Button>
-              </form>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="mt-6">
+        <PhotoGallery listingId={listing.id} initialPhotos={listing.photos} aiEnabled={aiEnabled} />
+      </div>
 
       <form action={uploadAction} className="mt-6 flex flex-col gap-3 rounded-brand border border-border bg-surface-raised p-4">
         <label className="flex flex-col gap-1 text-sm">

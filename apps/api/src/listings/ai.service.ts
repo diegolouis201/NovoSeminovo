@@ -1,8 +1,19 @@
 import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import Anthropic from "@anthropic-ai/sdk";
-import type { AssetType, ListingDraft, PropertyProfileInput, VehicleProfileInput } from "@novoseminovo/shared-types";
+import type {
+  AssetType,
+  ClassifyPhotosResult,
+  CrlvExtractResult,
+  ListingDraft,
+  PropertyProfileInput,
+  VehicleProfileInput,
+} from "@novoseminovo/shared-types";
 
 const MODEL = "claude-sonnet-5-5";
+// Leitura de documento (CRLV) e análise visual de fotos exigem um modelo com
+// visão mais forte — usa Opus em vez do Sonnet dos outros recursos de texto
+// acima, só nesses dois métodos.
+const VISION_MODEL = "claude-opus-5-5";
 
 const DRAFT_TOOL = {
   name: "gerar_anuncio",
@@ -117,6 +128,79 @@ export type PropertyCandidate = {
   bedrooms?: number;
   city: string;
   neighborhood?: string;
+};
+
+// Leitura automática do CRLV (upload na página de anunciar, ver
+// VehiclesController). Todas as propriedades ficam fora de "required" de
+// propósito — o documento pode vir com foto ruim ou mal enquadrado, e a IA
+// precisa poder deixar um campo de fora em vez de chutar um valor.
+const CRLV_EXTRACT_TOOL = {
+  name: "extrair_dados_crlv",
+  description:
+    "Extrai os dados do veículo visíveis no CRLV (Certificado de Registro e Licenciamento de Veículo) enviado. Preenche só o que conseguir ler com segurança no documento — nunca inventa, completa ou estima um valor que não esteja legível.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      brand: { type: "string", description: "Marca do veículo, como aparece no documento (ex.: TOYOTA)." },
+      model: { type: "string", description: "Modelo do veículo (ex.: COROLLA)." },
+      version: { type: "string", description: "Versão/variante do modelo, só se aparecer destacada (ex.: XEI 2.0)." },
+      yearManufacture: { type: "number", description: "Ano de fabricação (campo 'ANO FAB' do CRLV)." },
+      yearModel: { type: "number", description: "Ano do modelo (campo 'ANO MOD')." },
+      fuelType: {
+        type: "string",
+        enum: ["flex", "gasoline", "ethanol", "diesel", "electric", "hybrid"],
+        description: "Combustível do veículo (campo 'COMBUSTÍVEL'), convertido pro enum do sistema.",
+      },
+      color: { type: "string", description: "Cor do veículo (campo 'COR')." },
+      plate: {
+        type: "string",
+        description:
+          "Placa do veículo, SOMENTE se estiver completamente legível e nítida no documento — nunca complete caracteres que não consiga confirmar visualmente.",
+      },
+    },
+    required: [],
+  },
+};
+
+// Upload em lote de fotos na galeria do anúncio (ver ListingsService -> POST
+// /listings/:id/photos/classify). A ordem sugerida segue a lógica de portal
+// profissional descrita no pedido original: capa, frente/lateral, traseira,
+// interior, painel/hodômetro, bancos, porta-malas, motor, rodas/detalhes —
+// pulando categorias sem foto correspondente, nunca inventando uma.
+const PHOTO_CLASSIFY_TOOL = {
+  name: "organizar_fotos_veiculo",
+  description:
+    "Classifica, ordena e cria uma legenda curta para cada foto de um anúncio de veículo, na sequência que um anúncio profissional usaria, e escolhe a melhor foto pra ser a capa.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      photos: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            photoId: { type: "string", description: "O id da foto, exatamente como foi informado no prompt." },
+            caption: {
+              type: "string",
+              description:
+                "Legenda curta, objetiva e profissional (ex.: 'Vista frontal do veículo'), baseada só no que dá pra confirmar visualmente na foto — nunca afirma uma característica que a imagem não comprova.",
+            },
+            order: {
+              type: "number",
+              description:
+                "Posição da foto na sequência final do anúncio (0 = primeira/capa). Sequência sugerida: melhor ângulo geral, frente, lateral, traseira, interior, painel e hodômetro, bancos, porta-malas, motor, rodas e detalhes — adaptando à realidade das fotos enviadas.",
+            },
+          },
+          required: ["photoId", "caption", "order"],
+        },
+      },
+      coverPhotoId: {
+        type: "string",
+        description: "O id da foto escolhida como capa do anúncio — o ângulo que melhor valoriza o veículo.",
+      },
+    },
+    required: ["photos"],
+  },
 };
 
 // Gating idêntico ao de PaymentsService/EmailService (ver comentário lá):
@@ -329,6 +413,115 @@ Use a ferramenta "recomendar_imovel" pra escolher os melhores (se houver algum q
       throw new ServiceUnavailableException(
         "Não foi possível gerar a recomendação com IA agora. Tente de novo em instantes.",
       );
+    }
+  }
+
+  // Upload do CRLV na página de anunciar (ver VehiclesController). O buffer
+  // nunca passa por disco/storage — processa só em memória e descarta,
+  // porque o CRLV carrega dado pessoal do proprietário (nome, CPF) que não
+  // faz parte do que o anúncio precisa guardar.
+  async extractCrlvData(
+    fileBuffer: Buffer,
+    mimeType: string,
+    plateStartHint?: string,
+  ): Promise<CrlvExtractResult> {
+    try {
+      const client = this.getClient();
+      const isPdf = mimeType === "application/pdf";
+      const data = fileBuffer.toString("base64");
+      const documentBlock: Anthropic.ContentBlockParam = isPdf
+        ? { type: "document", source: { type: "base64", media_type: "application/pdf", data } }
+        : {
+            type: "image",
+            source: { type: "base64", media_type: mimeType as "image/jpeg" | "image/png" | "image/webp", data },
+          };
+
+      const message = await client.messages.create({
+        model: VISION_MODEL,
+        max_tokens: 1024,
+        tools: [CRLV_EXTRACT_TOOL],
+        tool_choice: { type: "auto" },
+        messages: [
+          {
+            role: "user",
+            content: [
+              documentBlock,
+              {
+                type: "text",
+                text: `Este é o CRLV (documento do veículo) enviado por um vendedor no Novo Seminovo, pra preencher automaticamente os dados do anúncio.${
+                  plateStartHint
+                    ? ` A pessoa informou que a placa começa com "${plateStartHint}" — use isso só pra conferir se bate com o que está legível no documento, nunca pra completar ou adivinhar o resto da placa.`
+                    : ""
+                }\n\nUse a ferramenta "extrair_dados_crlv" pra extrair os dados. Deixe de fora qualquer campo que não conseguir ler com segurança — não invente.`,
+              },
+            ],
+          },
+        ],
+      });
+
+      const toolUse = message.content.find((block) => block.type === "tool_use");
+      if (!toolUse || toolUse.type !== "tool_use") {
+        throw new Error("Claude não devolveu os dados estruturados esperados");
+      }
+
+      return toolUse.input as CrlvExtractResult;
+    } catch (error) {
+      this.logger.error(`Falha ao ler CRLV com IA: ${error}`);
+      throw new ServiceUnavailableException(
+        "Não foi possível ler o documento automaticamente agora. Preencha os dados manualmente.",
+      );
+    }
+  }
+
+  // Galeria da página de fotos do anúncio (ver ListingsService ->
+  // POST /listings/:id/photos/classify). Recebe as fotos já salvas no
+  // storage do anúncio e devolve ordem/legenda/capa sugeridas — o dono
+  // sempre pode reordenar, editar ou ignorar na tela seguinte.
+  async classifyVehiclePhotos(
+    photos: { id: string; buffer: Buffer; mimeType: string }[],
+  ): Promise<ClassifyPhotosResult> {
+    try {
+      const client = this.getClient();
+      const content: Anthropic.ContentBlockParam[] = [
+        {
+          type: "text",
+          text: 'Fotos de um anúncio de veículo, cada uma identificada por um id. Use a ferramenta "organizar_fotos_veiculo" pra classificar, ordenar e legendar cada uma, e escolher a melhor capa.',
+        },
+      ];
+      for (const photo of photos) {
+        content.push({ type: "text", text: `Foto id=${photo.id}:` });
+        content.push({
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: photo.mimeType as "image/jpeg" | "image/png" | "image/webp",
+            data: photo.buffer.toString("base64"),
+          },
+        });
+      }
+
+      const message = await client.messages.create({
+        model: VISION_MODEL,
+        max_tokens: 2048,
+        tools: [PHOTO_CLASSIFY_TOOL],
+        tool_choice: { type: "auto" },
+        messages: [{ role: "user", content }],
+      });
+
+      const toolUse = message.content.find((block) => block.type === "tool_use");
+      if (!toolUse || toolUse.type !== "tool_use") {
+        throw new Error("Claude não devolveu a organização estruturada esperada");
+      }
+
+      const input = toolUse.input as ClassifyPhotosResult;
+      const validIds = new Set(photos.map((p) => p.id));
+      const filteredPhotos = (input.photos ?? []).filter((p) => validIds.has(p.photoId));
+      const coverPhotoId = input.coverPhotoId && validIds.has(input.coverPhotoId) ? input.coverPhotoId : undefined;
+
+      return { photos: filteredPhotos, coverPhotoId };
+    } catch (error) {
+      this.logger.error(`Falha ao classificar fotos do veículo com IA: ${error}`);
+      throw new ServiceUnavailableException("Não foi possível organizar as fotos automaticamente agora.");
     }
   }
 }

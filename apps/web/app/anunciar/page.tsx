@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Car, House, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { Car, FileText, House, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField, SelectField, TextAreaField } from "@/components/FormField";
 import { PriceSuggestionHint } from "@/components/PriceSuggestionHint";
-import { createListingAction, generateListingDraftAction } from "@/lib/actions/listings";
+import { createListingAction, extractCrlvAction, generateListingDraftAction } from "@/lib/actions/listings";
 import { fetchAiStatus } from "@/lib/api";
 import { FUEL_OPTIONS, PROPERTY_TYPE_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
 
@@ -17,7 +17,21 @@ const PURPOSE_OPTIONS = [
 export default async function CreateListingPage({
   searchParams,
 }: {
-  searchParams: { tipo?: string; error?: string; draftTitle?: string; draftDescription?: string; draftPrice?: string };
+  searchParams: {
+    tipo?: string;
+    error?: string;
+    draftTitle?: string;
+    draftDescription?: string;
+    draftPrice?: string;
+    draftBrand?: string;
+    draftModel?: string;
+    draftVersion?: string;
+    draftYearManufacture?: string;
+    draftYearModel?: string;
+    draftFuelType?: string;
+    draftColor?: string;
+    draftPlate?: string;
+  };
 }) {
   const session = await auth();
   if (!session?.user) redirect("/entrar");
@@ -90,6 +104,42 @@ export default async function CreateListingPage({
         </form>
       )}
 
+      {aiEnabled && assetType === "vehicle" && (
+        <form
+          action={extractCrlvAction}
+          encType="multipart/form-data"
+          className="mt-4 flex flex-col gap-3 rounded-brand border border-brand-blue/30 bg-brand-blue/5 p-4"
+        >
+          <p className="flex items-center gap-1.5 text-sm font-bold text-brand-blue">
+            <FileText size={16} weight="fill" />
+            Preencher com o CRLV
+          </p>
+          <p className="text-xs text-ink-muted">
+            Envie uma foto ou PDF do documento do veículo (CRLV) — a IA lê os dados e preenche marca,
+            modelo, ano e combustível abaixo, pra você só conferir antes de publicar.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+            <input
+              type="file"
+              name="crlv"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              required
+              className="rounded-brand border border-border bg-surface-page px-3 py-2 text-sm text-ink"
+            />
+            <input
+              type="text"
+              name="plateStart"
+              maxLength={3}
+              placeholder="Início da placa"
+              className="rounded-brand border border-border bg-surface-page px-3 py-2 text-sm text-ink placeholder:text-ink-muted sm:w-40"
+            />
+          </div>
+          <Button type="submit" variant="secondary" className="self-start">
+            Ler CRLV automaticamente
+          </Button>
+        </form>
+      )}
+
       <form action={createListingAction} className="mt-6 flex flex-col gap-4">
         <input type="hidden" name="assetType" value={assetType} />
 
@@ -103,7 +153,7 @@ export default async function CreateListingPage({
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Preço (R$)" name="price" type="number" min={0} defaultValue={searchParams.draftPrice} />
           {assetType === "vehicle" ? (
-            <FormField label="Cor" name="color" />
+            <FormField label="Cor" name="color" defaultValue={searchParams.draftColor} />
           ) : (
             <FormField label="Área (m²)" name="areaM2" type="number" min={1} step={0.01} />
           )}
@@ -119,25 +169,54 @@ export default async function CreateListingPage({
         {assetType === "vehicle" ? (
           <>
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="Marca" name="brand" placeholder="Toyota" />
-              <FormField label="Modelo" name="model" placeholder="Corolla" />
+              <FormField label="Marca" name="brand" placeholder="Toyota" defaultValue={searchParams.draftBrand} />
+              <FormField label="Modelo" name="model" placeholder="Corolla" defaultValue={searchParams.draftModel} />
             </div>
-            <FormField label="Versão" name="version" required={false} placeholder="XEi 2.0" />
+            <FormField
+              label="Versão"
+              name="version"
+              required={false}
+              placeholder="XEi 2.0"
+              defaultValue={searchParams.draftVersion}
+            />
             <div className="flex flex-col gap-1">
-              <FormField label="Placa" name="plate" required={false} placeholder="ABC1D23" />
+              <FormField
+                label="Placa"
+                name="plate"
+                required={false}
+                placeholder="ABC1D23"
+                defaultValue={searchParams.draftPlate}
+              />
               <p className="text-xs text-ink-muted">
                 Ajuda a começar o histórico verificado deste carro (revisões, donos, anúncios anteriores) —
                 a placa nunca é exibida publicamente, só usada para reconhecer o veículo.
               </p>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <FormField label="Ano de fabricação" name="yearManufacture" type="number" min={1950} />
-              <FormField label="Ano do modelo" name="yearModel" type="number" min={1950} />
+              <FormField
+                label="Ano de fabricação"
+                name="yearManufacture"
+                type="number"
+                min={1950}
+                defaultValue={searchParams.draftYearManufacture}
+              />
+              <FormField
+                label="Ano do modelo"
+                name="yearModel"
+                type="number"
+                min={1950}
+                defaultValue={searchParams.draftYearModel}
+              />
               <FormField label="Km rodados" name="mileage" type="number" min={0} />
             </div>
             <div className="grid grid-cols-3 gap-4">
               <SelectField label="Câmbio" name="transmission" options={TRANSMISSION_OPTIONS} />
-              <SelectField label="Combustível" name="fuelType" options={FUEL_OPTIONS} />
+              <SelectField
+                label="Combustível"
+                name="fuelType"
+                options={FUEL_OPTIONS}
+                defaultValue={searchParams.draftFuelType}
+              />
               <FormField label="Portas" name="doors" type="number" min={2} required={false} />
             </div>
           </>
