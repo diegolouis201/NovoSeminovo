@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Bank, Car, House, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
+import { Bank, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { ConsorcioCallout } from "@/components/ConsorcioCallout";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
+import { PhotoCarousel } from "@/components/PhotoCarousel";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
-import { fetchListing, resolveMediaUrl } from "@/lib/api";
+import { fetchListing } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
 import { startConversationAction } from "@/lib/actions/conversations";
 
@@ -66,36 +67,18 @@ export default async function ListingDetailPage({
       )}
       <div className="grid gap-8 md:grid-cols-[1fr_320px]">
         <div className="flex flex-col gap-6">
-          <div className="relative flex h-72 items-center justify-center overflow-hidden rounded-brand-lg bg-surface-sober text-6xl md:h-96">
-            {listing.photos[0] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={resolveMediaUrl(listing.photos[0].url)} alt={listing.title} className="h-full w-full object-cover" />
-            ) : listing.assetType === "property" ? (
-              <House size={64} weight="duotone" className="text-ink-muted" />
-            ) : (
-              <Car size={64} weight="duotone" className="text-ink-muted" />
-            )}
-            <div className="absolute right-3 top-3">
+          <PhotoCarousel
+            photos={listing.photos}
+            title={listing.title}
+            assetType={listing.assetType}
+            favoriteSlot={
               <FavoriteButton
                 listingId={listing.id}
                 initialFavorited={favoriteIds.has(listing.id)}
                 isAuthenticated={isAuthenticated}
               />
-            </div>
-          </div>
-          {listing.photos.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto">
-              {listing.photos.map((photo, index) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={photo.id}
-                  src={resolveMediaUrl(photo.url)}
-                  alt={`Foto ${index + 1} de ${listing.title}`}
-                  className="h-16 w-16 shrink-0 rounded-brand border border-border object-cover"
-                />
-              ))}
-            </div>
-          )}
+            }
+          />
           {isOwnListing && (
             <Link
               href={`/anuncio/${listing.id}/fotos`}
