@@ -23,11 +23,11 @@ export default async function RegisterVehiclePage({ searchParams }: { searchPara
 
       <form action={registerVehicleAction} className="mt-6 flex flex-col gap-4">
         <FormField label="Placa" name="plate" placeholder="ABC1D23" />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Marca" name="brand" placeholder="Toyota" />
           <FormField label="Modelo" name="model" placeholder="Corolla" />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Ano fabricação" name="yearManufacture" type="number" min={1950} required={false} />
           <FormField label="Ano modelo" name="yearModel" type="number" min={1950} required={false} />
         </div>

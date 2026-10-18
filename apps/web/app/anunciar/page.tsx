@@ -169,7 +169,7 @@ export default async function CreateListingPage({
           defaultValue={searchParams.draftTitle}
         />
         <TextAreaField label="Descrição" name="description" minLength={20} defaultValue={searchParams.draftDescription} />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Preço (R$)" name="price" type="number" min={0} defaultValue={searchParams.draftPrice} />
           {assetType === "vehicle" ? (
             <FormField label="Cor" name="color" defaultValue={searchParams.draftColor} />
@@ -179,7 +179,7 @@ export default async function CreateListingPage({
         </div>
         <PriceSuggestionHint assetType={assetType} />
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <FormField label="Cidade" name="city" defaultValue="Belo Horizonte" />
           <FormField label="Estado (UF)" name="state" defaultValue="MG" />
           <FormField label="Bairro" name="neighborhood" required={false} />
@@ -187,7 +187,7 @@ export default async function CreateListingPage({
 
         {assetType === "vehicle" ? (
           <>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Marca" name="brand" placeholder="Toyota" defaultValue={searchParams.draftBrand} />
               <FormField label="Modelo" name="model" placeholder="Corolla" defaultValue={searchParams.draftModel} />
             </div>
@@ -211,7 +211,7 @@ export default async function CreateListingPage({
                 a placa nunca é exibida publicamente, só usada para reconhecer o veículo.
               </p>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <FormField
                 label="Ano de fabricação"
                 name="yearManufacture"
@@ -228,7 +228,7 @@ export default async function CreateListingPage({
               />
               <FormField label="Km rodados" name="mileage" type="number" min={0} />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <SelectField label="Câmbio" name="transmission" options={TRANSMISSION_OPTIONS} />
               <SelectField
                 label="Combustível"

@@ -58,7 +58,7 @@ export function PropertyTypeFields({ defaultPropertyType }: { defaultPropertyTyp
       {hasFloor && <FormField label="Andar" name="floor" type="number" min={0} required={false} />}
 
       {hasCondo && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Condomínio (R$/mês)" name="condoFee" type="number" min={0} required={false} />
           <FormField label="IPTU (R$/mês)" name="iptu" type="number" min={0} required={false} />
         </div>

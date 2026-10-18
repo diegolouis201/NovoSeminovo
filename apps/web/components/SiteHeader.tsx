@@ -3,6 +3,7 @@ import { Bell, Car, House } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { fetchUnreadNotificationsCount } from "@/lib/api";
 import { Logo } from "@/components/Logo";
+import { MobileNav } from "@/components/MobileNav";
 
 export async function SiteHeader() {
   const session = await auth();
@@ -10,12 +11,12 @@ export async function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-surface-raised">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3">
+      <div className="relative mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3">
         <Link href="/" className="text-base">
           <Logo variant="stacked" />
         </Link>
 
-        <nav className="flex items-center gap-1 rounded-full bg-surface-sober p-1">
+        <nav className="hidden items-center gap-1 rounded-full bg-surface-sober p-1 md:flex">
           <Link
             href="/carros"
             className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-raised"
@@ -30,7 +31,7 @@ export async function SiteHeader() {
           </Link>
         </nav>
 
-        <div className="flex items-center gap-3 text-sm font-semibold">
+        <div className="hidden items-center gap-3 text-sm font-semibold md:flex">
           <Link href="/anunciar" className="text-ink hover:text-brand-blue">
             Anunciar
           </Link>
@@ -60,6 +61,8 @@ export async function SiteHeader() {
             </Link>
           )}
         </div>
+
+        <MobileNav userFirstName={session?.user?.name?.split(" ")[0] ?? null} unreadCount={unreadCount} />
       </div>
     </header>
   );

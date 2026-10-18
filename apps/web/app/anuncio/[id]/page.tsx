@@ -65,8 +65,8 @@ export default async function ListingDetailPage({
           Avaliação enviada. Obrigado pelo retorno!
         </p>
       )}
-      <div className="grid gap-8 md:grid-cols-[1fr_320px]">
-        <div className="flex flex-col gap-6">
+      <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex min-w-0 flex-col gap-6">
           <PhotoCarousel
             photos={listing.photos}
             title={listing.title}
