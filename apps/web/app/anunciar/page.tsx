@@ -5,9 +5,10 @@ import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField, SelectField, TextAreaField } from "@/components/FormField";
 import { PriceSuggestionHint } from "@/components/PriceSuggestionHint";
+import { PropertyTypeFields } from "@/components/PropertyTypeFields";
 import { createListingAction, extractCrlvAction, generateListingDraftAction } from "@/lib/actions/listings";
 import { fetchAiStatus } from "@/lib/api";
-import { FUEL_OPTIONS, PROPERTY_TYPE_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
+import { FUEL_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
 
 const PURPOSE_OPTIONS = [
   { value: "sale", label: "Venda" },
@@ -222,20 +223,9 @@ export default async function CreateListingPage({
           </>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4">
-              <SelectField label="Tipo de imóvel" name="propertyType" options={PROPERTY_TYPE_OPTIONS} />
-              <SelectField label="Finalidade" name="purpose" options={PURPOSE_OPTIONS} />
-            </div>
+            <SelectField label="Finalidade" name="purpose" options={PURPOSE_OPTIONS} />
             <FormField label="Endereço" name="streetAddress" placeholder="Rua, número, complemento" />
-            <div className="grid grid-cols-3 gap-4">
-              <FormField label="Quartos" name="bedrooms" type="number" min={0} required={false} />
-              <FormField label="Banheiros" name="bathrooms" type="number" min={0} required={false} />
-              <FormField label="Vagas" name="parkingSpots" type="number" min={0} required={false} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField label="Condomínio (R$/mês)" name="condoFee" type="number" min={0} required={false} />
-              <FormField label="IPTU (R$/mês)" name="iptu" type="number" min={0} required={false} />
-            </div>
+            <PropertyTypeFields />
           </>
         )}
 

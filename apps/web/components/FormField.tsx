@@ -1,3 +1,5 @@
+import type { ChangeEventHandler } from "react";
+
 export function FormField({
   label,
   name,
@@ -44,12 +46,14 @@ export function SelectField({
   options,
   required = true,
   defaultValue,
+  onChange,
 }: {
   label: string;
   name: string;
   options: { value: string; label: string }[];
   required?: boolean;
   defaultValue?: string;
+  onChange?: ChangeEventHandler<HTMLSelectElement>;
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
@@ -61,6 +65,7 @@ export function SelectField({
         name={name}
         required={required}
         defaultValue={defaultValue ?? ""}
+        onChange={onChange}
         className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink"
       >
         <option value="" disabled={required}>

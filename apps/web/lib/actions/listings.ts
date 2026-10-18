@@ -7,7 +7,9 @@ import type {
   ListingStatus,
   Photo,
   PriceSuggestion,
+  PropertyFeature,
   PropertyProfileInput,
+  PropertyType,
   ReorderPhotosInput,
   VehicleProfileInput,
 } from "@novoseminovo/shared-types";
@@ -155,14 +157,18 @@ export async function createListingAction(formData: FormData): Promise<void> {
       : {
           assetType: "property",
           ...core,
-          propertyType: str(formData, "propertyType") as "house" | "apartment" | "land" | "commercial",
+          propertyType: str(formData, "propertyType") as PropertyType,
           purpose: str(formData, "purpose") as "sale" | "rent",
           bedrooms: num(formData, "bedrooms"),
+          suites: num(formData, "suites"),
           bathrooms: num(formData, "bathrooms"),
           parkingSpots: num(formData, "parkingSpots"),
+          floor: num(formData, "floor"),
           areaM2: num(formData, "areaM2") ?? 0,
+          totalAreaM2: num(formData, "totalAreaM2"),
           condoFee: num(formData, "condoFee"),
           iptu: num(formData, "iptu"),
+          features: formData.getAll("features") as PropertyFeature[],
           streetAddress: str(formData, "streetAddress"),
         };
 

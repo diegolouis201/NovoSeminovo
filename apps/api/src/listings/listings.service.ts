@@ -109,7 +109,7 @@ function toNumber(value: string | undefined): number | undefined {
 // estourar erro 500 no banco.
 const TRANSMISSION_VALUES = new Set(["manual", "automatic"]);
 const FUEL_TYPE_VALUES = new Set(["flex", "gasoline", "ethanol", "diesel", "electric", "hybrid"]);
-const PROPERTY_TYPE_VALUES = new Set(["house", "apartment", "land", "commercial"]);
+const PROPERTY_TYPE_VALUES = new Set(["house", "apartment", "land", "commercial", "penthouse", "farm", "warehouse"]);
 
 function toEnum<T extends string>(value: string | undefined, allowed: Set<T>): T | undefined {
   return value && allowed.has(value as T) ? (value as T) : undefined;
@@ -696,11 +696,15 @@ export class ListingsService {
                   propertyType: input.propertyType,
                   purpose: input.purpose,
                   bedrooms: input.bedrooms,
+                  suites: input.suites,
                   bathrooms: input.bathrooms,
                   parkingSpots: input.parkingSpots,
+                  floor: input.floor,
                   areaM2: input.areaM2,
+                  totalAreaM2: input.totalAreaM2,
                   condoFee: input.condoFee,
                   iptu: input.iptu,
+                  features: input.features ?? [],
                   streetAddress: input.streetAddress,
                 },
               },
@@ -834,7 +838,10 @@ export class ListingsService {
       })),
     );
 
-    const { photos: classified, coverPhotoId } = await this.ai.classifyVehiclePhotos(photosForAi);
+    const { photos: classified, coverPhotoId } =
+      listing.type === "vehicle"
+        ? await this.ai.classifyVehiclePhotos(photosForAi)
+        : await this.ai.classifyPropertyPhotos(photosForAi);
 
     // Fotos que a IA não devolveu (ex.: resposta parcial) ficam no fim, na
     // ordem em que já estavam — nunca somem da galeria por causa disso.

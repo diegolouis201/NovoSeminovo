@@ -104,6 +104,20 @@ const PROPERTY_TYPE_LABEL: Record<string, string> = {
   apartment: "Apartamento",
   land: "Terreno",
   commercial: "Comercial",
+  penthouse: "Cobertura",
+  farm: "Sítio/Chácara",
+  warehouse: "Galpão",
+};
+
+const PROPERTY_FEATURE_LABEL: Record<string, string> = {
+  pool: "Piscina",
+  balcony: "Varanda/Sacada",
+  barbecue: "Churrasqueira",
+  elevator: "Elevador",
+  gourmet_area: "Área gourmet",
+  garden: "Jardim",
+  furnished: "Mobiliado",
+  concierge: "Portaria 24h",
 };
 
 function sellerType(listing: ListingWithDetails): SellerType {
@@ -191,10 +205,17 @@ function specs(listing: ListingWithDetails): SpecItem[] {
     return [
       { label: "Tipo", value: PROPERTY_TYPE_LABEL[p.propertyType] ?? p.propertyType },
       { label: "Área", value: `${p.areaM2} m²` },
+      ...(p.totalAreaM2 ? [{ label: "Área total do terreno", value: `${p.totalAreaM2} m²` }] : []),
       ...(p.bedrooms ? [{ label: "Quartos", value: String(p.bedrooms) }] : []),
+      ...(p.suites ? [{ label: "Suítes", value: String(p.suites) }] : []),
+      ...(p.bathrooms ? [{ label: "Banheiros", value: String(p.bathrooms) }] : []),
       ...(p.parkingSpots ? [{ label: "Vagas", value: String(p.parkingSpots) }] : []),
+      ...(p.floor ? [{ label: "Andar", value: String(p.floor) }] : []),
       ...(p.condoFee ? [{ label: "Condomínio", value: `${formatBRL(Number(p.condoFee))}/mês` }] : []),
       ...(p.iptu ? [{ label: "IPTU", value: `${formatBRL(Number(p.iptu))}/mês` }] : []),
+      ...(p.features.length
+        ? [{ label: "Diferenciais", value: p.features.map((f) => PROPERTY_FEATURE_LABEL[f] ?? f).join(", ") }]
+        : []),
     ];
   }
   return [];

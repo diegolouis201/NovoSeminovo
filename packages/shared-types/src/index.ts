@@ -96,9 +96,14 @@ export const VehicleFiltersSchema = z.object({
 });
 export type VehicleFilters = z.infer<typeof VehicleFiltersSchema>;
 
+// Lista única — usada no filtro de busca, no formulário de anunciar e na
+// criação do anúncio — pra nunca ter o enum repetido divergindo entre eles.
+export const PropertyType = z.enum(["house", "apartment", "land", "commercial", "penthouse", "farm", "warehouse"]);
+export type PropertyType = z.infer<typeof PropertyType>;
+
 export const PropertyFiltersSchema = z.object({
   assetType: z.literal("property"),
-  propertyType: z.enum(["house", "apartment", "land", "commercial"]).optional(),
+  propertyType: PropertyType.optional(),
   purpose: z.enum(["sale", "rent"]).optional(),
   priceMin: z.number().optional(),
   priceMax: z.number().optional(),
@@ -272,17 +277,37 @@ export const CreateVehicleInputSchema = z.object({
 });
 export type CreateVehicleInput = z.infer<typeof CreateVehicleInputSchema>;
 
+// Diferenciais soltos (ver PropertyDetails.features) — lista fixa pequena,
+// escolhida a dedo a partir do pedido original, em vez de texto livre: dá
+// pra mostrar como checklist no formulário e manter uma legenda PT-BR
+// sempre consistente (ver PROPERTY_FEATURE_OPTIONS no front).
+export const PropertyFeature = z.enum([
+  "pool",
+  "balcony",
+  "barbecue",
+  "elevator",
+  "gourmet_area",
+  "garden",
+  "furnished",
+  "concierge",
+]);
+export type PropertyFeature = z.infer<typeof PropertyFeature>;
+
 export const CreatePropertyInputSchema = z.object({
   assetType: z.literal("property"),
   ...listingCoreFields,
-  propertyType: z.enum(["house", "apartment", "land", "commercial"]),
+  propertyType: PropertyType,
   purpose: z.enum(["sale", "rent"]),
   bedrooms: z.number().int().min(0).optional(),
+  suites: z.number().int().min(0).optional(),
   bathrooms: z.number().int().min(0).optional(),
   parkingSpots: z.number().int().min(0).optional(),
+  floor: z.number().int().min(0).optional(),
   areaM2: z.number().positive("Informe a área em m²"),
+  totalAreaM2: z.number().positive().optional(),
   condoFee: z.number().min(0).optional(),
   iptu: z.number().min(0).optional(),
+  features: z.array(PropertyFeature).optional(),
   streetAddress: z.string().min(5, "Informe o endereço"),
 });
 export type CreatePropertyInput = z.infer<typeof CreatePropertyInputSchema>;

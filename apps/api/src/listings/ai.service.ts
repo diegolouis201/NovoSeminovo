@@ -203,6 +203,47 @@ const PHOTO_CLASSIFY_TOOL = {
   },
 };
 
+// Mesma ideia de PHOTO_CLASSIFY_TOOL acima, pra imóvel — categorias e
+// sequência de referência vêm direto do pedido original (fachada, sala,
+// cozinha, quartos/suítes, banheiros, varanda, área gourmet/piscina,
+// jardim, garagem, lavanderia, vista, áreas comuns, planta baixa).
+const PROPERTY_PHOTO_CLASSIFY_TOOL = {
+  name: "organizar_fotos_imovel",
+  description:
+    "Classifica, ordena e cria uma legenda curta para cada foto de um anúncio de imóvel, na sequência que um portal imobiliário profissional usaria, e escolhe a melhor foto pra ser a capa.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      photos: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            photoId: { type: "string", description: "O id da foto, exatamente como foi informado no prompt." },
+            caption: {
+              type: "string",
+              description:
+                "Legenda curta, objetiva e profissional (ex.: 'Sala de estar com boa iluminação natural'), baseada só no que dá pra confirmar visualmente na foto — nunca afirma reforma, amplitude, vista, incidência solar ou material que a imagem não comprova.",
+            },
+            order: {
+              type: "number",
+              description:
+                "Posição da foto na sequência final do anúncio (0 = primeira/capa). Sequência de referência: melhor foto da fachada/geral, sala de estar, sala de jantar, cozinha, quartos e suítes, banheiros, varanda, área gourmet e piscina, jardim/área externa, garagem, lavanderia, vista, áreas comuns do condomínio, planta baixa, outros detalhes — adaptando à realidade das fotos enviadas, sem repetir categoria nem inventar ambiente que não foi fotografado.",
+            },
+          },
+          required: ["photoId", "caption", "order"],
+        },
+      },
+      coverPhotoId: {
+        type: "string",
+        description:
+          "O id da foto escolhida como capa do anúncio — boa iluminação, nitidez e enquadramento, priorizando fachada, sala ampla ou vista relevante, conforme o que melhor representar o imóvel.",
+      },
+    },
+    required: ["photos"],
+  },
+};
+
 // Gating idêntico ao de PaymentsService/EmailService (ver comentário lá):
 // sem ANTHROPIC_API_KEY, isEnabled() devolve false e o site esconde o
 // gerador, sem quebrar o resto do fluxo de anunciar.
@@ -480,14 +521,38 @@ Use a ferramenta "recomendar_imovel" pra escolher os melhores (se houver algum q
   async classifyVehiclePhotos(
     photos: { id: string; buffer: Buffer; mimeType: string }[],
   ): Promise<ClassifyPhotosResult> {
+    return this.runPhotoClassification(
+      photos,
+      PHOTO_CLASSIFY_TOOL,
+      'Fotos de um anúncio de veículo, cada uma identificada por um id. Use a ferramenta "organizar_fotos_veiculo" pra classificar, ordenar e legendar cada uma, e escolher a melhor capa.',
+      "Falha ao classificar fotos do veículo com IA",
+    );
+  }
+
+  // Mesma ideia acima, pra imóvel (ver PROPERTY_PHOTO_CLASSIFY_TOOL).
+  async classifyPropertyPhotos(
+    photos: { id: string; buffer: Buffer; mimeType: string }[],
+  ): Promise<ClassifyPhotosResult> {
+    return this.runPhotoClassification(
+      photos,
+      PROPERTY_PHOTO_CLASSIFY_TOOL,
+      'Fotos de um anúncio de imóvel, cada uma identificada por um id. Use a ferramenta "organizar_fotos_imovel" pra classificar, ordenar e legendar cada uma, e escolher a melhor capa.',
+      "Falha ao classificar fotos do imóvel com IA",
+    );
+  }
+
+  // Mecânica compartilhada entre classifyVehiclePhotos/classifyPropertyPhotos
+  // acima — só a ferramenta (categorias/sequência) e o texto de introdução
+  // mudam entre os dois tipos de anúncio.
+  private async runPhotoClassification(
+    photos: { id: string; buffer: Buffer; mimeType: string }[],
+    tool: typeof PHOTO_CLASSIFY_TOOL | typeof PROPERTY_PHOTO_CLASSIFY_TOOL,
+    introText: string,
+    errorLogPrefix: string,
+  ): Promise<ClassifyPhotosResult> {
     try {
       const client = this.getClient();
-      const content: Anthropic.ContentBlockParam[] = [
-        {
-          type: "text",
-          text: 'Fotos de um anúncio de veículo, cada uma identificada por um id. Use a ferramenta "organizar_fotos_veiculo" pra classificar, ordenar e legendar cada uma, e escolher a melhor capa.',
-        },
-      ];
+      const content: Anthropic.ContentBlockParam[] = [{ type: "text", text: introText }];
       for (const photo of photos) {
         content.push({ type: "text", text: `Foto id=${photo.id}:` });
         content.push({
@@ -503,7 +568,7 @@ Use a ferramenta "recomendar_imovel" pra escolher os melhores (se houver algum q
       const message = await client.messages.create({
         model: VISION_MODEL,
         max_tokens: 2048,
-        tools: [PHOTO_CLASSIFY_TOOL],
+        tools: [tool],
         tool_choice: { type: "auto" },
         messages: [{ role: "user", content }],
       });
@@ -520,7 +585,7 @@ Use a ferramenta "recomendar_imovel" pra escolher os melhores (se houver algum q
 
       return { photos: filteredPhotos, coverPhotoId };
     } catch (error) {
-      this.logger.error(`Falha ao classificar fotos do veículo com IA: ${error}`);
+      this.logger.error(`${errorLogPrefix}: ${error}`);
       throw new ServiceUnavailableException("Não foi possível organizar as fotos automaticamente agora.");
     }
   }

@@ -89,6 +89,9 @@ enum PropertyType {
   apartment
   land
   commercial
+  penthouse
+  farm
+  warehouse
 }
 
 enum Purpose {
@@ -390,11 +393,21 @@ model PropertyDetails {
   propertyType        PropertyType @map("property_type")
   purpose             Purpose
   bedrooms            Int?
-  bathrooms           Int?
+  suites              Int?
+  bathrooms            Int?
   parkingSpots         Int?        @map("parking_spots")
+  floor               Int?
   areaM2               Decimal     @map("area_m2") @db.Decimal(8, 2)
+  // Área total do terreno — distinta da área construída/útil acima (ex.:
+  // casa com quintal, sítio, terreno puro). Opcional: só faz sentido
+  // informar quando o imóvel tem terreno além da área construída.
+  totalAreaM2          Decimal?    @map("total_area_m2") @db.Decimal(10, 2)
   condoFee            Decimal?     @map("condo_fee") @db.Decimal(10, 2)
   iptu                Decimal?     @db.Decimal(10, 2)
+  // Diferenciais soltos (piscina, varanda, churrasqueira, elevador, área
+  // gourmet, jardim etc.) — lista livre em vez de uma coluna booleana por
+  // item, pra não exigir migração toda vez que surgir um diferencial novo.
+  features            String[]     @default([])
   streetAddress       String       @map("street_address")
   registrationNumber  String?      @map("registration_number")
 
