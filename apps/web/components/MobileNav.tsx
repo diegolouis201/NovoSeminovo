@@ -49,15 +49,15 @@ export function MobileNav({
           >
             <House size={18} weight="bold" /> Imóveis
           </Link>
-          <Link
-            href="/anunciar"
-            onClick={() => setOpen(false)}
-            className="rounded-brand px-3 py-2.5 text-sm font-semibold text-ink hover:bg-surface-sober"
-          >
-            Anunciar
-          </Link>
           {userFirstName ? (
             <>
+              <Link
+                href="/anunciar"
+                onClick={() => setOpen(false)}
+                className="rounded-brand px-3 py-2.5 text-sm font-semibold text-ink hover:bg-surface-sober"
+              >
+                Anunciar
+              </Link>
               <Link
                 href="/conta/notificacoes"
                 onClick={() => setOpen(false)}

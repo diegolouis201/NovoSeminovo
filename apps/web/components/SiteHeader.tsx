@@ -32,11 +32,11 @@ export async function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-3 text-sm font-semibold md:flex">
-          <Link href="/anunciar" className="text-ink hover:text-brand-blue">
-            Anunciar
-          </Link>
           {session?.user ? (
             <>
+              <Link href="/anunciar" className="text-ink hover:text-brand-blue">
+                Anunciar
+              </Link>
               <Link href="/conta/notificacoes" className="relative px-1 text-ink hover:text-brand-blue" aria-label="Notificações">
                 <Bell size={20} weight="bold" />
                 {unreadCount > 0 && (
