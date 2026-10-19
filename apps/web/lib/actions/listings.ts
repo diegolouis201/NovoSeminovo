@@ -220,6 +220,26 @@ export async function updateListingStatusAction(listingId: string, status: Listi
   revalidatePath(`/anuncio/${listingId}`);
 }
 
+// Variante usada pelo painel do parceiro (ver /parceiro/anuncios): permite
+// informar o valor efetivo de venda (pode fechar abaixo/acima do anunciado),
+// que alimenta o relatório de vendas em /parceiro/vendas. Campo vazio cai no
+// padrão da API (preço anunciado).
+export async function markListingSoldAction(listingId: string, formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const raw = formData.get("soldPrice");
+  const soldPrice = typeof raw === "string" && raw.trim() !== "" ? Number(raw) : undefined;
+
+  await updateListingStatus(listingId, "sold", session.accessToken, soldPrice);
+  revalidatePath("/");
+  revalidatePath("/busca");
+  revalidatePath("/parceiro");
+  revalidatePath("/parceiro/anuncios");
+  revalidatePath("/parceiro/vendas");
+  revalidatePath(`/anuncio/${listingId}`);
+}
+
 export async function uploadPhotosAction(listingId: string, formData: FormData): Promise<void> {
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");

@@ -307,6 +307,11 @@ model Listing {
   highlightedUntil DateTime?     @map("highlighted_until")
   publishedAt      DateTime?     @map("published_at")
   expiresAt        DateTime?     @map("expires_at")
+  // Preenchidos só na transição pra "sold" (ver ListingsService.updateStatus)
+  // — soldPrice pode diferir do price anunciado (negociação), por isso é
+  // capturado à parte em vez de reaproveitar price pro relatório de vendas.
+  soldAt           DateTime?     @map("sold_at")
+  soldPrice        Decimal?      @map("sold_price") @db.Decimal(12, 2)
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")
 

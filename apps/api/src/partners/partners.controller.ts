@@ -87,6 +87,12 @@ export class PartnersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get("partners/mine/sales")
+  listSales(@CurrentUser() user: { id: string }) {
+    return this.partnersService.listSales(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Patch("leads/:id/status")
   updateLeadStatus(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
     const input = parseOrBadRequest(UpdateLeadStatusInputSchema, body);

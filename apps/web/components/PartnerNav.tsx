@@ -5,6 +5,7 @@ const TABS = [
   { key: "anuncios", href: "/parceiro/anuncios", label: "Anúncios" },
   { key: "importar", href: "/parceiro/anuncios/importar", label: "Importar CSV" },
   { key: "leads", href: "/parceiro/leads", label: "Leads" },
+  { key: "vendas", href: "/parceiro/vendas", label: "Vendas" },
   { key: "servicos", href: "/parceiro/servicos", label: "Serviços" },
   { key: "plano", href: "/parceiro/plano", label: "Plano" },
   { key: "equipe", href: "/parceiro/equipe", label: "Equipe" },

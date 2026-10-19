@@ -9,6 +9,7 @@ import type {
   PartnerMember,
   PartnerStorefront,
   Plan,
+  SaleSummary,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { PaymentsService } from "../payments/payments.service";
@@ -116,19 +117,38 @@ export class PartnersService {
     const partner = await this.findPartnerForUser(userId);
     if (!partner) return null;
 
-    const [activeListings, totalListings, leadsByStatus, subscription] = await Promise.all([
-      this.prisma.listing.count({ where: { partnerId: partner.id, status: "active" } }),
-      this.prisma.listing.count({ where: { partnerId: partner.id } }),
-      this.prisma.lead.groupBy({ by: ["status"], where: { partnerId: partner.id }, _count: true }),
-      this.prisma.subscription.findFirst({
-        where: { partnerId: partner.id, status: "active" },
-        include: { plan: true },
-        orderBy: { currentPeriodEnd: "desc" },
-      }),
-    ]);
+    // Mês corrente no fuso do servidor — suficiente pro MVP do painel
+    // (ver README "Próximos passos" sobre timezone por usuário).
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    const [activeListings, totalListings, leadsByStatus, subscription, soldTotal, soldThisMonthAgg, allSoldAgg] =
+      await Promise.all([
+        this.prisma.listing.count({ where: { partnerId: partner.id, status: "active" } }),
+        this.prisma.listing.count({ where: { partnerId: partner.id } }),
+        this.prisma.lead.groupBy({ by: ["status"], where: { partnerId: partner.id }, _count: true }),
+        this.prisma.subscription.findFirst({
+          where: { partnerId: partner.id, status: "active" },
+          include: { plan: true },
+          orderBy: { currentPeriodEnd: "desc" },
+        }),
+        this.prisma.listing.count({ where: { partnerId: partner.id, status: "sold" } }),
+        this.prisma.listing.aggregate({
+          where: { partnerId: partner.id, status: "sold", soldAt: { gte: monthStart } },
+          _count: true,
+          _sum: { soldPrice: true },
+        }),
+        this.prisma.listing.aggregate({
+          where: { partnerId: partner.id, status: "sold" },
+          _avg: { soldPrice: true },
+        }),
+      ]);
 
     const countByStatus = (status: LeadStatus) =>
       leadsByStatus.find((row) => row.status === status)?._count ?? 0;
+    const leadsTotal = leadsByStatus.reduce((sum, row) => sum + row._count, 0);
+    const leadsWon = countByStatus("won");
 
     return {
       id: partner.id,
@@ -153,10 +173,16 @@ export class PartnersService {
       stats: {
         activeListings,
         totalListings,
-        leadsTotal: leadsByStatus.reduce((sum, row) => sum + row._count, 0),
+        leadsTotal,
         leadsNew: countByStatus("new"),
         leadsNegotiating: countByStatus("negotiating"),
-        leadsWon: countByStatus("won"),
+        leadsWon,
+        soldTotal,
+        soldThisMonth: soldThisMonthAgg._count,
+        revenueThisMonthLabel: formatBRL(Number(soldThisMonthAgg._sum.soldPrice ?? 0)),
+        conversionRatePercent: leadsTotal > 0 ? Math.round((leadsWon / leadsTotal) * 1000) / 10 : undefined,
+        averageTicketLabel:
+          allSoldAgg._avg.soldPrice != null ? formatBRL(Number(allSoldAgg._avg.soldPrice)) : undefined,
       },
     };
   }
@@ -232,6 +258,33 @@ export class PartnersService {
         createdAt: review.createdAt.toISOString(),
       })),
     };
+  }
+
+  // /parceiro/vendas — histórico de anúncios vendidos (ver ListingsService.
+  // updateStatus, que grava soldAt/soldPrice na transição pra "sold").
+  async listSales(userId: string): Promise<SaleSummary[]> {
+    const partner = await this.findPartnerForUser(userId);
+    if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
+
+    const sales = await this.prisma.listing.findMany({
+      where: { partnerId: partner.id, status: "sold" },
+      select: { id: true, title: true, type: true, price: true, soldPrice: true, soldAt: true, publishedAt: true },
+      orderBy: { soldAt: "desc" },
+    });
+
+    return sales.map((sale) => ({
+      listingId: sale.id,
+      title: sale.title,
+      assetType: sale.type,
+      askingPriceLabel: formatBRL(Number(sale.price)),
+      soldPriceValue: Number(sale.soldPrice ?? sale.price),
+      soldPriceLabel: formatBRL(Number(sale.soldPrice ?? sale.price)),
+      soldAt: (sale.soldAt ?? sale.publishedAt ?? new Date()).toISOString(),
+      daysOnMarket:
+        sale.publishedAt && sale.soldAt
+          ? Math.max(0, Math.round((sale.soldAt.getTime() - sale.publishedAt.getTime()) / 86_400_000))
+          : undefined,
+    }));
   }
 
   async listLeads(userId: string): Promise<LeadSummary[]> {

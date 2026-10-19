@@ -746,7 +746,10 @@ export class ListingsService {
 
     const updated = await this.prisma.listing.update({
       where: { id: listingId },
-      data: { status: input.status },
+      data:
+        input.status === "sold"
+          ? { status: input.status, soldAt: new Date(), soldPrice: input.soldPrice ?? listing.price }
+          : { status: input.status },
       include: listingInclude,
     });
     return toMyListingSummary(updated);

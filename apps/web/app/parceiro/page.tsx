@@ -126,9 +126,19 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Anúncios ativos" value={partner.stats.activeListings} />
-        <StatCard label="Total de anúncios" value={partner.stats.totalListings} />
-        <StatCard label="Leads no total" value={partner.stats.leadsTotal} />
         <StatCard label="Leads novos" value={partner.stats.leadsNew} tone="text-brand-orange" />
+        <StatCard label="Vendidos este mês" value={partner.stats.soldThisMonth} tone="text-brand-blue" />
+        <StatCardText label="Faturamento do mês" value={partner.stats.revenueThisMonthLabel} tone="text-brand-green" />
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatCard label="Total de anúncios" value={partner.stats.totalListings} />
+        <StatCard label="Total vendido" value={partner.stats.soldTotal} tone="text-brand-blue" />
+        <StatCardText
+          label="Taxa de conversão de leads"
+          value={partner.stats.conversionRatePercent !== undefined ? `${partner.stats.conversionRatePercent}%` : "—"}
+        />
+        <StatCardText label="Ticket médio" value={partner.stats.averageTicketLabel ?? "—"} />
       </div>
 
       <Link
@@ -147,6 +157,10 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
 }
 
 function StatCard({ label, value, tone = "text-ink" }: { label: string; value: number; tone?: string }) {
+  return <StatCardText label={label} value={String(value)} tone={tone} />;
+}
+
+function StatCardText({ label, value, tone = "text-ink" }: { label: string; value: string; tone?: string }) {
   return (
     <div className="rounded-brand border border-border bg-surface-raised p-4">
       <p className="text-xs text-ink-muted">{label}</p>

@@ -45,6 +45,7 @@ import type {
   PropertyRecommendation,
   RegisterVehicleInput,
   ReorderPhotosInput,
+  SaleSummary,
   VehicleEvent,
   VehicleProfile,
   VehicleProfileInput,
@@ -487,11 +488,12 @@ export async function updateListingStatus(
   listingId: string,
   status: ListingStatus,
   accessToken: string,
+  soldPrice?: number,
 ): Promise<boolean> {
   const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/status`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, soldPrice }),
   });
   return res.ok;
 }
@@ -603,6 +605,16 @@ export async function fetchPartnerLeads(accessToken: string): Promise<LeadSummar
     const res = await fetchWithTimeout(`${API_URL}/partners/mine/leads`, { headers: authHeaders(accessToken) });
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return (await res.json()) as LeadSummary[];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchPartnerSales(accessToken: string): Promise<SaleSummary[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/partners/mine/sales`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as SaleSummary[];
   } catch {
     return [];
   }

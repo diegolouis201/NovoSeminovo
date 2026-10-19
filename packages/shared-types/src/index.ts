@@ -319,9 +319,12 @@ export const CreateListingInputSchema = z.discriminatedUnion("assetType", [
 export type CreateListingInput = z.infer<typeof CreateListingInputSchema>;
 
 // "sold" é terminal: ListingsService.updateStatus não deixa sair dele — uma
-// vez vendido, o jeito de voltar a vender é criar um anúncio novo.
+// vez vendido, o jeito de voltar a vender é criar um anúncio novo. soldPrice
+// só importa nessa transição (negociação pode fechar abaixo/acima do preço
+// anunciado); a API ignora o campo pras outras transições.
 export const UpdateListingStatusInputSchema = z.object({
   status: z.enum(["active", "paused", "sold"]),
+  soldPrice: z.number().positive().optional(),
 });
 export type UpdateListingStatusInput = z.infer<typeof UpdateListingStatusInputSchema>;
 
@@ -665,8 +668,35 @@ export const PartnerStatsSchema = z.object({
   leadsNew: z.number().int(),
   leadsNegotiating: z.number().int(),
   leadsWon: z.number().int(),
+  // CRM de vendas (ver PartnersService.getMine) — soldTotal é o histórico
+  // completo, soldThisMonth/revenueThisMonthLabel olham só o mês corrente.
+  // conversionRatePercent e averageTicketLabel ficam undefined sem nenhum
+  // lead/venda ainda (divisão por zero), pra UI mostrar "—" em vez de 0%.
+  soldTotal: z.number().int(),
+  soldThisMonth: z.number().int(),
+  revenueThisMonthLabel: z.string(),
+  conversionRatePercent: z.number().optional(),
+  averageTicketLabel: z.string().optional(),
 });
 export type PartnerStats = z.infer<typeof PartnerStatsSchema>;
+
+// /parceiro/vendas — histórico de anúncios vendidos do parceiro.
+export const SaleSummarySchema = z.object({
+  listingId: z.string(),
+  title: z.string(),
+  assetType: AssetType,
+  askingPriceLabel: z.string(),
+  // soldPriceValue cru ao lado do label: /parceiro/vendas soma e tira média
+  // em cima do número, não reconstrói a partir do texto formatado em R$.
+  soldPriceValue: z.number(),
+  soldPriceLabel: z.string(),
+  soldAt: z.string(),
+  // undefined quando o anúncio nunca chegou a ser publicado antes de vender
+  // (ex.: marcado como vendido ainda em rascunho) — sem publishedAt não dá
+  // pra calcular quanto tempo ficou no ar.
+  daysOnMarket: z.number().int().optional(),
+});
+export type SaleSummary = z.infer<typeof SaleSummarySchema>;
 
 // Plan/Subscription já estavam no schema do banco desde a Etapa 2 — o seed
 // cria um Plan e assina a loja de demonstração nele, mas `/parceiro` só lia
