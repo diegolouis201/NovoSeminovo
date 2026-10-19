@@ -767,13 +767,23 @@ export const CreateReviewInputSchema = z.object({
 });
 export type CreateReviewInput = z.infer<typeof CreateReviewInputSchema>;
 
+export const StorefrontHighlightSchema = z.object({
+  listingId: z.string(),
+  reason: z.string(),
+});
+export type StorefrontHighlight = z.infer<typeof StorefrontHighlightSchema>;
+
 export const PartnerStorefrontSchema = z.object({
   legalName: z.string(),
   type: PartnerType,
   description: z.string().optional(),
   address: z.string().optional(),
+  logoUrl: z.string().optional(),
   verified: z.boolean(),
   listings: z.array(ListingSummarySchema),
+  // Escolhidos pela IA (ver AiService.curateStorefrontHighlights) — sempre
+  // um subconjunto de "listings", nunca um anúncio que não esteja lá.
+  highlights: z.array(StorefrontHighlightSchema),
   averageRating: z.number().optional(),
   reviews: z.array(ReviewSchema),
 });

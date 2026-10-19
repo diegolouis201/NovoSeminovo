@@ -61,6 +61,43 @@ const RECOMMEND_TOOL = {
   },
 };
 
+const STOREFRONT_HIGHLIGHT_TOOL = {
+  name: "destacar_anuncios",
+  description:
+    "Escolhe, dentre os anúncios ativos de uma loja/imobiliária/corretor, até 6 pra destacar na vitrine pública, com um motivo curto e específico pra cada um.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      highlights: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            listingId: { type: "string", description: "Id do anúncio, só entre os fornecidos." },
+            reason: {
+              type: "string",
+              description:
+                "Motivo bem curto (até 5 palavras) pelo qual esse anúncio merece destaque — ex.: 'Menor km da loja', 'Melhor custo-benefício', 'Único automático disponível'. Nunca repita o mesmo motivo pra dois anúncios, nunca invente um dado (km, ano, quartos) que não apareça na lista.",
+            },
+          },
+          required: ["listingId", "reason"],
+        },
+        description: "Até 6 anúncios escolhidos, do mais pro menos destacado.",
+      },
+    },
+    required: ["highlights"],
+  },
+};
+
+export type StorefrontListingCandidate = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  priceLabel: string;
+};
+
+export type StorefrontHighlight = { listingId: string; reason: string };
+
 const MAIN_USE_LABEL: Record<string, string> = {
   commute: "ir e voltar do trabalho/estudo no dia a dia",
   family: "uso familiar, levar filhos/dependentes",
@@ -454,6 +491,60 @@ Use a ferramenta "recomendar_imovel" pra escolher os melhores (se houver algum q
       throw new ServiceUnavailableException(
         "Não foi possível gerar a recomendação com IA agora. Tente de novo em instantes.",
       );
+    }
+  }
+
+  // Vitrine pública da loja/imobiliária/corretor (ver PartnersService.getStorefront)
+  // — ao contrário de generateDraft/recommendVehicle acima, nunca lança: sem
+  // destaque nenhum a vitrine ainda funciona normalmente (ver fallback),
+  // então um erro de IA aqui não pode quebrar a página de ninguém.
+  async curateStorefrontHighlights(
+    legalName: string,
+    candidates: StorefrontListingCandidate[],
+  ): Promise<StorefrontHighlight[]> {
+    const fallback = () => candidates.slice(0, 3).map((c) => ({ listingId: c.id, reason: "Anúncio em destaque" }));
+    if (candidates.length === 0) return [];
+    if (!this.isEnabled()) return fallback();
+
+    try {
+      const client = this.getClient();
+      const candidatesText = candidates
+        .map((c) => `- id=${c.id} | ${c.title}${c.subtitle ? ` | ${c.subtitle}` : ""} | ${c.priceLabel}`)
+        .join("\n");
+
+      const message = await client.messages.create({
+        model: MODEL,
+        max_tokens: 1024,
+        tools: [STOREFRONT_HIGHLIGHT_TOOL],
+        tool_choice: { type: "auto" },
+        messages: [
+          {
+            role: "user",
+            content: `Você ajuda a montar a vitrine pública de "${legalName}" no Novo Seminovo (marketplace brasileiro de veículos e imóveis usados). Escolha até 6 anúncios entre os disponíveis abaixo pra aparecer em destaque no topo da página, com um motivo curto e específico pra cada um — nunca genérico, nunca repetido, nunca inventando um dado que não apareça na lista.
+
+Anúncios ativos dessa loja:
+${candidatesText}
+
+Use a ferramenta "destacar_anuncios".`,
+          },
+        ],
+      });
+
+      const toolUse = message.content.find((block) => block.type === "tool_use");
+      if (!toolUse || toolUse.type !== "tool_use") throw new Error("Claude não devolveu os destaques esperados");
+
+      const input = toolUse.input as { highlights?: Array<{ listingId?: string; reason?: string }> };
+      const validIds = new Set(candidates.map((c) => c.id));
+      const highlights = (input.highlights ?? [])
+        .filter(
+          (h): h is StorefrontHighlight => Boolean(h.listingId && h.reason && validIds.has(h.listingId)),
+        )
+        .slice(0, 6);
+
+      return highlights.length > 0 ? highlights : fallback();
+    } catch (error) {
+      this.logger.error(`Falha ao gerar destaques da vitrine com IA: ${error}`);
+      return fallback();
     }
   }
 

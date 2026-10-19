@@ -13,6 +13,7 @@ import type {
 import { PrismaService } from "../prisma/prisma.service";
 import { PaymentsService } from "../payments/payments.service";
 import { listingInclude, toListingSummary } from "../listings/listings.mapper";
+import { AiService } from "../listings/ai.service";
 import { getPhotoStorage } from "../common/storage";
 
 // Quantas vagas de anúncio um plano "ocupa": tudo que não é um estado final
@@ -44,6 +45,7 @@ export class PartnersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly payments: PaymentsService,
+    private readonly ai: AiService,
   ) {}
 
   private async uniqueSlug(base: string): Promise<string> {
@@ -206,13 +208,21 @@ export class PartnersService {
       ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
       : undefined;
 
+    const listingSummaries = listings.map(toListingSummary);
+    const highlights = await this.ai.curateStorefrontHighlights(
+      partner.legalName,
+      listingSummaries.map((l) => ({ id: l.id, title: l.title, subtitle: l.subtitle, priceLabel: l.priceLabel })),
+    );
+
     return {
       legalName: partner.legalName,
       type: partner.type,
       description: partner.description ?? undefined,
       address: partner.address ?? undefined,
+      logoUrl: partner.logoUrl ?? undefined,
       verified: Boolean(partner.verifiedAt),
-      listings: listings.map(toListingSummary),
+      listings: listingSummaries,
+      highlights,
       averageRating,
       reviews: reviews.map((review) => ({
         id: review.id,
