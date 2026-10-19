@@ -32,7 +32,12 @@ RUN pnpm turbo run build --filter=@novoseminovo/api
 FROM node:20-slim
 # Mesmo motivo do estágio de build: o binário do Prisma gerado precisa da
 # libssl do sistema presente em runtime, não só no momento do generate.
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# fontconfig + fonts-dejavu-core: sem nenhuma fonte instalada, a "slim" não
+# tem glifo nenhum pra desenhar — o SocialAssetsService (texto de preço/
+# título sobre a imagem via sharp/libvips, que usa librsvg+pango por baixo)
+# geraria a imagem com o texto em branco/invisível, sem erro nenhum pra
+# avisar. DejaVu Sans cobre acentuação em português.
+RUN apt-get update -y && apt-get install -y openssl fontconfig fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 WORKDIR /app
 COPY --from=build /app /app

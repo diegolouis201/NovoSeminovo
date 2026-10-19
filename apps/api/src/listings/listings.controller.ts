@@ -5,15 +5,18 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
+  Res,
   UploadedFile,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
+import type { Response } from "express";
 import { memoryStorage } from "multer";
 import {
   CreateListingInputSchema,
@@ -34,6 +37,7 @@ import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { AiService } from "./ai.service";
 import { ListingsService, type ListingSearchQuery } from "./listings.service";
+import { SocialAssetsService } from "./social-assets.service";
 
 const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -74,6 +78,7 @@ export class ListingsController {
   constructor(
     private readonly listingsService: ListingsService,
     private readonly aiService: AiService,
+    private readonly socialAssetsService: SocialAssetsService,
   ) {}
 
   // Precisa vir antes de ":id" — mesmo caso de "popular-brands"/"mine".
@@ -233,5 +238,50 @@ export class ListingsController {
   ) {
     const input = parseOrBadRequest(UpdatePhotoCaptionInputSchema, body);
     return this.listingsService.updatePhotoCaption(id, user.id, photoId, input.caption);
+  }
+
+  // Imagens prontas pra postar no Instagram (feed/story/carrossel) a partir
+  // das fotos já cadastradas no anúncio — ver SocialAssetsService. Sempre
+  // geradas na hora (sem cache em disco), já que o dono pode reordenar ou
+  // trocar fotos a qualquer momento.
+  @UseGuards(JwtAuthGuard)
+  @Get(":id/social/feed")
+  async socialFeedImage(@CurrentUser() user: { id: string }, @Param("id") id: string, @Res() res: Response) {
+    const buffer = await this.socialAssetsService.generateFeedImage(id, user.id);
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Content-Disposition", 'inline; filename="novoseminovo-feed.jpg"');
+    res.send(buffer);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(":id/social/story")
+  async socialStoryImage(@CurrentUser() user: { id: string }, @Param("id") id: string, @Res() res: Response) {
+    const buffer = await this.socialAssetsService.generateStoryImage(id, user.id);
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Content-Disposition", 'inline; filename="novoseminovo-story.jpg"');
+    res.send(buffer);
+  }
+
+  // Precisa vir antes de ":id/social/carousel/:index" — mesmo caso de
+  // "ai-status"/"popular-brands" no topo do arquivo.
+  @UseGuards(JwtAuthGuard)
+  @Get(":id/social/carousel/count")
+  async socialCarouselCount(@CurrentUser() user: { id: string }, @Param("id") id: string) {
+    const length = await this.socialAssetsService.carouselLength(id, user.id);
+    return { length };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(":id/social/carousel/:index")
+  async socialCarouselImage(
+    @CurrentUser() user: { id: string },
+    @Param("id") id: string,
+    @Param("index", ParseIntPipe) index: number,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.socialAssetsService.generateCarouselImage(id, user.id, index);
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Content-Disposition", `inline; filename="novoseminovo-carrossel-${index + 1}.jpg"`);
+    res.send(buffer);
   }
 }
