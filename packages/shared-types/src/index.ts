@@ -936,6 +936,17 @@ export type RebateReceiverType = z.infer<typeof RebateReceiverType>;
 export const FinancingDealStatus = z.enum(["registered", "paid"]);
 export type FinancingDealStatus = z.infer<typeof FinancingDealStatus>;
 
+// Anúncios candidatos ao registro de negócio fechado — só os marcados como
+// "vendido" (ver RebatesService.listEligibleListings), pra não deixar o
+// admin digitar um id/link à mão: ele escolhe numa lista.
+export const EligibleListingSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  priceLabel: z.string(),
+  receiverLabel: z.string(),
+});
+export type EligibleListing = z.infer<typeof EligibleListingSchema>;
+
 export const RegisterFinancingDealInputSchema = z.object({
   listingId: z.string().min(1, "Selecione o anúncio"),
   financingProvider: z.string().min(2, "Informe o parceiro financeiro (ex.: Credihome)"),

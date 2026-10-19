@@ -21,6 +21,15 @@ export class RebatesController {
     return this.rebatesService.myRebates(user.id);
   }
 
+  // Pública (sem guard nenhum) — página de apresentação do programa
+  // (ver /recompensas no site): percentual de rebate não é informação
+  // sensível, é literalmente o que a pessoa precisa saber pra decidir se
+  // vale a pena anunciar/virar parceiro.
+  @Get("rebate-tiers")
+  listTiersPublic() {
+    return this.rebatesService.listTiers();
+  }
+
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Get("admin/rebate-tiers")
   listTiers() {
@@ -32,6 +41,12 @@ export class RebatesController {
   updateTier(@Param("id") id: string, @Body() body: unknown) {
     const input = parseOrBadRequest(UpdateRebateTierInputSchema, body);
     return this.rebatesService.updateTier(id, input);
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get("admin/financing-deals/eligible-listings")
+  listEligibleListings() {
+    return this.rebatesService.listEligibleListings();
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)

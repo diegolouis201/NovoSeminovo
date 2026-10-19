@@ -7,6 +7,7 @@ import type {
   CreateReviewInput,
   CreateSavedSearchInput,
   CrlvExtractResult,
+  EligibleListing,
   FeaturedPartner,
   FinancingDeal,
   FinancingDealStatus,
@@ -1036,6 +1037,17 @@ export async function fetchMyRebates(accessToken: string): Promise<MyRebatesSumm
   }
 }
 
+// Sem token — página pública de apresentação do programa (ver /recompensas).
+export async function fetchPublicRebateTiers(): Promise<RebateTier[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/rebate-tiers`);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as RebateTier[];
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchRebateTiers(accessToken: string): Promise<RebateTier[]> {
   try {
     const res = await fetchWithTimeout(`${API_URL}/admin/rebate-tiers`, { headers: authHeaders(accessToken) });
@@ -1057,6 +1069,18 @@ export async function updateRebateTier(
     body: JSON.stringify(input),
   });
   return res.ok;
+}
+
+export async function fetchEligibleListings(accessToken: string): Promise<EligibleListing[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/financing-deals/eligible-listings`, {
+      headers: authHeaders(accessToken),
+    });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as EligibleListing[];
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchFinancingDeals(status: FinancingDealStatus | undefined, accessToken: string): Promise<FinancingDeal[]> {

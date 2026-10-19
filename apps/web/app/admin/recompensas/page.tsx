@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 import type { FinancingDeal, RebateTier } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { FormField } from "@/components/FormField";
-import { fetchFinancingDeals, fetchRebateTiers } from "@/lib/api";
+import { FormField, SelectField } from "@/components/FormField";
+import { fetchEligibleListings, fetchFinancingDeals, fetchRebateTiers } from "@/lib/api";
 import {
   markFinancingDealPaidAction,
   registerFinancingDealAction,
@@ -33,10 +33,11 @@ export default async function AdminRebatesPage({
     );
   }
 
-  const [pending, paid, tiers] = await Promise.all([
+  const [pending, paid, tiers, eligibleListings] = await Promise.all([
     fetchFinancingDeals("registered", session.accessToken),
     fetchFinancingDeals("paid", session.accessToken),
     fetchRebateTiers(session.accessToken),
+    fetchEligibleListings(session.accessToken),
   ]);
 
   const tiersByPartnerType = tiers.reduce<Record<string, RebateTier[]>>((acc, tier) => {
@@ -66,39 +67,69 @@ export default async function AdminRebatesPage({
 
       <section className="mt-8 rounded-brand border border-border bg-surface-raised p-5">
         <h2 className="font-display text-lg font-semibold text-ink">Registrar negócio fechado</h2>
-        <form action={registerFinancingDealAction} className="mt-4 flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <FormField
-              label="ID ou link do anúncio"
+        {eligibleListings.length === 0 ? (
+          <p className="mt-3 text-sm text-ink-muted">
+            Nenhum anúncio marcado como "Vendido" ainda. Assim que um anúncio for marcado como vendido (em "Meus
+            anúncios"), ele aparece aqui pra você registrar o negócio.
+          </p>
+        ) : (
+          <form action={registerFinancingDealAction} className="mt-4 flex flex-col gap-4">
+            <SelectField
+              label="Anúncio vendido"
               name="listingRef"
-              placeholder="Ex.: cku... ou https://novoseminovo.com.br/anuncio/cku..."
+              options={eligibleListings.map((listing) => ({
+                value: listing.id,
+                label: `${listing.title} — ${listing.priceLabel} — ${listing.receiverLabel}`,
+              }))}
             />
-            <p className="text-xs text-ink-muted">
-              Copie da barra de endereço quando estiver vendo o anúncio (<code>/anuncio/&lt;id&gt;</code>).
-            </p>
-          </div>
-          <FormField
-            label="Parceiro financeiro"
-            name="financingProvider"
-            placeholder="Ex.: Credihome by Loft"
-          />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <FormField label="Valor do bem (R$)" name="assetValue" type="number" min={0} step={0.01} />
-            <FormField label="Valor financiado (R$)" name="financedAmount" type="number" min={0} step={0.01} />
             <FormField
-              label="Sua comissão (%)"
-              name="commissionRate"
-              type="number"
-              min={0}
-              step={0.01}
-              required={false}
-              defaultValue={1}
+              label="Parceiro financeiro"
+              name="financingProvider"
+              placeholder="Ex.: Credihome by Loft"
             />
-          </div>
-          <Button type="submit" className="self-start">
-            Registrar negócio
-          </Button>
-        </form>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <FormField label="Valor do bem (R$)" name="assetValue" type="number" min={0} step={0.01} />
+              <FormField label="Valor financiado (R$)" name="financedAmount" type="number" min={0} step={0.01} />
+              <FormField
+                label="Sua comissão (%)"
+                name="commissionRate"
+                type="number"
+                min={0}
+                step={0.01}
+                required={false}
+                defaultValue={1}
+              />
+            </div>
+            <Button type="submit" className="self-start">
+              Registrar negócio
+            </Button>
+          </form>
+        )}
+      </section>
+
+      <section className="mt-10">
+        <h2 className="font-display text-xl font-semibold text-ink">Níveis de recompensa</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          PF recebe sempre 20% (fixo). Corretor/imobiliária e lojista evoluem de nível conforme o volume financiado
+          acumulado — ajuste os números abaixo quando quiser, sem precisar de nenhum deploy.
+        </p>
+        <div className="mt-4 flex flex-col gap-6">
+          {Object.entries(tiersByPartnerType).map(([partnerType, partnerTiers]) => (
+            <div key={partnerType} className="rounded-brand border border-border bg-surface-raised p-4">
+              <h3 className="font-semibold text-ink">{PARTNER_TYPE_LABEL[partnerType] ?? partnerType}</h3>
+              <div className="mt-3 flex flex-col gap-3">
+                {partnerTiers
+                  .sort((a, b) => a.tierOrder - b.tierOrder)
+                  .map((tier) => (
+                    <TierRow key={tier.id} tier={tier} />
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <Link href="/recompensas" className="mt-3 inline-block text-sm font-semibold text-brand-blue hover:underline">
+          Ver apresentação completa do programa →
+        </Link>
       </section>
 
       <section className="mt-10">
@@ -129,28 +160,6 @@ export default async function AdminRebatesPage({
             ))}
           </ul>
         )}
-      </section>
-
-      <section className="mt-10">
-        <h2 className="font-display text-xl font-semibold text-ink">Níveis de recompensa</h2>
-        <p className="mt-1 text-sm text-ink-muted">
-          PF recebe sempre 20% (fixo). Corretor/imobiliária e lojista evoluem de nível conforme o volume financiado
-          acumulado — ajuste os números abaixo quando quiser, sem precisar de nenhum deploy.
-        </p>
-        <div className="mt-4 flex flex-col gap-6">
-          {Object.entries(tiersByPartnerType).map(([partnerType, partnerTiers]) => (
-            <div key={partnerType} className="rounded-brand border border-border bg-surface-raised p-4">
-              <h3 className="font-semibold text-ink">{PARTNER_TYPE_LABEL[partnerType] ?? partnerType}</h3>
-              <div className="mt-3 flex flex-col gap-3">
-                {partnerTiers
-                  .sort((a, b) => a.tierOrder - b.tierOrder)
-                  .map((tier) => (
-                    <TierRow key={tier.id} tier={tier} />
-                  ))}
-              </div>
-            </div>
-          ))}
-        </div>
       </section>
     </main>
   );

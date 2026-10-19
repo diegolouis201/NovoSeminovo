@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { Prisma, type PartnerType } from "@novoseminovo/db";
 import {
   formatBRL,
+  type EligibleListing,
   type FinancingDeal,
   type FinancingDealStatus,
   type MyRebatesSummary,
@@ -181,6 +182,32 @@ export class RebatesService {
     });
     if (!listing) throw new NotFoundException("Anúncio não encontrado.");
     return listing;
+  }
+
+  // Anúncios marcados como "vendido" — candidatos a registrar negócio
+  // fechado (ver formulário em /admin/recompensas). Sem isso o admin
+  // precisava digitar o id/link do anúncio à mão.
+  async listEligibleListings(): Promise<EligibleListing[]> {
+    const listings = await this.prisma.listing.findMany({
+      where: { status: "sold" },
+      select: {
+        id: true,
+        title: true,
+        price: true,
+        owner: { select: { name: true } },
+        partner: { select: { legalName: true, type: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    return listings.map((listing) => ({
+      id: listing.id,
+      title: listing.title,
+      priceLabel: formatBRL(Number(listing.price)),
+      receiverLabel: listing.partner
+        ? `${listing.partner.legalName} (${PARTNER_TYPE_LABEL[listing.partner.type] ?? listing.partner.type})`
+        : `${listing.owner.name} (pessoa física)`,
+    }));
   }
 
   async registerDeal(adminUserId: string, input: RegisterFinancingDealInput): Promise<FinancingDeal> {
