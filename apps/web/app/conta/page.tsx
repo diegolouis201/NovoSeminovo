@@ -77,6 +77,12 @@ export default async function AccountPage() {
         >
           Painel da loja
         </Link>
+        <Link
+          href="/conta/recompensas"
+          className="rounded-brand border border-border px-4 py-3 text-sm font-bold text-ink hover:bg-surface-sober"
+        >
+          Minhas recompensas
+        </Link>
         {session.user.role === "admin" && (
           <Link
             href="/admin"

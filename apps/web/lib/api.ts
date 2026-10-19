@@ -8,6 +8,8 @@ import type {
   CreateSavedSearchInput,
   CrlvExtractResult,
   FeaturedPartner,
+  FinancingDeal,
+  FinancingDealStatus,
   FinancingSimulationResult,
   LeadStatus,
   LeadSummary,
@@ -17,6 +19,7 @@ import type {
   ModerateListingInput,
   ModerationLogEntry,
   MyListingSummary,
+  MyRebatesSummary,
   Notification,
   Partner,
   PartnerMember,
@@ -28,6 +31,8 @@ import type {
   Photo,
   Plan,
   PriceSuggestion,
+  RebateTier,
+  RegisterFinancingDealInput,
   ReportStatus,
   SavedSearch,
   GenerateListingDraftInput,
@@ -1016,6 +1021,80 @@ export async function markAllNotificationsRead(accessToken: string): Promise<boo
   const res = await fetchWithTimeout(`${API_URL}/me/notifications/read-all`, {
     method: "PATCH",
     headers: authHeaders(accessToken),
+  });
+  return res.ok;
+}
+
+// Programa de recompensa por financiamento — ver RebatesService na API.
+export async function fetchMyRebates(accessToken: string): Promise<MyRebatesSummary | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/me/rebates`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as MyRebatesSummary;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function fetchRebateTiers(accessToken: string): Promise<RebateTier[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/rebate-tiers`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as RebateTier[];
+  } catch {
+    return [];
+  }
+}
+
+export async function updateRebateTier(
+  tierId: string,
+  input: { tierName?: string; minVolume?: number; rebatePercent?: number },
+  accessToken: string,
+): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/admin/rebate-tiers/${tierId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify(input),
+  });
+  return res.ok;
+}
+
+export async function fetchFinancingDeals(status: FinancingDealStatus | undefined, accessToken: string): Promise<FinancingDeal[]> {
+  try {
+    const query = status ? `?status=${status}` : "";
+    const res = await fetchWithTimeout(`${API_URL}/admin/financing-deals${query}`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as FinancingDeal[];
+  } catch {
+    return [];
+  }
+}
+
+export type RegisterFinancingDealResult = { ok: true; deal: FinancingDeal } | { ok: false; error: string };
+
+export async function registerFinancingDeal(
+  input: RegisterFinancingDealInput,
+  accessToken: string,
+): Promise<RegisterFinancingDealResult> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/financing-deals`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+      body: JSON.stringify(input),
+    });
+    const body = await res.json();
+    if (!res.ok) return { ok: false, error: body.message ?? "Não foi possível registrar o negócio." };
+    return { ok: true, deal: body as FinancingDeal };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
+}
+
+export async function markFinancingDealPaid(dealId: string, note: string | undefined, accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/admin/financing-deals/${dealId}/pay`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify({ note }),
   });
   return res.ok;
 }

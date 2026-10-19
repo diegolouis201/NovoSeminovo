@@ -920,3 +920,87 @@ export type UnreadNotificationsCount = z.infer<typeof UnreadNotificationsCountSc
 export function formatBRL(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
+
+// ---------- Programa de recompensa por financiamento ----------
+// Ver PartnerRebateTier/FinancingDeal no schema do banco: quando o comprador
+// de um anúncio fecha financiamento (imobiliário ou veicular) por um
+// parceiro financeiro, parte da comissão do correspondente bancário volta
+// pra quem anunciou — PF recebe uma fatia fixa, corretor/imobiliária e
+// lojista evoluem de nível pelo volume financiado acumulado em negócios
+// vindos da plataforma. Ainda não há integração em tempo real com nenhum
+// parceiro financeiro, então o negócio fechado é registrado manualmente
+// pelo admin (ver RebatesService na API).
+export const RebateReceiverType = z.enum(["individual", "dealership", "real_estate_agency", "broker"]);
+export type RebateReceiverType = z.infer<typeof RebateReceiverType>;
+
+export const FinancingDealStatus = z.enum(["registered", "paid"]);
+export type FinancingDealStatus = z.infer<typeof FinancingDealStatus>;
+
+export const RegisterFinancingDealInputSchema = z.object({
+  listingId: z.string().min(1, "Selecione o anúncio"),
+  financingProvider: z.string().min(2, "Informe o parceiro financeiro (ex.: Credihome)"),
+  externalRef: z.string().optional(),
+  assetValue: z.number().positive("Informe o valor do bem"),
+  financedAmount: z.number().positive("Informe o valor financiado"),
+  commissionRate: z.number().min(0).max(100).optional(),
+});
+export type RegisterFinancingDealInput = z.infer<typeof RegisterFinancingDealInputSchema>;
+
+export const FinancingDealSchema = z.object({
+  id: z.string(),
+  listingId: z.string(),
+  listingTitle: z.string(),
+  receiverLabel: z.string(),
+  receiverType: RebateReceiverType,
+  financingProvider: z.string(),
+  externalRef: z.string().optional(),
+  assetValueLabel: z.string(),
+  financedAmountLabel: z.string(),
+  commissionRateLabel: z.string(),
+  commissionAmountLabel: z.string(),
+  rebatePercentLabel: z.string(),
+  rebateAmountLabel: z.string(),
+  status: FinancingDealStatus,
+  paidAt: z.string().optional(),
+  paidNote: z.string().optional(),
+  createdAt: z.string(),
+});
+export type FinancingDeal = z.infer<typeof FinancingDealSchema>;
+
+export const MarkFinancingDealPaidInputSchema = z.object({
+  note: z.string().optional(),
+});
+export type MarkFinancingDealPaidInput = z.infer<typeof MarkFinancingDealPaidInputSchema>;
+
+export const RebateTierSchema = z.object({
+  id: z.string(),
+  partnerType: PartnerType,
+  tierOrder: z.number().int(),
+  tierName: z.string(),
+  minVolume: z.number(),
+  minVolumeLabel: z.string(),
+  rebatePercent: z.number(),
+  rebatePercentLabel: z.string(),
+});
+export type RebateTier = z.infer<typeof RebateTierSchema>;
+
+export const UpdateRebateTierInputSchema = z.object({
+  tierName: z.string().min(1).optional(),
+  minVolume: z.number().min(0).optional(),
+  rebatePercent: z.number().min(0).max(100).optional(),
+});
+export type UpdateRebateTierInput = z.infer<typeof UpdateRebateTierInputSchema>;
+
+export const MyRebatesSummarySchema = z.object({
+  receiverType: RebateReceiverType,
+  currentTierName: z.string().optional(),
+  currentRebatePercentLabel: z.string(),
+  cumulativeVolumeLabel: z.string().optional(),
+  nextTierName: z.string().optional(),
+  nextTierMinVolumeLabel: z.string().optional(),
+  progressToNextTierPct: z.number().optional(),
+  totalPendingLabel: z.string(),
+  totalPaidLabel: z.string(),
+  deals: z.array(FinancingDealSchema),
+});
+export type MyRebatesSummary = z.infer<typeof MyRebatesSummarySchema>;

@@ -43,6 +43,9 @@ export default async function AdminPage() {
         Todo anúncio novo espera aqui antes de aparecer na busca; toda loja/imobiliária nova espera
         aqui antes de ganhar o selo de verificada.
       </p>
+      <Link href="/admin/recompensas" className="mt-4 inline-block text-sm font-semibold text-brand-blue hover:underline">
+        Programa de recompensa por financiamento →
+      </Link>
 
       <section className="mt-8">
         <h2 className="font-display text-xl font-semibold text-ink">

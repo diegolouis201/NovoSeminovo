@@ -44,6 +44,11 @@ enum PartnerMemberRole {
   agent
 }
 
+enum FinancingDealStatus {
+  registered
+  paid
+}
+
 enum SubscriptionStatus {
   active
   past_due
@@ -177,6 +182,7 @@ model User {
   notifications      Notification[]
   vehiclesOwned      Vehicle[]             @relation("VehicleCurrentOwner")
   vehicleEvents      VehicleEvent[]
+  financingDealsRegistered FinancingDeal[] @relation("FinancingDealRegisteredBy")
 
   @@map("users")
 }
@@ -290,6 +296,7 @@ model Listing {
   simulations    FinancingSimulation[]
   reviews        Review[]
   moderationLogs ModerationLog[]
+  financingDeals FinancingDeal[]
 
   @@index([type, status, city, price])
   @@map("listings")
@@ -597,4 +604,55 @@ model Notification {
 
   @@index([userId])
   @@map("notifications")
+}
+
+// ---------- Programa de recompensa por financiamento ----------
+// Quando o comprador de um anúncio fecha financiamento (imobiliário ou
+// veicular) por um parceiro financeiro, uma parte da comissão do correspondente
+// bancário volta pra quem anunciou — PF ganha uma fatia fixa; corretor/
+// imobiliária e lojista evoluem de nível conforme o volume financiado
+// acumulado em negócios vindos da plataforma (ver PartnerRebateTier, editável
+// pelo admin sem precisar mexer em código). Ainda não há integração em tempo
+// real com nenhum parceiro financeiro — por isso o negócio fechado é
+// registrado manualmente pelo admin (ver RebatesService).
+model PartnerRebateTier {
+  id            String      @id @default(cuid())
+  partnerType   PartnerType @map("partner_type")
+  tierOrder     Int         @map("tier_order")
+  tierName      String      @map("tier_name")
+  // Volume financiado acumulado (histórico) a partir do qual o parceiro
+  // passa a receber esse percentual.
+  minVolume     Decimal     @map("min_volume") @db.Decimal(14, 2)
+  rebatePercent Decimal     @map("rebate_percent") @db.Decimal(5, 2)
+
+  @@unique([partnerType, tierOrder])
+  @@map("partner_rebate_tiers")
+}
+
+model FinancingDeal {
+  id                String              @id @default(cuid())
+  listingId         String              @map("listing_id")
+  listing           Listing             @relation(fields: [listingId], references: [id])
+  // Nome livre (não um enum fechado) porque o programa não é exclusivo da
+  // Credihome — qualquer parceiro de financiamento futuro usa o mesmo fluxo.
+  financingProvider String              @map("financing_provider")
+  externalRef       String?             @map("external_ref")
+  assetValue        Decimal             @map("asset_value") @db.Decimal(12, 2)
+  financedAmount    Decimal             @map("financed_amount") @db.Decimal(12, 2)
+  commissionRate    Decimal             @default(1.00) @map("commission_rate") @db.Decimal(5, 2)
+  commissionAmount  Decimal             @map("commission_amount") @db.Decimal(12, 2)
+  // Percentual e valor do rebate são um retrato de quando o negócio foi
+  // registrado — o nível de um parceiro pode mudar depois, mas isso não deve
+  // alterar o valor de um negócio já fechado.
+  rebatePercent     Decimal             @map("rebate_percent") @db.Decimal(5, 2)
+  rebateAmount      Decimal             @map("rebate_amount") @db.Decimal(12, 2)
+  status            FinancingDealStatus @default(registered)
+  registeredByUserId String             @map("registered_by_user_id")
+  registeredBy      User                @relation("FinancingDealRegisteredBy", fields: [registeredByUserId], references: [id])
+  paidAt            DateTime?           @map("paid_at")
+  paidNote          String?             @map("paid_note")
+  createdAt         DateTime            @default(now()) @map("created_at")
+
+  @@index([status])
+  @@map("financing_deals")
 }
