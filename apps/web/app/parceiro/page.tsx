@@ -4,8 +4,8 @@ import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField, SelectField, TextAreaField } from "@/components/FormField";
 import { PartnerNav } from "@/components/PartnerNav";
-import { fetchMyPartner } from "@/lib/api";
-import { createPartnerAction } from "@/lib/actions/partners";
+import { fetchMyPartner, resolveMediaUrl } from "@/lib/api";
+import { createPartnerAction, uploadPartnerLogoAction } from "@/lib/actions/partners";
 
 const PARTNER_TYPE_OPTIONS = [
   { value: "dealership", label: "Loja de veículos" },
@@ -58,22 +58,67 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-12">
+      {searchParams.error && (
+        <p className="mb-6 rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">
+          {searchParams.error}
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
-          <p className="text-sm text-ink-muted">
-            {PARTNER_TYPE_LABEL[partner.type] ?? partner.type} ·{" "}
-            {partner.verified ? (
-              <span className="font-semibold text-brand-green">Verificada</span>
-            ) : (
-              <span className="font-semibold text-brand-orange">Aguardando verificação</span>
-            )}
-          </p>
+        <div className="flex items-center gap-4">
+          {partner.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={resolveMediaUrl(partner.logoUrl)}
+              alt={`Logo de ${partner.legalName}`}
+              className="h-16 w-16 shrink-0 rounded-brand border border-border object-cover"
+            />
+          ) : (
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-brand border border-dashed border-border text-xs text-ink-muted">
+              Sem logo
+            </div>
+          )}
+          <div>
+            <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
+            <p className="text-sm text-ink-muted">
+              {PARTNER_TYPE_LABEL[partner.type] ?? partner.type} ·{" "}
+              {partner.verified ? (
+                <span className="font-semibold text-brand-green">Verificada</span>
+              ) : (
+                <span className="font-semibold text-brand-orange">Aguardando verificação</span>
+              )}
+            </p>
+          </div>
         </div>
         <Link href={`/lojas/${partner.slug}`} className="text-sm font-semibold text-brand-blue hover:underline">
           Ver vitrine pública →
         </Link>
       </div>
+
+      {partner.isOwner && (
+        <form
+          action={uploadPartnerLogoAction}
+          encType="multipart/form-data"
+          className="mt-4 flex flex-wrap items-center gap-3 rounded-brand border border-border bg-surface-raised p-3"
+        >
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-semibold text-ink">
+              {partner.logoUrl ? "Trocar logo" : "Adicionar logo"}{" "}
+              <span className="font-normal text-ink-muted">(JPEG, PNG ou WebP, até 5MB)</span>
+            </span>
+            <input
+              type="file"
+              name="logo"
+              accept="image/jpeg,image/png,image/webp"
+              required
+              className="text-sm text-ink"
+            />
+          </label>
+          <Button type="submit" variant="secondary" className="self-end">
+            Enviar
+          </Button>
+        </form>
+      )}
 
       <div className="mt-6">
         <PartnerNav active="geral" showEquipe={partner.isOwner} showServicos={partner.type === "workshop"} />

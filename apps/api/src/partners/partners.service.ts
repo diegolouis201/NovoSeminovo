@@ -13,6 +13,7 @@ import type {
 import { PrismaService } from "../prisma/prisma.service";
 import { PaymentsService } from "../payments/payments.service";
 import { listingInclude, toListingSummary } from "../listings/listings.mapper";
+import { getPhotoStorage } from "../common/storage";
 
 // Quantas vagas de anúncio um plano "ocupa": tudo que não é um estado final
 // (vendido/recusado/expirado) conta contra o limite, porque senão dava pra
@@ -91,6 +92,24 @@ export class PartnersService {
     return partner;
   }
 
+  // Logo da loja/imobiliária (ver FeaturedPartners/vitrine pública, que já
+  // sabiam exibir logoUrl — só faltava um jeito do parceiro definir o dele.
+  // Reaproveita o mesmo PhotoStorage dos anúncios (disco local ou S3/R2).
+  async uploadLogo(userId: string, file: { buffer: Buffer; originalname: string; mimetype: string }): Promise<Partner> {
+    const partner = await this.findPartnerForUser(userId);
+    if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
+
+    const storage = getPhotoStorage();
+    const url = await storage.save(file.buffer, file.originalname, file.mimetype);
+
+    if (partner.logoUrl) await storage.remove(partner.logoUrl);
+    await this.prisma.partner.update({ where: { id: partner.id }, data: { logoUrl: url } });
+
+    const updated = await this.getMine(userId);
+    if (!updated) throw new Error("Falha inesperada ao salvar a logo.");
+    return updated;
+  }
+
   async getMine(userId: string): Promise<Partner | null> {
     const partner = await this.findPartnerForUser(userId);
     if (!partner) return null;
@@ -116,6 +135,7 @@ export class PartnersService {
       slug: partner.slug,
       description: partner.description ?? undefined,
       address: partner.address ?? undefined,
+      logoUrl: partner.logoUrl ?? undefined,
       verified: Boolean(partner.verifiedAt),
       subscription: subscription
         ? {

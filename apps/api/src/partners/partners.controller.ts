@@ -1,4 +1,19 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { memoryStorage } from "multer";
 import {
   AddPartnerMemberInputSchema,
   CreatePartnerInputSchema,
@@ -9,6 +24,22 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { PartnersService } from "./partners.service";
+
+const ALLOWED_LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+// Mesmo padrão do upload de fotos de anúncio (ver ListingsController):
+// buffer em memória, quem decide onde o arquivo mora é o PhotoStorage.
+const logoInterceptor = FileInterceptor("logo", {
+  storage: memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, callback) => {
+    if (!ALLOWED_LOGO_TYPES.has(file.mimetype)) {
+      callback(new BadRequestException("Envie apenas imagens JPEG, PNG ou WebP."), false);
+      return;
+    }
+    callback(null, true);
+  },
+});
 
 @Controller()
 export class PartnersController {
@@ -25,6 +56,14 @@ export class PartnersController {
   @Get("partners/mine")
   getMine(@CurrentUser() user: { id: string }) {
     return this.partnersService.getMine(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(logoInterceptor)
+  @Post("partners/mine/logo")
+  uploadLogo(@CurrentUser() user: { id: string }, @UploadedFile() file?: Express.Multer.File) {
+    if (!file) throw new BadRequestException("Envie um arquivo de imagem.");
+    return this.partnersService.uploadLogo(user.id, file);
   }
 
   // Precisa vir antes de "partners/:slug" — mesmo caso do "mine" acima, "/partners"

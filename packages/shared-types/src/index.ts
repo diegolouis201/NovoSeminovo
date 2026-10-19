@@ -720,6 +720,7 @@ export const PartnerSchema = z.object({
   slug: z.string(),
   description: z.string().optional(),
   address: z.string().optional(),
+  logoUrl: z.string().optional(),
   verified: z.boolean(),
   subscription: PartnerSubscriptionSchema.optional(),
   stats: PartnerStatsSchema,

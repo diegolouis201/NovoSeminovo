@@ -13,6 +13,7 @@ import {
   startCheckoutSession,
   subscribeToPlan,
   updateLeadStatus,
+  uploadPartnerLogo,
 } from "@/lib/api";
 
 export async function createPartnerAction(formData: FormData): Promise<void> {
@@ -28,6 +29,19 @@ export async function createPartnerAction(formData: FormData): Promise<void> {
   };
 
   const result = await createPartner(input, session.accessToken);
+  if (!result.ok) {
+    redirect(`/parceiro?error=${encodeURIComponent(result.error)}`);
+  }
+
+  revalidatePath("/parceiro");
+  redirect("/parceiro");
+}
+
+export async function uploadPartnerLogoAction(formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const result = await uploadPartnerLogo(formData, session.accessToken);
   if (!result.ok) {
     redirect(`/parceiro?error=${encodeURIComponent(result.error)}`);
   }

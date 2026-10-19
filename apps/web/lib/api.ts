@@ -560,6 +560,23 @@ export async function createPartner(input: CreatePartnerInput, accessToken: stri
   }
 }
 
+export type UploadPartnerLogoResult = { ok: true; partner: Partner } | { ok: false; error: string };
+
+export async function uploadPartnerLogo(formData: FormData, accessToken: string): Promise<UploadPartnerLogoResult> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/partners/mine/logo`,
+      { method: "POST", headers: authHeaders(accessToken), body: formData },
+      20000,
+    );
+    const body = await res.json();
+    if (!res.ok) return { ok: false, error: body.message ?? "Não foi possível enviar a logo." };
+    return { ok: true, partner: body as Partner };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
+}
+
 export async function fetchMyPartner(accessToken: string): Promise<Partner | undefined> {
   try {
     const res = await fetchWithTimeout(`${API_URL}/partners/mine`, { headers: authHeaders(accessToken) });
