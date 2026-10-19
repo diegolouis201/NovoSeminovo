@@ -32,9 +32,11 @@ import type {
   Photo,
   Plan,
   PriceSuggestion,
+  Profile,
   RebateTier,
   RegisterFinancingDealInput,
   ReportStatus,
+  UpdateProfileInput,
   SavedSearch,
   GenerateListingDraftInput,
   ListingDraft,
@@ -1024,6 +1026,65 @@ export async function markAllNotificationsRead(accessToken: string): Promise<boo
     headers: authHeaders(accessToken),
   });
   return res.ok;
+}
+
+// Perfil completo (ver /conta/perfil) e verificação de e-mail.
+export async function fetchProfile(accessToken: string): Promise<Profile | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/me/profile`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as Profile;
+  } catch {
+    return undefined;
+  }
+}
+
+export type UpdateProfileResult = { ok: true; profile: Profile } | { ok: false; error: string };
+
+export async function updateProfile(input: UpdateProfileInput, accessToken: string): Promise<UpdateProfileResult> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/me/profile`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+      body: JSON.stringify(input),
+    });
+    const body = await res.json();
+    if (!res.ok) return { ok: false, error: body.message ?? "Não foi possível salvar os dados." };
+    return { ok: true, profile: body as Profile };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
+}
+
+export async function sendEmailVerification(accessToken: string): Promise<boolean> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/me/email/send-verification`, {
+      method: "POST",
+      headers: authHeaders(accessToken),
+    });
+    if (!res.ok) return false;
+    const body = (await res.json()) as { sent: boolean };
+    return body.sent;
+  } catch {
+    return false;
+  }
+}
+
+export type VerifyEmailResult = { ok: true } | { ok: false; error: string };
+
+export async function verifyEmailCode(code: string, accessToken: string): Promise<VerifyEmailResult> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/me/email/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+      body: JSON.stringify({ code }),
+    });
+    const body = await res.json();
+    if (!res.ok) return { ok: false, error: body.message ?? "Código inválido." };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
 }
 
 // Programa de recompensa por financiamento — ver RebatesService na API.

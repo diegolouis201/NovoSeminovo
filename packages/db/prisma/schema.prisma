@@ -32,6 +32,13 @@ enum UserStatus {
   suspended
 }
 
+enum Gender {
+  male
+  female
+  other
+  undisclosed
+}
+
 enum PartnerType {
   dealership
   real_estate_agency
@@ -164,6 +171,23 @@ model User {
   avatarUrl    String?      @map("avatar_url")
   status       UserStatus   @default(active)
   createdAt    DateTime     @default(now()) @map("created_at")
+
+  // Perfil completo (ver tela "Minha conta") — tudo opcional porque o
+  // cadastro inicial continua mínimo (nome/e-mail/senha); CPF em especial é
+  // o que falta pra poder pagar o rebate de PF via Pix (ver RebatesService).
+  cpf         String?   @unique
+  gender      Gender?
+  birthDate   DateTime? @map("birth_date")
+  zipCode     String?   @map("zip_code")
+  state       String?
+  city        String?
+
+  // Verificação de e-mail por código (ver EmailVerificationService) —
+  // emailVerifiedAt nulo até a pessoa confirmar o código mandado pro
+  // próprio e-mail cadastrado.
+  emailVerifiedAt             DateTime? @map("email_verified_at")
+  emailVerificationCode       String?   @map("email_verification_code")
+  emailVerificationExpiresAt  DateTime? @map("email_verification_expires_at")
 
   ownedPartners      Partner[]             @relation("PartnerOwner")
   partnerMemberships PartnerMember[]

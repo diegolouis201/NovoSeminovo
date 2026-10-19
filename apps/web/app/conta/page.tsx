@@ -36,6 +36,12 @@ export default async function AccountPage() {
 
       <div className="mt-6 flex flex-wrap items-center gap-4">
         <Link
+          href="/conta/perfil"
+          className="rounded-brand border border-border px-4 py-3 text-sm font-bold text-ink hover:bg-surface-sober"
+        >
+          Meus dados
+        </Link>
+        <Link
           href="/conta/anuncios"
           className="rounded-brand bg-brand-green px-4 py-3 text-sm font-bold text-on-green hover:opacity-90"
         >

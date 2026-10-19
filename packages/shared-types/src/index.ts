@@ -1015,3 +1015,65 @@ export const MyRebatesSummarySchema = z.object({
   deals: z.array(FinancingDealSchema),
 });
 export type MyRebatesSummary = z.infer<typeof MyRebatesSummarySchema>;
+
+// ---------- Perfil completo e verificação de e-mail ----------
+// Cadastro inicial (/cadastro) continua mínimo (nome/e-mail/senha) — esses
+// dados entram depois, na tela "Minha conta", principalmente pra viabilizar
+// o pagamento do rebate de PF via Pix (precisa de CPF) e deixar o endereço
+// pronto pra outras coisas (ex.: busca por padrão).
+export function isValidCpf(raw: string): boolean {
+  const cpf = raw.replace(/\D/g, "");
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+
+  const digits = cpf.split("").map(Number);
+  const checkDigit = (length: number) => {
+    let sum = 0;
+    for (let i = 0; i < length; i++) sum += digits[i]! * (length + 1 - i);
+    const remainder = (sum * 10) % 11;
+    return remainder === 10 ? 0 : remainder;
+  };
+
+  return checkDigit(9) === digits[9] && checkDigit(10) === digits[10];
+}
+
+export const Gender = z.enum(["male", "female", "other", "undisclosed"]);
+export type Gender = z.infer<typeof Gender>;
+
+export const ProfileSchema = z.object({
+  name: z.string(),
+  email: z.string(),
+  phone: z.string().optional(),
+  cpf: z.string().optional(),
+  gender: Gender.optional(),
+  birthDate: z.string().optional(),
+  zipCode: z.string().optional(),
+  state: z.string().optional(),
+  city: z.string().optional(),
+  emailVerified: z.boolean(),
+});
+export type Profile = z.infer<typeof ProfileSchema>;
+
+export const UpdateProfileInputSchema = z.object({
+  name: z.string().min(2, "Informe seu nome").optional(),
+  phone: z.string().optional(),
+  cpf: z
+    .string()
+    .optional()
+    .refine((value) => !value || isValidCpf(value), "CPF inválido"),
+  gender: Gender.optional(),
+  birthDate: z.string().optional(),
+  zipCode: z.string().optional(),
+  state: z.string().optional(),
+  city: z.string().optional(),
+});
+export type UpdateProfileInput = z.infer<typeof UpdateProfileInputSchema>;
+
+export const VerifyEmailInputSchema = z.object({
+  code: z.string().length(6, "O código tem 6 dígitos"),
+});
+export type VerifyEmailInput = z.infer<typeof VerifyEmailInputSchema>;
+
+export const SendEmailVerificationResultSchema = z.object({
+  sent: z.boolean(),
+});
+export type SendEmailVerificationResult = z.infer<typeof SendEmailVerificationResultSchema>;
