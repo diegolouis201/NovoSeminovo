@@ -46,6 +46,15 @@ O README cobre bem o marketplace básico (anúncios, busca, chat, favoritos, Pas
    - `PartnerStats` ganhou `soldTotal`, `soldThisMonth`, `revenueThisMonthLabel`, `conversionRatePercent` (leads ganhos ÷ total, `undefined` sem lead nenhum), `averageTicketLabel`.
    - `SaleSummary` carrega `soldPriceValue` (número cru) ao lado do `soldPriceLabel` (texto em R$) — lição aprendida de uma refatoração anterior (`RebateTierSchema`): nunca só o texto formatado, sempre o valor numérico também, pra quem for somar/calcular em cima não precisar reparsear string.
 
+7. **Agentes de IA** (pedido do Diego: 4 agentes — comprador, parceiro, admin, desenvolvimento — atendendo no site, no painel e no WhatsApp Business **31 99695-9679**). Construído em etapas:
+   - **Motor compartilhado** (`apps/api/src/agents/agent-engine.ts`): laço de tool use (até 6 rodadas, última forçada em texto com `tool_choice: none`), histórico guardado em `AgentConversation.messages` (JSON no formato da API da Anthropic), corte de histórico que nunca começa num `tool_result` órfão. Cada agente é só `{ system, tools }` montado por contexto (`AgentsService.buildAgent`).
+   - **Agente Comprador — PRONTO** (`buyer-agent.ts`): ferramentas `buscar_anuncios`, `ver_anuncio`, `simular_financiamento` (Price + `DEFAULT_RATE`, valida faixa de parcelas), `registrar_interesse_financiamento` (cria `FinancingLead`, deduplica por conversa+telefone, notifica todos os admins com `financing_lead_created`). Cards de anúncio na resposta só pra ids que uma ferramenta realmente devolveu **e** que o texto linkou.
+   - Site: botão flutuante "Assistente" (`components/AgentChatWidget.tsx`, montado no `layout.tsx`, escondido em `/parceiro`, `/admin`, `/entrar`, `/cadastro`; só aparece com `ANTHROPIC_API_KEY`). Conversa lembrada via `localStorage`; conversa iniciada anônima passa a ser do usuário que logar e continuar.
+   - Admin: `/admin/financiamentos` — interessados captados pelo agente, botão "Chamar no WhatsApp" e andamento (novo/em contato/fechado/perdido).
+   - Custo/abuso: 20 msgs/10 min por usuário ou IP (o site repassa o IP do visitante em `x-client-ip`), teto diário global `AGENT_DAILY_MESSAGE_LIMIT` (padrão 3000), 60 mensagens por conversa, 1500 caracteres por mensagem.
+   - **Agente de desenvolvimento — PRONTO**: `.claude/agents/novoseminovo-dev.md` (convenções + fluxo de teste deste projeto).
+   - **Próximas etapas (ainda não feitas)**: Agente do Parceiro (painel `/parceiro`: estoque, leads, vendas, gerar anúncio/posts), Agente Admin (`/admin`: resumo de leads/financiamentos/moderação), canal WhatsApp (WhatsApp Cloud API da Meta — webhook entra em `AgentsService.respond` com `channel: "whatsapp"` e `externalId` = telefone; depende do Diego criar app na Meta e passar Phone Number ID + token permanente).
+
 ## Convenções estabelecidas (seguir nas próximas mudanças)
 
 - **Testar de ponta a ponta antes de reportar como pronto**: subir Postgres local + API + site, logar com um usuário do seed, exercitar o fluxo de verdade via curl ou pela própria página renderizada (não só `tsc --noEmit`). Local costuma já ter Postgres instalado (`service postgresql start`; usuário/banco `novoseminovo`/`novoseminovo`, ver `apps/api/.env`).
@@ -95,4 +104,5 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
 - **Rotação da chave da Anthropic API**: recomendado, nunca feito.
 - **Webhook secret do Stripe**: não configurado em produção — a integração de cobrança real (`PaymentsModule`) está escrita mas nunca testada de ponta a ponta contra `api.stripe.com` de verdade (ambientes de dev usados bloqueavam a saída de rede pra isso; um VPS de verdade não bloqueia, ver `DEPLOY.md`).
 - **CRM — próximo passo natural, não pedido ainda**: vincular "lead ganho" (kanban) a "marcar anúncio como vendido" automaticamente, hoje são duas ações manuais separadas.
+- **Agentes de IA**: Parceiro, Admin e WhatsApp pendentes (ver item 7 acima).
 - Todos os 4 itens da visão original do Diego pro painel do parceiro ("logo → landing page com IA → posts pro Instagram → CRM de estoque e vendas") estão **completos e no ar** — não há item em progresso no momento em que este handoff foi escrito.

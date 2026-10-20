@@ -1,5 +1,11 @@
 import type {
+  AgentConversationView,
+  AgentKind,
+  AgentReply,
+  AgentStatus,
   AiStatus,
+  FinancingLeadStatus,
+  FinancingLeadSummary,
   ConversationDetail,
   ConversationSummary,
   CreateListingInput,
@@ -1211,4 +1217,91 @@ export async function markFinancingDealPaid(dealId: string, note: string | undef
     body: JSON.stringify({ note }),
   });
   return res.ok;
+}
+
+// ---------- Agentes de IA ----------
+
+export async function fetchAgentStatus(): Promise<AgentStatus> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/agents/status`);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as AgentStatus;
+  } catch {
+    return { enabled: false };
+  }
+}
+
+export type SendAgentMessageResult = { ok: true; reply: AgentReply } | { ok: false; error: string };
+
+export async function sendAgentMessage(
+  kind: AgentKind,
+  input: { conversationId?: string; message: string },
+  options: { accessToken?: string; clientIp?: string },
+): Promise<SendAgentMessageResult> {
+  try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (options.accessToken) headers.Authorization = `Bearer ${options.accessToken}`;
+    if (options.clientIp) headers["x-client-ip"] = options.clientIp;
+    // Uma resposta do agente pode envolver várias chamadas ao modelo
+    // (buscar → ver anúncio → simular) — 60s em vez dos 4s padrão.
+    const res = await fetchWithTimeout(
+      `${API_URL}/agents/${kind}/messages`,
+      { method: "POST", headers, body: JSON.stringify(input) },
+      60000,
+    );
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { message?: string };
+      return { ok: false, error: body.message ?? "O assistente não conseguiu responder agora." };
+    }
+    return { ok: true, reply: (await res.json()) as AgentReply };
+  } catch {
+    return { ok: false, error: "O assistente está fora do ar no momento. Tente de novo em instantes." };
+  }
+}
+
+export async function fetchAgentConversation(
+  kind: AgentKind,
+  conversationId: string,
+  accessToken?: string,
+): Promise<AgentConversationView | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/agents/${kind}/conversations/${conversationId}`, {
+      headers: accessToken ? authHeaders(accessToken) : undefined,
+    });
+    if (!res.ok) return undefined;
+    return (await res.json()) as AgentConversationView;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function fetchFinancingLeads(
+  status: FinancingLeadStatus | undefined,
+  accessToken: string,
+): Promise<FinancingLeadSummary[]> {
+  try {
+    const query = status ? `?status=${status}` : "";
+    const res = await fetchWithTimeout(`${API_URL}/admin/financing-leads${query}`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as FinancingLeadSummary[];
+  } catch {
+    return [];
+  }
+}
+
+export async function updateFinancingLeadStatus(
+  id: string,
+  status: FinancingLeadStatus,
+  accessToken: string,
+): Promise<boolean> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/financing-leads/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+      body: JSON.stringify({ status }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }

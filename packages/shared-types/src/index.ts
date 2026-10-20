@@ -941,6 +941,7 @@ export const NotificationType = z.enum([
   "new_review",
   "saved_search_match",
   "service_confirmation_requested",
+  "financing_lead_created",
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
@@ -1118,3 +1119,67 @@ export const SendEmailVerificationResultSchema = z.object({
   sent: z.boolean(),
 });
 export type SendEmailVerificationResult = z.infer<typeof SendEmailVerificationResultSchema>;
+
+// ---------- Agentes de IA ----------
+
+export const AgentKind = z.enum(["buyer", "partner", "admin"]);
+export type AgentKind = z.infer<typeof AgentKind>;
+
+export const AgentMessageInputSchema = z.object({
+  // Vazio na primeira mensagem — a API cria a conversa e devolve o id pro
+  // site guardar e mandar de volta nas próximas.
+  conversationId: z.string().optional(),
+  message: z.string().trim().min(1, "Escreva uma mensagem").max(1500, "Mensagem longa demais (máx. 1500 caracteres)"),
+});
+export type AgentMessageInput = z.infer<typeof AgentMessageInputSchema>;
+
+export const AgentReplySchema = z.object({
+  conversationId: z.string(),
+  reply: z.string(),
+  // Anúncios citados na resposta (linkados no texto), pro site mostrar como
+  // card logo abaixo da mensagem — nunca um anúncio que o agente não
+  // encontrou de verdade numa ferramenta.
+  listings: z.array(ListingSummarySchema),
+});
+export type AgentReply = z.infer<typeof AgentReplySchema>;
+
+export const AgentChatMessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  text: z.string(),
+});
+export type AgentChatMessage = z.infer<typeof AgentChatMessageSchema>;
+
+export const AgentConversationViewSchema = z.object({
+  conversationId: z.string(),
+  messages: z.array(AgentChatMessageSchema),
+});
+export type AgentConversationView = z.infer<typeof AgentConversationViewSchema>;
+
+export const AgentStatusSchema = z.object({ enabled: z.boolean() });
+export type AgentStatus = z.infer<typeof AgentStatusSchema>;
+
+export const FinancingLeadStatus = z.enum(["new", "contacted", "converted", "lost"]);
+export type FinancingLeadStatus = z.infer<typeof FinancingLeadStatus>;
+
+export const FinancingLeadSummarySchema = z.object({
+  id: z.string(),
+  channel: z.enum(["web", "whatsapp"]),
+  name: z.string(),
+  phone: z.string(),
+  email: z.string().optional(),
+  assetType: z.string(),
+  // Valores crus ao lado do texto formatado (mesma lição do SaleSummary):
+  // quem for somar/filtrar não precisa reparsear "R$ 1.234,00".
+  assetValue: z.number().optional(),
+  assetValueLabel: z.string().optional(),
+  downPayment: z.number().optional(),
+  downPaymentLabel: z.string().optional(),
+  monthlyIncome: z.number().optional(),
+  monthlyIncomeLabel: z.string().optional(),
+  listingId: z.string().optional(),
+  listingTitle: z.string().optional(),
+  notes: z.string().optional(),
+  status: FinancingLeadStatus,
+  createdAt: z.string(),
+});
+export type FinancingLeadSummary = z.infer<typeof FinancingLeadSummarySchema>;

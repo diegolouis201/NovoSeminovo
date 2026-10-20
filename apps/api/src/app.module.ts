@@ -14,6 +14,7 @@ import { WebhooksModule } from "./webhooks/webhooks.module";
 import { VehiclesModule } from "./vehicles/vehicles.module";
 import { RebatesModule } from "./rebates/rebates.module";
 import { ProfileModule } from "./profile/profile.module";
+import { AgentsModule } from "./agents/agents.module";
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { ProfileModule } from "./profile/profile.module";
     VehiclesModule,
     RebatesModule,
     ProfileModule,
+    AgentsModule,
   ],
 })
 export class AppModule {}

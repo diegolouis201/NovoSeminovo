@@ -11,6 +11,6 @@ import { SocialAssetsService } from "./social-assets.service";
   imports: [AuthModule, NotificationsModule, VehiclesModule],
   controllers: [ListingsController],
   providers: [ListingsService, AiService, SocialAssetsService],
-  exports: [AiService],
+  exports: [AiService, ListingsService],
 })
 export class ListingsModule {}

@@ -71,6 +71,14 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: `"${payload.listingTitle}" acabou de ser aprovado e bate com uma busca salva sua.`,
         link: `/anuncio/${payload.listingId}`,
       };
+    case "financing_lead_created":
+      return {
+        title: "Novo interessado em financiamento",
+        body: `${payload.name} (${payload.phone}) pediu contato sobre financiamento${
+          payload.listingTitle ? ` de "${payload.listingTitle}"` : ""
+        } pelo assistente de IA (${payload.channel === "whatsapp" ? "WhatsApp" : "site"}).`,
+        link: "/admin/financiamentos",
+      };
     case "service_confirmation_requested":
       return {
         title: "Confirmação de serviço pendente",

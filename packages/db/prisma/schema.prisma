@@ -207,6 +207,7 @@ model User {
   vehiclesOwned      Vehicle[]             @relation("VehicleCurrentOwner")
   vehicleEvents      VehicleEvent[]
   financingDealsRegistered FinancingDeal[] @relation("FinancingDealRegisteredBy")
+  agentConversations AgentConversation[]
 
   @@map("users")
 }
@@ -326,6 +327,7 @@ model Listing {
   reviews        Review[]
   moderationLogs ModerationLog[]
   financingDeals FinancingDeal[]
+  financingLeads FinancingLead[]
 
   @@index([type, status, city, price])
   @@map("listings")
@@ -684,4 +686,77 @@ model FinancingDeal {
 
   @@index([status])
   @@map("financing_deals")
+}
+
+// ---------- Agentes de IA ----------
+
+// Cada agente atende um público diferente (comprador no site/WhatsApp,
+// lojista/corretor no painel, admin) — mesma engine (ver AgentsService), só
+// muda o prompt e as ferramentas que o modelo pode chamar.
+enum AgentKind {
+  buyer
+  partner
+  admin
+}
+
+enum AgentChannel {
+  web
+  whatsapp
+}
+
+// Histórico guardado como o array de mensagens da API da Anthropic, do jeito
+// que volta pro modelo na próxima rodada — nunca editado à mão, só
+// acrescentado pelo AgentsService. externalId é o telefone no canal WhatsApp
+// (uma conversa contínua por número), vazio no site.
+model AgentConversation {
+  id         String       @id @default(cuid())
+  kind       AgentKind
+  channel    AgentChannel @default(web)
+  userId     String?      @map("user_id")
+  user       User?        @relation(fields: [userId], references: [id])
+  externalId String?      @map("external_id")
+  messages   Json         @default("[]")
+  turnCount  Int          @default(0) @map("turn_count")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  financingLeads FinancingLead[]
+
+  @@unique([kind, channel, externalId])
+  @@index([userId])
+  @@map("agent_conversations")
+}
+
+enum FinancingLeadStatus {
+  new
+  contacted
+  converted
+  lost
+}
+
+// Interessado em financiamento captado pelo agente comprador — é o lead do
+// corban (Diego), diferente de Lead, que é o contato de um comprador com o
+// parceiro dono do anúncio. Vira FinancingDeal (manual, pelo admin) se o
+// financiamento fechar.
+model FinancingLead {
+  id              String              @id @default(cuid())
+  conversationId  String?             @map("conversation_id")
+  conversation    AgentConversation?  @relation(fields: [conversationId], references: [id])
+  listingId       String?             @map("listing_id")
+  listing         Listing?            @relation(fields: [listingId], references: [id])
+  channel         AgentChannel
+  name            String
+  phone           String
+  email           String?
+  assetType       String              @map("asset_type")
+  assetValue      Decimal?            @map("asset_value") @db.Decimal(12, 2)
+  downPayment     Decimal?            @map("down_payment") @db.Decimal(12, 2)
+  monthlyIncome   Decimal?            @map("monthly_income") @db.Decimal(12, 2)
+  notes           String?
+  status          FinancingLeadStatus @default(new)
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("financing_leads")
 }
