@@ -161,9 +161,9 @@ function MiniListingCard({ listing }: { listing: ListingSummary }) {
   );
 }
 
-// Um assistente por área do site: no admin (/admin/...) o do administrador,
-// no painel do parceiro (/parceiro/...) o de gestão da loja, no resto o de
-// compra. O `key` recria o chat do zero ao trocar de área, sem misturar as
+// Um assistente por área do site: no painel do parceiro (/parceiro/...) o
+// de gestão da loja; pra quem é admin, o do administrador no resto do site;
+// pra todo o resto, o de compra. O `key` recria o chat do zero ao trocar de área, sem misturar as
 // conversas.
 export function AgentChatWidget({ isLoggedIn, isAdmin }: { isLoggedIn: boolean; isAdmin: boolean }) {
   const pathname = usePathname() ?? "/";
@@ -174,16 +174,17 @@ export function AgentChatWidget({ isLoggedIn, isAdmin }: { isLoggedIn: boolean; 
   }, []);
 
   if (!enabled || HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return null;
-  if (pathname.startsWith("/admin")) {
-    // A API confere de novo o papel no banco a cada mensagem — isto aqui só
-    // evita mostrar o botão pra quem cai em /admin sem ser admin.
-    return isAdmin ? <AgentChat key="admin" config={ADMIN_AGENT} /> : null;
-  }
   if (pathname.startsWith("/parceiro")) {
     // Sem login o painel já manda pra /entrar; sem loja a API recusa e o
     // chat mostra o erro — não vale esconder o botão por isso.
     return isLoggedIn ? <AgentChat key="partner" config={PARTNER_AGENT} /> : null;
   }
+  // Logado como admin, o assistente dele acompanha o site todo (conta,
+  // moderação, páginas públicas) — pedido do Diego, que usa o site como
+  // admin e quer o painel de gestão à mão em qualquer página. A API confere
+  // de novo o papel no banco a cada mensagem.
+  if (isAdmin) return <AgentChat key="admin" config={ADMIN_AGENT} />;
+  if (pathname.startsWith("/admin")) return null;
   return <AgentChat key="buyer" config={BUYER_AGENT} />;
 }
 
