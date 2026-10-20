@@ -241,6 +241,17 @@ ${VEHICLE_EXAMPLE}`}</Code>
           abbreviation, City, Neighborhood, Address).
         </li>
         <li>
+          <strong>Veículos — catálogo Facebook/Meta (XML ou CSV/TSV)</strong>, o mesmo feed usado nos anúncios de
+          estoque do Facebook/Instagram; os nomes de campo do Google Vehicle Ads também são aceitos. Usamos{" "}
+          <code>vehicle_id</code> (ou <code>id</code>), <code>title</code>, <code>description</code>, <code>make</code>{" "}
+          (ou <code>brand</code>), <code>model</code>, <code>trim</code>, <code>year</code>, <code>mileage.value</code>/
+          <code>mileage.unit</code> (ou <code>mileage</code> “45000 km”), <code>transmission</code>,{" "}
+          <code>fuel_type</code>, <code>price</code>/<code>sale_price</code>, <code>exterior_color</code>,{" "}
+          <code>image[n].url</code> (ou <code>image_link</code> + <code>additional_image_link</code>),{" "}
+          <code>address.city</code>/<code>address.region</code> e <code>availability</code> (vendido fica de fora).
+          Sem cidade no feed, usamos a cidade onde a loja já anuncia.
+        </li>
+        <li>
           <strong>Veículos e imóveis — JSON</strong>: <code>{`{ "listings": [ { "externalId": "...", ...mesmos campos da API } ] }`}</code>
         </li>
         <li>Até 50 MB por feed. Feed vazio é tratado como falha e não altera nada.</li>

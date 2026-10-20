@@ -15,6 +15,7 @@ import {
 
 const FORMAT_LABEL: Record<IntegrationFeed["format"], string> = {
   vrsync: "XML padrão ZAP/VivaReal (VRSync)",
+  meta_vehicles: "Catálogo de veículos Facebook/Meta",
   novoseminovo_json: "JSON NovoSeminovo",
 };
 
@@ -152,7 +153,7 @@ export default async function PartnerIntegrationsPage({
             <p className="mt-1 text-sm text-ink-muted">
               {isRealEstate
                 ? "Quase todo CRM imobiliário (Jetimob, Vista, Kenlo/InGaia, Imoview, Tecimob, Univen, Code49 e outros) gera um link de “feed XML” para publicar nos portais ZAP Imóveis e VivaReal. Peça esse link ao seu CRM (ou procure em Integrações/Portais) e cole aqui."
-                : "Se o sistema da sua loja gera um link de feed em JSON no formato NovoSeminovo, cole aqui. Se ele não gera, use a API logo abaixo — o suporte do seu sistema consegue configurar com a documentação."}{" "}
+                : "A maioria dos sistemas de loja de veículos gera um link de “catálogo de veículos” para anunciar o estoque no Facebook e Instagram (às vezes chamado de feed do Facebook, catálogo Meta ou feed do Google). Peça esse link ao suporte do seu sistema e cole aqui. Se ele não gera, use a API logo abaixo."}{" "}
               Sincronizamos a cada {overview.syncIntervalMinutes} minutos, e você pode sincronizar na hora quando quiser.
             </p>
 
@@ -179,10 +180,11 @@ export default async function PartnerIntegrationsPage({
                 <span className="font-semibold text-ink">Formato</span>
                 <select
                   name="format"
-                  defaultValue={isRealEstate ? "vrsync" : "novoseminovo_json"}
+                  defaultValue={isRealEstate ? "vrsync" : "meta_vehicles"}
                   className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink"
                 >
                   <option value="vrsync">XML padrão ZAP/VivaReal (VRSync) — imóveis</option>
+                  <option value="meta_vehicles">Catálogo de veículos Facebook/Meta ou Google (XML ou CSV) — veículos</option>
                   <option value="novoseminovo_json">JSON NovoSeminovo — veículos e imóveis</option>
                 </select>
               </label>

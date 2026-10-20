@@ -781,6 +781,10 @@ enum IntegrationFeedFormat {
   // Padrão VRSync (Grupo ZAP/VivaReal/OLX) — o que praticamente todo CRM
   // imobiliário brasileiro já exporta pros portais.
   vrsync
+  // Catálogo de veículos no padrão Meta (Facebook/Instagram) — XML ou CSV,
+  // com os nomes de campo do Google Vehicle Ads também aceitos. É o link de
+  // estoque que os sistemas de loja de veículos mais costumam gerar.
+  meta_vehicles
   // Formato próprio do NovoSeminovo (JSON, veículo e imóvel) — documentado
   // em /parceiro/integracoes/api, pra CRM/integrador que não tem VRSync.
   novoseminovo_json

@@ -1202,7 +1202,7 @@ export const IntegrationListingExtraSchema = z.object({
 export const IntegrationListingInputSchema = z.intersection(CreateListingInputSchema, IntegrationListingExtraSchema);
 export type IntegrationListingInput = z.infer<typeof IntegrationListingInputSchema>;
 
-export const IntegrationFeedFormat = z.enum(["vrsync", "novoseminovo_json"]);
+export const IntegrationFeedFormat = z.enum(["vrsync", "meta_vehicles", "novoseminovo_json"]);
 export type IntegrationFeedFormat = z.infer<typeof IntegrationFeedFormat>;
 
 export const IntegrationSyncReportSchema = z.object({

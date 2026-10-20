@@ -28,6 +28,7 @@ import { VehiclesService } from "../vehicles/vehicles.service";
 import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA } from "../partners/partners.service";
 import { SafeFetchError, assertPublicHttpUrl, safeFetch } from "../common/safe-fetch";
 import { FeedFormatError, parseNovoSeminovoJson, parseVrsync, type ParsedFeedItem } from "./feed-parsers";
+import { parseVehicleCatalog } from "./vehicle-catalog-parser";
 
 export type IntegrationPartner = { id: string; ownerUserId: string; verified: boolean };
 
@@ -500,6 +501,17 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
     return this.toFeed(synced, listingsCount);
   }
 
+  // Catálogo de veículo muitas vezes traz o endereço só da loja (ou nenhum)
+  // em vez de um por carro — cai pra cidade onde a loja já anuncia.
+  private async defaultLocation(partnerId: string): Promise<{ city?: string; state?: string }> {
+    const recent = await this.prisma.listing.findFirst({
+      where: { partnerId },
+      orderBy: { createdAt: "desc" },
+      select: { city: true, state: true },
+    });
+    return recent ?? {};
+  }
+
   // Exposto pra teste (troca o download por um conteúdo fixo).
   async downloadFeed(url: string): Promise<string> {
     const result = await safeFetch(url, { maxBytes: FEED_MAX_BYTES, timeoutMs: FEED_TIMEOUT_MS, accept: "application/xml, text/xml, application/json, */*" });
@@ -540,7 +552,12 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
     const startedAt = Date.now();
     try {
       const raw = await this.downloadFeed(feed.url);
-      const items = feed.format === "vrsync" ? parseVrsync(raw) : parseNovoSeminovoJson(raw);
+      const items =
+        feed.format === "vrsync"
+          ? parseVrsync(raw)
+          : feed.format === "meta_vehicles"
+            ? parseVehicleCatalog(raw, await this.defaultLocation(feed.partner.id))
+            : parseNovoSeminovoJson(raw);
       const { report } = await this.applyItems(
         { id: feed.partner.id, ownerUserId: feed.partner.ownerUserId, verified: Boolean(feed.partner.verifiedAt) },
         items,

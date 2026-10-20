@@ -24,15 +24,22 @@ function attr(value: unknown, name: string): string | undefined {
   return text((value as XmlNode)[`@_${name}`]);
 }
 
-// "1.234,56", "1234.56", "R$ 500.000" — CRMs exportam preço de jeitos
-// diferentes. Ponto seguido de exatamente 3 dígitos é milhar; vírgula é
-// decimal.
+// "1.234,56", "1234.56", "R$ 500.000", "13,999.00" — CRMs exportam preço de
+// jeitos diferentes. Com ponto e vírgula juntos, o que vem por último é o
+// decimal. Só um deles: grupos exatos de 3 dígitos são milhar; senão é decimal.
 export function parseBrazilianNumber(raw: string | undefined): number | undefined {
   if (!raw) return undefined;
   let value = raw.replace(/[^\d.,-]/g, "");
   if (!value) return undefined;
-  if (value.includes(",")) value = value.replace(/\./g, "").replace(",", ".");
-  else if (/\.\d{3}(\.|$)/.test(value)) value = value.replace(/\./g, "");
+  const lastComma = value.lastIndexOf(",");
+  const lastDot = value.lastIndexOf(".");
+  if (lastComma !== -1 && lastDot !== -1) {
+    value = lastComma > lastDot ? value.replace(/\./g, "").replace(",", ".") : value.replace(/,/g, "");
+  } else if (lastComma !== -1) {
+    value = /^-?\d{1,3}(,\d{3})+$/.test(value) ? value.replace(/,/g, "") : value.replace(",", ".");
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(value)) {
+    value = value.replace(/\./g, "");
+  }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
