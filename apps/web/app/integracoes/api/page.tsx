@@ -4,6 +4,8 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "API de integração — NovoSeminovo",
   description: "Documentação para CRMs e integradores publicarem e sincronizarem anúncios de veículos e imóveis no NovoSeminovo.",
+  // Fora do menu por enquanto — também fora do Google até a integração ser lançada.
+  robots: { index: false, follow: false },
 };
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL ?? "https://api.novoseminovo.com.br"}/integrations/v1`;

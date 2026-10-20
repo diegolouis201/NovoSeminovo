@@ -18,6 +18,10 @@ const TABS = [
 // Passaporte Digital — não faz sentido pra loja/imobiliária/corretor.
 const OWNER_ONLY_TABS = new Set(["equipe", "plano", "integracoes"]);
 
+// Abas prontas mas ainda fora do menu (decisão do Diego, até testar com um
+// CRM real) — a página continua abrindo pelo link direto.
+const HIDDEN_TABS = new Set(["integracoes"]);
+
 export function PartnerNav({
   active,
   showEquipe = true,
@@ -29,7 +33,8 @@ export function PartnerNav({
 }) {
   return (
     <nav className="inline-flex flex-wrap gap-1 rounded-full bg-surface-sober p-1">
-      {TABS.filter((tab) => tab.key !== "servicos" || showServicos)
+      {TABS.filter((tab) => !HIDDEN_TABS.has(tab.key) || active === tab.key)
+        .filter((tab) => tab.key !== "servicos" || showServicos)
         .filter((tab) => !OWNER_ONLY_TABS.has(tab.key) || showEquipe)
         .map((tab) => (
         <Link
