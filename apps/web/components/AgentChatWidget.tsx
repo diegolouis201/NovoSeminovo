@@ -43,9 +43,22 @@ const PARTNER_AGENT: AgentConfig = {
   ],
 };
 
-// Admin vai ter o próprio agente; login/cadastro ficam sem chat pra não
-// atrapalhar o formulário.
-const HIDDEN_PREFIXES = ["/admin", "/entrar", "/cadastro"];
+const ADMIN_AGENT: AgentConfig = {
+  kind: "admin",
+  title: "Assistente do admin",
+  subtitle: "Resumo, moderação, financiamentos · com IA",
+  greeting:
+    "Oi! Sou seu assistente de gestão do NovoSeminovo. Posso resumir como está o site, mostrar o que precisa de aprovação, os interessados em financiamento e as recompensas a pagar. O que você quer ver?",
+  suggestions: [
+    "Como foi a última semana?",
+    "O que precisa da minha aprovação?",
+    "Quem pediu financiamento e ainda não teve contato?",
+    "Quais parceiros mais venderam no mês?",
+  ],
+};
+
+// Login/cadastro ficam sem chat pra não atrapalhar o formulário.
+const HIDDEN_PREFIXES = ["/entrar", "/cadastro"];
 
 function storageKey(kind: AgentKind): string {
   return `ns-agent-${kind}-conversation`;
@@ -148,10 +161,11 @@ function MiniListingCard({ listing }: { listing: ListingSummary }) {
   );
 }
 
-// Um assistente por área do site: no painel do parceiro (/parceiro/...) o
-// de gestão da loja, no resto o de compra. O `key` recria o chat do zero ao
-// trocar de área, sem misturar as duas conversas.
-export function AgentChatWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
+// Um assistente por área do site: no admin (/admin/...) o do administrador,
+// no painel do parceiro (/parceiro/...) o de gestão da loja, no resto o de
+// compra. O `key` recria o chat do zero ao trocar de área, sem misturar as
+// conversas.
+export function AgentChatWidget({ isLoggedIn, isAdmin }: { isLoggedIn: boolean; isAdmin: boolean }) {
   const pathname = usePathname() ?? "/";
   const [enabled, setEnabled] = useState(false);
 
@@ -160,6 +174,11 @@ export function AgentChatWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
   }, []);
 
   if (!enabled || HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return null;
+  if (pathname.startsWith("/admin")) {
+    // A API confere de novo o papel no banco a cada mensagem — isto aqui só
+    // evita mostrar o botão pra quem cai em /admin sem ser admin.
+    return isAdmin ? <AgentChat key="admin" config={ADMIN_AGENT} /> : null;
+  }
   if (pathname.startsWith("/parceiro")) {
     // Sem login o painel já manda pra /entrar; sem loja a API recusa e o
     // chat mostra o erro — não vale esconder o botão por isso.

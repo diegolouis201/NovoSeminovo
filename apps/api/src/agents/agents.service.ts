@@ -24,9 +24,12 @@ import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { ListingsService } from "../listings/listings.service";
 import { PartnersService } from "../partners/partners.service";
+import { AdminService } from "../admin/admin.service";
+import { RebatesService } from "../rebates/rebates.service";
 import { runAgentTurn, visibleMessages, type AgentDefinition } from "./agent-engine";
 import { buildBuyerAgent, type FinancingLeadInput } from "./buyer-agent";
 import { buildPartnerAgent } from "./partner-agent";
+import { buildAdminAgent } from "./admin-agent";
 
 // Mensagens por pessoa (usuário logado, IP ou telefone do WhatsApp) numa
 // janela de 10 minutos — cada mensagem custa uma chamada (ou várias) à API
@@ -54,7 +57,7 @@ export type AgentRequester = { id: string; role: string };
 
 // Agentes que lidam com dados privados (estoque, leads, vendas) — nunca
 // atendem visitante anônimo, e a conversa nasce presa ao usuário logado.
-const LOGIN_REQUIRED = new Set<AgentKind>(["partner"]);
+const LOGIN_REQUIRED = new Set<AgentKind>(["partner", "admin"]);
 
 @Injectable()
 export class AgentsService {
@@ -68,6 +71,8 @@ export class AgentsService {
     private readonly notifications: NotificationsService,
     private readonly listings: ListingsService,
     private readonly partners: PartnersService,
+    private readonly admin: AdminService,
+    private readonly rebates: RebatesService,
   ) {}
 
   isEnabled(): boolean {
@@ -216,7 +221,7 @@ export class AgentsService {
     const user = conversation.userId
       ? await this.prisma.user.findUnique({
           where: { id: conversation.userId },
-          select: { name: true, phone: true },
+          select: { name: true, phone: true, role: true, status: true },
         })
       : null;
 
@@ -258,6 +263,23 @@ export class AgentsService {
             siteUrl: process.env.WEB_ORIGIN ?? "https://novoseminovo.com.br",
           },
           { prisma: this.prisma, partners: this.partners, listings: this.listings },
+        );
+      }
+      case "admin": {
+        // Papel lido do banco a cada mensagem, não do JWT (que vale 30 dias):
+        // quem deixou de ser admin perde o assistente na hora.
+        if (!user || !conversation.userId || user.role !== "admin" || user.status !== "active") {
+          throw new ForbiddenException("Este assistente é só para administradores.");
+        }
+        return buildAdminAgent(
+          { adminId: conversation.userId, adminName: user.name },
+          {
+            prisma: this.prisma,
+            admin: this.admin,
+            rebates: this.rebates,
+            listFinancingLeads: (status) => this.listFinancingLeads(status),
+            updateFinancingLeadStatus: (id, status) => this.updateFinancingLeadStatus(id, status),
+          },
         );
       }
       default:

@@ -11,7 +11,7 @@ import { AgentsService, type AgentRequester } from "./agents.service";
 
 // Agentes liberados pelo chat do site até agora — os outros entram aqui
 // conforme forem construídos (ver AgentsService.buildAgent).
-const WEB_AGENTS = new Set<AgentKind>(["buyer", "partner"]);
+const WEB_AGENTS = new Set<AgentKind>(["buyer", "partner", "admin"]);
 
 function parseKind(kind: string): AgentKind {
   const parsed = AgentKind.safeParse(kind);

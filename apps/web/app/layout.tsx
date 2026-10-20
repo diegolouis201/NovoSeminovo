@@ -41,7 +41,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SiteHeader />
         <div className="flex-1">{children}</div>
         <SiteFooter />
-        <AgentChatWidget isLoggedIn={Boolean(session?.accessToken)} />
+        <AgentChatWidget isLoggedIn={Boolean(session?.accessToken)} isAdmin={session?.user?.role === "admin"} />
       </body>
     </html>
   );
