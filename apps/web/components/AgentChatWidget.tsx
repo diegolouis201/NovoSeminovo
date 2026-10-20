@@ -4,38 +4,69 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowClockwise, Car, ChatCircleDots, House, PaperPlaneRight, X } from "@phosphor-icons/react";
-import type { AgentChatMessage, ListingSummary } from "@novoseminovo/shared-types";
+import type { AgentChatMessage, AgentKind, ListingSummary } from "@novoseminovo/shared-types";
 import { resolveMediaUrl } from "@/lib/api";
 import { agentStatusAction, loadAgentConversationAction, sendAgentMessageAction } from "@/lib/actions/agents";
 
-const STORAGE_KEY = "ns-agent-buyer-conversation";
+type AgentConfig = {
+  kind: AgentKind;
+  title: string;
+  subtitle: string;
+  greeting: string;
+  suggestions: string[];
+};
 
-// Painel do parceiro e do admin vão ter o próprio agente (outro público,
-// outras ferramentas) — o assistente de compra não aparece lá.
-const HIDDEN_PREFIXES = ["/parceiro", "/admin", "/entrar", "/cadastro"];
+const BUYER_AGENT: AgentConfig = {
+  kind: "buyer",
+  title: "Assistente NovoSeminovo",
+  subtitle: "Busca, financiamento e dúvidas · com IA",
+  greeting:
+    "Oi! Sou o assistente do NovoSeminovo. Posso te ajudar a encontrar um carro ou imóvel e a entender quanto fica o financiamento. O que você procura?",
+  suggestions: [
+    "Quero um carro até R$ 80 mil",
+    "Procuro apartamento de 2 quartos em BH",
+    "Quanto fica a parcela de um carro de R$ 60 mil?",
+  ],
+};
 
-const SUGGESTIONS = [
-  "Quero um carro até R$ 80 mil",
-  "Procuro apartamento de 2 quartos em BH",
-  "Quanto fica a parcela de um carro de R$ 60 mil?",
-];
+const PARTNER_AGENT: AgentConfig = {
+  kind: "partner",
+  title: "Assistente da loja",
+  subtitle: "Estoque, leads, vendas e posts · com IA",
+  greeting:
+    "Oi! Sou seu assistente de gestão. Posso analisar seu estoque e preços, apontar leads que precisam de retorno, resumir suas vendas e escrever descrições e legendas pro Instagram. Por onde começamos?",
+  suggestions: [
+    "Como está minha loja hoje?",
+    "Quais leads preciso responder?",
+    "Quais anúncios estão parados?",
+    "Escreve uma legenda de Instagram pro meu último anúncio",
+  ],
+};
+
+// Admin vai ter o próprio agente; login/cadastro ficam sem chat pra não
+// atrapalhar o formulário.
+const HIDDEN_PREFIXES = ["/admin", "/entrar", "/cadastro"];
+
+function storageKey(kind: AgentKind): string {
+  return `ns-agent-${kind}-conversation`;
+}
 
 type ChatEntry = AgentChatMessage & { listings?: ListingSummary[] };
 
 // localStorage pode não existir (aba anônima, bloqueado) — o chat continua
 // funcionando, só não lembra a conversa ao recarregar a página.
-function readStoredId(): string | undefined {
+function readStoredId(kind: AgentKind): string | undefined {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) ?? undefined;
+    return window.localStorage.getItem(storageKey(kind)) ?? undefined;
   } catch {
     return undefined;
   }
 }
 
-function storeId(id: string | undefined) {
+function storeId(kind: AgentKind, id: string | undefined) {
   try {
-    if (id) window.localStorage.setItem(STORAGE_KEY, id);
-    else window.localStorage.removeItem(STORAGE_KEY);
+    if (id) window.localStorage.setItem(storageKey(kind), id);
+    else window.localStorage.removeItem(storageKey(kind));
   } catch {
     // sem armazenamento: segue sem lembrar a conversa
   }
@@ -117,9 +148,27 @@ function MiniListingCard({ listing }: { listing: ListingSummary }) {
   );
 }
 
-export function AgentChatWidget() {
-  const pathname = usePathname();
+// Um assistente por área do site: no painel do parceiro (/parceiro/...) o
+// de gestão da loja, no resto o de compra. O `key` recria o chat do zero ao
+// trocar de área, sem misturar as duas conversas.
+export function AgentChatWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
+  const pathname = usePathname() ?? "/";
   const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    void agentStatusAction().then(setEnabled);
+  }, []);
+
+  if (!enabled || HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return null;
+  if (pathname.startsWith("/parceiro")) {
+    // Sem login o painel já manda pra /entrar; sem loja a API recusa e o
+    // chat mostra o erro — não vale esconder o botão por isso.
+    return isLoggedIn ? <AgentChat key="partner" config={PARTNER_AGENT} /> : null;
+  }
+  return <AgentChat key="buyer" config={BUYER_AGENT} />;
+}
+
+function AgentChat({ config }: { config: AgentConfig }) {
   const [open, setOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [entries, setEntries] = useState<ChatEntry[]>([]);
@@ -129,32 +178,26 @@ export function AgentChatWidget() {
   const [loadedHistory, setLoadedHistory] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    void agentStatusAction().then(setEnabled);
-  }, []);
-
   // Histórico só é buscado quando a pessoa abre o chat pela primeira vez —
   // não custa nada pra quem nunca clica no botão.
   useEffect(() => {
     if (!open || loadedHistory) return;
     setLoadedHistory(true);
-    const storedId = readStoredId();
+    const storedId = readStoredId(config.kind);
     if (!storedId) return;
-    void loadAgentConversationAction("buyer", storedId).then((view) => {
+    void loadAgentConversationAction(config.kind, storedId).then((view) => {
       if (!view) {
-        storeId(undefined);
+        storeId(config.kind, undefined);
         return;
       }
       setConversationId(view.conversationId);
       setEntries(view.messages);
     });
-  }, [open, loadedHistory]);
+  }, [open, loadedHistory, config.kind]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [entries, sending]);
-
-  if (!enabled || HIDDEN_PREFIXES.some((prefix) => pathname?.startsWith(prefix))) return null;
 
   async function send(text: string) {
     const message = text.trim();
@@ -163,7 +206,7 @@ export function AgentChatWidget() {
     setError(undefined);
     setEntries((current) => [...current, { role: "user", text: message }]);
     setSending(true);
-    const result = await sendAgentMessageAction("buyer", conversationId, message);
+    const result = await sendAgentMessageAction(config.kind, conversationId, message);
     setSending(false);
 
     if (!result.ok) {
@@ -171,13 +214,13 @@ export function AgentChatWidget() {
       // Conversa sumiu/expirou do lado da API: a próxima mensagem começa uma nova.
       if (/não encontrada|longa demais/i.test(result.error)) {
         setConversationId(undefined);
-        storeId(undefined);
+        storeId(config.kind, undefined);
       }
       return;
     }
 
     setConversationId(result.reply.conversationId);
-    storeId(result.reply.conversationId);
+    storeId(config.kind, result.reply.conversationId);
     setEntries((current) => [
       ...current,
       { role: "assistant", text: result.reply.reply, listings: result.reply.listings },
@@ -186,7 +229,7 @@ export function AgentChatWidget() {
 
   function restart() {
     setConversationId(undefined);
-    storeId(undefined);
+    storeId(config.kind, undefined);
     setEntries([]);
     setError(undefined);
   }
@@ -206,13 +249,13 @@ export function AgentChatWidget() {
 
       {open && (
         <section
-          aria-label="Assistente do NovoSeminovo"
+          aria-label={config.title}
           className="fixed inset-x-2 bottom-2 z-40 flex h-[min(600px,calc(100dvh-1rem))] flex-col overflow-hidden rounded-brand-lg border border-border bg-surface-page shadow-pop sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[380px]"
         >
           <header className="flex items-center justify-between gap-2 bg-brand-green px-4 py-3 text-on-green">
             <div>
-              <p className="font-display text-base font-semibold">Assistente NovoSeminovo</p>
-              <p className="text-xs opacity-90">Busca, financiamento e dúvidas · com IA</p>
+              <p className="font-display text-base font-semibold">{config.title}</p>
+              <p className="text-xs opacity-90">{config.subtitle}</p>
             </div>
             <div className="flex items-center gap-1">
               <button
@@ -239,11 +282,10 @@ export function AgentChatWidget() {
             {entries.length === 0 && (
               <div className="flex flex-col gap-2">
                 <div className="max-w-[85%] self-start rounded-brand bg-surface-sober px-4 py-2 text-sm text-ink">
-                  Oi! Sou o assistente do NovoSeminovo. Posso te ajudar a encontrar um carro ou imóvel e a entender
-                  quanto fica o financiamento. O que você procura?
+                  {config.greeting}
                 </div>
                 <div className="mt-1 flex flex-wrap gap-2">
-                  {SUGGESTIONS.map((suggestion) => (
+                  {config.suggestions.map((suggestion) => (
                     <button
                       key={suggestion}
                       type="button"

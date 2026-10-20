@@ -52,8 +52,10 @@ O README cobre bem o marketplace básico (anúncios, busca, chat, favoritos, Pas
    - Site: botão flutuante "Assistente" (`components/AgentChatWidget.tsx`, montado no `layout.tsx`, escondido em `/parceiro`, `/admin`, `/entrar`, `/cadastro`; só aparece com `ANTHROPIC_API_KEY`). Conversa lembrada via `localStorage`; conversa iniciada anônima passa a ser do usuário que logar e continuar.
    - Admin: `/admin/financiamentos` — interessados captados pelo agente, botão "Chamar no WhatsApp" e andamento (novo/em contato/fechado/perdido).
    - Custo/abuso: 20 msgs/10 min por usuário ou IP (o site repassa o IP do visitante em `x-client-ip`), teto diário global `AGENT_DAILY_MESSAGE_LIMIT` (padrão 3000), 60 mensagens por conversa, 1500 caracteres por mensagem.
+   - **Agente do Parceiro — PRONTO** (`partner-agent.ts`): só logado e com loja (dono ou membro, rechecado a cada mensagem; 401 anônimo, 403 sem loja). Ferramentas: `resumo_do_painel`, `listar_estoque` (dias no ar, visualizações, leads, favoritos, fotos), `ver_anuncio` (lê direto do banco pra não inflar visualização), `analisar_preco` (FIPE + mediana via `ListingsService.suggestPrice`), `listar_leads`, `atualizar_lead`, `mudar_status_anuncio` (pausar/reativar/vendido com valor), `listar_vendas`. Ações que mudam dados exigem `confirmado: true` — sem isso a ferramenta devolve erro pedindo confirmação. Estoque = anúncios do próprio usuário (mesmo recorte de `/parceiro/anuncios`); leads/vendas = loja inteira. Não edita preço/descrição/fotos (não existe endpoint de edição) — entrega o texto pronto e aponta `/anuncio/ID/fotos` pras imagens do Instagram.
+   - O widget escolhe o agente pela rota: `/parceiro/*` → "Assistente da loja" (só logado), resto → comprador; `key` diferente recria o chat ao trocar de área.
    - **Agente de desenvolvimento — PRONTO**: `.claude/agents/novoseminovo-dev.md` (convenções + fluxo de teste deste projeto).
-   - **Próximas etapas (ainda não feitas)**: Agente do Parceiro (painel `/parceiro`: estoque, leads, vendas, gerar anúncio/posts), Agente Admin (`/admin`: resumo de leads/financiamentos/moderação), canal WhatsApp (WhatsApp Cloud API da Meta — webhook entra em `AgentsService.respond` com `channel: "whatsapp"` e `externalId` = telefone; depende do Diego criar app na Meta e passar Phone Number ID + token permanente).
+   - **Próximas etapas (ainda não feitas)**: Agente Admin (`/admin`: resumo de leads/financiamentos/moderação), canal WhatsApp (WhatsApp Cloud API da Meta — webhook entra em `AgentsService.respond` com `channel: "whatsapp"` e `externalId` = telefone; depende do Diego criar app na Meta e passar Phone Number ID + token permanente).
 
 ## Convenções estabelecidas (seguir nas próximas mudanças)
 
@@ -104,5 +106,5 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
 - **Rotação da chave da Anthropic API**: recomendado, nunca feito.
 - **Webhook secret do Stripe**: não configurado em produção — a integração de cobrança real (`PaymentsModule`) está escrita mas nunca testada de ponta a ponta contra `api.stripe.com` de verdade (ambientes de dev usados bloqueavam a saída de rede pra isso; um VPS de verdade não bloqueia, ver `DEPLOY.md`).
 - **CRM — próximo passo natural, não pedido ainda**: vincular "lead ganho" (kanban) a "marcar anúncio como vendido" automaticamente, hoje são duas ações manuais separadas.
-- **Agentes de IA**: Parceiro, Admin e WhatsApp pendentes (ver item 7 acima).
+- **Agentes de IA**: Admin e WhatsApp pendentes (ver item 7 acima).
 - Todos os 4 itens da visão original do Diego pro painel do parceiro ("logo → landing page com IA → posts pro Instagram → CRM de estoque e vendas") estão **completos e no ar** — não há item em progresso no momento em que este handoff foi escrito.

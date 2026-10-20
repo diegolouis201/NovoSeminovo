@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { auth } from "@/auth";
 import { AgentChatWidget } from "@/components/AgentChatWidget";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -31,14 +32,16 @@ export const metadata: Metadata = {
     "Compre e venda carros e imóveis com histórico, chat e simulação de financiamento em um só lugar.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth();
+
   return (
     <html lang="pt-BR" className={`${display.variable} ${sans.variable}`}>
       <body className="flex min-h-screen flex-col font-sans">
         <SiteHeader />
         <div className="flex-1">{children}</div>
         <SiteFooter />
-        <AgentChatWidget />
+        <AgentChatWidget isLoggedIn={Boolean(session?.accessToken)} />
       </body>
     </html>
   );

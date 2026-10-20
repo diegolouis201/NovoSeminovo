@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
+  UnauthorizedException,
   Injectable,
   Logger,
   NotFoundException,
@@ -21,8 +23,10 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { ListingsService } from "../listings/listings.service";
+import { PartnersService } from "../partners/partners.service";
 import { runAgentTurn, visibleMessages, type AgentDefinition } from "./agent-engine";
 import { buildBuyerAgent, type FinancingLeadInput } from "./buyer-agent";
+import { buildPartnerAgent } from "./partner-agent";
 
 // Mensagens por pessoa (usuário logado, IP ou telefone do WhatsApp) numa
 // janela de 10 minutos — cada mensagem custa uma chamada (ou várias) à API
@@ -48,6 +52,10 @@ const DEFAULT_HUMAN_WHATSAPP = "5531996959679";
 
 export type AgentRequester = { id: string; role: string };
 
+// Agentes que lidam com dados privados (estoque, leads, vendas) — nunca
+// atendem visitante anônimo, e a conversa nasce presa ao usuário logado.
+const LOGIN_REQUIRED = new Set<AgentKind>(["partner"]);
+
 @Injectable()
 export class AgentsService {
   private readonly logger = new Logger(AgentsService.name);
@@ -59,6 +67,7 @@ export class AgentsService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly listings: ListingsService,
+    private readonly partners: PartnersService,
   ) {}
 
   isEnabled(): boolean {
@@ -138,6 +147,7 @@ export class AgentsService {
     clientIp: string,
   ): Promise<AgentReply> {
     if (!this.isEnabled()) throw new ServiceUnavailableException("Assistente de IA indisponível no momento.");
+    if (LOGIN_REQUIRED.has(kind) && !requester) throw new UnauthorizedException("Entre na sua conta para usar este assistente.");
     this.checkRateLimit(requester ? `user:${requester.id}` : `ip:${clientIp}`);
 
     let conversation = input.conversationId
@@ -225,6 +235,31 @@ export class AgentsService {
             saveFinancingLead: (input) => this.saveFinancingLead(conversation, input),
           },
         );
+      case "partner": {
+        // Dono ou membro da equipe — o mesmo critério de acesso do painel
+        // (ver PartnersService.findPartnerForUser). Rechecado a cada mensagem:
+        // quem saiu da equipe perde o assistente na hora.
+        const partner = conversation.userId
+          ? await this.prisma.partner.findFirst({
+              where: {
+                OR: [{ ownerUserId: conversation.userId }, { members: { some: { userId: conversation.userId } } }],
+              },
+              select: { id: true, legalName: true, type: true, slug: true },
+            })
+          : null;
+        if (!user || !partner || !conversation.userId) {
+          throw new ForbiddenException("Este assistente é só para lojas, imobiliárias e corretores cadastrados.");
+        }
+        return buildPartnerAgent(
+          {
+            userId: conversation.userId,
+            userName: user.name,
+            partner,
+            siteUrl: process.env.WEB_ORIGIN ?? "https://novoseminovo.com.br",
+          },
+          { prisma: this.prisma, partners: this.partners, listings: this.listings },
+        );
+      }
       default:
         throw new NotFoundException("Agente ainda não disponível.");
     }
