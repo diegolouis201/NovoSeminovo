@@ -4,6 +4,7 @@ const TABS = [
   { key: "geral", href: "/parceiro", label: "Visão geral" },
   { key: "anuncios", href: "/parceiro/anuncios", label: "Anúncios" },
   { key: "importar", href: "/parceiro/anuncios/importar", label: "Importar CSV" },
+  { key: "integracoes", href: "/parceiro/integracoes", label: "Integrações" },
   { key: "leads", href: "/parceiro/leads", label: "Leads" },
   { key: "vendas", href: "/parceiro/vendas", label: "Vendas" },
   { key: "servicos", href: "/parceiro/servicos", label: "Serviços" },
@@ -11,11 +12,11 @@ const TABS = [
   { key: "equipe", href: "/parceiro/equipe", label: "Equipe" },
 ] as const;
 
-// Equipe e Plano são decisão do dono (ver Partner.isOwner) — um agente opera
+// Equipe, Plano e Integrações são decisão do dono (ver Partner.isOwner) — um agente opera
 // o resto do painel igual, mas essas duas abas somem pra ele. "Serviços" só
 // existe pra oficina (ver PartnerType.workshop) confirmar evento do
 // Passaporte Digital — não faz sentido pra loja/imobiliária/corretor.
-const OWNER_ONLY_TABS = new Set(["equipe", "plano"]);
+const OWNER_ONLY_TABS = new Set(["equipe", "plano", "integracoes"]);
 
 export function PartnerNav({
   active,

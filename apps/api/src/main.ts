@@ -14,6 +14,9 @@ async function bootstrap() {
   // só no webhook do Stripe (WebhooksController), pra verificar a assinatura
   // sobre os bytes exatos recebidos, mas o Nest só tem essa opção global.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  // Padrão do Express é 100kb — pouco pro envio em lote da API de
+  // integração (até 100 anúncios com descrição, ver IntegrationsController).
+  app.useBodyParser("json", { limit: "5mb" });
   app.enableCors({ origin: process.env.WEB_ORIGIN ?? "http://localhost:3000" });
   app.useStaticAssets(UPLOADS_DIR, { prefix: UPLOADS_URL_PREFIX });
   const port = process.env.PORT ? Number(process.env.PORT) : 4000;

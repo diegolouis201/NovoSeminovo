@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import sharp from "sharp";
-import { getPhotoStorage } from "../common/storage";
+import { readPhotoBytes } from "../common/storage";
 import { PrismaService } from "../prisma/prisma.service";
 import { listingInclude, mimeTypeFromUrl, toListingSummary, type ListingWithDetails } from "./listings.mapper";
 
@@ -54,8 +54,7 @@ export class SocialAssetsService {
     photoUrl: string,
     size: { width: number; height: number },
   ): Promise<Buffer> {
-    const storage = getPhotoStorage();
-    const photoBuffer = await storage.read(photoUrl);
+    const photoBuffer = await readPhotoBytes(photoUrl);
     // mimeTypeFromUrl só serve pra inferir a extensão de volta (ver
     // listings.mapper.ts) — sharp detecta o formato sozinho a partir dos
     // bytes, não precisa do mimetype aqui; mantido só pra deixar claro que

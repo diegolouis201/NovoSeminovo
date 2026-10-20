@@ -235,6 +235,8 @@ model Partner {
   leads         Lead[]
   reviews       Review[]        @relation("ReviewPartnerTarget")
   verifiedVehicleEvents VehicleEvent[]
+  integrationFeeds IntegrationFeed[]
+  apiKeys          PartnerApiKey[]
 
   @@map("partners")
 }
@@ -313,6 +315,17 @@ model Listing {
   // capturado à parte em vez de reaproveitar price pro relatório de vendas.
   soldAt           DateTime?     @map("sold_at")
   soldPrice        Decimal?      @map("sold_price") @db.Decimal(12, 2)
+  // Anúncio que veio do CRM do parceiro (ver IntegrationsService): de onde
+  // ("feed:<id do feed>" ou "api") e o código do imóvel/veículo lá no CRM —
+  // é o que liga a próxima sincronização ao mesmo anúncio em vez de criar
+  // um duplicado. externalHash é o retrato do último conteúdo importado, pra
+  // pular sem tocar no banco o que não mudou. syncPaused marca o anúncio que
+  // a sincronização pausou porque sumiu do CRM — só esses ela reativa
+  // sozinha se voltarem (um pausado à mão pelo dono continua pausado).
+  externalSource   String?       @map("external_source")
+  externalId       String?       @map("external_id")
+  externalHash     String?       @map("external_hash")
+  syncPaused       Boolean       @default(false) @map("sync_paused")
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")
 
@@ -329,6 +342,7 @@ model Listing {
   financingDeals FinancingDeal[]
   financingLeads FinancingLead[]
 
+  @@unique([partnerId, externalId])
   @@index([type, status, city, price])
   @@map("listings")
 }
@@ -759,4 +773,61 @@ model FinancingLead {
 
   @@index([status])
   @@map("financing_leads")
+}
+
+// ---------- Integração com CRMs ----------
+
+enum IntegrationFeedFormat {
+  // Padrão VRSync (Grupo ZAP/VivaReal/OLX) — o que praticamente todo CRM
+  // imobiliário brasileiro já exporta pros portais.
+  vrsync
+  // Formato próprio do NovoSeminovo (JSON, veículo e imóvel) — documentado
+  // em /parceiro/integracoes/api, pra CRM/integrador que não tem VRSync.
+  novoseminovo_json
+}
+
+enum IntegrationSyncStatus {
+  never
+  running
+  ok
+  error
+}
+
+// Link de feed que o CRM do parceiro gera. A API baixa e sincroniza
+// periodicamente (ver IntegrationsScheduler) e quando o parceiro pede.
+model IntegrationFeed {
+  id             String                @id @default(cuid())
+  partnerId      String                @map("partner_id")
+  partner        Partner               @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  url            String
+  format         IntegrationFeedFormat
+  active         Boolean               @default(true)
+  lastSyncAt     DateTime?             @map("last_sync_at")
+  lastStatus     IntegrationSyncStatus @default(never) @map("last_status")
+  lastError      String?               @map("last_error")
+  // Relatório da última sincronização (criados/atualizados/pausados/erros
+  // por item) — mostrado no painel pro parceiro entender o que aconteceu.
+  lastReport     Json?                 @map("last_report")
+  createdAt      DateTime              @default(now()) @map("created_at")
+
+  @@index([active, lastSyncAt])
+  @@map("integration_feeds")
+}
+
+// Chave da API de integração (push em tempo real pelo CRM). Só o hash fica
+// no banco — a chave em si aparece uma única vez, na hora de criar.
+model PartnerApiKey {
+  id              String    @id @default(cuid())
+  partnerId       String    @map("partner_id")
+  partner         Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  name            String
+  prefix          String
+  keyHash         String    @unique @map("key_hash")
+  createdByUserId String    @map("created_by_user_id")
+  lastUsedAt      DateTime? @map("last_used_at")
+  revokedAt       DateTime? @map("revoked_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([partnerId])
+  @@map("partner_api_keys")
 }

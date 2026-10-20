@@ -53,6 +53,9 @@ importers:
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
+      fast-xml-parser:
+        specifier: ^4.5.0
+        version: 4.5.0
       multer:
         specifier: ^2.4.0
         version: 2.4.0
@@ -1527,6 +1530,10 @@ packages:
   fast-uri@3.1.8:
     resolution: {integrity: sha512-GZMtZUTNRpOVIECoXwLNZS5xUGE+mVNbTB8h/7Rwh2TFWcBQiPzTgyZi05BF9UMZKkLJv8XBRJTlU7zg8+ZfMg==}
 
+  fast-xml-parser@4.5.0:
+    resolution: {integrity: sha512-/PlTQCI96+fZMAOLMZK4CWG1ItCbfZ/0jx7UIJFChPNrx7tcEgerUgWbeieCM9MfHInUDyK8DWYZ+YrywDJuTg==}
+    hasBin: true
+
   fastq@1.20.3:
     resolution: {integrity: sha512-XKv5nnLs6nLF71NgiKJLIZFLkPyIEuOselLG7ujZnGrRfQK8HpvY+WqKhAJUAdLomwVHErVS4LfxFlPq0/FTAw==}
 
@@ -2379,6 +2386,9 @@ packages:
     peerDependenciesMeta:
       '@types/node':
         optional: true
+
+  strnum@1.1.2:
+    resolution: {integrity: sha512-vrN+B7DBIoTTZjnPNewwhx6cBA/H+IS7rfW68n7XxC1y7uoiGQBxaKzqucGUgavX15dJgiGztLJ8vxuEzwqBdA==}
 
   strtok3@10.3.5:
     resolution: {integrity: sha512-ki4hZQfh5rX0QDLLkOCj+h+CVNkqmp/CMf8v8kZpkNVK6jGQooMytqzLZYUVYIZcFZ6yDB70EfD8POcFXiF5oA==}
@@ -4089,6 +4099,10 @@ snapshots:
 
   fast-uri@3.1.8: {}
 
+  fast-xml-parser@4.5.0:
+    dependencies:
+      strnum: 1.1.2
+
   fastq@1.20.3:
     dependencies:
       reusify: 1.1.0
@@ -4987,6 +5001,8 @@ snapshots:
   stripe@23.0.0(@types/node@20.19.43):
     optionalDependencies:
       '@types/node': 20.19.43
+
+  strnum@1.1.2: {}
 
   strtok3@10.3.5:
     dependencies:

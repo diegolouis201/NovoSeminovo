@@ -23,7 +23,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { VehiclesService } from "../vehicles/vehicles.service";
 import { FipeService } from "../vehicles/fipe.service";
-import { getPhotoStorage } from "../common/storage";
+import { getPhotoStorage, readPhotoBytes } from "../common/storage";
 import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA } from "../partners/partners.service";
 import { AiService } from "./ai.service";
 import {
@@ -602,6 +602,83 @@ export class ListingsService {
     return listings.map(toMyListingSummary);
   }
 
+
+  // Dados de VehicleDetails/PropertyDetails pro create do anúncio — comum a
+  // "Anunciar" (create, abaixo) e à importação do CRM (IntegrationsService).
+  // Resolvido antes do create: precisamos do brandId/modelId já definidos
+  // (como string, não como { connect }) pra procurar/criar o Vehicle com a
+  // mesma placa — ver VehiclesService.resolveForListing.
+  async prepareDetails(
+    ownerUserId: string,
+    input: CreateListingInput,
+  ): Promise<{
+    detailsData: Pick<Prisma.ListingCreateInput, "vehicleDetails" | "propertyDetails">;
+    linkedVehicleId?: string;
+  }> {
+    let vehicleBrandModel: Awaited<ReturnType<typeof this.vehicles.resolveBrandAndModel>> | undefined;
+    let linkedVehicleId: string | undefined;
+    let fipeMatch: { fipeCode: string; price: number } | undefined;
+    if (input.assetType === "vehicle") {
+      vehicleBrandModel = await this.vehicles.resolveBrandAndModel(input.brand, input.model);
+      // Best-effort — nunca atrasa nem derruba a criação do anúncio se a
+      // FIPE estiver fora do ar ou não reconhecer marca/modelo (ver FipeService).
+      fipeMatch = await this.fipe.lookupPrice(input.brand, input.model, input.yearModel);
+      if (input.plate) {
+        linkedVehicleId = await this.vehicles.resolveForListing({
+          plate: input.plate,
+          ownerUserId,
+          brandId: vehicleBrandModel.brand.connect.id,
+          modelId: vehicleBrandModel.model.connect.id,
+          yearManufacture: input.yearManufacture,
+          yearModel: input.yearModel,
+          color: input.color,
+        });
+      }
+    }
+
+    const detailsData: Pick<Prisma.ListingCreateInput, "vehicleDetails" | "propertyDetails"> =
+      input.assetType === "vehicle"
+        ? {
+            vehicleDetails: {
+              create: {
+                ...vehicleBrandModel!,
+                version: input.version,
+                yearManufacture: input.yearManufacture,
+                yearModel: input.yearModel,
+                mileage: input.mileage,
+                transmission: input.transmission,
+                fuelType: input.fuelType,
+                color: input.color,
+                doors: input.doors,
+                condition: "used",
+                fipeCode: fipeMatch?.fipeCode,
+                fipePrice: fipeMatch?.price,
+                ...(linkedVehicleId ? { vehicle: { connect: { id: linkedVehicleId } } } : {}),
+              },
+            },
+          }
+        : {
+            propertyDetails: {
+              create: {
+                propertyType: input.propertyType,
+                purpose: input.purpose,
+                bedrooms: input.bedrooms,
+                suites: input.suites,
+                bathrooms: input.bathrooms,
+                parkingSpots: input.parkingSpots,
+                floor: input.floor,
+                areaM2: input.areaM2,
+                totalAreaM2: input.totalAreaM2,
+                condoFee: input.condoFee,
+                iptu: input.iptu,
+                features: input.features ?? [],
+                streetAddress: input.streetAddress,
+              },
+            },
+          };
+    return { detailsData, linkedVehicleId };
+  }
+
   async create(ownerUserId: string, input: CreateListingInput): Promise<MyListingSummary> {
     const { assetType, title, description, price, city, state, neighborhood } = input;
 
@@ -632,29 +709,7 @@ export class ListingsService {
       }
     }
 
-    // Resolvido antes do create: precisamos do brandId/modelId já definidos
-    // (como string, não como { connect }) pra procurar/criar o Vehicle com a
-    // mesma placa — ver VehiclesService.resolveForListing.
-    let vehicleBrandModel: Awaited<ReturnType<typeof this.vehicles.resolveBrandAndModel>> | undefined;
-    let linkedVehicleId: string | undefined;
-    let fipeMatch: { fipeCode: string; price: number } | undefined;
-    if (assetType === "vehicle") {
-      vehicleBrandModel = await this.vehicles.resolveBrandAndModel(input.brand, input.model);
-      // Best-effort — nunca atrasa nem derruba a criação do anúncio se a
-      // FIPE estiver fora do ar ou não reconhecer marca/modelo (ver FipeService).
-      fipeMatch = await this.fipe.lookupPrice(input.brand, input.model, input.yearModel);
-      if (input.plate) {
-        linkedVehicleId = await this.vehicles.resolveForListing({
-          plate: input.plate,
-          ownerUserId,
-          brandId: vehicleBrandModel.brand.connect.id,
-          modelId: vehicleBrandModel.model.connect.id,
-          yearManufacture: input.yearManufacture,
-          yearModel: input.yearModel,
-          color: input.color,
-        });
-      }
-    }
+    const { detailsData, linkedVehicleId } = await this.prepareDetails(ownerUserId, input);
 
     const listing = await this.prisma.listing.create({
       data: {
@@ -670,45 +725,7 @@ export class ListingsService {
         // Vai para a fila do painel do admin — só fica visível na busca
         // depois de aprovado (ver AdminModule), quando publishedAt é definido.
         status: "pending_review",
-        ...(assetType === "vehicle"
-          ? {
-              vehicleDetails: {
-                create: {
-                  ...vehicleBrandModel!,
-                  version: input.version,
-                  yearManufacture: input.yearManufacture,
-                  yearModel: input.yearModel,
-                  mileage: input.mileage,
-                  transmission: input.transmission,
-                  fuelType: input.fuelType,
-                  color: input.color,
-                  doors: input.doors,
-                  condition: "used",
-                  fipeCode: fipeMatch?.fipeCode,
-                  fipePrice: fipeMatch?.price,
-                  ...(linkedVehicleId ? { vehicle: { connect: { id: linkedVehicleId } } } : {}),
-                },
-              },
-            }
-          : {
-              propertyDetails: {
-                create: {
-                  propertyType: input.propertyType,
-                  purpose: input.purpose,
-                  bedrooms: input.bedrooms,
-                  suites: input.suites,
-                  bathrooms: input.bathrooms,
-                  parkingSpots: input.parkingSpots,
-                  floor: input.floor,
-                  areaM2: input.areaM2,
-                  totalAreaM2: input.totalAreaM2,
-                  condoFee: input.condoFee,
-                  iptu: input.iptu,
-                  features: input.features ?? [],
-                  streetAddress: input.streetAddress,
-                },
-              },
-            }),
+        ...detailsData,
       },
       include: listingInclude,
     });
@@ -832,11 +849,10 @@ export class ListingsService {
       return listing.photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption ?? undefined }));
     }
 
-    const storage = getPhotoStorage();
     const photosForAi = await Promise.all(
       listing.photos.map(async (photo) => ({
         id: photo.id,
-        buffer: await storage.read(photo.url),
+        buffer: await readPhotoBytes(photo.url),
         mimeType: mimeTypeFromUrl(photo.url),
       })),
     );

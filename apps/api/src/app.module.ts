@@ -15,6 +15,7 @@ import { VehiclesModule } from "./vehicles/vehicles.module";
 import { RebatesModule } from "./rebates/rebates.module";
 import { ProfileModule } from "./profile/profile.module";
 import { AgentsModule } from "./agents/agents.module";
+import { IntegrationsModule } from "./integrations/integrations.module";
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AgentsModule } from "./agents/agents.module";
     RebatesModule,
     ProfileModule,
     AgentsModule,
+    IntegrationsModule,
   ],
 })
 export class AppModule {}

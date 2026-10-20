@@ -1183,3 +1183,83 @@ export const FinancingLeadSummarySchema = z.object({
   createdAt: z.string(),
 });
 export type FinancingLeadSummary = z.infer<typeof FinancingLeadSummarySchema>;
+
+// ---------- Integração com CRMs ----------
+
+// Um anúncio vindo do CRM: os mesmos campos de "Anunciar" + o código do
+// bem no CRM (externalId — é a chave da sincronização) e as fotos como
+// links públicos, na ordem (a primeira vira capa).
+export const IntegrationListingExtraSchema = z.object({
+  externalId: z
+    .string()
+    .trim()
+    .min(1, "externalId obrigatório")
+    .max(100, "externalId longo demais (máx. 100)")
+    .regex(/^[A-Za-z0-9._\-/]+$/, "externalId só pode ter letras, números, ponto, hífen, barra e sublinhado"),
+  photos: z.array(z.string().url("Foto precisa ser um link http(s) válido")).max(40, "Máximo de 40 fotos").optional(),
+});
+
+export const IntegrationListingInputSchema = z.intersection(CreateListingInputSchema, IntegrationListingExtraSchema);
+export type IntegrationListingInput = z.infer<typeof IntegrationListingInputSchema>;
+
+export const IntegrationFeedFormat = z.enum(["vrsync", "novoseminovo_json"]);
+export type IntegrationFeedFormat = z.infer<typeof IntegrationFeedFormat>;
+
+export const IntegrationSyncReportSchema = z.object({
+  total: z.number(),
+  created: z.number(),
+  updated: z.number(),
+  unchanged: z.number(),
+  paused: z.number(),
+  reactivated: z.number(),
+  skipped: z.number(),
+  errors: z.array(z.object({ externalId: z.string(), message: z.string() })),
+  warnings: z.array(z.string()),
+  durationMs: z.number().optional(),
+});
+export type IntegrationSyncReport = z.infer<typeof IntegrationSyncReportSchema>;
+
+export const IntegrationFeedSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  format: IntegrationFeedFormat,
+  active: z.boolean(),
+  lastSyncAt: z.string().optional(),
+  lastStatus: z.enum(["never", "running", "ok", "error"]),
+  lastError: z.string().optional(),
+  lastReport: IntegrationSyncReportSchema.optional(),
+  listingsCount: z.number(),
+});
+export type IntegrationFeed = z.infer<typeof IntegrationFeedSchema>;
+
+export const CreateIntegrationFeedInputSchema = z.object({
+  url: z.string().trim().url("Cole o link completo do feed (começando com https://)"),
+  format: IntegrationFeedFormat,
+});
+export type CreateIntegrationFeedInput = z.infer<typeof CreateIntegrationFeedInputSchema>;
+
+export const PartnerApiKeySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  prefix: z.string(),
+  lastUsedAt: z.string().optional(),
+  createdAt: z.string(),
+});
+export type PartnerApiKey = z.infer<typeof PartnerApiKeySchema>;
+
+export const CreatePartnerApiKeyInputSchema = z.object({
+  name: z.string().trim().min(2, "Dê um nome pra chave (ex.: nome do CRM)").max(60),
+});
+export type CreatePartnerApiKeyInput = z.infer<typeof CreatePartnerApiKeyInputSchema>;
+
+// A chave inteira só existe nesta resposta — depois disso só o prefixo.
+export const CreatedPartnerApiKeySchema = PartnerApiKeySchema.extend({ key: z.string() });
+export type CreatedPartnerApiKey = z.infer<typeof CreatedPartnerApiKeySchema>;
+
+export const IntegrationOverviewSchema = z.object({
+  feeds: z.array(IntegrationFeedSchema),
+  apiKeys: z.array(PartnerApiKeySchema),
+  importedListings: z.number(),
+  syncIntervalMinutes: z.number(),
+});
+export type IntegrationOverview = z.infer<typeof IntegrationOverviewSchema>;

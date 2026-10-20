@@ -53,7 +53,7 @@ export function PhotoCarousel({
           <img
             src={resolveMediaUrl(photos[index].url)}
             alt={photos[index].caption || `Foto ${index + 1} de ${title}`}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover text-[0px]"
           />
         ) : assetType === "property" ? (
           <House size={64} weight="duotone" className="text-ink-muted" />
@@ -105,7 +105,7 @@ export function PhotoCarousel({
               <img
                 src={resolveMediaUrl(photo.url)}
                 alt={`Foto ${photoIndex + 1} de ${title}`}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover text-[0px]"
               />
             </button>
           ))}

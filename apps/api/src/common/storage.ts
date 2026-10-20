@@ -126,3 +126,18 @@ export function getPhotoStorage(): PhotoStorage {
   }
   return storage;
 }
+
+// Fotos importadas do CRM do parceiro (ver IntegrationsService) ficam com a
+// URL original do CRM em vez de uma cópia no nosso armazenamento — quem
+// precisa dos bytes (post do Instagram, classificação por IA) usa isto, que
+// cai pro download protegido quando a foto não é nossa.
+export async function readPhotoBytes(url: string): Promise<Buffer> {
+  const storage = getPhotoStorage();
+  if (url.startsWith(UPLOADS_URL_PREFIX) || !/^https?:\/\//i.test(url)) return storage.read(url);
+  try {
+    return await storage.read(url);
+  } catch {
+    const { safeFetch } = await import("./safe-fetch");
+    return (await safeFetch(url, { maxBytes: 15_000_000, timeoutMs: 20_000, accept: "image/*" })).buffer;
+  }
+}

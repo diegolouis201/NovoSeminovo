@@ -25,7 +25,7 @@ export function ListingCard({
       <div className="relative flex h-40 items-center justify-center bg-surface-sober text-4xl">
         {listing.image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={resolveMediaUrl(listing.image)} alt={listing.title} className="h-full w-full object-cover" />
+          <img src={resolveMediaUrl(listing.image)} alt={listing.title} className="h-full w-full object-cover text-[0px]" />
         ) : listing.assetType === "property" ? (
           <House size={40} weight="duotone" className="text-ink-muted" />
         ) : (

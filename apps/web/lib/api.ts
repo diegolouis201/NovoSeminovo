@@ -1,4 +1,8 @@
 import type {
+  CreatedPartnerApiKey,
+  IntegrationFeed,
+  IntegrationFeedFormat,
+  IntegrationOverview,
   AgentConversationView,
   AgentKind,
   AgentReply,
@@ -1304,4 +1308,61 @@ export async function updateFinancingLeadStatus(
   } catch {
     return false;
   }
+}
+
+// ---------- Integração com CRMs ----------
+
+export async function fetchIntegrationOverview(accessToken: string): Promise<IntegrationOverview | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/partners/mine/integrations`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as IntegrationOverview;
+  } catch {
+    return undefined;
+  }
+}
+
+export type IntegrationResult<T> = { ok: true; value: T } | { ok: false; error: string };
+
+async function integrationCall<T>(path: string, method: string, accessToken: string, body?: unknown): Promise<IntegrationResult<T>> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/partners/mine/integrations${path}`,
+      {
+        method,
+        headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      },
+      15000,
+    );
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { message?: string | string[] };
+      const message = Array.isArray(data.message) ? data.message.join("; ") : data.message;
+      return { ok: false, error: message ?? "Não foi possível concluir agora. Tente de novo." };
+    }
+    const text = await res.text();
+    return { ok: true, value: (text ? JSON.parse(text) : undefined) as T };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor agora. Tente de novo." };
+  }
+}
+
+export function createIntegrationFeed(input: { url: string; format: IntegrationFeedFormat }, accessToken: string) {
+  return integrationCall<IntegrationFeed>("/feeds", "POST", accessToken, input);
+}
+
+export function syncIntegrationFeed(feedId: string, accessToken: string) {
+  return integrationCall<IntegrationFeed>(`/feeds/${feedId}/sync`, "POST", accessToken);
+}
+
+export function deleteIntegrationFeed(feedId: string, accessToken: string) {
+  return integrationCall<void>(`/feeds/${feedId}`, "DELETE", accessToken);
+}
+
+export function createPartnerApiKey(name: string, accessToken: string) {
+  return integrationCall<CreatedPartnerApiKey>("/api-keys", "POST", accessToken, { name });
+}
+
+export function revokePartnerApiKey(keyId: string, accessToken: string) {
+  return integrationCall<void>(`/api-keys/${keyId}`, "DELETE", accessToken);
 }
