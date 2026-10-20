@@ -697,6 +697,7 @@ model FinancingDeal {
   paidAt            DateTime?           @map("paid_at")
   paidNote          String?             @map("paid_note")
   createdAt         DateTime            @default(now()) @map("created_at")
+  financingLead     FinancingLead?
 
   @@index([status])
   @@map("financing_deals")
@@ -788,6 +789,11 @@ model FinancingLead {
   bank            String?
   adminNotes      String?             @map("admin_notes")
   statusChangedAt DateTime?           @map("status_changed_at")
+  // Negócio registrado automaticamente quando o lead é concluído (ver
+  // AgentsService.updateFinancingLead) — é o que entra no fechamento mensal
+  // e no repasse ao anunciante (ver RebatesService).
+  financingDealId String?             @unique @map("financing_deal_id")
+  financingDeal   FinancingDeal?      @relation(fields: [financingDealId], references: [id])
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
 

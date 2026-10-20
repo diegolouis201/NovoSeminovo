@@ -1201,6 +1201,22 @@ export const FinancingLeadSummarySchema = z.object({
   commissionIsEstimate: z.boolean(),
   bank: z.string().optional(),
   adminNotes: z.string().optional(),
+  // Repasse ao anunciante (programa de recompensa): previsto enquanto o
+  // financiamento não fecha; "to_pay"/"paid" vêm do negócio registrado ao
+  // concluir. Ausente quando o interesse não é em um anúncio específico.
+  partnerShare: z
+    .object({
+      receiverLabel: z.string(),
+      percent: z.number(),
+      amount: z.number().optional(),
+      amountLabel: z.string().optional(),
+      stage: z.enum(["expected", "to_pay", "paid"]),
+      paidAt: z.string().optional(),
+    })
+    .optional(),
+  // Comissão menos o repasse — o que fica pro correspondente.
+  netCommission: z.number().optional(),
+  netCommissionLabel: z.string().optional(),
   statusChangedAt: z.string().optional(),
   createdAt: z.string(),
 });

@@ -279,7 +279,7 @@ export class AgentsService {
             admin: this.admin,
             rebates: this.rebates,
             listFinancingLeads: (status, assetType) => this.listFinancingLeads(status, assetType),
-            updateFinancingLeadStatus: (id, status) => this.updateFinancingLeadStatus(id, status),
+            updateFinancingLeadStatus: (id, status) => this.updateFinancingLeadStatus(conversation.userId!, id, status),
           },
         );
       }
@@ -343,10 +343,20 @@ export class AgentsService {
   ): Promise<FinancingLeadSummary[]> {
     const leads = await this.prisma.financingLead.findMany({
       where: { ...(status ? { status } : {}), ...(assetType ? { assetType } : {}) },
-      include: { listing: { select: { title: true } } },
+      include: {
+        listing: { select: { title: true } },
+        financingDeal: { select: { status: true, paidAt: true, rebatePercent: true, rebateAmount: true, commissionAmount: true } },
+      },
       orderBy: { createdAt: "desc" },
       take: 500,
     });
+
+    // Percentual previsto por anúncio (o nível do parceiro é o mesmo pra
+    // todos os leads do mesmo anúncio) — uma consulta por anúncio, não por lead.
+    const previews = new Map<string, Awaited<ReturnType<RebatesService["previewRebate"]>>>();
+    for (const listingId of new Set(leads.flatMap((lead) => (lead.listingId ? [lead.listingId] : [])))) {
+      previews.set(listingId, await this.rebates.previewRebate(listingId));
+    }
 
     const money = (value: Prisma.Decimal | null) => (value === null ? undefined : Number(value));
     return leads.map((lead) => {
@@ -360,7 +370,42 @@ export class AgentsService {
       // — marcado como estimativa no quadro.
       const estimateBase = assetValue !== undefined ? assetValue - (downPayment ?? 0) : undefined;
       const base = negotiatedValue ?? (estimateBase && estimateBase > 0 ? estimateBase : undefined);
-      const commissionAmount = base !== undefined ? Math.round(base * commissionRate) / 100 : undefined;
+      const deal = lead.financingDeal;
+      // Concluído: vale o que foi registrado no negócio (retrato do nível do
+      // parceiro na hora) — não o cálculo de hoje.
+      const commissionAmount = deal
+        ? Number(deal.commissionAmount)
+        : base !== undefined
+          ? Math.round(base * commissionRate) / 100
+          : undefined;
+
+      let partnerShare: FinancingLeadSummary["partnerShare"];
+      if (deal) {
+        const amount = Number(deal.rebateAmount);
+        partnerShare = {
+          receiverLabel: previews.get(lead.listingId ?? "")?.receiverLabel ?? lead.listing?.title ?? "anunciante",
+          percent: Number(deal.rebatePercent),
+          amount,
+          amountLabel: formatBRL(amount),
+          stage: deal.status === "paid" ? "paid" : "to_pay",
+          paidAt: deal.paidAt?.toISOString(),
+        };
+      } else if (lead.listingId) {
+        const preview = previews.get(lead.listingId);
+        if (preview) {
+          const amount = commissionAmount !== undefined ? Math.round(commissionAmount * preview.percent) / 100 : undefined;
+          partnerShare = {
+            receiverLabel: preview.receiverLabel,
+            percent: preview.percent,
+            amount,
+            amountLabel: amount === undefined ? undefined : formatBRL(amount),
+            stage: "expected",
+          };
+        }
+      }
+      const netCommission =
+        commissionAmount === undefined ? undefined : Math.round((commissionAmount - (partnerShare?.amount ?? 0)) * 100) / 100;
+
       return {
         id: lead.id,
         channel: lead.channel,
@@ -383,23 +428,62 @@ export class AgentsService {
         commissionRate,
         commissionAmount,
         commissionAmountLabel: commissionAmount === undefined ? undefined : formatBRL(commissionAmount),
-        commissionIsEstimate: negotiatedValue === undefined,
+        commissionIsEstimate: !deal && negotiatedValue === undefined,
         bank: lead.bank ?? undefined,
         adminNotes: lead.adminNotes ?? undefined,
+        partnerShare,
+        netCommission,
+        netCommissionLabel: netCommission === undefined ? undefined : formatBRL(netCommission),
         statusChangedAt: lead.statusChangedAt?.toISOString(),
         createdAt: lead.createdAt.toISOString(),
       };
     });
   }
 
-  async updateFinancingLead(id: string, input: UpdateFinancingLeadInput): Promise<void> {
-    const lead = await this.prisma.financingLead.findUnique({ where: { id } });
+  async updateFinancingLead(adminId: string, id: string, input: UpdateFinancingLeadInput): Promise<void> {
+    const lead = await this.prisma.financingLead.findUnique({
+      where: { id },
+      include: { financingDeal: { select: { id: true, status: true } } },
+    });
     if (!lead) throw new NotFoundException("Lead não encontrado");
     // Avaliação do imóvel (engenharia do banco) não existe no financiamento
     // de veículo — o quadro veicular nem tem essa coluna.
     if (input.status === "property_appraisal" && lead.assetType !== "property") {
       throw new BadRequestException("Avaliação do imóvel só existe no financiamento imobiliário.");
     }
+
+    const nextStatus = input.status ?? lead.status;
+    const negotiatedValue =
+      input.negotiatedValue !== undefined ? input.negotiatedValue : lead.negotiatedValue === null ? null : Number(lead.negotiatedValue);
+    const commissionRate = input.commissionRate ?? Number(lead.commissionRate);
+    const bank = input.bank !== undefined ? input.bank || null : lead.bank;
+    const valuesChanged =
+      (input.negotiatedValue !== undefined && input.negotiatedValue !== (lead.negotiatedValue === null ? null : Number(lead.negotiatedValue))) ||
+      (input.commissionRate !== undefined && input.commissionRate !== Number(lead.commissionRate)) ||
+      (input.bank !== undefined && (input.bank || null) !== lead.bank);
+
+    if (lead.financingDeal?.status === "paid" && (nextStatus !== "converted" || valuesChanged)) {
+      throw new BadRequestException(
+        "O repasse deste financiamento já foi pago — valor, comissão e banco não podem mais mudar, nem a etapa.",
+      );
+    }
+
+    // Concluído com anúncio = negócio registrado no programa de recompensa
+    // (entra no fechamento mensal e no "Meus ganhos" do anunciante). Sem
+    // anúncio, a comissão é toda do correspondente — não há repasse.
+    let financingDealId = lead.financingDealId;
+    const needsDeal = nextStatus === "converted" && Boolean(lead.listingId);
+    if (needsDeal && !negotiatedValue) {
+      throw new BadRequestException("Preencha o valor negociado (financiado) antes de concluir — é a base da comissão e do repasse.");
+    }
+    if (lead.financingDeal && (!needsDeal || valuesChanged)) {
+      // Desliga do card antes de apagar (a chave estrangeira não deixa apagar
+      // um negócio ainda ligado). Pago já foi barrado acima.
+      await this.prisma.financingLead.update({ where: { id }, data: { financingDealId: null } });
+      await this.rebates.deleteUnpaidDeal(lead.financingDeal.id);
+      financingDealId = null;
+    }
+
     await this.prisma.financingLead.update({
       where: { id },
       data: {
@@ -410,9 +494,22 @@ export class AgentsService {
         ...(input.adminNotes !== undefined ? { adminNotes: input.adminNotes || null } : {}),
       },
     });
+
+    if (needsDeal && !financingDealId && lead.listingId && negotiatedValue) {
+      const assetValue = Math.max(Number(lead.assetValue ?? 0), negotiatedValue);
+      const deal = await this.rebates.registerDeal(adminId, {
+        listingId: lead.listingId,
+        financingProvider: bank ?? "Banco não informado",
+        externalRef: `lead:${lead.id}`,
+        assetValue,
+        financedAmount: negotiatedValue,
+        commissionRate,
+      });
+      await this.prisma.financingLead.update({ where: { id }, data: { financingDealId: deal.id } });
+    }
   }
 
-  async updateFinancingLeadStatus(id: string, status: FinancingLeadStatus): Promise<void> {
-    await this.updateFinancingLead(id, { status });
+  async updateFinancingLeadStatus(adminId: string, id: string, status: FinancingLeadStatus): Promise<void> {
+    await this.updateFinancingLead(adminId, id, { status });
   }
 }

@@ -50,6 +50,12 @@ export class RebatesController {
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get("admin/financing-report")
+  monthlyReport(@Query("month") month: string) {
+    return this.rebatesService.monthlyReport(month ?? "");
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Get("admin/financing-deals")
   listDeals(@Query("status") status?: string) {
     const validStatus: FinancingDealStatus | undefined =

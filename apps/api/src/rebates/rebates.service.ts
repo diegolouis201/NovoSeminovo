@@ -247,6 +247,94 @@ export class RebatesService {
     return toFinancingDeal(deal);
   }
 
+  // Percentual que o anunciante receberia se o financiamento fechasse hoje —
+  // usado no quadro de financiamentos pra mostrar o repasse previsto antes
+  // de existir negócio registrado. Mesma regra de registerDeal.
+  async previewRebate(listingId: string): Promise<{ percent: number; receiverLabel: string } | undefined> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { partnerId: true, owner: { select: { name: true } }, partner: { select: { legalName: true, type: true } } },
+    });
+    if (!listing) return undefined;
+    let percent = INDIVIDUAL_REBATE_PERCENT;
+    if (listing.partnerId && listing.partner && isEligiblePartnerType(listing.partner.type)) {
+      const { current } = await this.currentTierFor(listing.partner.type, await this.cumulativeVolume(listing.partnerId));
+      percent = Number(current?.rebatePercent ?? INDIVIDUAL_REBATE_PERCENT);
+    }
+    return {
+      percent,
+      receiverLabel: listing.partner ? listing.partner.legalName : `${listing.owner.name} (pessoa física)`,
+    };
+  }
+
+  // Lead que saiu de "Concluído" antes do pagamento: o negócio registrado
+  // automaticamente some junto (senão entraria no fechamento um repasse de
+  // financiamento que não aconteceu). Pago não pode ser desfeito.
+  async deleteUnpaidDeal(dealId: string): Promise<void> {
+    const deal = await this.prisma.financingDeal.findUnique({ where: { id: dealId } });
+    if (!deal) return;
+    if (deal.status === "paid") {
+      throw new BadRequestException("O repasse deste negócio já foi pago — ele não pode sair de Concluído.");
+    }
+    await this.prisma.financingDeal.delete({ where: { id: dealId } });
+  }
+
+  // Fechamento mensal: todo negócio registrado no mês (pelo quadro ou à mão
+  // em /admin/recompensas), com quem recebe e os dados pra fazer o Pix.
+  async monthlyReport(month: string) {
+    const match = /^(\d{4})-(\d{2})$/.exec(month);
+    if (!match) throw new BadRequestException("Mês inválido — use AAAA-MM.");
+    // Mês no horário de Brasília (UTC−3, sem horário de verão desde 2019):
+    // o servidor roda em UTC, e um negócio das 22h do dia 31 é do mês 31.
+    const start = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1, 3));
+    const end = new Date(Date.UTC(Number(match[1]), Number(match[2]), 1, 3));
+
+    const deals = await this.prisma.financingDeal.findMany({
+      where: { createdAt: { gte: start, lt: end } },
+      orderBy: { createdAt: "asc" },
+      include: {
+        financingLead: { select: { name: true, phone: true } },
+        listing: {
+          select: {
+            title: true,
+            type: true,
+            owner: { select: { name: true, email: true, phone: true, cpf: true } },
+            partner: { select: { id: true, legalName: true, type: true, document: true, owner: { select: { email: true, phone: true } } } },
+          },
+        },
+      },
+    });
+
+    return deals.map((deal) => {
+      const partner = deal.listing.partner;
+      return {
+        date: deal.createdAt.toISOString(),
+        client: deal.financingLead?.name ?? "",
+        clientPhone: deal.financingLead?.phone ?? "",
+        listingTitle: deal.listing.title,
+        assetType: deal.listing.type,
+        bank: deal.financingProvider,
+        financedAmount: Number(deal.financedAmount),
+        commissionRate: Number(deal.commissionRate),
+        commissionAmount: Number(deal.commissionAmount),
+        receiverKey: partner ? `partner:${partner.id}` : `user:${deal.listing.owner.email}`,
+        receiverName: partner ? partner.legalName : deal.listing.owner.name,
+        receiverType: partner ? PARTNER_TYPE_LABEL[partner.type] ?? partner.type : "Pessoa física",
+        // CNPJ/CPF da loja ou CPF da pessoa física — chave Pix mais comum e
+        // necessário pro recibo. Vazio se a pessoa ainda não preencheu o perfil.
+        receiverDocument: partner ? partner.document : deal.listing.owner.cpf ?? "",
+        receiverEmail: partner ? partner.owner.email : deal.listing.owner.email,
+        receiverPhone: (partner ? partner.owner.phone : deal.listing.owner.phone) ?? "",
+        rebatePercent: Number(deal.rebatePercent),
+        rebateAmount: Number(deal.rebateAmount),
+        netAmount: Number(deal.commissionAmount) - Number(deal.rebateAmount),
+        status: deal.status,
+        paidAt: deal.paidAt?.toISOString() ?? "",
+        paidNote: deal.paidNote ?? "",
+      };
+    });
+  }
+
   async listDeals(status?: FinancingDealStatus): Promise<FinancingDeal[]> {
     const deals = await this.prisma.financingDeal.findMany({
       where: status ? { status } : undefined,

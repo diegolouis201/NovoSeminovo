@@ -76,7 +76,7 @@ export class AgentsController {
 
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Patch("admin/financing-leads/:id")
-  updateFinancingLead(@Param("id") id: string, @Body() body: unknown) {
-    return this.agentsService.updateFinancingLead(id, parseOrBadRequest(UpdateFinancingLeadInputSchema, body));
+  updateFinancingLead(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
+    return this.agentsService.updateFinancingLead(user.id, id, parseOrBadRequest(UpdateFinancingLeadInputSchema, body));
   }
 }
