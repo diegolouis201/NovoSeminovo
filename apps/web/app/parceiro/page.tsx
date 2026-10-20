@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { Icon } from "@phosphor-icons/react";
+import { ArrowRight, CurrencyCircleDollar, Funnel, Package } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField, SelectField, TextAreaField } from "@/components/FormField";
@@ -124,21 +126,52 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
         <PartnerNav active="geral" showEquipe={partner.isOwner} showServicos={partner.type === "workshop"} />
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Anúncios ativos" value={partner.stats.activeListings} />
-        <StatCard label="Leads novos" value={partner.stats.leadsNew} tone="text-brand-orange" />
-        <StatCard label="Vendidos este mês" value={partner.stats.soldThisMonth} tone="text-brand-blue" />
-        <StatCardText label="Faturamento do mês" value={partner.stats.revenueThisMonthLabel} tone="text-brand-green" />
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Total de anúncios" value={partner.stats.totalListings} />
-        <StatCard label="Total vendido" value={partner.stats.soldTotal} tone="text-brand-blue" />
-        <StatCardText
-          label="Taxa de conversão de leads"
-          value={partner.stats.conversionRatePercent !== undefined ? `${partner.stats.conversionRatePercent}%` : "—"}
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <DashboardPanel
+          icon={Funnel}
+          iconTone="text-brand-orange"
+          title="CRM"
+          headline={`${partner.stats.leadsTotal} lead${partner.stats.leadsTotal === 1 ? "" : "s"} recebido${partner.stats.leadsTotal === 1 ? "" : "s"}`}
+          breakdown={[
+            { label: "Novos", value: partner.stats.leadsNew },
+            { label: "Negociando", value: partner.stats.leadsNegotiating },
+            { label: "Ganhos", value: partner.stats.leadsWon },
+          ]}
+          ctaHref="/parceiro/leads"
+          ctaLabel="Gerenciar leads"
         />
-        <StatCardText label="Ticket médio" value={partner.stats.averageTicketLabel ?? "—"} />
+        <DashboardPanel
+          icon={Package}
+          iconTone="text-brand-blue"
+          title="Estoque"
+          headline={`${partner.stats.totalListings} anúncio${partner.stats.totalListings === 1 ? "" : "s"} no estoque`}
+          breakdown={[
+            { label: "Ativos", value: partner.stats.activeListings },
+            { label: "Vendidos", value: partner.stats.soldTotal },
+            {
+              label: "Outros",
+              value: Math.max(0, partner.stats.totalListings - partner.stats.activeListings - partner.stats.soldTotal),
+            },
+          ]}
+          ctaHref="/parceiro/anuncios"
+          ctaLabel="Consultar estoque"
+        />
+        <DashboardPanel
+          icon={CurrencyCircleDollar}
+          iconTone="text-brand-green"
+          title="Vendas"
+          headline={`${partner.stats.soldThisMonth} venda${partner.stats.soldThisMonth === 1 ? "" : "s"} este mês`}
+          breakdownText={[
+            { label: "Faturamento do mês", value: partner.stats.revenueThisMonthLabel },
+            { label: "Ticket médio", value: partner.stats.averageTicketLabel ?? "—" },
+            {
+              label: "Conversão de leads",
+              value: partner.stats.conversionRatePercent !== undefined ? `${partner.stats.conversionRatePercent}%` : "—",
+            },
+          ]}
+          ctaHref="/parceiro/vendas"
+          ctaLabel="Ver vendas"
+        />
       </div>
 
       <Link
@@ -156,15 +189,57 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
   );
 }
 
-function StatCard({ label, value, tone = "text-ink" }: { label: string; value: number; tone?: string }) {
-  return <StatCardText label={label} value={String(value)} tone={tone} />;
-}
-
-function StatCardText({ label, value, tone = "text-ink" }: { label: string; value: string; tone?: string }) {
+// Painel no estilo "home" de CRM (número principal do módulo + detalhamento
+// + atalho pra tela cheia) em vez de uma grade solta de cartõezinhos — cada
+// módulo do painel do parceiro (CRM, Estoque, Vendas) vira um bloco só.
+function DashboardPanel({
+  icon: Icon,
+  iconTone,
+  title,
+  headline,
+  breakdown,
+  breakdownText,
+  ctaHref,
+  ctaLabel,
+}: {
+  icon: Icon;
+  iconTone: string;
+  title: string;
+  headline: string;
+  breakdown?: { label: string; value: number }[];
+  breakdownText?: { label: string; value: string }[];
+  ctaHref: string;
+  ctaLabel: string;
+}) {
   return (
-    <div className="rounded-brand border border-border bg-surface-raised p-4">
-      <p className="text-xs text-ink-muted">{label}</p>
-      <p className={`text-2xl font-extrabold [font-variant-numeric:tabular-nums] ${tone}`}>{value}</p>
+    <div className="flex flex-col rounded-brand-lg border border-border bg-surface-raised p-5">
+      <div className="flex items-center gap-2">
+        <Icon size={20} weight="fill" className={iconTone} />
+        <h3 className="font-display text-sm font-bold uppercase tracking-wide text-ink-muted">{title}</h3>
+      </div>
+      <p className="mt-3 text-xl font-extrabold text-ink [font-variant-numeric:tabular-nums]">{headline}</p>
+
+      <dl className="mt-4 flex flex-col gap-1.5 text-sm">
+        {breakdown?.map((item) => (
+          <div key={item.label} className="flex items-center justify-between">
+            <dt className="text-ink-muted">{item.label}</dt>
+            <dd className="font-bold text-ink [font-variant-numeric:tabular-nums]">{item.value}</dd>
+          </div>
+        ))}
+        {breakdownText?.map((item) => (
+          <div key={item.label} className="flex items-center justify-between">
+            <dt className="text-ink-muted">{item.label}</dt>
+            <dd className="font-bold text-ink [font-variant-numeric:tabular-nums]">{item.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <Link
+        href={ctaHref}
+        className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-brand-blue hover:underline"
+      >
+        {ctaLabel} <ArrowRight size={14} weight="bold" />
+      </Link>
     </div>
   );
 }
