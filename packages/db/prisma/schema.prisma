@@ -741,9 +741,20 @@ model AgentConversation {
   @@map("agent_conversations")
 }
 
+// Etapas do funil do correspondente bancário (quadro em /admin/financiamentos).
+// "converted" é a etapa final (Concluído — contrato assinado/liberado); o
+// nome ficou do primeiro modelo, que só tinha novo/contato/fechado/perdido —
+// mantido pra não perder o andamento dos leads já gravados. Imóvel passa
+// por property_appraisal (vistoria/avaliação de engenharia do banco);
+// veículo pula essa etapa.
 enum FinancingLeadStatus {
   new
   contacted
+  documents
+  credit_analysis
+  approved
+  property_appraisal
+  contract
   converted
   lost
 }
@@ -766,8 +777,17 @@ model FinancingLead {
   assetValue      Decimal?            @map("asset_value") @db.Decimal(12, 2)
   downPayment     Decimal?            @map("down_payment") @db.Decimal(12, 2)
   monthlyIncome   Decimal?            @map("monthly_income") @db.Decimal(12, 2)
+  // Resumo escrito pelo assistente de compra na hora do pedido.
   notes           String?
   status          FinancingLeadStatus @default(new)
+  // Preenchidos pelo admin conforme a negociação anda: valor que vai ser
+  // financiado de fato, banco, percentual de comissão do correspondente
+  // (padrão 1%, igual ao FinancingDeal) e anotações próprias.
+  negotiatedValue Decimal?            @map("negotiated_value") @db.Decimal(12, 2)
+  commissionRate  Decimal             @default(1.00) @map("commission_rate") @db.Decimal(5, 2)
+  bank            String?
+  adminNotes      String?             @map("admin_notes")
+  statusChangedAt DateTime?           @map("status_changed_at")
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
 

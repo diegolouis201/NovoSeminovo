@@ -16,11 +16,17 @@ const PARTNER_TYPE_LABEL: Record<string, string> = {
 
 const FINANCING_LEAD_LABEL: Record<FinancingLeadStatus, string> = {
   new: "novo",
-  contacted: "em contato",
-  converted: "financiamento fechado",
+  contacted: "contato feito",
+  documents: "documentação",
+  credit_analysis: "análise de crédito",
+  approved: "aprovado",
+  property_appraisal: "avaliação do imóvel",
+  contract: "contrato",
+  converted: "concluído",
   lost: "perdido",
 };
-const FINANCING_LEAD_STATUSES = new Set<FinancingLeadStatus>(["new", "contacted", "converted", "lost"]);
+const FINANCING_LEAD_STATUS_VALUES = Object.keys(FINANCING_LEAD_LABEL) as FinancingLeadStatus[];
+const FINANCING_LEAD_STATUSES = new Set<FinancingLeadStatus>(FINANCING_LEAD_STATUS_VALUES);
 
 function str(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
@@ -55,7 +61,7 @@ export function buildAdminAgent(
     prisma: PrismaService;
     admin: AdminService;
     rebates: RebatesService;
-    listFinancingLeads: (status?: FinancingLeadStatus) => Promise<FinancingLeadSummary[]>;
+    listFinancingLeads: (status?: FinancingLeadStatus, assetType?: "vehicle" | "property") => Promise<FinancingLeadSummary[]>;
     updateFinancingLeadStatus: (id: string, status: FinancingLeadStatus) => Promise<void>;
   },
 ): AgentDefinition {
@@ -259,14 +265,22 @@ export function buildAdminAgent(
         description: "Pessoas que pediram contato sobre financiamento pelo assistente de compra (o funil do correspondente bancário).",
         input_schema: {
           type: "object",
-          properties: { status: { type: "string", enum: ["new", "contacted", "converted", "lost"] } },
+          properties: {
+            status: { type: "string", enum: FINANCING_LEAD_STATUS_VALUES, description: "Etapa do funil (converted = concluído)." },
+            tipo: { type: "string", enum: ["vehicle", "property"], description: "vehicle = veicular, property = imobiliário." },
+          },
         },
       },
       run: async (input) => {
         const status = str(input.status) as FinancingLeadStatus | undefined;
-        const leads = await deps.listFinancingLeads(status && FINANCING_LEAD_STATUSES.has(status) ? status : undefined);
+        const type = input.tipo === "vehicle" || input.tipo === "property" ? input.tipo : undefined;
+        const leads = await deps.listFinancingLeads(status && FINANCING_LEAD_STATUSES.has(status) ? status : undefined, type);
+        const open = leads.filter((lead) => lead.status !== "lost" && lead.status !== "converted");
+        const sum = (list: FinancingLeadSummary[]) => list.reduce((total, lead) => total + (lead.commissionAmount ?? 0), 0);
         return {
           total: leads.length,
+          comissao_prevista_em_aberto: formatBRL(sum(open)),
+          comissao_concluida: formatBRL(sum(leads.filter((lead) => lead.status === "converted"))),
           interessados: leads.slice(0, 30).map((lead) => ({
             id: lead.id,
             nome: lead.name,
@@ -278,7 +292,13 @@ export function buildAdminAgent(
             entrada: lead.downPaymentLabel,
             renda: lead.monthlyIncomeLabel,
             observacoes: lead.notes,
-            status: FINANCING_LEAD_LABEL[lead.status],
+            etapa: FINANCING_LEAD_LABEL[lead.status],
+            valor_negociado: lead.negotiatedValueLabel,
+            banco: lead.bank,
+            comissao: lead.commissionAmountLabel
+              ? `${lead.commissionAmountLabel} (${lead.commissionRate}%${lead.commissionIsEstimate ? ", estimada" : ""})`
+              : undefined,
+            anotacoes_admin: lead.adminNotes,
             pedido_em: lead.createdAt.slice(0, 10),
           })),
         };
@@ -287,12 +307,12 @@ export function buildAdminAgent(
     {
       definition: {
         name: "atualizar_interessado_financiamento",
-        description: "Muda o andamento de um interessado em financiamento. Exige confirmação.",
+        description: "Move um interessado em financiamento para outra etapa do funil. Exige confirmação.",
         input_schema: {
           type: "object",
           properties: {
             id: { type: "string" },
-            status: { type: "string", enum: ["new", "contacted", "converted", "lost"] },
+            status: { type: "string", enum: FINANCING_LEAD_STATUS_VALUES },
             confirmado: { type: "boolean" },
           },
           required: ["id", "status", "confirmado"],
@@ -392,7 +412,7 @@ export function buildAdminAgent(
 Você ajuda com:
 - Panorama do negócio (resumo_geral), em números claros e com o que merece atenção primeiro.
 - Moderação: fila de anúncios, lojas para verificar e denúncias (listar_pendencias, ver_anuncio), aprovando/recusando e verificando quando o administrador mandar.
-- Financiamento: interessados captados pelo assistente de compra — priorize quem está "novo" há mais tempo, porque cada um é uma comissão possível.
+- Financiamento: interessados captados pelo assistente de compra, num funil por etapas (novo → contato → documentação → análise de crédito → aprovado → avaliação do imóvel [só imobiliário] → contrato → concluído, ou perdido), separado em imobiliário e veicular, com valor negociado e comissão. Priorize quem está parado há mais tempo nas primeiras etapas, porque cada um é uma comissão possível. O quadro fica em [Financiamentos](/admin/financiamentos).
 - Recompensas a pagar aos anunciantes.
 - Desempenho dos parceiros (ranking_parceiros).
 

@@ -10,6 +10,7 @@ import type {
   AiStatus,
   FinancingLeadStatus,
   FinancingLeadSummary,
+  UpdateFinancingLeadInput,
   ConversationDetail,
   ConversationSummary,
   CreateListingInput,
@@ -1280,12 +1281,16 @@ export async function fetchAgentConversation(
 }
 
 export async function fetchFinancingLeads(
-  status: FinancingLeadStatus | undefined,
+  filter: { status?: FinancingLeadStatus; assetType?: "vehicle" | "property" },
   accessToken: string,
 ): Promise<FinancingLeadSummary[]> {
   try {
-    const query = status ? `?status=${status}` : "";
-    const res = await fetchWithTimeout(`${API_URL}/admin/financing-leads${query}`, { headers: authHeaders(accessToken) });
+    const query = new URLSearchParams();
+    if (filter.status) query.set("status", filter.status);
+    if (filter.assetType) query.set("assetType", filter.assetType);
+    const res = await fetchWithTimeout(`${API_URL}/admin/financing-leads?${query.toString()}`, {
+      headers: authHeaders(accessToken),
+    });
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return (await res.json()) as FinancingLeadSummary[];
   } catch {
@@ -1293,20 +1298,24 @@ export async function fetchFinancingLeads(
   }
 }
 
-export async function updateFinancingLeadStatus(
+export async function updateFinancingLead(
   id: string,
-  status: FinancingLeadStatus,
+  input: UpdateFinancingLeadInput,
   accessToken: string,
-): Promise<boolean> {
+): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const res = await fetchWithTimeout(`${API_URL}/admin/financing-leads/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(input),
     });
-    return res.ok;
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      return { ok: false, error: data.message ?? "Não foi possível salvar agora." };
+    }
+    return { ok: true };
   } catch {
-    return false;
+    return { ok: false, error: "Não foi possível falar com o servidor agora." };
   }
 }
 

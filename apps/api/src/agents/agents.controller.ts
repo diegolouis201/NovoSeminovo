@@ -1,7 +1,11 @@
 import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import type { Request } from "express";
-import { z } from "zod";
-import { AgentKind, AgentMessageInputSchema, FinancingLeadStatus } from "@novoseminovo/shared-types";
+import {
+  AgentKind,
+  AgentMessageInputSchema,
+  FinancingLeadStatus,
+  UpdateFinancingLeadInputSchema,
+} from "@novoseminovo/shared-types";
 import { AdminGuard } from "../admin/admin.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -62,15 +66,17 @@ export class AgentsController {
 
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Get("admin/financing-leads")
-  listFinancingLeads(@Query("status") status?: string) {
+  listFinancingLeads(@Query("status") status?: string, @Query("assetType") assetType?: string) {
     const parsed = FinancingLeadStatus.safeParse(status);
-    return this.agentsService.listFinancingLeads(parsed.success ? parsed.data : undefined);
+    return this.agentsService.listFinancingLeads(
+      parsed.success ? parsed.data : undefined,
+      assetType === "vehicle" || assetType === "property" ? assetType : undefined,
+    );
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Patch("admin/financing-leads/:id")
   updateFinancingLead(@Param("id") id: string, @Body() body: unknown) {
-    const { status } = parseOrBadRequest(z.object({ status: FinancingLeadStatus }), body);
-    return this.agentsService.updateFinancingLeadStatus(id, status);
+    return this.agentsService.updateFinancingLead(id, parseOrBadRequest(UpdateFinancingLeadInputSchema, body));
   }
 }

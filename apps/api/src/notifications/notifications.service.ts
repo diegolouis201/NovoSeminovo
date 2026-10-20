@@ -77,7 +77,7 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: `${payload.name} (${payload.phone}) pediu contato sobre financiamento${
           payload.listingTitle ? ` de "${payload.listingTitle}"` : ""
         } pelo assistente de IA (${payload.channel === "whatsapp" ? "WhatsApp" : "site"}).`,
-        link: "/admin/financiamentos",
+        link: `/admin/financiamentos?tipo=${payload.assetType === "vehicle" ? "veicular" : "imobiliario"}`,
       };
     case "service_confirmation_requested":
       return {

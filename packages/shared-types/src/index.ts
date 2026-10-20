@@ -1158,7 +1158,18 @@ export type AgentConversationView = z.infer<typeof AgentConversationViewSchema>;
 export const AgentStatusSchema = z.object({ enabled: z.boolean() });
 export type AgentStatus = z.infer<typeof AgentStatusSchema>;
 
-export const FinancingLeadStatus = z.enum(["new", "contacted", "converted", "lost"]);
+// Ordem = ordem das colunas no quadro. "converted" = Concluído (ver schema).
+export const FinancingLeadStatus = z.enum([
+  "new",
+  "contacted",
+  "documents",
+  "credit_analysis",
+  "approved",
+  "property_appraisal",
+  "contract",
+  "converted",
+  "lost",
+]);
 export type FinancingLeadStatus = z.infer<typeof FinancingLeadStatus>;
 
 export const FinancingLeadSummarySchema = z.object({
@@ -1180,6 +1191,17 @@ export const FinancingLeadSummarySchema = z.object({
   listingTitle: z.string().optional(),
   notes: z.string().optional(),
   status: FinancingLeadStatus,
+  // Negociação (preenchida pelo admin no quadro). Valor negociado ausente →
+  // a comissão estimada usa o valor do bem informado pelo comprador.
+  negotiatedValue: z.number().optional(),
+  negotiatedValueLabel: z.string().optional(),
+  commissionRate: z.number(),
+  commissionAmount: z.number().optional(),
+  commissionAmountLabel: z.string().optional(),
+  commissionIsEstimate: z.boolean(),
+  bank: z.string().optional(),
+  adminNotes: z.string().optional(),
+  statusChangedAt: z.string().optional(),
   createdAt: z.string(),
 });
 export type FinancingLeadSummary = z.infer<typeof FinancingLeadSummarySchema>;
@@ -1263,3 +1285,12 @@ export const IntegrationOverviewSchema = z.object({
   syncIntervalMinutes: z.number(),
 });
 export type IntegrationOverview = z.infer<typeof IntegrationOverviewSchema>;
+
+export const UpdateFinancingLeadInputSchema = z.object({
+  status: FinancingLeadStatus.optional(),
+  negotiatedValue: z.number().positive("Valor negociado precisa ser maior que zero").nullable().optional(),
+  commissionRate: z.number().min(0, "Comissão não pode ser negativa").max(100).optional(),
+  bank: z.string().trim().max(80).nullable().optional(),
+  adminNotes: z.string().trim().max(2000).nullable().optional(),
+});
+export type UpdateFinancingLeadInput = z.infer<typeof UpdateFinancingLeadInputSchema>;

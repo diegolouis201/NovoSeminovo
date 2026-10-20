@@ -17,6 +17,7 @@ import {
   type AgentKind,
   type AgentReply,
   type FinancingLeadStatus,
+  type UpdateFinancingLeadInput,
   type FinancingLeadSummary,
   type ListingSummary,
 } from "@novoseminovo/shared-types";
@@ -277,7 +278,7 @@ export class AgentsService {
             prisma: this.prisma,
             admin: this.admin,
             rebates: this.rebates,
-            listFinancingLeads: (status) => this.listFinancingLeads(status),
+            listFinancingLeads: (status, assetType) => this.listFinancingLeads(status, assetType),
             updateFinancingLeadStatus: (id, status) => this.updateFinancingLeadStatus(id, status),
           },
         );
@@ -328,6 +329,7 @@ export class AgentsService {
           phone: input.phone,
           listingTitle: listing?.title,
           channel: conversation.channel,
+          assetType: input.assetType,
         })
         .catch((error) => this.logger.error(`Falha ao notificar admin sobre lead de financiamento: ${error}`));
     }
@@ -335,12 +337,15 @@ export class AgentsService {
     return lead;
   }
 
-  async listFinancingLeads(status?: FinancingLeadStatus): Promise<FinancingLeadSummary[]> {
+  async listFinancingLeads(
+    status?: FinancingLeadStatus,
+    assetType?: "vehicle" | "property",
+  ): Promise<FinancingLeadSummary[]> {
     const leads = await this.prisma.financingLead.findMany({
-      where: status ? { status } : undefined,
+      where: { ...(status ? { status } : {}), ...(assetType ? { assetType } : {}) },
       include: { listing: { select: { title: true } } },
       orderBy: { createdAt: "desc" },
-      take: 200,
+      take: 500,
     });
 
     const money = (value: Prisma.Decimal | null) => (value === null ? undefined : Number(value));
@@ -348,6 +353,14 @@ export class AgentsService {
       const assetValue = money(lead.assetValue);
       const downPayment = money(lead.downPayment);
       const monthlyIncome = money(lead.monthlyIncome);
+      const negotiatedValue = money(lead.negotiatedValue);
+      const commissionRate = Number(lead.commissionRate);
+      // Comissão do correspondente incide sobre o valor financiado. Sem valor
+      // negociado ainda, estima pelo que o comprador informou (bem − entrada)
+      // — marcado como estimativa no quadro.
+      const estimateBase = assetValue !== undefined ? assetValue - (downPayment ?? 0) : undefined;
+      const base = negotiatedValue ?? (estimateBase && estimateBase > 0 ? estimateBase : undefined);
+      const commissionAmount = base !== undefined ? Math.round(base * commissionRate) / 100 : undefined;
       return {
         id: lead.id,
         channel: lead.channel,
@@ -365,14 +378,41 @@ export class AgentsService {
         listingTitle: lead.listing?.title,
         notes: lead.notes ?? undefined,
         status: lead.status,
+        negotiatedValue,
+        negotiatedValueLabel: negotiatedValue === undefined ? undefined : formatBRL(negotiatedValue),
+        commissionRate,
+        commissionAmount,
+        commissionAmountLabel: commissionAmount === undefined ? undefined : formatBRL(commissionAmount),
+        commissionIsEstimate: negotiatedValue === undefined,
+        bank: lead.bank ?? undefined,
+        adminNotes: lead.adminNotes ?? undefined,
+        statusChangedAt: lead.statusChangedAt?.toISOString(),
         createdAt: lead.createdAt.toISOString(),
       };
     });
   }
 
-  async updateFinancingLeadStatus(id: string, status: FinancingLeadStatus): Promise<void> {
+  async updateFinancingLead(id: string, input: UpdateFinancingLeadInput): Promise<void> {
     const lead = await this.prisma.financingLead.findUnique({ where: { id } });
     if (!lead) throw new NotFoundException("Lead não encontrado");
-    await this.prisma.financingLead.update({ where: { id }, data: { status } });
+    // Avaliação do imóvel (engenharia do banco) não existe no financiamento
+    // de veículo — o quadro veicular nem tem essa coluna.
+    if (input.status === "property_appraisal" && lead.assetType !== "property") {
+      throw new BadRequestException("Avaliação do imóvel só existe no financiamento imobiliário.");
+    }
+    await this.prisma.financingLead.update({
+      where: { id },
+      data: {
+        ...(input.status && input.status !== lead.status ? { status: input.status, statusChangedAt: new Date() } : {}),
+        ...(input.negotiatedValue !== undefined ? { negotiatedValue: input.negotiatedValue } : {}),
+        ...(input.commissionRate !== undefined ? { commissionRate: input.commissionRate } : {}),
+        ...(input.bank !== undefined ? { bank: input.bank || null } : {}),
+        ...(input.adminNotes !== undefined ? { adminNotes: input.adminNotes || null } : {}),
+      },
+    });
+  }
+
+  async updateFinancingLeadStatus(id: string, status: FinancingLeadStatus): Promise<void> {
+    await this.updateFinancingLead(id, { status });
   }
 }
