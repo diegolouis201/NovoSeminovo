@@ -98,7 +98,7 @@ export default function PrivacyPage() {
         <li>
           <strong>Prestadores de serviço</strong> que operam o site em nosso nome: hospedagem e armazenamento de
           fotos, envio de e-mails, processamento de pagamentos dos planos de parceiros (Stripe), modelos de IA
-          (Anthropic) e mensagens de WhatsApp (Meta). Alguns desses fornecedores podem tratar dados fora do Brasil, com
+          (Anthropic), mensagens de WhatsApp (Meta) e estatísticas de uso (Google Analytics, só com seu aceite). Alguns desses fornecedores podem tratar dados fora do Brasil, com
           as garantias exigidas pela LGPD.
         </li>
         <li>Autoridades, quando exigido por lei ou ordem judicial.</li>
@@ -108,7 +108,11 @@ export default function PrivacyPage() {
       <H2>5. Cookies e armazenamento no navegador</H2>
       <p>
         Usamos um cookie de sessão para manter você conectado e o armazenamento local do navegador para lembrar a
-        conversa com o assistente. Não usamos cookies de publicidade de terceiros.
+        conversa com o assistente e a sua escolha sobre cookies. <strong>Somente se você aceitar</strong> no aviso de
+        cookies, usamos o Google Analytics (Google), que coleta dados de navegação de forma estatística — páginas
+        visitadas, tempo, tipo de aparelho e região aproximada — para entendermos o uso do site. Você pode recusar sem
+        prejuízo nenhum, e mudar de ideia limpando os dados do site no seu navegador. Não usamos cookies de
+        publicidade.
       </p>
 
       <H2>6. Por quanto tempo guardamos</H2>
