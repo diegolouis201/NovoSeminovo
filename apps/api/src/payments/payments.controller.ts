@@ -8,6 +8,6 @@ export class PaymentsController {
 
   @Get("status")
   getStatus(): PaymentsStatus {
-    return { stripeEnabled: this.paymentsService.isEnabled() };
+    return { stripeEnabled: this.paymentsService.isEnabled(), stripeTestMode: this.paymentsService.isTestMode() };
   }
 }

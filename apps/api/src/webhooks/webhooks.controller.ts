@@ -21,7 +21,12 @@ export class WebhooksController {
   async handleStripeWebhook(@Req() req: RawBodyRequest<Request>, @Headers("stripe-signature") signature?: string) {
     if (!req.rawBody || !signature) throw new BadRequestException("Requisição sem corpo bruto ou assinatura");
 
-    const event = this.payments.constructWebhookEvent(req.rawBody, signature);
+    let event: ReturnType<PaymentsService["constructWebhookEvent"]>;
+    try {
+      event = this.payments.constructWebhookEvent(req.rawBody, signature);
+    } catch {
+      throw new BadRequestException("Assinatura do webhook inválida");
+    }
 
     switch (event.type) {
       case "checkout.session.completed": {
@@ -35,11 +40,22 @@ export class WebhooksController {
         }
         break;
       }
+      // Renovação paga, cartão recusado (past_due), cancelamento pelo portal
+      // do Stripe ou por falta de pagamento depois das novas tentativas.
+      // O período fica nos itens da assinatura (API do Stripe 2025+).
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object;
+        const item = subscription.items?.data?.[0];
+        const period = item
+          ? { start: new Date(item.current_period_start * 1000), end: new Date(item.current_period_end * 1000) }
+          : undefined;
+        const status = event.type === "customer.subscription.deleted" ? "canceled" : subscription.status;
+        const updated = await this.partners.syncSubscriptionFromStripe(subscription.id, status, period);
+        if (updated > 0) this.logger.log(`Assinatura ${subscription.id} sincronizada: ${status}`);
+        break;
+      }
       default:
-        // Outros eventos (ex.: customer.subscription.updated/deleted) ainda
-        // não têm ação aqui — a confirmação síncrona no retorno do Checkout
-        // (ver PartnersService.confirmCheckoutSession) já cobre o caminho
-        // principal; isso é só reforço pra quem fecha a aba antes de voltar.
         break;
     }
 

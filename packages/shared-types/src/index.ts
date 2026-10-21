@@ -720,6 +720,9 @@ export const PartnerSubscriptionSchema = z.object({
   maxActiveListings: z.number().int(),
   highlightCredits: z.number().int(),
   currentPeriodEnd: z.string(),
+  // past_due = a renovação falhou no cartão e o Stripe ainda está tentando
+  // cobrar de novo — o plano continua valendo, mas o painel avisa a loja.
+  status: z.enum(["active", "past_due"]),
 });
 export type PartnerSubscription = z.infer<typeof PartnerSubscriptionSchema>;
 
@@ -735,6 +738,8 @@ export type SubscribeToPlanInput = z.infer<typeof SubscribeToPlanInputSchema>;
 // ele descobre qual dos dois caminhos usar.
 export const PaymentsStatusSchema = z.object({
   stripeEnabled: z.boolean(),
+  // Chave sk_test_ — o checkout não cobra de verdade (aviso em /parceiro/plano).
+  stripeTestMode: z.boolean().optional(),
 });
 export type PaymentsStatus = z.infer<typeof PaymentsStatusSchema>;
 
@@ -742,6 +747,42 @@ export const CheckoutSessionResultSchema = z.object({
   url: z.string(),
 });
 export type CheckoutSessionResult = z.infer<typeof CheckoutSessionResultSchema>;
+
+// Quadro de assinaturas do admin (/admin/assinaturas): uma linha por
+// loja/imobiliária, na coluna do estado atual do plano. Quem move o card é o
+// Stripe (webhooks), não a equipe — por isso não há "mover" aqui, só anotar.
+export const SubscriptionBoardColumn = z.enum(["none", "active", "past_due", "canceled"]);
+export type SubscriptionBoardColumn = z.infer<typeof SubscriptionBoardColumn>;
+
+export const SubscriptionBoardCardSchema = z.object({
+  partnerId: z.string(),
+  legalName: z.string(),
+  slug: z.string(),
+  type: PartnerType,
+  verified: z.boolean(),
+  partnerCreatedAt: z.string(),
+  ownerName: z.string(),
+  ownerEmail: z.string(),
+  ownerPhone: z.string().optional(),
+  column: SubscriptionBoardColumn,
+  planName: z.string().optional(),
+  priceMonth: z.number().optional(),
+  priceLabel: z.string().optional(),
+  startedAt: z.string().optional(),
+  currentPeriodEnd: z.string().optional(),
+  statusChangedAt: z.string().optional(),
+  // Ativado pela simulação (sem Stripe) — não entra na receita.
+  simulated: z.boolean(),
+  listingsUsed: z.number().int(),
+  listingsLimit: z.number().int().optional(),
+  adminNotes: z.string().optional(),
+});
+export type SubscriptionBoardCard = z.infer<typeof SubscriptionBoardCardSchema>;
+
+export const UpdatePartnerAdminNotesInputSchema = z.object({
+  adminNotes: z.string().max(2000),
+});
+export type UpdatePartnerAdminNotesInput = z.infer<typeof UpdatePartnerAdminNotesInputSchema>;
 
 export const PartnerSchema = z.object({
   id: z.string(),

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { ReportStatus } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
-import { moderateListing, updateReportStatus, verifyPartner } from "@/lib/api";
+import { moderateListing, updatePartnerAdminNotes, updateReportStatus, verifyPartner } from "@/lib/api";
 
 export async function moderateListingAction(listingId: string, formData: FormData): Promise<void> {
   const session = await auth();
@@ -35,4 +35,13 @@ export async function updateReportStatusAction(reportId: string, formData: FormD
 
   await updateReportStatus(reportId, status, session.accessToken);
   revalidatePath("/admin");
+}
+
+export async function savePartnerAdminNotesAction(partnerId: string, adminNotes: string): Promise<{ ok: boolean }> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const ok = await updatePartnerAdminNotes(partnerId, adminNotes.slice(0, 2000), session.accessToken);
+  if (ok) revalidatePath("/admin/assinaturas");
+  return { ok };
 }

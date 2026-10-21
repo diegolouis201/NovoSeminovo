@@ -184,6 +184,11 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
             ? `${partner.subscription.planName} · até ${partner.subscription.maxActiveListings} anúncios`
             : "Nenhum plano ativo ainda"}
         </p>
+        {partner.subscription?.status === "past_due" && (
+          <p className="mt-1 text-sm font-semibold text-status-danger">
+            O pagamento da renovação não passou — toque aqui para atualizar o cartão.
+          </p>
+        )}
       </Link>
     </main>
   );

@@ -4,7 +4,13 @@ import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { PartnerNav } from "@/components/PartnerNav";
 import { fetchMyPartner, fetchPaymentsStatus, fetchPlans } from "@/lib/api";
-import { cancelSubscriptionAction, confirmCheckoutAction, startCheckoutAction, subscribeToPlanAction } from "@/lib/actions/partners";
+import {
+  cancelSubscriptionAction,
+  confirmCheckoutAction,
+  openBillingPortalAction,
+  startCheckoutAction,
+  subscribeToPlanAction,
+} from "@/lib/actions/partners";
 
 export default async function PartnerPlanPage({
   searchParams,
@@ -36,9 +42,11 @@ export default async function PartnerPlanPage({
 
       <h2 className="mt-6 font-display text-xl font-semibold text-ink">Plano</h2>
       <p className="text-sm text-ink-muted">
-        {paymentsStatus.stripeEnabled
-          ? "Contratar abre o checkout do Stripe (em modo de teste — nenhuma cobrança de verdade acontece)."
-          : "Contratar aqui não cobra nada de verdade — é uma simulação até a loja ligar um gateway de pagamento de verdade."}{" "}
+        {!paymentsStatus.stripeEnabled
+          ? "Contratar aqui não cobra nada de verdade — é uma simulação até a loja ligar um gateway de pagamento de verdade. "
+          : paymentsStatus.stripeTestMode
+            ? "Contratar abre o checkout do Stripe (em modo de teste — nenhuma cobrança de verdade acontece). "
+            : "O pagamento é feito com segurança pelo Stripe, no cartão de crédito, e renova todo mês. "}
         O limite de anúncios do plano já vale pra criar anúncio novo.
       </p>
 
@@ -53,6 +61,21 @@ export default async function PartnerPlanPage({
         </p>
       )}
 
+      {partner.subscription?.status === "past_due" && (
+        <div className="mt-4 rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">
+          <p className="font-semibold">Não conseguimos cobrar a renovação do seu plano.</p>
+          <p className="mt-1">
+            Seu plano continua valendo por enquanto e o cartão será cobrado de novo nos próximos dias. Atualize a forma de
+            pagamento para não perder o plano.
+          </p>
+          {paymentsStatus.stripeEnabled && (
+            <form action={openBillingPortalAction} className="mt-3">
+              <Button type="submit">Atualizar cartão</Button>
+            </form>
+          )}
+        </div>
+      )}
+
       <div className="mt-6 rounded-brand border border-border bg-surface-raised p-4">
         {partner.subscription ? (
           <>
@@ -64,11 +87,20 @@ export default async function PartnerPlanPage({
               Até {partner.subscription.maxActiveListings} anúncios · {partner.subscription.highlightCredits} destaque(s) ·
               renova em {new Date(partner.subscription.currentPeriodEnd).toLocaleDateString("pt-BR")}
             </p>
-            <form action={cancelSubscriptionAction} className="mt-3">
-              <Button type="submit" variant="ghost">
-                Cancelar plano
-              </Button>
-            </form>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {paymentsStatus.stripeEnabled && (
+                <form action={openBillingPortalAction}>
+                  <Button type="submit" variant="ghost">
+                    Cartão e faturas
+                  </Button>
+                </form>
+              )}
+              <form action={cancelSubscriptionAction}>
+                <Button type="submit" variant="ghost">
+                  Cancelar plano
+                </Button>
+              </form>
+            </div>
           </>
         ) : (
           <p className="text-ink-muted">Nenhum plano ativo ainda — escolha um abaixo.</p>

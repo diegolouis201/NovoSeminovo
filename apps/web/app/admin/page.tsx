@@ -50,6 +50,9 @@ export default async function AdminPage() {
         <Link href="/admin/recompensas" className="text-sm font-semibold text-brand-blue hover:underline">
           Programa de recompensa por financiamento →
         </Link>
+        <Link href="/admin/assinaturas" className="text-sm font-semibold text-brand-blue hover:underline">
+          Assinaturas dos parceiros →
+        </Link>
       </div>
 
       <section className="mt-8">

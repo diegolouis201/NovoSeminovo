@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { formatBRL } from "@novoseminovo/shared-types";
 import type {
   CreatePartnerInput,
+  SubscriptionBoardCard,
   FeaturedPartner,
   LeadStatus,
   LeadSummary,
@@ -21,6 +22,19 @@ import { getPhotoStorage } from "../common/storage";
 // (vendido/recusado/expirado) conta contra o limite, porque senão dava pra
 // furar o limite só deixando um monte de anúncio pausado ou em análise.
 export const LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA = ["active", "pending_review", "paused"] as const;
+
+// Assinatura "valendo": ativa ou com a renovação atrasada (o Stripe ainda
+// está tentando cobrar — a loja não perde o plano de um dia pro outro por um
+// cartão recusado). Só "canceled" tira o plano.
+export const SUBSCRIPTION_STATUSES_IN_EFFECT = ["active", "past_due"] as const;
+
+// Status do Stripe → status nosso. incomplete/unpaid contam como atrasado;
+// paused (pausa de cobrança) e os finais como cancelado.
+function fromStripeStatus(status: string): "active" | "past_due" | "canceled" {
+  if (status === "active" || status === "trialing") return "active";
+  if (status === "past_due" || status === "unpaid" || status === "incomplete") return "past_due";
+  return "canceled";
+}
 
 function toPlan(plan: { id: string; name: string; maxActiveListings: number; highlightCredits: number; priceMonth: unknown }): Plan {
   return {
@@ -129,7 +143,7 @@ export class PartnersService {
         this.prisma.listing.count({ where: { partnerId: partner.id } }),
         this.prisma.lead.groupBy({ by: ["status"], where: { partnerId: partner.id }, _count: true }),
         this.prisma.subscription.findFirst({
-          where: { partnerId: partner.id, status: "active" },
+          where: { partnerId: partner.id, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
           include: { plan: true },
           orderBy: { currentPeriodEnd: "desc" },
         }),
@@ -167,6 +181,7 @@ export class PartnersService {
             maxActiveListings: subscription.plan.maxActiveListings,
             highlightCredits: subscription.plan.highlightCredits,
             currentPeriodEnd: subscription.currentPeriodEnd.toISOString(),
+            status: subscription.status === "past_due" ? "past_due" : "active",
           }
         : undefined,
       isOwner: partner.ownerUserId === userId,
@@ -409,26 +424,39 @@ export class PartnersService {
   // em qualquer ordem) duplicava a linha de Subscription pra mesma
   // assinatura do Stripe, mesmo o resultado final (status active) ficando
   // certo de qualquer jeito.
+  //
+  // Troca de plano (ex.: Básico → Profissional) é um checkout novo, ou seja,
+  // uma assinatura nova no Stripe — a anterior é cancelada lá também, senão
+  // a loja continuaria pagando os dois planos todo mês.
   private async activateSubscription(partnerId: string, planId: string, paymentProviderRef?: string): Promise<void> {
     if (paymentProviderRef) {
-      const alreadyActive = await this.prisma.subscription.findFirst({
-        where: { partnerId, paymentProviderRef, status: "active" },
+      const alreadyInEffect = await this.prisma.subscription.findFirst({
+        where: { partnerId, paymentProviderRef, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
       });
-      if (alreadyActive) return;
+      if (alreadyInEffect) return;
     }
 
     const now = new Date();
     const currentPeriodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const previous = await this.prisma.subscription.findMany({
+      where: { partnerId, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
+    });
 
     await this.prisma.$transaction([
       this.prisma.subscription.updateMany({
-        where: { partnerId, status: "active" },
-        data: { status: "canceled" },
+        where: { partnerId, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
+        data: { status: "canceled", statusChangedAt: now },
       }),
       this.prisma.subscription.create({
         data: { partnerId, planId, status: "active", currentPeriodStart: now, currentPeriodEnd, paymentProviderRef },
       }),
     ]);
+
+    for (const old of previous) {
+      if (old.paymentProviderRef && old.paymentProviderRef !== paymentProviderRef) {
+        await this.payments.cancelStripeSubscription(old.paymentProviderRef);
+      }
+    }
   }
 
   // "Contratar" só o dono decide (mesma regra de Equipe). Sem Stripe
@@ -457,7 +485,8 @@ export class PartnersService {
     const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
     if (!plan) throw new NotFoundException(`Plano ${planId} não encontrado`);
 
-    return this.payments.createCheckoutSession(partner, plan, successUrl, cancelUrl);
+    const owner = await this.prisma.user.findUnique({ where: { id: partner.ownerUserId }, select: { email: true } });
+    return this.payments.createCheckoutSession(partner, plan, successUrl, cancelUrl, owner?.email);
   }
 
   // Chamado quando a pessoa volta do Checkout do Stripe — confirma direto na
@@ -485,14 +514,16 @@ export class PartnersService {
     const partner = await this.prisma.partner.findFirst({ where: { ownerUserId } });
     if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
 
-    const active = await this.prisma.subscription.findFirst({ where: { partnerId: partner.id, status: "active" } });
-    if (active?.paymentProviderRef) {
-      await this.payments.cancelStripeSubscription(active.paymentProviderRef);
+    const inEffect = await this.prisma.subscription.findMany({
+      where: { partnerId: partner.id, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
+    });
+    for (const subscription of inEffect) {
+      if (subscription.paymentProviderRef) await this.payments.cancelStripeSubscription(subscription.paymentProviderRef);
     }
 
     await this.prisma.subscription.updateMany({
-      where: { partnerId: partner.id, status: "active" },
-      data: { status: "canceled" },
+      where: { partnerId: partner.id, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
+      data: { status: "canceled", statusChangedAt: new Date() },
     });
 
     const result = await this.getMine(ownerUserId);
@@ -505,5 +536,94 @@ export class PartnersService {
   // legítimo é a assinatura do webhook, verificada antes de chegar aqui.
   async activateSubscriptionFromWebhook(partnerId: string, planId: string, stripeSubscriptionId: string): Promise<void> {
     await this.activateSubscription(partnerId, planId, stripeSubscriptionId);
+  }
+
+  // customer.subscription.updated/deleted: renovação paga, cartão recusado,
+  // cancelamento pelo portal do Stripe ou por falta de pagamento depois das
+  // novas tentativas. Uma assinatura já cancelada do nosso lado não volta a
+  // valer por aqui (só por um checkout novo) — evita ressuscitar um plano
+  // trocado por outro quando um evento antigo chega atrasado.
+  async syncSubscriptionFromStripe(
+    stripeSubscriptionId: string,
+    stripeStatus: string,
+    period?: { start: Date; end: Date },
+  ): Promise<number> {
+    const status = fromStripeStatus(stripeStatus);
+    const rows = await this.prisma.subscription.findMany({
+      where: { paymentProviderRef: stripeSubscriptionId, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
+    });
+    for (const row of rows) {
+      await this.prisma.subscription.update({
+        where: { id: row.id },
+        data: {
+          status,
+          ...(status !== row.status ? { statusChangedAt: new Date() } : {}),
+          ...(period ? { currentPeriodStart: period.start, currentPeriodEnd: period.end } : {}),
+        },
+      });
+    }
+    return rows.length;
+  }
+
+  async createBillingPortalSession(ownerUserId: string, returnUrl: string): Promise<string> {
+    const partner = await this.prisma.partner.findFirst({ where: { ownerUserId } });
+    if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
+    if (!partner.stripeCustomerId) {
+      throw new BadRequestException("Sua loja ainda não tem pagamento cadastrado no Stripe — contrate um plano primeiro.");
+    }
+    return this.payments.createBillingPortalSession(partner.stripeCustomerId, returnUrl);
+  }
+
+  // Quadro do admin: toda loja/imobiliária, com a assinatura que vale agora
+  // (ou, se não tiver, a mais recente — pra mostrar quem cancelou).
+  async subscriptionBoard(): Promise<SubscriptionBoardCard[]> {
+    const [partners, usage] = await Promise.all([
+      this.prisma.partner.findMany({
+        include: {
+          owner: { select: { name: true, email: true, phone: true } },
+          subscriptions: { include: { plan: true }, orderBy: { currentPeriodStart: "desc" } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.listing.groupBy({
+        by: ["partnerId"],
+        where: { partnerId: { not: null }, status: { in: [...LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA] } },
+        _count: true,
+      }),
+    ]);
+
+    return partners.map((partner) => {
+      const current =
+        partner.subscriptions.find((sub) => sub.status !== "canceled") ?? partner.subscriptions[0];
+      const inEffect = current && current.status !== "canceled";
+      return {
+        partnerId: partner.id,
+        legalName: partner.legalName,
+        slug: partner.slug,
+        type: partner.type,
+        verified: Boolean(partner.verifiedAt),
+        partnerCreatedAt: partner.createdAt.toISOString(),
+        ownerName: partner.owner.name,
+        ownerEmail: partner.owner.email,
+        ownerPhone: partner.owner.phone ?? undefined,
+        column: current ? current.status : "none",
+        planName: current?.plan.name,
+        priceMonth: current ? Number(current.plan.priceMonth) : undefined,
+        priceLabel: current ? formatBRL(Number(current.plan.priceMonth)) : undefined,
+        startedAt: current?.currentPeriodStart.toISOString(),
+        currentPeriodEnd: current?.currentPeriodEnd.toISOString(),
+        statusChangedAt: current?.statusChangedAt.toISOString(),
+        simulated: Boolean(current && !current.paymentProviderRef),
+        listingsUsed: usage.find((row) => row.partnerId === partner.id)?._count ?? 0,
+        listingsLimit: inEffect ? current.plan.maxActiveListings : undefined,
+        adminNotes: partner.adminNotes ?? undefined,
+      };
+    });
+  }
+
+  async updateAdminNotes(partnerId: string, adminNotes: string): Promise<void> {
+    const partner = await this.prisma.partner.findUnique({ where: { id: partnerId } });
+    if (!partner) throw new NotFoundException("Loja/imobiliária não encontrada.");
+    await this.prisma.partner.update({ where: { id: partnerId }, data: { adminNotes: adminNotes.trim() || null } });
   }
 }

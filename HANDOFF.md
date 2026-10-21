@@ -115,6 +115,8 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
 | `particular@novoseminovo.com.br` | Vendedor particular |
 | `comprador@novoseminovo.com.br` | Comprador |
 
+13. **Assinaturas (Stripe)**: no ar em modo **teste** (`sk_test_`; `GET /payments/status` → `stripeEnabled`, `stripeTestMode`). Webhook `POST /webhooks/stripe` trata `checkout.session.completed` (ativa), `customer.subscription.updated` (ativo/atrasado + período da renovação, lido de `items.data[0]`) e `customer.subscription.deleted` (cancela) — **os 3 eventos precisam estar marcados no endpoint do dashboard do Stripe**. Atrasado (`past_due`) mantém o plano valendo (`SUBSCRIPTION_STATUSES_IN_EFFECT` em `partners.service.ts`, usado no limite de anúncios) e mostra aviso + "Atualizar cartão" (portal do cliente do Stripe, `POST /partners/mine/billing-portal` — **portal precisa estar ativado no dashboard**). Troca de plano cancela a assinatura antiga no Stripe. Evento atrasado não ressuscita assinatura já cancelada. Quadro do admin `/admin/assinaturas` (`GET /admin/subscriptions`, `components/SubscriptionBoard.tsx`): colunas Sem plano / Ativo / Pagamento atrasado / Cancelado movidas só pelo Stripe, MRR (sem simulações), anotações internas (`Partner.adminNotes`, `PATCH /admin/partners/:id/notes`). **Pendente (decisão do Diego): sem plano não existe limite de anúncios** — cancelar o plano hoje volta a "sem limite"; definir o limite gratuito antes de cobrar de verdade.
+
 **Produção** tem contas reais do Diego — a conta demo `senha1234` citada acima é só do seed local/dev.
 
 ## Pendências e dívidas conhecidas (não esquecer)
@@ -123,7 +125,7 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
 - **Integração Credihome (financiamento real via API do Loft)**: bloqueada — sem acesso à documentação/credenciais no ambiente usado até agora. Diego compartilhou um PDF sobre o parceiro; revisitar quando ele tiver as credenciais.
 - **Verificação por WhatsApp/SMS**: bloqueada até o Diego configurar uma conta Twilio ou Zenvia.
 - **Rotação da chave da Anthropic API**: recomendado, nunca feito.
-- **Webhook secret do Stripe**: não configurado em produção — a integração de cobrança real (`PaymentsModule`) está escrita mas nunca testada de ponta a ponta contra `api.stripe.com` de verdade (ambientes de dev usados bloqueavam a saída de rede pra isso; um VPS de verdade não bloqueia, ver `DEPLOY.md`).
+- **Stripe antes do modo real**: chaves de teste e webhook secret foram coladas no chat — fazer "Roll" das duas; ativar a conta com o CNPJ; renomear a conta "Teste"; colocar as chaves live só pelo comando `read -rsp` (nunca pelo chat); criar endpoint de webhook live com os 3 eventos do item 13; definir o limite sem plano.
 - **CRM — próximo passo natural, não pedido ainda**: vincular "lead ganho" (kanban) a "marcar anúncio como vendido" automaticamente, hoje são duas ações manuais separadas.
 - **Agentes de IA**: só o canal WhatsApp pendente (ver item 7 acima).
 - Todos os 4 itens da visão original do Diego pro painel do parceiro ("logo → landing page com IA → posts pro Instagram → CRM de estoque e vendas") estão **completos e no ar** — não há item em progresso no momento em que este handoff foi escrito.

@@ -1,4 +1,5 @@
 import type {
+  SubscriptionBoardCard,
   CreatedPartnerApiKey,
   IntegrationFeed,
   IntegrationFeedFormat,
@@ -823,6 +824,18 @@ export async function fetchPaymentsStatus(): Promise<PaymentsStatus> {
   }
 }
 
+export async function startBillingPortalSession(accessToken: string): Promise<StartCheckoutResult> {
+  const res = await fetchWithTimeout(`${API_URL}/partners/mine/billing-portal`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { ok: false, error: body.message ?? "Não foi possível abrir a área de pagamento." };
+  }
+  return { ok: true, url: body.url as string };
+}
+
 export type StartCheckoutResult = { ok: true; url: string } | { ok: false; error: string };
 
 export async function startCheckoutSession(planId: string, accessToken: string): Promise<StartCheckoutResult> {
@@ -1334,6 +1347,31 @@ export async function updateFinancingLead(
     return { ok: true };
   } catch {
     return { ok: false, error: "Não foi possível falar com o servidor agora." };
+  }
+}
+
+// ---------- Assinaturas (quadro do admin) ----------
+
+export async function fetchSubscriptionBoard(accessToken: string): Promise<SubscriptionBoardCard[] | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/subscriptions`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as SubscriptionBoardCard[];
+  } catch {
+    return undefined;
+  }
+}
+
+export async function updatePartnerAdminNotes(partnerId: string, adminNotes: string, accessToken: string): Promise<boolean> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/partners/${partnerId}/notes`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+      body: JSON.stringify({ adminNotes }),
+    });
+    return res.ok;
+  } catch {
+    return false;
   }
 }
 

@@ -25,7 +25,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { ListingsService } from "../listings/listings.service";
 import { VehiclesService } from "../vehicles/vehicles.service";
-import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA } from "../partners/partners.service";
+import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA, SUBSCRIPTION_STATUSES_IN_EFFECT } from "../partners/partners.service";
 import { SafeFetchError, assertPublicHttpUrl, safeFetch } from "../common/safe-fetch";
 import { FeedFormatError, parseNovoSeminovoJson, parseVrsync, type ParsedFeedItem } from "./feed-parsers";
 import { parseVehicleCatalog } from "./vehicle-catalog-parser";
@@ -297,7 +297,7 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
 
   private async quotaFor(partnerId: string): Promise<{ max: number; used: number } | undefined> {
     const subscription = await this.prisma.subscription.findFirst({
-      where: { partnerId, status: "active" },
+      where: { partnerId, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
       include: { plan: true },
     });
     if (!subscription) return undefined;

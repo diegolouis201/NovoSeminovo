@@ -10,6 +10,7 @@ import {
   confirmCheckoutSession,
   createPartner,
   removePartnerMember,
+  startBillingPortalSession,
   startCheckoutSession,
   subscribeToPlan,
   updateLeadStatus,
@@ -114,6 +115,18 @@ export async function startCheckoutAction(planId: string): Promise<void> {
   if (!session?.accessToken) redirect("/entrar");
 
   const result = await startCheckoutSession(planId, session.accessToken);
+  if (!result.ok) {
+    redirect(`/parceiro/plano?error=${encodeURIComponent(result.error)}`);
+  }
+
+  redirect(result.url);
+}
+
+export async function openBillingPortalAction(): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const result = await startBillingPortalSession(session.accessToken);
   if (!result.ok) {
     redirect(`/parceiro/plano?error=${encodeURIComponent(result.error)}`);
   }

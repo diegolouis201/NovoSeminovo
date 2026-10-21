@@ -101,7 +101,11 @@ export function buildPartnerAgent(
           loja: partner.legalName,
           verificada: partner.verified,
           plano: partner.subscription
-            ? `${partner.subscription.planName} (até ${partner.subscription.maxActiveListings} anúncios ativos)`
+            ? `${partner.subscription.planName} (até ${partner.subscription.maxActiveListings} anúncios ativos)${
+                partner.subscription.status === "past_due"
+                  ? " — PAGAMENTO DA RENOVAÇÃO RECUSADO: oriente a atualizar o cartão em /parceiro/plano"
+                  : ""
+              }`
             : "sem plano ativo",
           numeros: partner.stats,
         };

@@ -19,7 +19,9 @@ import {
   CreatePartnerInputSchema,
   SubscribeToPlanInputSchema,
   UpdateLeadStatusInputSchema,
+  UpdatePartnerAdminNotesInputSchema,
 } from "@novoseminovo/shared-types";
+import { AdminGuard } from "../admin/admin.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
@@ -153,5 +155,28 @@ export class PartnersController {
   confirmCheckoutSession(@CurrentUser() user: { id: string }, @Query("session_id") sessionId?: string) {
     if (!sessionId) throw new BadRequestException("session_id é obrigatório");
     return this.partnersService.confirmCheckoutSession(user.id, sessionId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("partners/mine/billing-portal")
+  createBillingPortalSession(@CurrentUser() user: { id: string }) {
+    const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
+    return this.partnersService
+      .createBillingPortalSession(user.id, `${webOrigin}/parceiro/plano`)
+      .then((url) => ({ url }));
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get("admin/subscriptions")
+  subscriptionBoard() {
+    return this.partnersService.subscriptionBoard();
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Patch("admin/partners/:id/notes")
+  async updateAdminNotes(@Param("id") id: string, @Body() body: unknown) {
+    const input = parseOrBadRequest(UpdatePartnerAdminNotesInputSchema, body);
+    await this.partnersService.updateAdminNotes(id, input.adminNotes);
+    return { ok: true };
   }
 }

@@ -17,6 +17,10 @@ export class PaymentsService {
     return Boolean(process.env.STRIPE_SECRET_KEY);
   }
 
+  isTestMode(): boolean {
+    return (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
+  }
+
   private getClient(): Stripe {
     if (!this.client) {
       const key = process.env.STRIPE_SECRET_KEY;
@@ -55,12 +59,15 @@ export class PaymentsService {
     }
   }
 
-  private async ensureCustomer(partner: { id: string; legalName: string; stripeCustomerId: string | null }): Promise<string> {
+  private async ensureCustomer(partner: { id: string; legalName: string; stripeCustomerId: string | null }, email?: string): Promise<string> {
     if (partner.stripeCustomerId) return partner.stripeCustomerId;
 
+    // E-mail do dono no Customer — é pra ele que o Stripe manda recibo e o
+    // aviso de cartão recusado com o link de atualizar o pagamento.
     const client = this.getClient();
     const customer = await client.customers.create({
       name: partner.legalName,
+      email,
       metadata: { partnerId: partner.id },
     });
     await this.prisma.partner.update({ where: { id: partner.id }, data: { stripeCustomerId: customer.id } });
@@ -72,6 +79,7 @@ export class PaymentsService {
     plan: { id: string; stripePriceId: string | null },
     successUrl: string,
     cancelUrl: string,
+    ownerEmail?: string,
   ): Promise<string> {
     // Qualquer falha de rede/API do Stripe aqui (fora do ar, chave inválida,
     // timeout) vira uma mensagem clara em vez do "Internal server error"
@@ -80,7 +88,7 @@ export class PaymentsService {
     try {
       await this.ensureStripeCatalog();
       const client = this.getClient();
-      const customerId = await this.ensureCustomer(partner);
+      const customerId = await this.ensureCustomer(partner, ownerEmail);
 
       // stripePriceId pode ter acabado de ser criado por ensureStripeCatalog —
       // relê em vez de confiar no valor que chegou por parâmetro.
@@ -138,6 +146,21 @@ export class PaymentsService {
       // Já pode ter sido cancelada do lado do Stripe (ex.: pelo portal do
       // cliente) — não falha o cancelamento do nosso lado por isso.
       this.logger.warn(`Falha ao cancelar assinatura ${stripeSubscriptionId} no Stripe: ${error}`);
+    }
+  }
+
+  // Portal do cliente do Stripe: a loja troca o cartão, vê as faturas e
+  // cancela por lá. Precisa estar ativado no dashboard (Configurações →
+  // Billing → Customer portal), senão o Stripe recusa a sessão.
+  async createBillingPortalSession(customerId: string, returnUrl: string): Promise<string> {
+    try {
+      const session = await this.getClient().billingPortal.sessions.create({ customer: customerId, return_url: returnUrl });
+      return session.url;
+    } catch (error) {
+      this.logger.error(`Falha ao abrir o portal do Stripe pro customer ${customerId}: ${error}`);
+      throw new ServiceUnavailableException(
+        "Não foi possível abrir a área de pagamento agora. Tente novamente em instantes ou fale com a gente no WhatsApp.",
+      );
     }
   }
 

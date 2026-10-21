@@ -24,7 +24,7 @@ import { NotificationsService } from "../notifications/notifications.service";
 import { VehiclesService } from "../vehicles/vehicles.service";
 import { FipeService } from "../vehicles/fipe.service";
 import { getPhotoStorage, readPhotoBytes } from "../common/storage";
-import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA } from "../partners/partners.service";
+import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA, SUBSCRIPTION_STATUSES_IN_EFFECT } from "../partners/partners.service";
 import { AiService } from "./ai.service";
 import {
   DEFAULT_RATE,
@@ -718,7 +718,7 @@ export class ListingsService {
     // pra quem tem loja mas nunca contratou um plano.
     if (partner) {
       const subscription = await this.prisma.subscription.findFirst({
-        where: { partnerId: partner.id, status: "active" },
+        where: { partnerId: partner.id, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
         include: { plan: true },
       });
       if (subscription) {

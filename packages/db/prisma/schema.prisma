@@ -227,6 +227,9 @@ model Partner {
   // Reaproveitado entre tentativas de checkout — sem isso, cada contratação
   // criaria um Customer novo no Stripe pra mesma loja.
   stripeCustomerId String?     @map("stripe_customer_id")
+  // Anotações internas da equipe no quadro de assinaturas (/admin/assinaturas)
+  // — nunca aparece pro parceiro.
+  adminNotes       String?     @map("admin_notes")
   createdAt        DateTime    @default(now()) @map("created_at")
 
   members       PartnerMember[]
@@ -282,6 +285,9 @@ model Subscription {
   currentPeriodStart DateTime           @map("current_period_start")
   currentPeriodEnd   DateTime           @map("current_period_end")
   paymentProviderRef String?            @map("payment_provider_ref")
+  // Quando o status mudou pela última vez (ativou, atrasou, cancelou) — base
+  // dos "dias na etapa" e dos cancelamentos do mês no quadro do admin.
+  statusChangedAt    DateTime           @default(now()) @map("status_changed_at")
 
   @@map("subscriptions")
 }
