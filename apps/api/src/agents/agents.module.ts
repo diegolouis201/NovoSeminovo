@@ -7,11 +7,13 @@ import { AdminModule } from "../admin/admin.module";
 import { RebatesModule } from "../rebates/rebates.module";
 import { AgentsController } from "./agents.controller";
 import { AgentsService } from "./agents.service";
+import { WhatsAppController } from "./whatsapp.controller";
+import { WhatsAppService } from "./whatsapp.service";
 
 @Module({
   imports: [AuthModule, ListingsModule, NotificationsModule, PartnersModule, AdminModule, RebatesModule],
-  controllers: [AgentsController],
-  providers: [AgentsService],
+  controllers: [AgentsController, WhatsAppController],
+  providers: [AgentsService, WhatsAppService],
   exports: [AgentsService],
 })
 export class AgentsModule {}

@@ -8,6 +8,8 @@ export type BuyerAgentContext = {
   siteUrl: string;
   humanWhatsapp: string;
   user?: { name: string; phone?: string };
+  // Número de quem está falando, quando o canal é WhatsApp.
+  whatsappPhone?: string;
   // Preenchido pelas ferramentas durante a rodada: todo anúncio que o agente
   // de fato encontrou. É contra isto que o AgentsService valida quais cards
   // mostrar — um id que só aparece no texto do modelo nunca vira card.
@@ -269,7 +271,7 @@ export function buildBuyerAgent(
   const userInfo = ctx.user
     ? `A pessoa está logada no site: nome "${ctx.user.name}"${ctx.user.phone ? `, telefone ${ctx.user.phone}` : ""}. Use esses dados ao registrar interesse (confirme com ela antes).`
     : ctx.channel === "whatsapp"
-      ? "A pessoa está falando pelo WhatsApp — o telefone dela já é o deste chat; ainda assim confirme o nome antes de registrar interesse."
+      ? `A pessoa está falando pelo WhatsApp, do número ${ctx.whatsappPhone ?? "deste chat"} — use esse telefone ao registrar interesse (não precisa pedir de novo), mas pergunte o nome e confirme antes de registrar.`
       : "A pessoa não está logada — se ela quiser contato, peça nome e telefone.";
 
   const system = `Você é o assistente virtual do NovoSeminovo (novoseminovo.com.br), marketplace brasileiro de carros e imóveis seminovos/usados, com sede em Belo Horizonte/MG. O NovoSeminovo também é correspondente bancário: ajuda o comprador a conseguir financiamento de veículo e imobiliário.

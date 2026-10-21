@@ -174,6 +174,14 @@ export class AgentsService {
     return this.respond(conversation, input.message);
   }
 
+  // Mensagem que chegou pelo WhatsApp (ver WhatsAppService) — mesmo limite
+  // por pessoa do site, contado pelo telefone.
+  async respondWhatsApp(conversation: AgentConversation, phone: string, message: string): Promise<string> {
+    if (!this.isEnabled()) throw new ServiceUnavailableException("O assistente está fora do ar no momento.");
+    this.checkRateLimit(`wa:${phone}`);
+    return (await this.respond(conversation, message)).reply;
+  }
+
   // Comum ao site e ao WhatsApp: monta o agente certo, roda a rodada e
   // grava o histórico.
   async respond(conversation: AgentConversation, message: string): Promise<AgentReply> {
@@ -234,6 +242,7 @@ export class AgentsService {
             siteUrl: process.env.WEB_ORIGIN ?? "https://novoseminovo.com.br",
             humanWhatsapp: process.env.AGENT_HUMAN_WHATSAPP ?? DEFAULT_HUMAN_WHATSAPP,
             user: user ? { name: user.name, phone: user.phone ?? undefined } : undefined,
+            whatsappPhone: conversation.channel === "whatsapp" ? conversation.externalId ?? undefined : undefined,
             seenListings,
           },
           {
