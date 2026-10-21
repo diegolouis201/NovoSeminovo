@@ -87,8 +87,10 @@ export async function VerticalHome({ assetType }: { assetType?: "vehicle" | "pro
             Ver todos
           </Link>
         </div>
-        <div className="flex flex-wrap gap-5">
-          {destaques.map((listing) => (
+        {/* Até 8 na home (o resto em "Ver todos"); no celular, 4 — senão a
+            página vira uma rolagem sem fim antes de chegar nas lojas. */}
+        <div className="flex flex-wrap gap-5 max-sm:[&>*:nth-child(n+5)]:hidden">
+          {destaques.slice(0, 8).map((listing) => (
             <ListingCard
               key={listing.id}
               listing={listing}
@@ -98,6 +100,14 @@ export async function VerticalHome({ assetType }: { assetType?: "vehicle" | "pro
           ))}
           {destaques.length === 0 && <p className="text-ink-muted">Nenhum anúncio por aqui ainda.</p>}
         </div>
+        {destaques.length > 4 && (
+          <Link
+            href={assetType ? `/busca?assetType=${assetType}` : "/busca"}
+            className="self-center rounded-brand border border-border px-5 py-2.5 text-sm font-bold text-ink hover:bg-surface-sober"
+          >
+            Ver todos os anúncios
+          </Link>
+        )}
       </section>
 
       <FeaturedPartners partners={featuredPartners} />

@@ -1,0 +1,82 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { PageHero, Section } from "@/components/marketing/PageHero";
+import { COMPANY, CORBAN } from "@/lib/company";
+
+export const metadata: Metadata = {
+  title: "Quem somos",
+  description: "O NovoSeminovo é um marketplace de carros e imóveis de Belo Horizonte que junta anúncio, conversa e financiamento num lugar só.",
+  alternates: { canonical: "/quem-somos" },
+};
+
+const VALUES = [
+  { title: "Sem enrolação", text: "Anúncio claro, preço à vista, conversa direta com quem vende." },
+  { title: "Confiança", text: "Moderação de anúncios, selo de loja verificada e histórico do veículo pela placa." },
+  { title: "Financiamento de verdade", text: "Simulação na hora e um especialista que acompanha até o contrato." },
+  { title: "Tecnologia a favor", text: "Inteligência artificial pra ajudar quem compra a escolher e quem vende a vender melhor." },
+];
+
+export default function AboutPage() {
+  return (
+    <main className="pb-16">
+      <PageHero eyebrow="Quem somos" title="Comprar e vender não precisa ser chato">
+        O NovoSeminovo nasceu em {COMPANY.city} pra resolver um problema simples: comprar um carro ou um imóvel usado
+        envolve sites demais, conversa demais e, no fim, o financiamento ainda é um mistério.
+      </PageHero>
+
+      <Section title="O que fazemos">
+        <div className="mt-4 space-y-3 text-base text-ink">
+          <p>
+            Reunimos num só lugar os anúncios de pessoas, lojas de veículos, imobiliárias e corretores, a conversa com
+            quem vende e a simulação de financiamento. Quem compra encontra o que cabe no bolso; quem vende recebe
+            contatos de quem está pronto pra comprar.
+          </p>
+          <p>
+            O financiamento é feito com a <strong>{CORBAN.brand}</strong>, correspondente bancário parceiro, que leva o
+            pedido aos bancos e financeiras e acompanha o cliente até a assinatura. E quem anunciou ainda recebe uma
+            recompensa quando o comprador financia.
+          </p>
+        </div>
+      </Section>
+
+      <Section title="No que acreditamos">
+        <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+          {VALUES.map((value) => (
+            <li key={value.title} className="rounded-brand bg-surface-raised p-5 shadow-card">
+              <h3 className="text-base font-bold text-ink">{value.title}</h3>
+              <p className="mt-1 text-sm text-ink-muted">{value.text}</p>
+            </li>
+          ))}
+        </ul>
+      </Section>
+
+      <Section title="Dados da empresa">
+        <dl className="mt-4 grid gap-3 rounded-brand border border-border bg-surface-raised p-5 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-ink-muted">Marketplace</dt>
+            <dd className="font-semibold text-ink">
+              {COMPANY.brand} — {COMPANY.legalName}
+              <br />
+              CNPJ {COMPANY.cnpj}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-ink-muted">Correspondente bancário parceiro</dt>
+            <dd className="font-semibold text-ink">
+              {CORBAN.brand} — {CORBAN.legalName}
+              <br />
+              CNPJ {CORBAN.cnpj}
+            </dd>
+          </div>
+        </dl>
+        <p className="mt-4 text-sm text-ink-muted">
+          Quer falar com a gente?{" "}
+          <Link href="/contato" className="font-semibold text-brand-blue hover:underline">
+            Veja os canais de contato
+          </Link>
+          .
+        </p>
+      </Section>
+    </main>
+  );
+}

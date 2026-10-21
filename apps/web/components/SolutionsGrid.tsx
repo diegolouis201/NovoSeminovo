@@ -11,7 +11,7 @@ const SOLUTIONS = [
     fg: "text-brand-green",
   },
   {
-    href: "/parceiro",
+    href: "/para-lojas",
     label: "Vire um parceiro verificado",
     description: "Loja ou imobiliária com selo de confiança.",
     icon: Storefront,

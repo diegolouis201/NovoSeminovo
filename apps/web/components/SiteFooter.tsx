@@ -3,41 +3,48 @@ import { InstagramLogo } from "@phosphor-icons/react/dist/ssr";
 import { Logo } from "@/components/Logo";
 import { COMPANY, CORBAN } from "@/lib/company";
 
+const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
+  {
+    title: "NovoSeminovo",
+    links: [
+      { href: "/quem-somos", label: "Quem somos" },
+      { href: "/como-funciona", label: "Como funciona" },
+      { href: "/perguntas-frequentes", label: "Perguntas frequentes" },
+      { href: "/contato", label: "Contato" },
+    ],
+  },
+  {
+    title: "Para você",
+    links: [
+      { href: "/anunciar", label: "Anunciar grátis" },
+      { href: "/assistente-compra", label: "Assistente de compra" },
+      { href: "/consultar-veiculo", label: "Passaporte Digital do veículo" },
+      { href: "/recompensas", label: "Recompensa por financiamento" },
+    ],
+  },
+  {
+    title: "Para empresas",
+    links: [
+      { href: "/para-lojas", label: "Lojas, imobiliárias e corretores" },
+      { href: "/parceiro", label: "Painel do parceiro" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { href: "/privacidade", label: "Política de Privacidade" },
+      { href: "/termos", label: "Termos de Uso" },
+    ],
+  },
+];
+
 export function SiteFooter() {
   return (
     <footer className="mt-16 border-t border-border bg-surface-raised">
-      <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-4 py-8 text-center sm:flex-row sm:flex-wrap sm:justify-between sm:text-left">
-        <Logo variant="stacked" className="text-sm" />
-
-        <div className="flex flex-col items-center gap-1 sm:items-start">
-          <Link href="/consultar-veiculo" className="text-sm font-semibold text-brand-blue hover:underline">
-            Consultar Passaporte Digital de um veículo
-          </Link>
-          <Link href="/recompensas" className="text-sm font-semibold text-brand-blue hover:underline">
-            Programa de recompensa por financiamento
-          </Link>
-          <div className="flex gap-3">
-            <Link href="/privacidade" className="text-sm text-ink-muted hover:underline">
-              Política de Privacidade
-            </Link>
-            <Link href="/termos" className="text-sm text-ink-muted hover:underline">
-              Termos de Uso
-            </Link>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <p className="text-sm text-ink-muted">
-            © {new Date().getFullYear()} {COMPANY.brand}
-            <br />
-            <span className="text-xs">
-              {COMPANY.legalName} · CNPJ {COMPANY.cnpj}
-            </span>
-            <br />
-            <span className="text-xs">
-              Financiamentos: correspondente parceiro {CORBAN.brand} ({CORBAN.legalName}, CNPJ {CORBAN.cnpj})
-            </span>
-          </p>
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-[1.2fr_repeat(4,1fr)]">
+        <div className="flex flex-col gap-3">
+          <Logo variant="stacked" className="text-sm" />
+          <p className="text-sm text-ink-muted">Carros e imóveis, sem enrolação.</p>
           <Link
             href="https://instagram.com/novoseminovooficial"
             target="_blank"
@@ -48,6 +55,30 @@ export function SiteFooter() {
             <InstagramLogo size={20} weight="bold" />
           </Link>
         </div>
+
+        {COLUMNS.map((column) => (
+          <nav key={column.title} aria-label={column.title}>
+            <h2 className="text-xs font-bold uppercase tracking-wide text-ink-muted">{column.title}</h2>
+            <ul className="mt-3 space-y-2">
+              {column.links.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href} className="text-sm text-ink hover:text-brand-blue hover:underline">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+      </div>
+
+      <div className="border-t border-border">
+        <p className="mx-auto max-w-6xl px-4 py-4 text-xs text-ink-muted">
+          © {new Date().getFullYear()} {COMPANY.brand} · {COMPANY.legalName} · CNPJ {COMPANY.cnpj}
+          <br />
+          Financiamentos: correspondente bancário parceiro {CORBAN.brand} ({CORBAN.legalName}, CNPJ {CORBAN.cnpj}). O{" "}
+          {COMPANY.brand} não é instituição financeira e não concede crédito.
+        </p>
       </div>
     </footer>
   );
