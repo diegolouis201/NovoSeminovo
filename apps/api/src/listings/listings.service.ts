@@ -160,6 +160,30 @@ export class ListingsService {
   // ordenadas pelas mais anunciadas. Sem campo de carroceria no schema
   // (SUV/Hatch/Sedã etc., como a Webmotors usa) pra oferecer algo parecido,
   // marca é o recorte mais próximo que já temos de verdade no banco.
+  // Tudo que o Google pode indexar: anúncios ativos e vitrines de lojas com
+  // anúncio ativo. Só ids/datas — público de propósito (as páginas também são).
+  async sitemapEntries(): Promise<{
+    listings: { id: string; updatedAt: string }[];
+    storefronts: { slug: string }[];
+  }> {
+    const [listings, partners] = await Promise.all([
+      this.prisma.listing.findMany({
+        where: { status: "active" },
+        select: { id: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 45000,
+      }),
+      this.prisma.partner.findMany({
+        where: { listings: { some: { status: "active" } } },
+        select: { slug: true },
+      }),
+    ]);
+    return {
+      listings: listings.map((listing) => ({ id: listing.id, updatedAt: listing.updatedAt.toISOString() })),
+      storefronts: partners,
+    };
+  }
+
   async popularBrands(limit = 8): Promise<string[]> {
     const brands = await this.prisma.vehicleBrand.findMany({
       where: { details: { some: { listing: { status: "active" } } } },

@@ -71,6 +71,24 @@ import { getListing, getVehicleProfile, listListings } from "@/lib/mock-data";
 // de exemplo em lib/mock-data.ts — mesmo formato dos dois lados.
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
+// Dados de exemplo (mock-data.ts) só em desenvolvimento. Em produção, API
+// fora do ar mostrando anúncio de exemplo seria anúncio falso pro visitante
+// — ali a falha vira erro (app/error.tsx avisa "instabilidade") e as seções
+// secundárias (marcas, lojas em destaque) só somem.
+const USE_MOCK_FALLBACK = process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_USE_MOCK_DATA === "1";
+
+export class ApiUnavailableError extends Error {
+  constructor() {
+    super("API do NovoSeminovo indisponível");
+  }
+}
+
+function mockOr<T>(mock: () => T, productionFallback?: T): T {
+  if (USE_MOCK_FALLBACK) return mock();
+  if (productionFallback !== undefined) return productionFallback;
+  throw new ApiUnavailableError();
+}
+
 // Fotos de anúncio vêm da API como caminho relativo (/uploads/...), porque é
 // lá que o arquivo é servido (ver apps/api/src/main.ts) — o navegador
 // resolveria isso contra o domínio do site, não da API, então quebra sem
@@ -121,7 +139,7 @@ export async function fetchListings(params: SearchParams): Promise<ListingSummar
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return (await res.json()) as ListingSummary[];
   } catch {
-    return listListings(params.assetType);
+    return mockOr(() => listListings(params.assetType));
   }
 }
 
@@ -141,7 +159,7 @@ export async function fetchFeaturedPartners(forAssetType?: "vehicle" | "property
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return (await res.json()) as FeaturedPartner[];
   } catch {
-    return MOCK_FEATURED_PARTNERS;
+    return mockOr(() => MOCK_FEATURED_PARTNERS, []);
   }
 }
 
@@ -153,7 +171,7 @@ export async function fetchPopularBrands(): Promise<string[]> {
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return (await res.json()) as string[];
   } catch {
-    return MOCK_POPULAR_BRANDS;
+    return mockOr(() => MOCK_POPULAR_BRANDS, []);
   }
 }
 
@@ -189,7 +207,7 @@ export async function fetchListing(id: string, accessToken?: string): Promise<Li
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return (await res.json()) as ListingDetail;
   } catch {
-    return getListing(id);
+    return mockOr(() => getListing(id));
   }
 }
 
@@ -210,7 +228,7 @@ export async function fetchVehicleProfile(id: string, accessToken?: string): Pro
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return (await res.json()) as VehicleProfile;
   } catch {
-    return getVehicleProfile(id);
+    return mockOr(() => getVehicleProfile(id));
   }
 }
 

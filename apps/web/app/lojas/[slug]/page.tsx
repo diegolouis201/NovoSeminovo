@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { Sparkle } from "@phosphor-icons/react/dist/ssr";
 import type { ListingSummary, Review } from "@novoseminovo/shared-types";
 import { ListingCard } from "@/components/ListingCard";
@@ -11,9 +13,35 @@ const PARTNER_TYPE_LABEL: Record<string, string> = {
   broker: "Corretor(a) autônomo(a)",
 };
 
+// Uma chamada só por visita: a vitrine pede destaques à IA na API, e a
+// prévia (generateMetadata) mais a página pediriam duas vezes.
+const loadStorefront = cache((slug: string) => fetchPartnerStorefront(slug));
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const storefront = await loadStorefront(params.slug);
+  if (!storefront) return { title: "Loja não encontrada", robots: { index: false } };
+  const title = `${storefront.legalName} — ${PARTNER_TYPE_LABEL[storefront.type] ?? "Parceiro"}`;
+  const description = (
+    storefront.description ??
+    `${storefront.listings.length} anúncio(s) de ${storefront.legalName} no NovoSeminovo${storefront.address ? ` · ${storefront.address}` : ""}.`
+  ).slice(0, 200);
+  const image = storefront.logoUrl ?? storefront.listings[0]?.image;
+  return {
+    title,
+    description,
+    alternates: { canonical: `/lojas/${params.slug}` },
+    openGraph: {
+      title,
+      description,
+      url: `/lojas/${params.slug}`,
+      images: [image ? { url: resolveMediaUrl(image), alt: storefront.legalName } : { url: "/opengraph-image", width: 1200, height: 630 }],
+    },
+  };
+}
+
 export default async function PartnerStorefrontPage({ params }: { params: { slug: string } }) {
   const [storefront, { isAuthenticated, favoriteIds }] = await Promise.all([
-    fetchPartnerStorefront(params.slug),
+    loadStorefront(params.slug),
     getFavoriteContext(),
   ]);
   if (!storefront) notFound();

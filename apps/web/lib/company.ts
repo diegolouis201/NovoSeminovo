@@ -22,3 +22,7 @@ export const CORBAN = {
 } as const;
 
 export const LEGAL_UPDATED_AT = "21/10/2026";
+
+// Endereço público do site — base dos links absolutos de prévia (WhatsApp,
+// Instagram, Google) e do sitemap.
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://novoseminovo.com.br").replace(/\/$/, "");

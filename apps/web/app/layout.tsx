@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { SITE_URL } from "@/lib/company";
 import { auth } from "@/auth";
 import { AgentChatWidget } from "@/components/AgentChatWidget";
 import { Analytics } from "@/components/Analytics";
@@ -27,10 +28,24 @@ const sans = localFont({
   display: "swap",
 });
 
+const DESCRIPTION =
+  "Compre e venda carros e imóveis com histórico, chat e simulação de financiamento em um só lugar.";
+
+// Padrão de todas as páginas: cada página pode sobrescrever o título (o
+// template põe " | NovoSeminovo" no fim) e a prévia de compartilhamento.
 export const metadata: Metadata = {
-  title: "NovoSeminovo — Carros e imóveis, sem enrolação",
-  description:
-    "Compre e venda carros e imóveis com histórico, chat e simulação de financiamento em um só lugar.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: "NovoSeminovo — Carros e imóveis, sem enrolação", template: "%s | NovoSeminovo" },
+  description: DESCRIPTION,
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: "NovoSeminovo",
+    title: "NovoSeminovo — Carros e imóveis, sem enrolação",
+    description: DESCRIPTION,
+    url: "/",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { Bank, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Badge } from "@/components/Badge";
@@ -9,7 +11,7 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
 import { PhotoCarousel } from "@/components/PhotoCarousel";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
-import { fetchListing } from "@/lib/api";
+import { fetchListing, resolveMediaUrl } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
 import { startConversationAction } from "@/lib/actions/conversations";
 
@@ -18,6 +20,42 @@ import { startConversationAction } from "@/lib/actions/conversations";
 // só uma calculadora local sem integração bancária nenhuma. Só faz sentido
 // pra imóvel: não existe parceria equivalente pra veículo ainda.
 const CREDIHOME_SIMULATOR_URL = "https://simular.credihome.com.br/novoseminovo";
+
+// A prévia (generateMetadata) e a página pedem o mesmo anúncio na mesma
+// requisição — cache() faz uma chamada só à API. Sem isso cada visita
+// contaria duas visualizações no anúncio (ver ListingsService.getDetail).
+const loadListing = cache(async (id: string) => {
+  const session = await auth();
+  return fetchListing(id, session?.accessToken);
+});
+
+// Prévia ao compartilhar o link (WhatsApp, Instagram, Facebook, Google):
+// título com preço e cidade, e a foto de capa do próprio anúncio.
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const listing = await loadListing(params.id);
+  if (!listing) return { title: "Anúncio não encontrado", robots: { index: false } };
+
+  const title = `${listing.title} · ${listing.priceLabel}`;
+  const summary = [listing.subtitle, listing.location].filter(Boolean).join(" · ");
+  const description = `${summary}. ${listing.description}`.replace(/\s+/g, " ").slice(0, 200);
+  const cover = listing.photos[0]?.url ?? listing.image;
+  return {
+    title,
+    description,
+    alternates: { canonical: `/anuncio/${listing.id}` },
+    // Em análise, recusado ou vendido: a página existe (pro dono), mas não
+    // deve entrar no Google.
+    robots: listing.status === "active" ? undefined : { index: false, follow: false },
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      url: `/anuncio/${listing.id}`,
+      // Sem foto, a prévia usa a imagem padrão do site (app/opengraph-image.tsx).
+      images: [cover ? { url: resolveMediaUrl(cover), alt: listing.title } : { url: "/opengraph-image", width: 1200, height: 630 }],
+    },
+  };
+}
 
 export default async function ListingDetailPage({
   params,
@@ -30,7 +68,7 @@ export default async function ListingDetailPage({
   // próprio anúncio pendente de moderação (a API só libera pra dono/admin).
   const session = await auth();
   const [listing, { isAuthenticated, favoriteIds }] = await Promise.all([
-    fetchListing(params.id, session?.accessToken),
+    loadListing(params.id),
     getFavoriteContext(),
   ]);
   if (!listing) notFound();

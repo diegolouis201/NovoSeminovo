@@ -110,6 +110,13 @@ export class ListingsController {
     return this.listingsService.search(query);
   }
 
+  // Lista pro sitemap.xml do site (ver apps/web/app/sitemap.ts). Também
+  // antes de ":id", pelo mesmo motivo de "popular-brands" abaixo.
+  @Get("sitemap")
+  sitemap() {
+    return this.listingsService.sitemapEntries();
+  }
+
   // Precisa vir antes de ":id" — mesmo motivo do "mine" abaixo: "popular-brands"
   // seria casado como um :id senão.
   @Get("popular-brands")
