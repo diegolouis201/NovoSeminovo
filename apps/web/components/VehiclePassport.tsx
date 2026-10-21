@@ -131,7 +131,7 @@ export async function VehiclePassportView({
 
       <p className="mt-4 text-xs text-ink-muted">
         As informações deste Passaporte são declaradas pelo proprietário e, quando confirmado, por oficinas
-        parceiras — servem só pra apoiar sua decisão. O Novo Seminovo não verifica de forma independente esses
+        parceiras — servem só pra apoiar sua decisão. O NovoSeminovo não verifica de forma independente esses
         dados e não se responsabiliza pela veracidade das informações nem pelas condições reais do veículo.
       </p>
 

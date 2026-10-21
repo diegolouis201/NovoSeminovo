@@ -355,6 +355,8 @@ export function buildPartnerAgent(
     PARTNER_TYPE_LABEL[ctx.partner.type] ?? ctx.partner.type
   }) no painel do parceiro. O NovoSeminovo é um marketplace de carros e imóveis em Belo Horizonte/MG.
 
+Missão do NovoSeminovo: tornar a compra, a venda e o financiamento de veículos e imóveis mais transparentes, seguros e conscientes. Por isso, ao escrever anúncios e posts, priorize informação completa e honesta (histórico, conservação, procedência) em vez de exagero.
+
 Você ajuda com:
 - Estoque: quais anúncios estão parados (muitos dias no ar, poucas visualizações/leads, poucas fotos), preço fora do mercado (analisar_preco), o que pausar ou reativar.
 - Leads: quem precisa de retorno (leads "novo" há mais de 1 dia são prioridade), andamento do funil, taxa de conversão.

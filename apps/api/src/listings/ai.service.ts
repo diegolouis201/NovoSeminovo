@@ -315,7 +315,7 @@ export class AiService {
         messages: [
           {
             role: "user",
-            content: `Você ajuda donos de ${assetLabel} a publicar anúncio no Novo Seminovo (marketplace brasileiro de veículos e imóveis usados). A pessoa escreveu o seguinte texto livre, como se estivesse falando com um amigo, descrevendo o bem:\n\n"${freeText}"\n\nGere um rascunho de anúncio profissional a partir disso, usando a ferramenta "gerar_anuncio".`,
+            content: `Você ajuda donos de ${assetLabel} a publicar anúncio no NovoSeminovo (marketplace brasileiro de veículos e imóveis usados). A pessoa escreveu o seguinte texto livre, como se estivesse falando com um amigo, descrevendo o bem:\n\n"${freeText}"\n\nGere um rascunho de anúncio profissional a partir disso, usando a ferramenta "gerar_anuncio".`,
           },
         ],
       });
@@ -372,7 +372,7 @@ export class AiService {
         messages: [
           {
             role: "user",
-            content: `Você ajuda um comprador a escolher o carro ideal no Novo Seminovo (marketplace brasileiro de veículos e imóveis usados), com base no perfil financeiro dele. O carro ideal é o que cabe no orçamento sem comprometer o resto da vida financeira da pessoa — nunca o mais bonito, potente ou cheio de tecnologia.
+            content: `Você ajuda um comprador a escolher o carro ideal no NovoSeminovo (marketplace brasileiro de veículos e imóveis usados), com base no perfil financeiro dele. O carro ideal é o que cabe no orçamento sem comprometer o resto da vida financeira da pessoa — nunca o mais bonito, potente ou cheio de tecnologia.
 
 Perfil da pessoa:
 - Renda mensal: R$ ${profile.monthlyIncome}
@@ -446,7 +446,7 @@ Use a ferramenta "recomendar_veiculo" pra escolher os melhores (se houver algum 
         messages: [
           {
             role: "user",
-            content: `Você ajuda um comprador a escolher o imóvel ideal no Novo Seminovo (marketplace brasileiro de veículos e imóveis usados), com base no perfil financeiro dele. O imóvel ideal é o que cabe no orçamento sem comprometer o resto da vida financeira da pessoa — às vezes isso significa abrir mão de um imóvel maior em troca de uma localização melhor (menos trânsito, mais perto do trabalho).
+            content: `Você ajuda um comprador a escolher o imóvel ideal no NovoSeminovo (marketplace brasileiro de veículos e imóveis usados), com base no perfil financeiro dele. O imóvel ideal é o que cabe no orçamento sem comprometer o resto da vida financeira da pessoa — às vezes isso significa abrir mão de um imóvel maior em troca de uma localização melhor (menos trânsito, mais perto do trabalho).
 
 Perfil da pessoa:
 - Renda mensal: R$ ${profile.monthlyIncome}
@@ -520,7 +520,7 @@ Use a ferramenta "recomendar_imovel" pra escolher os melhores (se houver algum q
         messages: [
           {
             role: "user",
-            content: `Você ajuda a montar a vitrine pública de "${legalName}" no Novo Seminovo (marketplace brasileiro de veículos e imóveis usados). Escolha até 6 anúncios entre os disponíveis abaixo pra aparecer em destaque no topo da página, com um motivo curto e específico pra cada um — nunca genérico, nunca repetido, nunca inventando um dado que não apareça na lista.
+            content: `Você ajuda a montar a vitrine pública de "${legalName}" no NovoSeminovo (marketplace brasileiro de veículos e imóveis usados). Escolha até 6 anúncios entre os disponíveis abaixo pra aparecer em destaque no topo da página, com um motivo curto e específico pra cada um — nunca genérico, nunca repetido, nunca inventando um dado que não apareça na lista.
 
 Anúncios ativos dessa loja:
 ${candidatesText}
@@ -580,7 +580,7 @@ Use a ferramenta "destacar_anuncios".`,
               documentBlock,
               {
                 type: "text",
-                text: `Este é o CRLV (documento do veículo) enviado por um vendedor no Novo Seminovo, pra preencher automaticamente os dados do anúncio.${
+                text: `Este é o CRLV (documento do veículo) enviado por um vendedor no NovoSeminovo, pra preencher automaticamente os dados do anúncio.${
                   plateStartHint
                     ? ` A pessoa informou que a placa começa com "${plateStartHint}" — use isso só pra conferir se bate com o que está legível no documento, nunca pra completar ou adivinhar o resto da placa.`
                     : ""

@@ -74,6 +74,8 @@ O README cobre bem o marketplace básico (anúncios, busca, chat, favoritos, Pas
 
 11. **Páginas institucionais (Entrega B)**: `/como-funciona`, `/para-lojas` (lê planos e níveis de recompensa da API — fonte única de preço; só lista recursos já liberados, a integração com CRM entra quando sair do esconderijo), `/quem-somos`, `/perguntas-frequentes` (JSON-LD `FAQPage`) e `/contato`; blocos em `components/marketing/PageHero.tsx`. Rodapé em colunas. Home mostra até 8 destaques (4 no celular) + "Ver todos". Textos sem números, depoimentos ou horários inventados — conferir com o Diego antes de acrescentar qualquer promessa.
 
+12. **Identidade (definida pelo Diego)**: marca oficial **NovoSeminovo** (junto). Missão: "Tornar a compra, a venda e o financiamento de veículos e imóveis mais transparentes, seguros e conscientes, oferecendo informação de qualidade para que cada pessoa faça a escolha certa para a sua vida." Visão: "Ser referência no Brasil em transparência na compra e venda de veículos e imóveis, tornando o histórico de cada bem tão importante quanto o seu preço." Valores: Transparência, Informação gera confiança, Escolha consciente, Segurança, Simplicidade, Proximidade. Em `/quem-somos` (com a história escrita por ele) e no prompt dos agentes comprador e parceiro.
+
 ## Convenções estabelecidas (seguir nas próximas mudanças)
 
 - **Testar de ponta a ponta antes de reportar como pronto**: subir Postgres local + API + site, logar com um usuário do seed, exercitar o fluxo de verdade via curl ou pela própria página renderizada (não só `tsc --noEmit`). Local costuma já ter Postgres instalado (`service postgresql start`; usuário/banco `novoseminovo`/`novoseminovo`, ver `apps/api/.env`).

@@ -6,15 +6,32 @@ import { COMPANY, CORBAN } from "@/lib/company";
 export const metadata: Metadata = {
   title: "Quem somos",
   description:
-    "A Novo Seminovo nasceu para desmistificar o mercado automotivo e imobiliário, tornando a compra e a venda mais transparentes, seguras e conscientes.",
+    "A NovoSeminovo nasceu para desmistificar o mercado automotivo e imobiliário, tornando a compra e a venda mais transparentes, seguras e conscientes.",
   alternates: { canonical: "/quem-somos" },
 };
 
+// Missão, visão e valores definidos pelo Diego (fundador) — mudar só com ele.
+const MISSION =
+  "Tornar a compra, a venda e o financiamento de veículos e imóveis mais transparentes, seguros e conscientes, oferecendo informação de qualidade para que cada pessoa faça a escolha certa para a sua vida.";
+const VISION =
+  "Ser referência no Brasil em transparência na compra e venda de veículos e imóveis, tornando o histórico de cada bem tão importante quanto o seu preço.";
+
 const VALUES = [
-  { title: "Sem enrolação", text: "Anúncio claro, preço à vista, conversa direta com quem vende." },
-  { title: "Confiança", text: "Moderação de anúncios, selo de loja verificada e histórico do veículo pela placa." },
-  { title: "Financiamento de verdade", text: "Simulação na hora e um especialista que acompanha até o contrato." },
-  { title: "Tecnologia a favor", text: "Inteligência artificial pra ajudar quem compra a escolher e quem vende a vender melhor." },
+  { title: "Transparência", text: "Preço claro, informação completa e nada escondido — nem do comprador, nem do vendedor." },
+  {
+    title: "Informação gera confiança",
+    text: "Quanto mais se sabe sobre o bem — histórico, conservação, procedência —, melhor a decisão. É a razão de existir do Passaporte do Carro.",
+  },
+  {
+    title: "Escolha consciente",
+    text: "Ajudar cada pessoa a escolher o que cabe nas suas necessidades e possibilidades, inclusive no financiamento — não vender a qualquer custo.",
+  },
+  { title: "Segurança", text: "Moderação de anúncios, lojas verificadas e cuidado com os dados de cada pessoa." },
+  { title: "Simplicidade", text: "Tirar a complicação de mercados que costumam ser confusos. Comprar e vender não precisa ser chato." },
+  {
+    title: "Proximidade",
+    text: "Aproximar pessoas, lojas, imobiliárias e corretores — com atendimento humano quando ele faz diferença.",
+  },
 ];
 
 export default function AboutPage() {
@@ -28,7 +45,7 @@ export default function AboutPage() {
       <Section title="Nossa história">
         <div className="mt-4 max-w-3xl space-y-4 text-base leading-relaxed text-ink">
           <p>
-            A Novo Seminovo nasceu com o propósito de desmistificar o mercado automotivo, tornando a compra e a venda de
+            A NovoSeminovo nasceu com o propósito de desmistificar o mercado automotivo, tornando a compra e a venda de
             veículos um processo mais transparente, seguro e consciente.
           </p>
           <p>
@@ -76,8 +93,21 @@ export default function AboutPage() {
         </p>
       </Section>
 
-      <Section title="No que acreditamos">
-        <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+      <Section title="Missão e visão">
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div className="rounded-brand bg-brand-green p-6 text-on-green">
+            <h3 className="text-sm font-bold uppercase tracking-wide opacity-80">Missão</h3>
+            <p className="mt-2 text-base font-semibold leading-relaxed">{MISSION}</p>
+          </div>
+          <div className="rounded-brand bg-brand-blue p-6 text-on-blue">
+            <h3 className="text-sm font-bold uppercase tracking-wide opacity-80">Visão</h3>
+            <p className="mt-2 text-base font-semibold leading-relaxed">{VISION}</p>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Nossos valores">
+        <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {VALUES.map((value) => (
             <li key={value.title} className="rounded-brand bg-surface-raised p-5 shadow-card">
               <h3 className="text-base font-bold text-ink">{value.title}</h3>
