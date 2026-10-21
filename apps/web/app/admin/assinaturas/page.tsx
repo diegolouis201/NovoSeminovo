@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { SubscriptionBoardCard } from "@novoseminovo/shared-types";
+import { PARTNER_TRIAL_DAYS, type SubscriptionBoardCard } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { SubscriptionBoard } from "@/components/SubscriptionBoard";
 import { fetchSubscriptionBoard } from "@/lib/api";
@@ -44,7 +44,14 @@ function summarize(cards: SubscriptionBoardCard[]) {
     pastDueValue: pastDue.reduce((total, card) => total + (card.priceMonth ?? 0), 0),
     newThisMonth: active.filter((card) => card.startedAt && monthKey(new Date(card.startedAt)) === thisMonth).length,
     canceledThisMonth: cards.filter((card) => card.column === "canceled" && changedThisMonth(card)).length,
-    withoutPlan: cards.filter((card) => card.column === "none").length,
+    inTrial: cards.filter((card) => card.column === "trial").length,
+    trialEndingSoon: cards.filter(
+      (card) =>
+        card.column === "trial" &&
+        card.trialEndsAt &&
+        new Date(card.trialEndsAt).getTime() - Date.now() <= 7 * 86_400_000,
+    ).length,
+    offline: cards.filter((card) => card.offline).length,
   };
 }
 
@@ -70,8 +77,9 @@ export default async function AdminSubscriptionsPage() {
       </Link>
       <h1 className="mt-2 font-display text-2xl font-semibold text-ink">Assinaturas dos parceiros</h1>
       <p className="text-sm text-ink-muted">
-        Todas as lojas, imobiliárias e corretores cadastrados, na etapa do plano. Os cards mudam de coluna sozinhos
-        conforme o Stripe confirma o pagamento, recusa o cartão na renovação ou cancela — aqui você acompanha, chama no
+        Todas as lojas, imobiliárias e corretores cadastrados, na etapa do plano. Cada um tem {PARTNER_TRIAL_DAYS / 30}{" "}
+        meses grátis sem limite a partir do cadastro; depois, sem plano, a vitrine e os anúncios saem do ar até assinar.
+        Os cards mudam de coluna sozinhos (fim do período grátis e avisos do Stripe) — aqui você acompanha, chama no
         WhatsApp e anota.
       </p>
 
@@ -93,7 +101,11 @@ export default async function AdminSubscriptionsPage() {
               hint={stats.pastDueCount > 0 ? `${brl(stats.pastDueValue)}/mês em risco` : "tudo em dia"}
             />
             <Stat label="Novas no mês" value={String(stats.newThisMonth)} hint={`${stats.canceledThisMonth} cancelamento(s) no mês`} />
-            <Stat label="Sem plano" value={String(stats.withoutPlan)} hint="cadastrados que ainda não assinaram" />
+            <Stat
+              label="Período grátis"
+              value={String(stats.inTrial)}
+              hint={`${stats.trialEndingSoon} termina(m) em até 7 dias · ${stats.offline} fora do ar`}
+            />
           </div>
 
           <div className="mt-6">
@@ -107,8 +119,8 @@ export default async function AdminSubscriptionsPage() {
           </div>
           <p className="mt-2 text-xs text-ink-muted">
             A receita conta só assinaturas pagas pelo Stripe — as marcadas como “Simulação” foram ativadas sem cobrança e
-            ficam de fora. O número no canto do card mostra há quantos dias ele está na etapa (em “Sem plano”, desde o
-            cadastro).
+            ficam de fora. O canto do card mostra há quantos dias ele está na etapa — no período grátis, quantos dias
+            faltam. A loja recebe aviso 7 dias antes do fim.
           </p>
         </>
       )}

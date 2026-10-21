@@ -704,6 +704,14 @@ export type SaleSummary = z.infer<typeof SaleSummarySchema>;
 // verdade. "Contratar" aqui é uma simulação (sem gateway de pagamento
 // nenhum, ver README "Próximos passos") — ativa a assinatura na hora, sem
 // cobrar nada de ninguém.
+// Regra comercial (decisão do Diego): loja de veículos, imobiliária e
+// corretor anunciam à vontade nos primeiros PARTNER_TRIAL_DAYS a partir do
+// cadastro; depois, só com plano em vigor — sem plano, vitrine e anúncios
+// saem do ar (pausados, nunca apagados) até assinar. Pessoa física (sem loja
+// cadastrada) e oficina não pagam.
+export const PARTNER_TRIAL_DAYS = 90;
+export const PLAN_REQUIRED_PARTNER_TYPES = ["dealership", "real_estate_agency", "broker"] as const;
+
 export const PlanSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -751,7 +759,7 @@ export type CheckoutSessionResult = z.infer<typeof CheckoutSessionResultSchema>;
 // Quadro de assinaturas do admin (/admin/assinaturas): uma linha por
 // loja/imobiliária, na coluna do estado atual do plano. Quem move o card é o
 // Stripe (webhooks), não a equipe — por isso não há "mover" aqui, só anotar.
-export const SubscriptionBoardColumn = z.enum(["none", "active", "past_due", "canceled"]);
+export const SubscriptionBoardColumn = z.enum(["trial", "none", "active", "past_due", "canceled"]);
 export type SubscriptionBoardColumn = z.infer<typeof SubscriptionBoardColumn>;
 
 export const SubscriptionBoardCardSchema = z.object({
@@ -773,6 +781,9 @@ export const SubscriptionBoardCardSchema = z.object({
   statusChangedAt: z.string().optional(),
   // Ativado pela simulação (sem Stripe) — não entra na receita.
   simulated: z.boolean(),
+  trialEndsAt: z.string().optional(),
+  // Período grátis acabou e não tem plano: vitrine e anúncios fora do ar.
+  offline: z.boolean(),
   listingsUsed: z.number().int(),
   listingsLimit: z.number().int().optional(),
   adminNotes: z.string().optional(),
@@ -794,6 +805,10 @@ export const PartnerSchema = z.object({
   logoUrl: z.string().optional(),
   verified: z.boolean(),
   subscription: PartnerSubscriptionSchema.optional(),
+  // Só pra quem precisa de plano (PLAN_REQUIRED_PARTNER_TYPES): até quando
+  // vai o período grátis, e se a loja está fora do ar por falta de plano.
+  trialEndsAt: z.string().optional(),
+  offline: z.boolean().optional(),
   stats: PartnerStatsSchema,
   // Só o dono convida/remove gente da equipe (ver /parceiro/equipe) e
   // contrata/cancela plano (ver /parceiro/plano) — um agente vê e opera o
@@ -983,6 +998,8 @@ export const NotificationType = z.enum([
   "saved_search_match",
   "service_confirmation_requested",
   "financing_lead_created",
+  "partner_trial_ending",
+  "partner_offline",
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 

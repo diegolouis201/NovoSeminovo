@@ -24,7 +24,11 @@ import { NotificationsService } from "../notifications/notifications.service";
 import { VehiclesService } from "../vehicles/vehicles.service";
 import { FipeService } from "../vehicles/fipe.service";
 import { getPhotoStorage, readPhotoBytes } from "../common/storage";
-import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA, SUBSCRIPTION_STATUSES_IN_EFFECT } from "../partners/partners.service";
+import {
+  LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA,
+  listingLimitFor,
+  listingLimitMessage,
+} from "../partners/partners.service";
 import { AiService } from "./ai.service";
 import {
   DEFAULT_RATE,
@@ -713,23 +717,15 @@ export class ListingsService {
       where: { OR: [{ ownerUserId }, { members: { some: { userId: ownerUserId } } }] },
     });
 
-    // Limite de anúncios só existe pra quem tem plano ativo — sem isso, o
-    // comportamento de sempre (sem limite nenhum) continua valendo, inclusive
-    // pra quem tem loja mas nunca contratou um plano.
+    // Limite do plano ou, sem plano, o grátis de loja de veículos e
+    // imobiliária (ver listingLimitFor). Pessoa física não tem limite.
     if (partner) {
-      const subscription = await this.prisma.subscription.findFirst({
-        where: { partnerId: partner.id, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
-        include: { plan: true },
-      });
-      if (subscription) {
+      const limit = await listingLimitFor(this.prisma, partner);
+      if (limit) {
         const currentCount = await this.prisma.listing.count({
           where: { partnerId: partner.id, status: { in: [...LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA] } },
         });
-        if (currentCount >= subscription.plan.maxActiveListings) {
-          throw new ConflictException(
-            `Seu plano atual (${subscription.plan.name}) permite até ${subscription.plan.maxActiveListings} anúncios. Pause ou encerre um anúncio, ou contrate um plano com mais limite em /parceiro/plano.`,
-          );
-        }
+        if (currentCount >= limit.max) throw new ConflictException(listingLimitMessage(limit));
       }
     }
 
@@ -785,12 +781,26 @@ export class ListingsService {
       );
     }
 
+    // Reativar conta contra o limite de anúncios no ar — senão os pausados
+    // por cancelamento/troca de plano (ver pauseListingsOverLimit) voltavam
+    // todos com um clique.
+    if (listing.status === "paused" && input.status === "active" && listing.partnerId) {
+      const partner = await this.prisma.partner.findUnique({ where: { id: listing.partnerId } });
+      const limit = partner ? await listingLimitFor(this.prisma, partner) : undefined;
+      if (limit) {
+        const live = await this.prisma.listing.count({
+          where: { partnerId: listing.partnerId, status: { in: ["active", "pending_review"] } },
+        });
+        if (live >= limit.max) throw new ConflictException(listingLimitMessage(limit));
+      }
+    }
+
     const updated = await this.prisma.listing.update({
       where: { id: listingId },
       data:
         input.status === "sold"
           ? { status: input.status, soldAt: new Date(), soldPrice: input.soldPrice ?? listing.price }
-          : { status: input.status },
+          : { status: input.status, pausedByPlan: false },
       include: listingInclude,
     });
     return toMyListingSummary(updated);

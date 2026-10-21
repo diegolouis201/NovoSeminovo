@@ -230,6 +230,8 @@ model Partner {
   // Anotações internas da equipe no quadro de assinaturas (/admin/assinaturas)
   // — nunca aparece pro parceiro.
   adminNotes       String?     @map("admin_notes")
+  // Aviso de "faltam 7 dias pro fim do período grátis" já enviado (uma vez só).
+  trialWarningSentAt DateTime? @map("trial_warning_sent_at")
   createdAt        DateTime    @default(now()) @map("created_at")
 
   members       PartnerMember[]
@@ -326,6 +328,9 @@ model Listing {
   // é o que liga a próxima sincronização ao mesmo anúncio em vez de criar
   // um duplicado. externalHash é o retrato do último conteúdo importado, pra
   // pular sem tocar no banco o que não mudou. syncPaused marca o anúncio que
+  // Pausado pelo sistema por falta de plano (fim do período grátis, plano
+  // cancelado ou trocado por um menor) — volta sozinho quando a loja assinar.
+  pausedByPlan     Boolean       @default(false) @map("paused_by_plan")
   // a sincronização pausou porque sumiu do CRM — só esses ela reativa
   // sozinha se voltarem (um pausado à mão pelo dono continua pausado).
   externalSource   String?       @map("external_source")

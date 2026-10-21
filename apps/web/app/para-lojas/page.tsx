@@ -87,8 +87,8 @@ export default async function ForPartnersPage() {
   return (
     <main className="pb-16">
       <PageHero eyebrow="Para lojas, imobiliárias e corretores" title="Seu estoque na frente de quem está pronto pra comprar">
-        Anuncie no NovoSeminovo e ganhe um painel completo pra vender mais: leads organizados, assistente de IA, posts
-        prontos e recompensa quando o seu cliente financia.
+        Comece com 3 meses grátis, sem limite de anúncios, e ganhe um painel completo pra vender mais: leads
+        organizados, assistente de IA, posts prontos e recompensa quando o seu cliente financia.
       </PageHero>
 
       <div className="mx-auto mt-6 flex max-w-3xl flex-wrap justify-center gap-3 px-4">
@@ -124,6 +124,7 @@ export default async function ForPartnersPage() {
             "Crie sua conta e cadastre a empresa (CNPJ ou CRECI) no painel do parceiro.",
             "Nossa equipe verifica os dados e libera o selo de loja verificada.",
             "Publique seu estoque — um a um ou por planilha — e acompanhe tudo pelo painel.",
+            "Use 3 meses grátis, sem limite de anúncios. Depois, escolha um plano para continuar no ar.",
           ].map((step, index) => (
             <li key={step} className="flex gap-3">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-green text-sm font-bold text-on-green">
@@ -137,6 +138,10 @@ export default async function ForPartnersPage() {
 
       {plans.length > 0 && (
         <Section title="Planos">
+          <p className="mt-2 max-w-3xl text-sm text-ink-muted">
+            Os 3 primeiros meses a partir do cadastro são grátis e sem limite de anúncios. Depois, a vitrine e os
+            anúncios continuam no ar com um dos planos abaixo — sem fidelidade, cancele quando quiser.
+          </p>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {plans.map((plan) => (
               <div key={plan.id} className="flex flex-col rounded-brand border border-border bg-surface-raised p-5">

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import type { Plan } from "@novoseminovo/shared-types";
+import type { Partner, Plan } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { PartnerNav } from "@/components/PartnerNav";
@@ -61,6 +61,8 @@ export default async function PartnerPlanPage({
         </p>
       )}
 
+      <TrialNotice partner={partner} />
+
       {partner.subscription?.status === "past_due" && (
         <div className="mt-4 rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">
           <p className="font-semibold">Não conseguimos cobrar a renovação do seu plano.</p>
@@ -118,6 +120,39 @@ export default async function PartnerPlanPage({
         ))}
       </ul>
     </main>
+  );
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
+// Período grátis (3 meses sem limite a partir do cadastro) e o que acontece
+// depois — ver PARTNER_TRIAL_DAYS no shared-types.
+function TrialNotice({ partner }: { partner: Partner }) {
+  if (partner.offline) {
+    return (
+      <div className="mt-4 rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">
+        <p className="font-semibold">Sua vitrine e seus anúncios estão fora do ar.</p>
+        <p className="mt-1">
+          O período grátis terminou em {partner.trialEndsAt ? formatDate(partner.trialEndsAt) : "—"}. Nada foi apagado:
+          contrate um plano abaixo e seus anúncios voltam ao ar na hora.
+        </p>
+      </div>
+    );
+  }
+  if (!partner.trialEndsAt || new Date(partner.trialEndsAt) <= new Date()) return null;
+  const daysLeft = Math.ceil((new Date(partner.trialEndsAt).getTime() - Date.now()) / 86_400_000);
+  return (
+    <div className="mt-4 rounded-brand border border-brand-blue/40 bg-brand-blue/10 px-4 py-3 text-sm text-ink">
+      <p className="font-semibold">
+        Período grátis até {formatDate(partner.trialEndsAt)} ({daysLeft} dia{daysLeft === 1 ? "" : "s"})
+      </p>
+      <p className="mt-1 text-ink-muted">
+        Até lá, anuncie sem limite. Depois, para a vitrine e os anúncios continuarem no ar, é preciso ter um plano
+        {partner.subscription ? " — o seu já está garantido." : "."}
+      </p>
+    </div>
   );
 }
 

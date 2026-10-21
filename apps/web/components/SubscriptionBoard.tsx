@@ -9,7 +9,8 @@ import { savePartnerAdminNotesAction } from "@/lib/actions/admin";
 // Quem move os cards é o Stripe (webhooks) — o quadro só mostra e deixa
 // anotar. Ver comentário em SubscriptionBoardCardSchema.
 export const SUBSCRIPTION_COLUMNS: { column: SubscriptionBoardColumn; label: string; tone: string; empty: string }[] = [
-  { column: "none", label: "Sem plano", tone: "bg-brand-orange", empty: "Toda loja cadastrada já tem plano." },
+  { column: "trial", label: "Período grátis", tone: "bg-brand-blue", empty: "Ninguém no período grátis agora." },
+  { column: "none", label: "Sem plano", tone: "bg-brand-orange", empty: "Ninguém sem plano." },
   { column: "active", label: "Ativo", tone: "bg-brand-green", empty: "Nenhuma assinatura ativa ainda." },
   { column: "past_due", label: "Pagamento atrasado", tone: "bg-status-danger", empty: "Nenhum pagamento atrasado." },
   { column: "canceled", label: "Cancelado", tone: "bg-ink-muted", empty: "Nenhum cancelamento." },
@@ -42,9 +43,11 @@ function whatsappLink(card: SubscriptionBoardCard): string | undefined {
   const text =
     card.column === "past_due"
       ? `Olá, ${firstName}! Aqui é do NovoSeminovo. O pagamento da renovação do plano da ${card.legalName} não passou no cartão — posso te ajudar a atualizar?`
-      : card.column === "none"
-        ? `Olá, ${firstName}! Aqui é do NovoSeminovo. Vi que a ${card.legalName} já está cadastrada — posso te mostrar os planos e ajudar a subir o estoque?`
-        : `Olá, ${firstName}! Aqui é do NovoSeminovo, sobre o plano da ${card.legalName}.`;
+      : card.column === "trial"
+        ? `Olá, ${firstName}! Aqui é do NovoSeminovo. A ${card.legalName} está no período grátis — posso te ajudar a subir o estoque?`
+        : card.column === "none" || card.offline
+          ? `Olá, ${firstName}! Aqui é do NovoSeminovo. O período grátis da ${card.legalName} acabou e os anúncios saíram do ar — posso te mostrar os planos pra voltar?`
+          : `Olá, ${firstName}! Aqui é do NovoSeminovo, sobre o plano da ${card.legalName}.`;
   return `https://wa.me/${full}?text=${encodeURIComponent(text)}`;
 }
 
@@ -54,9 +57,16 @@ function Card({ card }: { card: SubscriptionBoardCard }) {
   const [error, setError] = useState<string | undefined>();
   const [saving, startSaving] = useTransition();
   const whatsapp = whatsappLink(card);
-  const days = card.statusChangedAt ? daysSince(card.statusChangedAt) : daysSince(card.partnerCreatedAt);
+  const days =
+    card.statusChangedAt && card.column !== "trial" ? daysSince(card.statusChangedAt) : daysSince(card.partnerCreatedAt);
+  const trialDaysLeft = card.trialEndsAt
+    ? Math.ceil((new Date(card.trialEndsAt).getTime() - Date.now()) / 86_400_000)
+    : undefined;
   const nearLimit = card.listingsLimit !== undefined && card.listingsUsed >= card.listingsLimit * 0.8;
-  const late = (card.column === "past_due" && days >= 1) || (card.column === "none" && days >= 3);
+  const late =
+    (card.column === "past_due" && days >= 1) ||
+    (card.column === "trial" && trialDaysLeft !== undefined && trialDaysLeft <= 7) ||
+    card.offline;
 
   return (
     <article className="rounded-brand border border-border bg-surface-raised p-3 shadow-card">
@@ -69,9 +79,13 @@ function Card({ card }: { card: SubscriptionBoardCard }) {
         </Link>
         <span
           className={`shrink-0 text-[11px] font-semibold ${late ? "text-status-danger" : "text-ink-muted"}`}
-          title={card.column === "none" ? "Dias desde o cadastro" : "Dias nesta etapa"}
+          title={card.column === "trial" ? "Dias que faltam no período grátis" : card.column === "none" ? "Dias desde o cadastro" : "Dias nesta etapa"}
         >
-          {days === 0 ? "hoje" : `${days}d`}
+          {card.column === "trial" && trialDaysLeft !== undefined
+            ? `faltam ${Math.max(0, trialDaysLeft)}d`
+            : days === 0
+              ? "hoje"
+              : `${days}d`}
         </span>
       </div>
       <p className="text-xs text-ink-muted">
@@ -79,7 +93,7 @@ function Card({ card }: { card: SubscriptionBoardCard }) {
       </p>
 
       <dl className="mt-2 space-y-0.5 text-xs">
-        {card.planName && (
+        {card.planName && card.column !== "trial" && card.column !== "none" && (
           <div className="flex justify-between gap-2">
             <dt className="text-ink-muted">Plano</dt>
             <dd className="font-semibold text-ink [font-variant-numeric:tabular-nums]">
@@ -87,11 +101,19 @@ function Card({ card }: { card: SubscriptionBoardCard }) {
             </dd>
           </div>
         )}
-        {card.column === "none" ? (
-          <div className="flex justify-between gap-2">
-            <dt className="text-ink-muted">Cadastro</dt>
-            <dd className="text-ink">{date(card.partnerCreatedAt)}</dd>
-          </div>
+        {card.column === "trial" || card.column === "none" ? (
+          <>
+            <div className="flex justify-between gap-2">
+              <dt className="text-ink-muted">Cadastro</dt>
+              <dd className="text-ink">{date(card.partnerCreatedAt)}</dd>
+            </div>
+            {card.trialEndsAt && (
+              <div className="flex justify-between gap-2">
+                <dt className="text-ink-muted">{card.column === "trial" ? "Grátis até" : "Grátis terminou"}</dt>
+                <dd className="text-ink">{date(card.trialEndsAt)}</dd>
+              </div>
+            )}
+          </>
         ) : (
           <div className="flex justify-between gap-2">
             <dt className="text-ink-muted">{card.column === "canceled" ? "Cancelado em" : "Início"}</dt>
@@ -112,8 +134,11 @@ function Card({ card }: { card: SubscriptionBoardCard }) {
         </div>
       </dl>
 
-      {(card.simulated || nearLimit) && (
+      {(card.simulated || nearLimit || card.offline) && (
         <div className="mt-2 flex flex-wrap gap-1">
+          {card.offline && (
+            <span className="rounded-full bg-status-danger/10 px-2 py-0.5 text-[11px] font-bold text-status-danger">Fora do ar</span>
+          )}
           {card.simulated && (
             <span className="rounded-full bg-surface-sober px-2 py-0.5 text-[11px] font-semibold text-ink-muted">
               Simulação (sem cobrança)
@@ -199,7 +224,7 @@ function Card({ card }: { card: SubscriptionBoardCard }) {
 export function SubscriptionBoard({ cards }: { cards: SubscriptionBoardCard[] }) {
   return (
     <div className="-mx-4 overflow-x-auto px-4 pb-4">
-      <div className="flex gap-3" style={{ minWidth: `${SUBSCRIPTION_COLUMNS.length * 270}px` }}>
+      <div className="flex gap-3" style={{ minWidth: `${SUBSCRIPTION_COLUMNS.length * 250}px` }}>
         {SUBSCRIPTION_COLUMNS.map((column) => {
           const items = cards.filter((card) => card.column === column.column);
           const monthly = items.filter((card) => !card.simulated).reduce((total, card) => total + (card.priceMonth ?? 0), 0);
@@ -207,7 +232,7 @@ export function SubscriptionBoard({ cards }: { cards: SubscriptionBoardCard[] })
             <section
               key={column.column}
               aria-label={column.label}
-              className="flex min-w-[260px] flex-1 flex-col rounded-brand bg-surface-sober p-2"
+              className="flex min-w-[240px] flex-1 flex-col rounded-brand bg-surface-sober p-2"
             >
               <header className="px-1 pb-2">
                 <div className="flex items-center justify-between gap-2">

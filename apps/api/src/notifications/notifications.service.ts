@@ -79,6 +79,18 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         } pelo assistente de IA (${payload.channel === "whatsapp" ? "WhatsApp" : "site"}).`,
         link: `/admin/financiamentos?tipo=${payload.assetType === "vehicle" ? "veicular" : "imobiliario"}`,
       };
+    case "partner_trial_ending":
+      return {
+        title: "Seu período grátis está acabando",
+        body: `O período grátis de "${payload.partnerName}" termina em ${payload.endsAtLabel}. Contrate um plano para seus anúncios continuarem no ar.`,
+        link: "/parceiro/plano",
+      };
+    case "partner_offline":
+      return {
+        title: "Seus anúncios saíram do ar",
+        body: `"${payload.partnerName}" está sem plano ativo, então a vitrine e ${payload.count} anúncio(s) foram pausados — nada foi apagado. Contrate um plano e eles voltam na hora.`,
+        link: "/parceiro/plano",
+      };
     case "service_confirmation_requested":
       return {
         title: "Confirmação de serviço pendente",

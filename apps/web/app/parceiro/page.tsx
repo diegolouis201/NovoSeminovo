@@ -184,6 +184,17 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
             ? `${partner.subscription.planName} · até ${partner.subscription.maxActiveListings} anúncios`
             : "Nenhum plano ativo ainda"}
         </p>
+        {partner.offline && (
+          <p className="mt-1 text-sm font-semibold text-status-danger">
+            Período grátis encerrado: sua vitrine e seus anúncios estão fora do ar. Toque aqui para contratar um plano.
+          </p>
+        )}
+        {!partner.offline && !partner.subscription && partner.trialEndsAt && new Date(partner.trialEndsAt) > new Date() && (
+          <p className="mt-1 text-sm text-ink-muted">
+            Período grátis, sem limite de anúncios, até{" "}
+            {new Date(partner.trialEndsAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}.
+          </p>
+        )}
         {partner.subscription?.status === "past_due" && (
           <p className="mt-1 text-sm font-semibold text-status-danger">
             O pagamento da renovação não passou — toque aqui para atualizar o cartão.

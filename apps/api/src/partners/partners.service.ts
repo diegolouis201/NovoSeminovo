@@ -1,5 +1,14 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { formatBRL } from "@novoseminovo/shared-types";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  type OnModuleDestroy,
+  type OnModuleInit,
+} from "@nestjs/common";
+import { PARTNER_TRIAL_DAYS, PLAN_REQUIRED_PARTNER_TYPES, formatBRL } from "@novoseminovo/shared-types";
 import type {
   CreatePartnerInput,
   SubscriptionBoardCard,
@@ -17,6 +26,7 @@ import { PaymentsService } from "../payments/payments.service";
 import { listingInclude, toListingSummary } from "../listings/listings.mapper";
 import { AiService } from "../listings/ai.service";
 import { getPhotoStorage } from "../common/storage";
+import { NotificationsService } from "../notifications/notifications.service";
 
 // Quantas vagas de anúncio um plano "ocupa": tudo que não é um estado final
 // (vendido/recusado/expirado) conta contra o limite, porque senão dava pra
@@ -27,6 +37,43 @@ export const LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA = ["active", "pending_review
 // está tentando cobrar — a loja não perde o plano de um dia pro outro por um
 // cartão recusado). Só "canceled" tira o plano.
 export const SUBSCRIPTION_STATUSES_IN_EFFECT = ["active", "past_due"] as const;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function requiresPlan(type: string): boolean {
+  return (PLAN_REQUIRED_PARTNER_TYPES as readonly string[]).includes(type);
+}
+
+export function trialEndsAt(partner: { createdAt: Date }): Date {
+  return new Date(partner.createdAt.getTime() + PARTNER_TRIAL_DAYS * DAY_MS);
+}
+
+export type ListingLimit = { max: number; planName?: string; trialOver?: boolean };
+
+// Limite de anúncios que vale agora pra loja (ver PLAN_REQUIRED_PARTNER_TYPES
+// no shared-types): sem limite no período grátis ou pra quem não precisa de
+// plano (undefined); depois, o do plano em vigor; sem plano, zero — a loja
+// sai do ar até assinar.
+export async function listingLimitFor(
+  prisma: PrismaService,
+  partner: { id: string; type: string; createdAt: Date },
+): Promise<ListingLimit | undefined> {
+  if (!requiresPlan(partner.type)) return undefined;
+  if (trialEndsAt(partner) > new Date()) return undefined;
+  const subscription = await prisma.subscription.findFirst({
+    where: { partnerId: partner.id, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
+    include: { plan: true },
+    orderBy: { currentPeriodEnd: "desc" },
+  });
+  if (subscription) return { max: subscription.plan.maxActiveListings, planName: subscription.plan.name };
+  return { max: 0, trialOver: true };
+}
+
+export function listingLimitMessage(limit: ListingLimit): string {
+  return limit.planName
+    ? `Seu plano atual (${limit.planName}) permite até ${limit.max} anúncios. Marque como vendido os que já saíram, ou contrate um plano com mais limite em /parceiro/plano.`
+    : `O período grátis de ${PARTNER_TRIAL_DAYS / 30} meses da sua loja terminou. Contrate um plano em /parceiro/plano para anunciar — seus anúncios ficam guardados e voltam ao ar na hora.`;
+}
 
 // Status do Stripe → status nosso. incomplete/unpaid contam como atrasado;
 // paused (pausa de cobrança) e os finais como cancelado.
@@ -56,12 +103,72 @@ function slugify(text: string): string {
 }
 
 @Injectable()
-export class PartnersService {
+export class PartnersService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(PartnersService.name);
+  private timer: NodeJS.Timeout | undefined;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly payments: PaymentsService,
     private readonly ai: AiService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  // Fim do período grátis não tem evento nenhum — confere a cada 6 horas (e
+  // 1 minuto depois de subir) quem precisa de aviso ou de sair do ar.
+  onModuleInit(): void {
+    if (process.env.TRIAL_SWEEP_DISABLED === "1") return;
+    const run = () => void this.trialSweep().catch((error) => this.logger.error(`Falha na checagem do período grátis: ${error}`));
+    setTimeout(run, 60 * 1000).unref();
+    this.timer = setInterval(run, 6 * 60 * 60 * 1000);
+    this.timer.unref();
+  }
+
+  onModuleDestroy(): void {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  async trialSweep(): Promise<{ warned: number; paused: number }> {
+    const now = Date.now();
+    const trialStartedBefore = (daysLeft: number) => new Date(now - (PARTNER_TRIAL_DAYS - daysLeft) * DAY_MS);
+    const noPlan = { subscriptions: { none: { status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } } } };
+    let warned = 0;
+    let paused = 0;
+
+    // Aviso 7 dias antes, uma vez só.
+    const ending = await this.prisma.partner.findMany({
+      where: {
+        type: { in: [...PLAN_REQUIRED_PARTNER_TYPES] },
+        createdAt: { lte: trialStartedBefore(7), gt: trialStartedBefore(0) },
+        trialWarningSentAt: null,
+        ...noPlan,
+      },
+    });
+    for (const partner of ending) {
+      await this.notifications.notify(partner.ownerUserId, "partner_trial_ending", {
+        partnerName: partner.legalName,
+        endsAtLabel: trialEndsAt(partner).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+      });
+      await this.prisma.partner.update({ where: { id: partner.id }, data: { trialWarningSentAt: new Date() } });
+      warned += 1;
+    }
+
+    // Período grátis acabou: sem plano, tudo que estiver no ar sai (inclusive
+    // anúncio aprovado na moderação depois disso); com plano, só o que passar
+    // do limite dele (pauseListingsOverLimit não mexe em quem está dentro).
+    const expired = await this.prisma.partner.findMany({
+      where: {
+        type: { in: [...PLAN_REQUIRED_PARTNER_TYPES] },
+        createdAt: { lte: trialStartedBefore(0) },
+        listings: { some: { status: "active" } },
+      },
+      select: { id: true },
+    });
+    for (const partner of expired) paused += await this.pauseListingsOverLimit(partner.id);
+
+    if (warned || paused) this.logger.log(`Período grátis: ${warned} aviso(s), ${paused} anúncio(s) pausado(s)`);
+    return { warned, paused };
+  }
 
   private async uniqueSlug(base: string): Promise<string> {
     const root = slugify(base) || "loja";
@@ -185,6 +292,12 @@ export class PartnersService {
           }
         : undefined,
       isOwner: partner.ownerUserId === userId,
+      ...(requiresPlan(partner.type)
+        ? {
+            trialEndsAt: trialEndsAt(partner).toISOString(),
+            offline: (await listingLimitFor(this.prisma, partner))?.max === 0,
+          }
+        : {}),
       stats: {
         activeListings,
         totalListings,
@@ -230,6 +343,10 @@ export class PartnersService {
   async getStorefront(slug: string): Promise<PartnerStorefront> {
     const partner = await this.prisma.partner.findUnique({ where: { slug } });
     if (!partner) throw new NotFoundException(`Loja "${slug}" não encontrada`);
+    // Fim do período grátis sem plano: a vitrine sai do ar junto com os anúncios.
+    if ((await listingLimitFor(this.prisma, partner))?.max === 0) {
+      throw new NotFoundException(`Loja "${slug}" não encontrada`);
+    }
 
     const [listings, reviews] = await Promise.all([
       this.prisma.listing.findMany({
@@ -457,6 +574,61 @@ export class PartnersService {
         await this.payments.cancelStripeSubscription(old.paymentProviderRef);
       }
     }
+    // Troca pra um plano menor (ex.: Profissional → Básico) pausa o excesso;
+    // assinatura nova ou plano maior devolve o que estava pausado por plano.
+    await this.pauseListingsOverLimit(partnerId);
+    await this.restoreListingsPausedByPlan(partnerId);
+  }
+
+  // Quando o limite diminui (fim do período grátis, plano cancelado ou
+  // trocado por um menor), os anúncios no ar que passam do limite são
+  // pausados — nunca apagados — e marcados com pausedByPlan pra voltarem
+  // sozinhos quando a loja assinar (ver restoreListingsPausedByPlan). Ficam
+  // no ar os mais recentes.
+  async pauseListingsOverLimit(partnerId: string): Promise<number> {
+    const partner = await this.prisma.partner.findUnique({ where: { id: partnerId } });
+    if (!partner) return 0;
+    const limit = await listingLimitFor(this.prisma, partner);
+    if (!limit) return 0;
+    const pending = await this.prisma.listing.count({ where: { partnerId, status: "pending_review" } });
+    const active = await this.prisma.listing.findMany({
+      where: { partnerId, status: "active" },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      select: { id: true },
+    });
+    const keep = limit.max === 0 ? 0 : Math.max(0, limit.max - pending);
+    const toPause = active.slice(keep).map((listing) => listing.id);
+    if (toPause.length === 0) return 0;
+
+    await this.prisma.listing.updateMany({ where: { id: { in: toPause } }, data: { status: "paused", pausedByPlan: true } });
+    if (limit.trialOver) {
+      await this.notifications.notify(partner.ownerUserId, "partner_offline", {
+        partnerName: partner.legalName,
+        count: toPause.length,
+      });
+    }
+    return toPause.length;
+  }
+
+  // Assinou (ou trocou pra um plano maior): volta ao ar o que o sistema
+  // pausou por falta de plano, os mais recentes primeiro, até o limite novo.
+  // O que o próprio dono pausou continua pausado.
+  async restoreListingsPausedByPlan(partnerId: string): Promise<number> {
+    const partner = await this.prisma.partner.findUnique({ where: { id: partnerId } });
+    if (!partner) return 0;
+    const limit = await listingLimitFor(this.prisma, partner);
+    const candidates = await this.prisma.listing.findMany({
+      where: { partnerId, status: "paused", pausedByPlan: true },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      select: { id: true },
+    });
+    const live = await this.prisma.listing.count({ where: { partnerId, status: { in: ["active", "pending_review"] } } });
+    const room = limit ? Math.max(0, limit.max - live) : candidates.length;
+    const toRestore = candidates.slice(0, room).map((listing) => listing.id);
+    if (toRestore.length > 0) {
+      await this.prisma.listing.updateMany({ where: { id: { in: toRestore } }, data: { status: "active", pausedByPlan: false } });
+    }
+    return toRestore.length;
   }
 
   // "Contratar" só o dono decide (mesma regra de Equipe). Sem Stripe
@@ -525,6 +697,7 @@ export class PartnersService {
       where: { partnerId: partner.id, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
       data: { status: "canceled", statusChangedAt: new Date() },
     });
+    await this.pauseListingsOverLimit(partner.id);
 
     const result = await this.getMine(ownerUserId);
     if (!result) throw new Error("Falha inesperada ao cancelar o plano.");
@@ -561,6 +734,7 @@ export class PartnersService {
           ...(period ? { currentPeriodStart: period.start, currentPeriodEnd: period.end } : {}),
         },
       });
+      if (status === "canceled") await this.pauseListingsOverLimit(row.partnerId);
     }
     return rows.length;
   }
@@ -596,6 +770,8 @@ export class PartnersService {
       const current =
         partner.subscriptions.find((sub) => sub.status !== "canceled") ?? partner.subscriptions[0];
       const inEffect = current && current.status !== "canceled";
+      const trialEnd = requiresPlan(partner.type) ? trialEndsAt(partner) : undefined;
+      const inTrial = Boolean(trialEnd && trialEnd > new Date());
       return {
         partnerId: partner.id,
         legalName: partner.legalName,
@@ -606,7 +782,7 @@ export class PartnersService {
         ownerName: partner.owner.name,
         ownerEmail: partner.owner.email,
         ownerPhone: partner.owner.phone ?? undefined,
-        column: current ? current.status : "none",
+        column: inEffect ? current.status : inTrial ? "trial" : current ? "canceled" : "none",
         planName: current?.plan.name,
         priceMonth: current ? Number(current.plan.priceMonth) : undefined,
         priceLabel: current ? formatBRL(Number(current.plan.priceMonth)) : undefined,
@@ -614,8 +790,10 @@ export class PartnersService {
         currentPeriodEnd: current?.currentPeriodEnd.toISOString(),
         statusChangedAt: current?.statusChangedAt.toISOString(),
         simulated: Boolean(current && !current.paymentProviderRef),
+        trialEndsAt: trialEnd?.toISOString(),
+        offline: Boolean(trialEnd && !inTrial && !inEffect),
         listingsUsed: usage.find((row) => row.partnerId === partner.id)?._count ?? 0,
-        listingsLimit: inEffect ? current.plan.maxActiveListings : undefined,
+        listingsLimit: inEffect && !inTrial ? current.plan.maxActiveListings : undefined,
         adminNotes: partner.adminNotes ?? undefined,
       };
     });

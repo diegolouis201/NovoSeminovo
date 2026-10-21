@@ -38,7 +38,7 @@ const GROUPS: { title: string; items: Faq[] }[] = [
     items: [
       {
         q: "Quanto custa anunciar?",
-        a: "Pessoa física anuncia sem custo. Lojas, imobiliárias e corretores podem usar os planos do painel do parceiro, que liberam mais anúncios e destaques.",
+        a: "Pessoa física anuncia sem custo. Lojas de veículos, imobiliárias e corretores têm 3 meses grátis, sem limite de anúncios, a partir do cadastro; depois, para continuar no ar, é preciso um plano mensal do painel do parceiro.",
       },
       {
         q: "Por que meu anúncio está “em análise”?",

@@ -25,7 +25,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { ListingsService } from "../listings/listings.service";
 import { VehiclesService } from "../vehicles/vehicles.service";
-import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA, SUBSCRIPTION_STATUSES_IN_EFFECT } from "../partners/partners.service";
+import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA, listingLimitFor } from "../partners/partners.service";
 import { SafeFetchError, assertPublicHttpUrl, safeFetch } from "../common/safe-fetch";
 import { FeedFormatError, parseNovoSeminovoJson, parseVrsync, type ParsedFeedItem } from "./feed-parsers";
 import { parseVehicleCatalog } from "./vehicle-catalog-parser";
@@ -296,15 +296,13 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async quotaFor(partnerId: string): Promise<{ max: number; used: number } | undefined> {
-    const subscription = await this.prisma.subscription.findFirst({
-      where: { partnerId, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
-      include: { plan: true },
-    });
-    if (!subscription) return undefined;
+    const partner = await this.prisma.partner.findUnique({ where: { id: partnerId } });
+    const limit = partner ? await listingLimitFor(this.prisma, partner) : undefined;
+    if (!limit) return undefined;
     const used = await this.prisma.listing.count({
       where: { partnerId, status: { in: [...LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA] } },
     });
-    return { max: subscription.plan.maxActiveListings, used };
+    return { max: limit.max, used };
   }
 
   private async createListing(partner: IntegrationPartner, input: IntegrationListingInput, hash: string, source: string) {

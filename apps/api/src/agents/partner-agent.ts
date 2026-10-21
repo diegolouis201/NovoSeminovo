@@ -106,7 +106,11 @@ export function buildPartnerAgent(
                   ? " — PAGAMENTO DA RENOVAÇÃO RECUSADO: oriente a atualizar o cartão em /parceiro/plano"
                   : ""
               }`
-            : "sem plano ativo",
+            : partner.offline
+              ? "sem plano e com o período grátis encerrado — vitrine e anúncios FORA DO AR até contratar um plano em /parceiro/plano (nada foi apagado)"
+              : partner.trialEndsAt
+                ? `período grátis sem limite de anúncios até ${new Date(partner.trialEndsAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}; depois disso precisa de plano (/parceiro/plano) pra continuar no ar`
+                : "sem plano ativo",
           numeros: partner.stats,
         };
       },
