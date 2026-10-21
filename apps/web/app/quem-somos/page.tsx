@@ -5,7 +5,8 @@ import { COMPANY, CORBAN } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "Quem somos",
-  description: "O NovoSeminovo é um marketplace de carros e imóveis de Belo Horizonte que junta anúncio, conversa e financiamento num lugar só.",
+  description:
+    "A Novo Seminovo nasceu para desmistificar o mercado automotivo e imobiliário, tornando a compra e a venda mais transparentes, seguras e conscientes.",
   alternates: { canonical: "/quem-somos" },
 };
 
@@ -19,24 +20,60 @@ const VALUES = [
 export default function AboutPage() {
   return (
     <main className="pb-16">
-      <PageHero eyebrow="Quem somos" title="Comprar e vender não precisa ser chato">
-        O NovoSeminovo nasceu em {COMPANY.city} pra resolver um problema simples: comprar um carro ou um imóvel usado
-        envolve sites demais, conversa demais e, no fim, o financiamento ainda é um mistério.
+      <PageHero eyebrow="Quem somos" title="Simplificar mercados, aproximar pessoas">
+        Transformar decisões importantes em escolhas mais seguras e conscientes.
       </PageHero>
 
-      <Section title="O que fazemos">
-        <div className="mt-4 space-y-3 text-base text-ink">
+      {/* Texto do Diego (fundador) — manter como ele escreveu; mudanças só com ele. */}
+      <Section title="Nossa história">
+        <div className="mt-4 max-w-3xl space-y-4 text-base leading-relaxed text-ink">
           <p>
-            Reunimos num só lugar os anúncios de pessoas, lojas de veículos, imobiliárias e corretores, a conversa com
-            quem vende e a simulação de financiamento. Quem compra encontra o que cabe no bolso; quem vende recebe
-            contatos de quem está pronto pra comprar.
+            A Novo Seminovo nasceu com o propósito de desmistificar o mercado automotivo, tornando a compra e a venda de
+            veículos um processo mais transparente, seguro e consciente.
           </p>
           <p>
-            O financiamento é feito com a <strong>{CORBAN.brand}</strong>, correspondente bancário parceiro, que leva o
-            pedido aos bancos e financeiras e acompanha o cliente até a assinatura. E quem anunciou ainda recebe uma
-            recompensa quando o comprador financia.
+            Nosso objetivo é ajudar cada cliente a escolher o carro ideal de acordo com suas necessidades, preferências
+            e possibilidades, oferecendo o máximo de informações para que possa tomar decisões com confiança.
+          </p>
+          <p>
+            Foi com esse propósito que criamos o{" "}
+            <Link href="/consultar-veiculo" className="font-semibold text-brand-blue hover:underline">
+              Passaporte do Carro
+            </Link>
+            , uma solução que reúne informações importantes sobre o histórico, os cuidados e a conservação do veículo. A
+            ferramenta ajuda tanto o comprador, que busca mais segurança na hora de escolher seu próximo carro, quanto o
+            vendedor, que pode demonstrar a procedência e o cuidado dedicado ao veículo.
+          </p>
+          <p>
+            Além do mercado automotivo, também atuamos no setor imobiliário, conectando pessoas a oportunidades e
+            buscando tornar os processos de compra, venda e negociação de imóveis mais transparentes, acessíveis e
+            seguros.
+          </p>
+          <p>
+            Acreditamos que, tanto no mercado automotivo quanto no imobiliário, a informação é essencial para construir
+            confiança, facilitar decisões e proporcionar melhores experiências para todos os envolvidos.
+          </p>
+          <p className="font-display text-xl font-semibold text-brand-green">
+            Nosso propósito é simplificar mercados, aproximar pessoas e transformar decisões importantes em escolhas mais
+            seguras e conscientes.
           </p>
         </div>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href="/consultar-veiculo" className="rounded-brand bg-brand-green px-5 py-3 text-sm font-bold text-on-green">
+            Consultar o Passaporte de um carro
+          </Link>
+          <Link href="/como-funciona" className="rounded-brand border border-border px-5 py-3 text-sm font-bold text-ink hover:bg-surface-sober">
+            Como funciona
+          </Link>
+        </div>
+      </Section>
+
+      <Section title="Financiamento com acompanhamento">
+        <p className="mt-4 max-w-3xl text-base text-ink">
+          O financiamento é feito com a <strong>{CORBAN.brand}</strong>, correspondente bancário parceiro, que leva o
+          pedido aos bancos e financeiras e acompanha o cliente até a assinatura. E quem anunciou ainda recebe uma
+          recompensa quando o comprador financia.
+        </p>
       </Section>
 
       <Section title="No que acreditamos">
