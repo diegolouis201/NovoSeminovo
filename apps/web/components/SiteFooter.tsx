@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { InstagramLogo } from "@phosphor-icons/react/dist/ssr";
 import { Logo } from "@/components/Logo";
+import { COMPANY, CORBAN } from "@/lib/company";
 
 export function SiteFooter() {
   return (
@@ -15,10 +16,28 @@ export function SiteFooter() {
           <Link href="/recompensas" className="text-sm font-semibold text-brand-blue hover:underline">
             Programa de recompensa por financiamento
           </Link>
+          <div className="flex gap-3">
+            <Link href="/privacidade" className="text-sm text-ink-muted hover:underline">
+              Política de Privacidade
+            </Link>
+            <Link href="/termos" className="text-sm text-ink-muted hover:underline">
+              Termos de Uso
+            </Link>
+          </div>
         </div>
 
         <div className="flex items-center gap-4">
-          <p className="text-sm text-ink-muted">© {new Date().getFullYear()} NovoSeminovo</p>
+          <p className="text-sm text-ink-muted">
+            © {new Date().getFullYear()} {COMPANY.brand}
+            <br />
+            <span className="text-xs">
+              {COMPANY.legalName} · CNPJ {COMPANY.cnpj}
+            </span>
+            <br />
+            <span className="text-xs">
+              Financiamentos: correspondente parceiro {CORBAN.brand} ({CORBAN.legalName}, CNPJ {CORBAN.cnpj})
+            </span>
+          </p>
           <Link
             href="https://instagram.com/novoseminovooficial"
             target="_blank"
