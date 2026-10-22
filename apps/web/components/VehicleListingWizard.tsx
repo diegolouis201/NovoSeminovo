@@ -25,6 +25,7 @@ import {
   VEHICLE_STEERING_OPTIONS,
   YOUTUBE_URL_REGEX,
   formatBRL,
+  isValidCpf,
   type CreateListingInput,
   type FipeVersion,
 } from "@novoseminovo/shared-types";
@@ -214,10 +215,13 @@ export function VehicleListingWizard({
   aiEnabled,
   profilePhone,
   isPartner,
+  needsCpf = false,
 }: {
   aiEnabled: boolean;
   profilePhone?: string;
   isPartner: boolean;
+  // Conta de pessoa física sem CPF (antiga ou login social): pede na tela de contato.
+  needsCpf?: boolean;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<Draft>({ ...EMPTY, phone: profilePhone ? formatPhone(profilePhone) : "" });
@@ -231,6 +235,7 @@ export function VehicleListingWizard({
   const [busy, setBusy] = useState<string | undefined>();
   const [showTerms, setShowTerms] = useState(false);
   const [featureQuery, setFeatureQuery] = useState("");
+  const [cpf, setCpf] = useState("");
   const versionsKey = useRef("");
 
   const current = STEPS[step]!;
@@ -346,6 +351,7 @@ export function VehicleListingWizard({
         return undefined;
       case "contact":
         if (draft.showPhone && digits(draft.phone).length < 10) return "Informe um telefone com DDD, ou desligue o WhatsApp.";
+        if (needsCpf && !isValidCpf(cpf)) return "Informe um CPF válido — é uma conta por pessoa.";
         return undefined;
       default:
         return undefined;
@@ -468,7 +474,7 @@ export function VehicleListingWizard({
     };
 
     setBusy("Publicando o anúncio…");
-    const created = await createVehicleFromWizardAction(input, draft.showPhone ? draft.phone : undefined).catch(() => ({
+    const created = await createVehicleFromWizardAction(input, draft.showPhone ? draft.phone : undefined, needsCpf ? cpf : undefined).catch(() => ({
       ok: false as const,
       error: "Não foi possível falar com o servidor. Tente de novo.",
     }));
@@ -477,6 +483,7 @@ export function VehicleListingWizard({
       setError(created.error);
       // Erro de texto (ex.: telefone na descrição) volta pra tela da descrição.
       if (/título|descrição/i.test(created.error)) setStep(STEPS.indexOf("description"));
+      else if (/CPF/i.test(created.error)) setStep(STEPS.indexOf("contact"));
       return;
     }
 
@@ -989,6 +996,21 @@ export function VehicleListingWizard({
                   disabled={Boolean(profilePhone)}
                 />
                 {profilePhone && <span className="text-xs text-ink-muted">É o telefone do seu cadastro — para trocar, vá em Minha conta.</span>}
+              </Field>
+            )}
+            {needsCpf && (
+              <Field label="Seu CPF">
+                <input
+                  inputMode="numeric"
+                  value={cpf}
+                  onChange={(event) => {
+                    const d = digits(event.target.value).slice(0, 11);
+                    setCpf(d.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2"));
+                  }}
+                  placeholder="000.000.000-00"
+                  className={inputClass}
+                />
+                <span className="text-xs text-ink-muted">Uma conta por pessoa, para a segurança de todos. O CPF nunca aparece no anúncio.</span>
               </Field>
             )}
           </Step>

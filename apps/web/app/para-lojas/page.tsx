@@ -77,7 +77,15 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default async function ForPartnersPage() {
-  const [plans, tiers] = await Promise.all([fetchPlans(), fetchPublicRebateTiers()]);
+  const [vehiclePlans, propertyPlans, tiers] = await Promise.all([
+    fetchPlans("vehicle"),
+    fetchPlans("property"),
+    fetchPublicRebateTiers(),
+  ]);
+  const planGroups = [
+    { title: "Lojas de veículos", plans: vehiclePlans, enterprise: true },
+    { title: "Imobiliárias e corretores", plans: propertyPlans, enterprise: false },
+  ].filter((group) => group.plans.length > 0);
   const tiersByType = Object.entries(TYPE_LABEL).map(([type, label]) => ({
     label,
     tiers: tiers.filter((tier) => tier.partnerType === type).sort((a, b) => a.tierOrder - b.tierOrder),
@@ -136,45 +144,65 @@ export default async function ForPartnersPage() {
         </ol>
       </Section>
 
-      {plans.length > 0 && (
+      {planGroups.length > 0 && (
         <Section title="Planos">
           <p className="mt-2 max-w-3xl text-sm text-ink-muted">
             Os 3 primeiros meses a partir do cadastro são grátis e sem limite de anúncios. Depois, a vitrine e os
             anúncios continuam no ar com um dos planos abaixo — sem fidelidade, cancele quando quiser.
           </p>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {plans.map((plan) => (
-              <div key={plan.id} className="flex flex-col rounded-brand border border-border bg-surface-raised p-5">
-                <h3 className="font-display text-xl font-semibold text-ink">{plan.name}</h3>
-                <p className="mt-2 text-2xl font-extrabold text-ink [font-variant-numeric:tabular-nums]">
-                  {plan.priceLabel}
-                  <span className="text-sm font-normal text-ink-muted">/mês</span>
-                </p>
-                <ul className="mt-4 flex-1 space-y-2 text-sm text-ink">
-                  <li className="flex gap-2">
-                    <CheckCircle size={18} weight="fill" className="mt-0.5 shrink-0 text-brand-green" />
-                    Até {plan.maxActiveListings} anúncios no ar
-                  </li>
-                  {plan.highlightCredits > 0 && (
-                    <li className="flex gap-2">
-                      <CheckCircle size={18} weight="fill" className="mt-0.5 shrink-0 text-brand-green" />
-                      {plan.highlightCredits} destaques por mês
-                    </li>
-                  )}
-                  <li className="flex gap-2">
-                    <CheckCircle size={18} weight="fill" className="mt-0.5 shrink-0 text-brand-green" />
-                    Painel completo, assistente de IA e posts pro Instagram
-                  </li>
-                </ul>
-                <Link
-                  href="/parceiro/plano"
-                  className="mt-5 rounded-brand bg-brand-green px-4 py-2.5 text-center text-sm font-bold text-on-green"
-                >
-                  Escolher {plan.name}
-                </Link>
+          {planGroups.map((group) => (
+            <div key={group.title} className="mt-6">
+              <h3 className="font-display text-lg font-semibold text-ink">{group.title}</h3>
+              <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {group.plans.map((plan) => (
+                  <div key={plan.id} className="flex flex-col rounded-brand border border-border bg-surface-raised p-5">
+                    <h4 className="font-display text-xl font-semibold text-ink">{plan.name}</h4>
+                    <p className="mt-2 text-2xl font-extrabold text-ink [font-variant-numeric:tabular-nums]">
+                      {plan.priceLabel}
+                      <span className="text-sm font-normal text-ink-muted">/mês</span>
+                    </p>
+                    <ul className="mt-4 flex-1 space-y-2 text-sm text-ink">
+                      <li className="flex gap-2">
+                        <CheckCircle size={18} weight="fill" className="mt-0.5 shrink-0 text-brand-green" />
+                        Até {plan.maxActiveListings} anúncios no ar
+                      </li>
+                      {plan.highlightCredits > 0 && (
+                        <li className="flex gap-2">
+                          <CheckCircle size={18} weight="fill" className="mt-0.5 shrink-0 text-brand-green" />
+                          {plan.highlightCredits} destaques na busca por mês
+                        </li>
+                      )}
+                      <li className="flex gap-2">
+                        <CheckCircle size={18} weight="fill" className="mt-0.5 shrink-0 text-brand-green" />
+                        Leads ilimitados, vitrine, assistente de IA e posts pro Instagram
+                      </li>
+                    </ul>
+                    <Link
+                      href="/parceiro/plano"
+                      className="mt-5 rounded-brand bg-brand-green px-4 py-2.5 text-center text-sm font-bold text-on-green"
+                    >
+                      Escolher {plan.name}
+                    </Link>
+                  </div>
+                ))}
+                {group.enterprise && (
+                  <div className="flex flex-col rounded-brand border border-dashed border-border bg-surface-raised p-5">
+                    <h4 className="font-display text-xl font-semibold text-ink">Enterprise</h4>
+                    <p className="mt-2 text-2xl font-extrabold text-ink">Sob consulta</p>
+                    <p className="mt-4 flex-1 text-sm text-ink">Mais de 100 anúncios, várias lojas ou condições especiais.</p>
+                    <a
+                      href={talkToSales}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-5 rounded-brand border border-brand-green px-4 py-2.5 text-center text-sm font-bold text-brand-green"
+                    >
+                      Falar no WhatsApp
+                    </a>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </Section>
       )}
 

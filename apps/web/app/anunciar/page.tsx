@@ -74,7 +74,12 @@ export default async function CreateListingPage({
             Formulário completo
           </Link>
         </nav>
-        <VehicleListingWizard aiEnabled={aiEnabled} profilePhone={profile?.phone} isPartner={Boolean(partner)} />
+        <VehicleListingWizard
+          aiEnabled={aiEnabled}
+          profilePhone={profile?.phone}
+          isPartner={Boolean(partner)}
+          needsCpf={!partner && Boolean(profile) && !profile?.cpf}
+        />
       </main>
     );
   }

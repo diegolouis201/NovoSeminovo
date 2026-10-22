@@ -26,11 +26,13 @@ async function main() {
 
   const individualSeller = await prisma.user.upsert({
     where: { email: "particular@novoseminovo.com.br" },
-    update: { passwordHash: DEMO_PASSWORD_HASH, phone: "31988887777" },
+    // CPF de teste (válido, gerado) — anunciar como pessoa física exige CPF.
+    update: { passwordHash: DEMO_PASSWORD_HASH, phone: "31988887777", cpf: "52998224725" },
     create: {
       name: "Marcos Silva",
       email: "particular@novoseminovo.com.br",
       phone: "31988887777",
+      cpf: "52998224725",
       role: "individual_seller",
       passwordHash: DEMO_PASSWORD_HASH,
     },

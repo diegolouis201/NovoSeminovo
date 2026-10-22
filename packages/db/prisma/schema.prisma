@@ -280,6 +280,11 @@ model Plan {
   // na primeira vez que o servidor sobe com STRIPE_SECRET_KEY configurado —
   // nulo enquanto não tiver chave nenhuma, aí "contratar" cai na simulação.
   stripePriceId      String?  @map("stripe_price_id")
+  // Pra quem é o plano: "vehicle" (loja de veículos) ou "property"
+  // (imobiliária/corretor). Os planos de loja de veículos vêm do catálogo
+  // em código (ver PartnersService.ensurePlanCatalog).
+  audience           String?
+  active             Boolean  @default(true)
 
   subscriptions Subscription[]
 

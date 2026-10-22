@@ -30,6 +30,8 @@ export const RegisterInputSchema = z.object({
   // Opcional: sem ele o botão "Chamar no WhatsApp" não aparece nos anúncios
   // da pessoa (ver ListingDetail.sellerPhone) — não trava o cadastro.
   phone: z.string().min(8, "Informe um telefone válido com DDD").optional(),
+  // Obrigatório: uma conta por pessoa (User.cpf é único). Nunca aparece no site.
+  cpf: z.string({ required_error: "Informe seu CPF" }).refine((value) => isValidCpf(value), "CPF inválido"),
 });
 export type RegisterInput = z.infer<typeof RegisterInputSchema>;
 
@@ -857,6 +859,7 @@ export const PlanSchema = z.object({
   maxActiveListings: z.number().int(),
   highlightCredits: z.number().int(),
   priceLabel: z.string(),
+  audience: z.enum(["vehicle", "property"]).optional(),
 });
 export type Plan = z.infer<typeof PlanSchema>;
 

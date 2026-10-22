@@ -72,9 +72,16 @@ export type WizardResult<T = undefined> = { ok: true; value: T } | { ok: false; 
 export async function createVehicleFromWizardAction(
   input: CreateListingInput,
   phone?: string,
+  cpf?: string,
 ): Promise<WizardResult<string>> {
   const session = await auth();
   if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo para publicar." };
+
+  // Conta antiga sem CPF: o passo a passo pede na tela de contato.
+  if (cpf) {
+    const saved = await updateProfile({ cpf }, session.accessToken);
+    if (!saved.ok) return { ok: false, error: saved.error };
+  }
 
   // Telefone digitado no cadastro vira o do perfil (é ele que o botão de
   // WhatsApp do anúncio usa) — só quando a pessoa ainda não tinha um.

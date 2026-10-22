@@ -3,6 +3,7 @@ import type { Partner, Plan } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { fetchMyPartner, fetchPaymentsStatus, fetchPlans } from "@/lib/api";
+import { COMPANY } from "@/lib/company";
 import {
   cancelSubscriptionAction,
   confirmCheckoutAction,
@@ -30,7 +31,8 @@ export default async function PartnerPlanPage({
   if (!partner) redirect("/parceiro");
   if (!partner.isOwner) redirect("/parceiro");
 
-  const [plans, paymentsStatus] = await Promise.all([fetchPlans(), fetchPaymentsStatus()]);
+  const audience = partner.type === "real_estate_agency" || partner.type === "broker" ? "property" : "vehicle";
+  const [plans, paymentsStatus] = await Promise.all([fetchPlans(audience), fetchPaymentsStatus()]);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
@@ -105,7 +107,7 @@ export default async function PartnerPlanPage({
         )}
       </div>
 
-      <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {plans.map((plan) => (
           <PlanCard
             key={plan.id}
@@ -114,6 +116,21 @@ export default async function PartnerPlanPage({
             stripeEnabled={paymentsStatus.stripeEnabled}
           />
         ))}
+        {audience === "vehicle" && (
+          <li className="flex flex-col gap-2 rounded-brand border border-dashed border-border bg-surface-raised p-4">
+            <p className="font-display text-lg font-semibold text-ink">Enterprise</p>
+            <p className="text-2xl font-extrabold text-ink">Sob consulta</p>
+            <p className="text-sm text-ink-muted">Mais de 100 anúncios, várias lojas ou condições especiais.</p>
+            <a
+              href={`${COMPANY.whatsappLink}?text=${encodeURIComponent(`Olá! Sou da ${partner.legalName} e quero saber do plano Enterprise.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-auto rounded-brand border border-brand-green px-4 py-2.5 text-center text-sm font-bold text-brand-green hover:bg-brand-green/10"
+            >
+              Falar no WhatsApp
+            </a>
+          </li>
+        )}
       </ul>
     </main>
   );
@@ -161,8 +178,12 @@ function PlanCard({ plan, isCurrent, stripeEnabled }: { plan: Plan; isCurrent: b
       <p className="text-2xl font-extrabold text-ink">
         {plan.priceLabel} <span className="text-sm font-normal text-ink-muted">/mês</span>
       </p>
-      <p className="text-sm text-ink-muted">Até {plan.maxActiveListings} anúncios ativos</p>
-      <p className="text-sm text-ink-muted">{plan.highlightCredits} destaque(s) na busca por mês</p>
+      <p className="text-sm text-ink-muted">Até {plan.maxActiveListings} anúncios no ar</p>
+      <p className="text-sm text-ink-muted">
+        {plan.highlightCredits > 0
+          ? `${plan.highlightCredits} destaque${plan.highlightCredits === 1 ? "" : "s"} na busca por mês`
+          : "Sem destaques na busca"}
+      </p>
       {isCurrent ? (
         <span className="mt-2 self-start rounded-full bg-brand-green/10 px-3 py-1 text-xs font-bold text-brand-green">
           Plano atual

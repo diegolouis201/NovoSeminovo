@@ -22,6 +22,7 @@ export class AuthService {
           name: input.name,
           email: input.email,
           phone: input.phone,
+          cpf: input.cpf.replace(/\D/g, ""),
           passwordHash,
           role: "buyer",
         },
@@ -29,7 +30,12 @@ export class AuthService {
       return { id: user.id, name: user.name, email: user.email, role: user.role };
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        throw new ConflictException("Já existe uma conta com este e-mail.");
+        const target = String((error.meta as { target?: unknown } | undefined)?.target ?? "");
+        throw new ConflictException(
+          target.includes("cpf")
+            ? "Já existe uma conta com este CPF. Entre com ela ou recupere a senha."
+            : "Já existe uma conta com este e-mail.",
+        );
       }
       throw error;
     }

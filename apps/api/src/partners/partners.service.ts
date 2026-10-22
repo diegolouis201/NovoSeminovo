@@ -87,14 +87,38 @@ function fromStripeStatus(status: string): "active" | "past_due" | "canceled" {
   return "canceled";
 }
 
-function toPlan(plan: { id: string; name: string; maxActiveListings: number; highlightCredits: number; priceMonth: unknown }): Plan {
+function toPlan(plan: {
+  id: string;
+  name: string;
+  maxActiveListings: number;
+  highlightCredits: number;
+  priceMonth: unknown;
+  audience: string | null;
+}): Plan {
   return {
     id: plan.id,
     name: plan.name,
     maxActiveListings: plan.maxActiveListings,
     highlightCredits: plan.highlightCredits,
     priceLabel: formatBRL(Number(plan.priceMonth)),
+    audience: plan.audience === "vehicle" || plan.audience === "property" ? plan.audience : undefined,
   };
+}
+
+// Planos de loja de veículos (decisão do Diego, out/2026) — o código é a fonte
+// da verdade: ensurePlanCatalog cria o que falta e atualiza preço/limites ao
+// subir a API. Preço mudou → stripePriceId zera e o Stripe ganha um preço
+// novo no próximo checkout (quem já assinou continua no preço antigo lá).
+// "Enterprise" (mais de 100) é conversa no WhatsApp, não plano no sistema.
+const VEHICLE_PLAN_CATALOG = [
+  { name: "Inicial", priceMonth: 149, maxActiveListings: 30, highlightCredits: 5 },
+  { name: "Profissional", priceMonth: 249, maxActiveListings: 60, highlightCredits: 10 },
+  { name: "Loja Grande", priceMonth: 349, maxActiveListings: 100, highlightCredits: 20 },
+];
+
+// Tipo de parceiro → público dos planos (ver PARTNER_ALLOWED_ASSET_TYPES).
+export function planAudienceFor(partnerType: string): "vehicle" | "property" {
+  return partnerType === "real_estate_agency" || partnerType === "broker" ? "property" : "vehicle";
 }
 
 const leadInclude = {
@@ -145,6 +169,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
   // Fim do período grátis não tem evento nenhum — confere a cada 6 horas (e
   // 1 minuto depois de subir) quem precisa de aviso ou de sair do ar.
   onModuleInit(): void {
+    void this.ensurePlanCatalog().catch((error) => this.logger.error(`Falha ao conferir o catálogo de planos: ${error}`));
     if (process.env.TRIAL_SWEEP_DISABLED === "1") return;
     const run = () => void this.trialSweep().catch((error) => this.logger.error(`Falha na checagem do período grátis: ${error}`));
     setTimeout(run, 60 * 1000).unref();
@@ -584,9 +609,32 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
     await this.prisma.partnerMember.delete({ where: { id: memberId } });
   }
 
-  async listPlans(): Promise<Plan[]> {
-    const plans = await this.prisma.plan.findMany({ orderBy: { priceMonth: "asc" } });
+  async listPlans(audience?: "vehicle" | "property"): Promise<Plan[]> {
+    const plans = await this.prisma.plan.findMany({
+      where: { active: true, ...(audience ? { audience } : {}) },
+      orderBy: { priceMonth: "asc" },
+    });
     return plans.map(toPlan);
+  }
+
+  async ensurePlanCatalog(): Promise<void> {
+    // Planos antigos (Básico/Profissional de antes) ficam pras imobiliárias
+    // até o Diego definir os delas.
+    await this.prisma.plan.updateMany({ where: { audience: null }, data: { audience: "property" } });
+    for (const item of VEHICLE_PLAN_CATALOG) {
+      const existing = await this.prisma.plan.findFirst({ where: { audience: "vehicle", name: item.name } });
+      if (!existing) {
+        await this.prisma.plan.create({ data: { ...item, audience: "vehicle" } });
+        continue;
+      }
+      const priceChanged = Number(existing.priceMonth) !== item.priceMonth;
+      if (priceChanged || existing.maxActiveListings !== item.maxActiveListings || existing.highlightCredits !== item.highlightCredits || !existing.active) {
+        await this.prisma.plan.update({
+          where: { id: existing.id },
+          data: { ...item, active: true, ...(priceChanged ? { stripePriceId: null } : {}) },
+        });
+      }
+    }
   }
 
   // Cancela qualquer assinatura ativa da loja e cria a nova já ativa —
@@ -700,6 +748,9 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
 
     const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
     if (!plan) throw new NotFoundException(`Plano ${planId} não encontrado`);
+    if (plan.audience && plan.audience !== planAudienceFor(partner.type)) {
+      throw new BadRequestException("Esse plano não é para o seu tipo de conta.");
+    }
 
     await this.activateSubscription(partner.id, planId);
 
@@ -714,6 +765,9 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
 
     const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
     if (!plan) throw new NotFoundException(`Plano ${planId} não encontrado`);
+    if (plan.audience && plan.audience !== planAudienceFor(partner.type)) {
+      throw new BadRequestException("Esse plano não é para o seu tipo de conta.");
+    }
 
     const owner = await this.prisma.user.findUnique({ where: { id: partner.ownerUserId }, select: { email: true } });
     return this.payments.createCheckoutSession(partner, plan, successUrl, cancelUrl, owner?.email);

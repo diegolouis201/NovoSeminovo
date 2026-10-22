@@ -17,11 +17,12 @@ export default async function RegisterPage({ searchParams }: { searchParams: { e
     const email = String(formData.get("email") ?? "");
     const password = String(formData.get("password") ?? "");
     const phone = String(formData.get("phone") ?? "") || undefined;
+    const cpf = String(formData.get("cpf") ?? "");
 
     const res = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, phone }),
+      body: JSON.stringify({ name, email, password, phone, cpf }),
     });
 
     if (!res.ok) {
@@ -52,6 +53,10 @@ export default async function RegisterPage({ searchParams }: { searchParams: { e
       <form action={register} className="flex flex-col gap-3">
         <FormField label="Nome" name="name" />
         <FormField label="E-mail" name="email" type="email" />
+        <div className="flex flex-col gap-1">
+          <FormField label="CPF" name="cpf" placeholder="000.000.000-00" />
+          <p className="text-xs text-ink-muted">Uma conta por pessoa, para a segurança de todos. O CPF nunca aparece no site.</p>
+        </div>
         <FormField
           label="WhatsApp"
           name="phone"

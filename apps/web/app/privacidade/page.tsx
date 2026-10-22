@@ -37,7 +37,11 @@ export default function PrivacyPage() {
           informar, telefone.
         </li>
         <li>
-          <strong>Perfil (opcional):</strong> CPF, data de nascimento, gênero, CEP, cidade e estado.
+          <strong>CPF:</strong> obrigatório no cadastro, para garantir uma conta por pessoa e prevenir fraudes. Nunca
+          aparece no site nem é mostrado a outros usuários.
+        </li>
+        <li>
+          <strong>Perfil (opcional):</strong> data de nascimento, gênero, CEP, cidade e estado.
         </li>
         <li>
           <strong>Anúncios:</strong> dados do veículo ou imóvel, fotos, localização aproximada e, para veículos, a placa

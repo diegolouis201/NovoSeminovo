@@ -142,9 +142,10 @@ export class PartnersController {
     return this.partnersService.removeMember(user.id, memberId);
   }
 
+  // ?for=vehicle (loja de veículos) ou ?for=property (imobiliária/corretor).
   @Get("plans")
-  listPlans() {
-    return this.partnersService.listPlans();
+  listPlans(@Query("for") audience?: string) {
+    return this.partnersService.listPlans(audience === "vehicle" || audience === "property" ? audience : undefined);
   }
 
   @UseGuards(JwtAuthGuard)

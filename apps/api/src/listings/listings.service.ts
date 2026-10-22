@@ -760,6 +760,15 @@ export class ListingsService {
       where: { OR: [{ ownerUserId }, { members: { some: { userId: ownerUserId } } }] },
     });
 
+    // Pessoa física: uma conta por pessoa — sem CPF no cadastro (contas
+    // antigas, ou login social), não publica até informar em Meus dados.
+    if (!partner) {
+      const owner = await this.prisma.user.findUnique({ where: { id: ownerUserId }, select: { cpf: true } });
+      if (!owner?.cpf) {
+        throw new BadRequestException("Para anunciar como pessoa física, informe seu CPF em Minha conta → Meus dados (é uma conta por pessoa).");
+      }
+    }
+
     if (partner && !allowedAssetTypes(partner.type).includes(assetType)) {
       throw new ForbiddenException(assetTypeNotAllowedMessage(partner.type));
     }

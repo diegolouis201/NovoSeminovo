@@ -739,9 +739,9 @@ export async function removePartnerMember(memberId: string, accessToken: string)
 // gateway de pagamento nenhum (ver comentário em PartnerSubscriptionSchema
 // no shared-types); com Stripe configurado, startCheckoutSession abaixo é
 // quem o front usa de verdade.
-export async function fetchPlans(): Promise<Plan[]> {
+export async function fetchPlans(audience?: "vehicle" | "property"): Promise<Plan[]> {
   try {
-    const res = await fetchWithTimeout(`${API_URL}/plans`);
+    const res = await fetchWithTimeout(`${API_URL}/plans${audience ? `?for=${audience}` : ""}`);
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return (await res.json()) as Plan[];
   } catch {
