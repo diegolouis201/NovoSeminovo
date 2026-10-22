@@ -12,6 +12,7 @@ import { VehicleOptionsFields } from "@/components/VehicleOptionsFields";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createListingAction, extractCrlvAction, generateListingDraftAction } from "@/lib/actions/listings";
 import { VehicleListingWizard } from "@/components/VehicleListingWizard";
+import { PropertyListingWizard } from "@/components/PropertyListingWizard";
 import { allowedAssetTypes } from "@novoseminovo/shared-types";
 import { fetchAiStatus, fetchMyPartner, fetchProfile } from "@/lib/api";
 import { FUEL_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
@@ -51,35 +52,48 @@ export default async function CreateListingPage({
   if (!allowed.includes(requested)) redirect(`/anunciar?tipo=${allowed[0]}`);
   const assetType = requested;
 
-  // Carro: cadastro em passo a passo (ver VehicleListingWizard). O formulário
-  // completo de uma tela só continua em ?modo=completo (lojista que prefere,
-  // ou volta do leitor de CRLV/gerador de texto com campos preenchidos).
+  // Carro e imóvel: cadastro em passo a passo (VehicleListingWizard /
+  // PropertyListingWizard). O formulário completo de uma tela só continua em
+  // ?modo=completo (lojista que prefere, ou volta do leitor de CRLV/gerador
+  // de texto com campos preenchidos).
   const usingDraftParams = Object.keys(searchParams).some((key) => key.startsWith("draft"));
-  if (assetType === "vehicle" && searchParams.modo !== "completo" && !usingDraftParams) {
+  if (searchParams.modo !== "completo" && !usingDraftParams) {
     const profile = await fetchProfile(session.accessToken);
+    const wizardProps = {
+      aiEnabled,
+      profilePhone: profile?.phone,
+      isPartner: Boolean(partner),
+      needsCpf: !partner && Boolean(profile) && !profile?.cpf,
+    };
+    const tabs = [
+      { type: "vehicle" as const, label: "Carro", icon: <Car size={18} weight="bold" /> },
+      { type: "property" as const, label: "Imóvel", icon: <House size={18} weight="bold" /> },
+    ].filter((tab) => allowed.includes(tab.type));
     return (
       <main>
         <nav className="mx-auto flex max-w-xl items-center justify-between gap-2 px-4 pt-6 text-sm">
-          <span className="inline-flex gap-1 rounded-full bg-surface-sober p-1">
-            <span className="flex items-center gap-1.5 rounded-full bg-brand-green px-4 py-2 font-semibold text-on-green">
-              <Car size={18} weight="bold" /> Carro
+          {tabs.length > 1 ? (
+            <span className="inline-flex gap-1 rounded-full bg-surface-sober p-1">
+              {tabs.map((tab) =>
+                tab.type === assetType ? (
+                  <span key={tab.type} className="flex items-center gap-1.5 rounded-full bg-brand-green px-4 py-2 font-semibold text-on-green">
+                    {tab.icon} {tab.label}
+                  </span>
+                ) : (
+                  <Link key={tab.type} href={`/anunciar?tipo=${tab.type}`} className="flex items-center gap-1.5 rounded-full px-4 py-2 font-semibold text-ink">
+                    {tab.icon} {tab.label}
+                  </Link>
+                ),
+              )}
             </span>
-            {allowed.includes("property") && (
-              <Link href="/anunciar?tipo=property" className="flex items-center gap-1.5 rounded-full px-4 py-2 font-semibold text-ink">
-                <House size={18} weight="bold" /> Imóvel
-              </Link>
-            )}
-          </span>
-          <Link href="/anunciar?tipo=vehicle&modo=completo" className="text-xs font-semibold text-ink-muted hover:underline">
+          ) : (
+            <span />
+          )}
+          <Link href={`/anunciar?tipo=${assetType}&modo=completo`} className="text-xs font-semibold text-ink-muted hover:underline">
             Formulário completo
           </Link>
         </nav>
-        <VehicleListingWizard
-          aiEnabled={aiEnabled}
-          profilePhone={profile?.phone}
-          isPartner={Boolean(partner)}
-          needsCpf={!partner && Boolean(profile) && !profile?.cpf}
-        />
+        {assetType === "vehicle" ? <VehicleListingWizard {...wizardProps} /> : <PropertyListingWizard {...wizardProps} />}
       </main>
     );
   }
@@ -105,7 +119,7 @@ export default async function CreateListingPage({
         )}
         {allowed.includes("property") && (
           <Link
-            href="/anunciar?tipo=property"
+            href="/anunciar?tipo=property&modo=completo"
             className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold ${
               assetType === "property" ? "bg-brand-green text-on-green" : "text-ink"
             }`}

@@ -134,6 +134,9 @@ export type SearchParams = {
   fuelType?: string;
   mileageMax?: number;
   propertyType?: string;
+  purpose?: "sale" | "rent";
+  neighborhood?: string;
+  limit?: number;
   // Lista separada por vírgula (ver VEHICLE_FEATURE_OPTIONS/VEHICLE_CONDITION_OPTIONS).
   features?: string;
   conditions?: string;

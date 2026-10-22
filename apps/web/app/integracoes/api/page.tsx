@@ -210,7 +210,7 @@ ${VEHICLE_EXAMPLE}`}</Code>
               ["doors", "número", "opcional, 2 a 6"],
               ["plate", "texto", "opcional — liga ao histórico (Passaporte Digital) do veículo"],
               ["— imóvel —", "", ""],
-              ["propertyType", "texto", '"house", "apartment", "land", "commercial", "penthouse", "farm" ou "warehouse"'],
+              ["propertyType", "texto", '"house", "apartment", "land", "commercial", "penthouse", "farm", "warehouse", "condo_house", "studio", "store" ou "garage"'],
               ["purpose", "texto", '"sale" (venda) ou "rent" (aluguel)'],
               ["areaM2", "número", "obrigatório, área útil"],
               ["streetAddress", "texto", "obrigatório, mín. 5 caracteres (pode ser só bairro + cidade)"],

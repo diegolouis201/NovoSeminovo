@@ -104,6 +104,10 @@ enum PropertyType {
   penthouse
   farm
   warehouse
+  condo_house
+  studio
+  store
+  garage
 }
 
 enum Purpose {

@@ -6,6 +6,7 @@ import type {
   FipePrice,
   FipeVersion,
   CreateListingInput,
+  ListingSummary,
   ListingStatus,
   Photo,
   PriceSuggestion,
@@ -23,6 +24,7 @@ import {
   fetchProfile,
   updateProfile,
   fetchFipeVersions,
+  fetchListings,
   classifyListingPhotos,
   createListing,
   deleteListingPhoto,
@@ -107,12 +109,31 @@ export async function uploadWizardPhotosAction(listingId: string, formData: Form
   return { ok: true, value: undefined };
 }
 
-export async function generateVehicleTextAction(summary: string): Promise<WizardResult<{ title: string; description: string }>> {
+export async function generateVehicleTextAction(
+  summary: string,
+  assetType: "vehicle" | "property" = "vehicle",
+): Promise<WizardResult<{ title: string; description: string }>> {
   const session = await auth();
   if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
-  const result = await generateListingDraft({ assetType: "vehicle", freeText: summary }, session.accessToken);
+  const result = await generateListingDraft({ assetType, freeText: summary }, session.accessToken);
   if (!result.ok) return { ok: false, error: result.error };
   return { ok: true, value: { title: result.draft.title, description: result.draft.description } };
+}
+
+// "Imóveis parecidos na região" ao lado da tela de valores do cadastro de
+// imóvel — mesmo bairro, tipo e finalidade; sem nada no bairro, a cidade.
+export async function similarPropertiesAction(filters: {
+  city: string;
+  neighborhood?: string;
+  propertyType?: string;
+  purpose: "sale" | "rent";
+}): Promise<ListingSummary[]> {
+  const base = { assetType: "property" as const, city: filters.city, propertyType: filters.propertyType || undefined, purpose: filters.purpose, limit: 6 };
+  const inNeighborhood = filters.neighborhood
+    ? await fetchListings({ ...base, neighborhood: filters.neighborhood }).catch(() => [])
+    : [];
+  if (inNeighborhood.length) return inNeighborhood;
+  return fetchListings(base).catch(() => []);
 }
 
 // Plano do anúncio (pessoa física): o passo a passo chama isto depois de

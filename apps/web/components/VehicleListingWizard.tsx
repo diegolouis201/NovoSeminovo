@@ -1,22 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Camera,
-  CaretLeft,
-  CaretRight,
-  Car,
-  Check,
-  MagnifyingGlass,
-  Sparkle,
-  Star,
-  Trash,
-  Warning,
-} from "@phosphor-icons/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, Camera, Car, Check, MagnifyingGlass, Sparkle, Warning } from "@phosphor-icons/react";
 import {
   VEHICLE_BODY_TYPE_OPTIONS,
   VEHICLE_COMPLETE_FEATURES,
@@ -24,10 +10,8 @@ import {
   VEHICLE_FEATURE_OPTIONS,
   VEHICLE_STEERING_OPTIONS,
   YOUTUBE_URL_REGEX,
-  LISTING_TIERS,
   formatBRL,
   isValidCpf,
-  listingTier,
   type ListingTierId,
   type CreateListingInput,
   type FipeVersion,
@@ -42,6 +26,29 @@ import {
   uploadWizardPhotosAction,
 } from "@/lib/actions/listings";
 import { FUEL_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
+import {
+  Chip,
+  Field,
+  Intro,
+  MAX_PHOTOS,
+  PhotoGrid,
+  PlanPicker,
+  PlanSummary,
+  Select,
+  Step,
+  TermsDialog,
+  Toggle,
+  clearDraft,
+  digits,
+  formatCep,
+  formatCpf,
+  formatPhone,
+  formatThousands,
+  inputClass,
+  preparePhotos,
+  publishLabel,
+  type WizardPhoto,
+} from "@/components/wizard/WizardParts";
 
 // Cadastro de carro em passo a passo (uma pergunta por tela, estilo
 // Seminovos/Webmotors). Tudo fica no navegador até "Publicar": aí cria o
@@ -50,8 +57,6 @@ import { FUEL_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
 // salvo no localStorage pra não perder nada se a página recarregar.
 
 const DRAFT_KEY = "ns-anunciar-carro";
-const MAX_PHOTOS = 20;
-const PHOTO_MAX_SIDE = 1920;
 const QUICK_SALE_DISCOUNT = 0.03;
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -60,8 +65,6 @@ const ENGINES = ["1.0", "1.0 Turbo", "1.2", "1.3", "1.4", "1.4 Turbo", "1.5", "1
 const DOORS = ["2", "3", "4", "5"];
 // Condições perguntadas na tela de preço; "aceita troca" fica na de contato.
 const PRICE_CONDITIONS = VEHICLE_CONDITION_OPTIONS.filter((option) => option.value !== "accepts_trade");
-
-type WizardPhoto = { id: string; file: File; url: string };
 
 type Draft = {
   plate: string;
@@ -166,22 +169,6 @@ const STEPS: StepId[] = [
   "review",
 ];
 
-function digits(value: string): string {
-  return value.replace(/\D/g, "");
-}
-
-function formatThousands(value: string): string {
-  const d = digits(value);
-  return d ? Number(d).toLocaleString("pt-BR") : "";
-}
-
-function formatPhone(value: string): string {
-  const d = digits(value).slice(0, 11);
-  if (d.length <= 2) return d;
-  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  return `(${d.slice(0, 2)}) ${d.slice(2, d.length - 4)}-${d.slice(-4)}`;
-}
-
 function normalizePlate(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 7);
 }
@@ -200,23 +187,6 @@ function guessFromVersion(name: string): Partial<Draft> {
   const doors = /\b(\d)p\b/i.exec(name)?.[1];
   if (doors) guess.doors = doors;
   return guess;
-}
-
-// Reduz a foto no navegador antes de enviar (celular tira foto de 4–8 MB):
-// lado maior de até 1920 px, JPEG. Também converte HEIC no Safari/iPhone,
-// que sabe abrir HEIC; navegador que não sabe cai no erro e avisa.
-async function compressPhoto(file: File): Promise<File> {
-  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-  const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
-  if (!blob) throw new Error("Não foi possível processar a foto.");
-  const name = file.name.replace(/\.[^.]+$/, "") || "foto";
-  return new File([blob], `${name}.jpg`, { type: "image/jpeg" });
 }
 
 export function VehicleListingWizard({
@@ -390,23 +360,11 @@ export function VehicleListingWizard({
 
   async function addPhotos(files: FileList | null) {
     if (!files?.length) return;
-    const room = MAX_PHOTOS - photos.length;
-    const chosen = Array.from(files).slice(0, room);
     setBusy("Preparando as fotos…");
-    const added: WizardPhoto[] = [];
-    let failed = 0;
-    for (const file of chosen) {
-      try {
-        const compressed = await compressPhoto(file);
-        added.push({ id: `${Date.now()}-${Math.random()}`, file: compressed, url: URL.createObjectURL(compressed) });
-      } catch {
-        failed += 1;
-      }
-    }
+    const { added, warning } = await preparePhotos(files, photos.length);
     setPhotos((list) => [...list, ...added]);
     setBusy(undefined);
-    if (failed) setError(`${failed} foto(s) não puderam ser abertas. Envie em JPG ou PNG.`);
-    else if (files.length > room) setError(`O limite é de ${MAX_PHOTOS} fotos — as excedentes ficaram de fora.`);
+    if (warning) setError(warning);
   }
 
   function movePhoto(index: number, to: number) {
@@ -505,20 +463,12 @@ export function VehicleListingWizard({
       for (const photo of photos.slice(i, i + 5)) form.append("photos", photo.file);
       const sent = await uploadWizardPhotosAction(listingId, form).catch(() => ({ ok: false as const, error: "" }));
       if (!sent.ok) {
-        try {
-          localStorage.removeItem(DRAFT_KEY);
-        } catch {
-          // ignora
-        }
+        clearDraft(DRAFT_KEY);
         router.push(`/anuncio/${listingId}/fotos?erro=${encodeURIComponent("O anúncio foi criado, mas algumas fotos não subiram. Envie de novo por aqui.")}`);
         return;
       }
     }
-    try {
-      localStorage.removeItem(DRAFT_KEY);
-    } catch {
-      // ignora
-    }
+    clearDraft(DRAFT_KEY);
     if (!isPartner && draft.planTier !== "free") {
       setBusy("Abrindo o pagamento…");
       const boost = await startBoostAction(listingId, draft.planTier).catch(() => ({ ok: false as const, error: "" }));
@@ -537,11 +487,7 @@ export function VehicleListingWizard({
   }
 
   function restart() {
-    try {
-      localStorage.removeItem(DRAFT_KEY);
-    } catch {
-      // ignora
-    }
+    clearDraft(DRAFT_KEY);
     setDraft({ ...EMPTY, phone: profilePhone ? formatPhone(profilePhone) : "" });
     setPhotos([]);
     setStep(0);
@@ -818,50 +764,7 @@ export function VehicleListingWizard({
               isPartner ? "" : " O plano Grátis mostra 5 fotos; Flex 10, Turbo 15 e Nitro 20."
             }`}
           >
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {photos.map((photo, index) => (
-                <figure
-                  key={photo.id}
-                  draggable
-                  onDragStart={(event) => event.dataTransfer.setData("text/plain", String(index))}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    movePhoto(Number(event.dataTransfer.getData("text/plain")), index);
-                  }}
-                  className="relative overflow-hidden rounded-brand border border-border bg-surface-sober"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photo.url} alt={`Foto ${index + 1}`} className="aspect-[4/3] w-full object-cover" />
-                  {index === 0 && (
-                    <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-brand-green px-2 py-0.5 text-[11px] font-bold text-on-green">
-                      <Star size={12} weight="fill" /> Capa
-                    </span>
-                  )}
-                  <div className="flex items-center justify-between bg-surface-raised px-1 py-1">
-                    <button type="button" onClick={() => movePhoto(index, index - 1)} disabled={index === 0} aria-label="Mover para a esquerda" className="rounded p-1.5 text-ink disabled:opacity-30">
-                      <CaretLeft size={16} weight="bold" />
-                    </button>
-                    <button type="button" onClick={() => removePhoto(index)} aria-label="Remover foto" className="rounded p-1.5 text-status-danger">
-                      <Trash size={16} weight="bold" />
-                    </button>
-                    <button type="button" onClick={() => movePhoto(index, index + 1)} disabled={index === photos.length - 1} aria-label="Mover para a direita" className="rounded p-1.5 text-ink disabled:opacity-30">
-                      <CaretRight size={16} weight="bold" />
-                    </button>
-                  </div>
-                </figure>
-              ))}
-              {photos.length < MAX_PHOTOS && (
-                <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1 rounded-brand border-2 border-dashed border-border bg-surface-raised text-sm font-semibold text-ink-muted hover:bg-surface-sober">
-                  <Camera size={28} />
-                  Adicionar fotos
-                  <input type="file" accept="image/*" multiple className="sr-only" onChange={(event) => void addPhotos(event.target.files).then(() => (event.target.value = ""))} />
-                </label>
-              )}
-            </div>
-            <p className="mt-2 text-xs text-ink-muted">
-              {photos.length} de {MAX_PHOTOS} fotos · JPG, PNG, WebP ou HEIC (iPhone)
-            </p>
+            <PhotoGrid photos={photos} onAdd={addPhotos} onMove={movePhoto} onRemove={removePhoto} />
           </Step>
         )}
 
@@ -979,7 +882,7 @@ export function VehicleListingWizard({
                 value={draft.cep}
                 onChange={(event) => {
                   const cep = digits(event.target.value).slice(0, 8);
-                  set({ cep: cep.length > 5 ? `${cep.slice(0, 5)}-${cep.slice(5)}` : cep });
+                  set({ cep: formatCep(cep) });
                   if (cep.length === 8) {
                     void fetch(`https://viacep.com.br/ws/${cep}/json/`)
                       .then((res) => res.json())
@@ -1037,10 +940,7 @@ export function VehicleListingWizard({
                 <input
                   inputMode="numeric"
                   value={cpf}
-                  onChange={(event) => {
-                    const d = digits(event.target.value).slice(0, 11);
-                    setCpf(d.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2"));
-                  }}
+                  onChange={(event) => setCpf(formatCpf(event.target.value))}
                   placeholder="000.000.000-00"
                   className={inputClass}
                 />
@@ -1052,44 +952,7 @@ export function VehicleListingWizard({
 
         {current === "plan" && (
           <Step title="Escolha seu plano" hint="Pagamento único, sem mensalidade. Em todos o anúncio fica no ar até vender.">
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {LISTING_TIERS.map((tier) => {
-                const selected = draft.planTier === tier.id;
-                return (
-                  <button
-                    key={tier.id}
-                    type="button"
-                    onClick={() => set({ planTier: tier.id })}
-                    aria-pressed={selected}
-                    className={`relative flex flex-col gap-1 rounded-brand border-2 p-4 text-left ${
-                      selected ? "border-brand-green bg-brand-green/10" : "border-border bg-surface-raised hover:bg-surface-sober"
-                    }`}
-                  >
-                    {tier.id === "nitro" && (
-                      <span className="absolute -top-3 left-4 rounded-full bg-brand-purple px-2 py-0.5 text-[11px] font-bold text-on-purple">Recomendado</span>
-                    )}
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="font-display text-xl font-bold uppercase text-ink">{tier.name}</span>
-                      {selected && <Check size={22} weight="bold" className="text-brand-green" />}
-                    </span>
-                    <span className="text-2xl font-extrabold text-ink">{tier.price ? formatBRL(tier.price) : "R$ 0"}</span>
-                    <span className="text-xs text-ink-muted">{tier.price ? "pagamento único" : "sem custo"}</span>
-                    <ul className="mt-2 space-y-1 text-sm text-ink">
-                      <li>✓ {tier.position}</li>
-                      <li>✓ No ar até vender</li>
-                      <li>✓ Até {tier.photos} fotos</li>
-                      {tier.video && <li>✓ Vídeo do veículo</li>}
-                    </ul>
-                  </button>
-                );
-              })}
-            </div>
-            {photos.length > listingTier(draft.planTier).photos && (
-              <p className="mt-3 rounded-brand bg-brand-orange/10 px-3 py-2 text-sm text-ink">
-                Você adicionou {photos.length} fotos — o plano {listingTier(draft.planTier).name} mostra as{" "}
-                {listingTier(draft.planTier).photos} primeiras. Dá para turbinar depois e liberar as outras.
-              </p>
-            )}
+            <PlanPicker value={draft.planTier} onChange={(tier) => set({ planTier: tier })} photoCount={photos.length} videoLabel="Vídeo do veículo" />
           </Step>
         )}
 
@@ -1116,14 +979,7 @@ export function VehicleListingWizard({
                 </ul>
               </div>
             </div>
-            {!isPartner && (
-              <p className="mt-4 rounded-brand bg-brand-green/10 px-4 py-3 text-sm text-ink">
-                <strong className="text-brand-green">Plano {listingTier(draft.planTier).name}</strong> —{" "}
-                {draft.planTier === "free"
-                  ? "grátis até vender, com até 5 fotos."
-                  : `${formatBRL(listingTier(draft.planTier).price)}, pagamento único: até ${listingTier(draft.planTier).photos} fotos, vídeo e ${listingTier(draft.planTier).position.toLowerCase()}. O pagamento abre depois de publicar.`}
-              </p>
-            )}
+            {!isPartner && <PlanSummary tier={draft.planTier} />}
           </Step>
         )}
       </div>
@@ -1146,148 +1002,20 @@ export function VehicleListingWizard({
             disabled={Boolean(busy)}
             className="flex items-center gap-2 rounded-full bg-brand-green px-6 py-3 text-base font-bold text-on-green hover:opacity-90 disabled:opacity-60"
           >
-            {current === "intro1" ? "Vamos começar" : current === "intro2" ? "Combinado, continuar" : current === "review"
-                    ? isPartner
-                      ? "Publicar anúncio"
-                      : draft.planTier === "free"
-                        ? "Publicar anúncio grátis"
-                        : `Publicar e pagar ${formatBRL(listingTier(draft.planTier).price)}`
-                    : "Continuar"}
+            {current === "intro1"
+              ? "Vamos começar"
+              : current === "intro2"
+                ? "Combinado, continuar"
+                : current === "review"
+                  ? publishLabel(isPartner, draft.planTier)
+                  : "Continuar"}
             <ArrowRight size={18} weight="bold" />
           </button>
         </div>
       </div>
 
-      {showTerms && (
-        <div role="dialog" aria-modal="true" aria-labelledby="termos-titulo" className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
-          <div className="w-full max-w-md rounded-brand-lg bg-surface-raised p-5 shadow-card">
-            <h2 id="termos-titulo" className="font-display text-xl font-semibold text-ink">
-              Termos e Política de Privacidade
-            </h2>
-            <p className="mt-2 text-sm text-ink-muted">Para publicar, confirme que leu e concorda com os documentos abaixo.</p>
-            <ul className="mt-3 list-disc pl-5 text-sm">
-              <li>
-                <Link href="/termos" target="_blank" className="font-semibold text-brand-blue underline">
-                  Termos de Uso
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacidade" target="_blank" className="font-semibold text-brand-blue underline">
-                  Política de Privacidade
-                </Link>
-              </li>
-            </ul>
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setShowTerms(false)} className="rounded-full border border-border px-4 py-2.5 text-sm font-bold text-ink">
-                Voltar
-              </button>
-              <button type="button" onClick={() => void publish()} className="rounded-full bg-brand-green px-5 py-2.5 text-sm font-bold text-on-green">
-                Li e aceito, publicar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showTerms && <TermsDialog onCancel={() => setShowTerms(false)} onAccept={() => void publish()} />}
     </div>
   );
 }
 
-const inputClass =
-  "w-full rounded-brand border border-border bg-surface-raised px-3 py-3 text-base text-ink placeholder:text-ink-muted focus:border-brand-green focus:outline-none disabled:opacity-70";
-
-function Step({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
-  return (
-    <section>
-      <h1 className="font-display text-3xl font-bold uppercase leading-tight text-ink">{title}</h1>
-      {hint && <p className="mt-2 text-sm text-ink-muted">{hint}</p>}
-      <div className="mt-2 flex flex-col gap-3">{children}</div>
-    </section>
-  );
-}
-
-function Intro({ icon, stage, title, children }: { icon: ReactNode; stage: string; title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col">
-      <div className="mx-auto mt-6 flex h-40 w-40 items-center justify-center rounded-full bg-brand-blue/10">{icon}</div>
-      <span className="mt-8 self-start rounded-full bg-surface-sober px-3 py-1 text-xs font-bold text-ink">{stage}</span>
-      <h1 className="mt-3 font-display text-3xl font-bold uppercase leading-tight text-ink">{title}</h1>
-      <p className="mt-2 text-sm text-ink-muted">{children}</p>
-    </section>
-  );
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="mt-2 flex flex-col gap-1">
-      <span className="text-sm font-semibold text-ink">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function Select({
-  value,
-  onChange,
-  options,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: readonly { value: string; label: string }[];
-}) {
-  return (
-    <select value={value} onChange={(event) => onChange(event.target.value)} className={inputClass}>
-      <option value="">Selecione</option>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-function Chip({ label, selected, onToggle }: { label: string; selected: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={selected}
-      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${
-        selected ? "border-brand-blue bg-brand-blue text-on-blue" : "border-border bg-surface-raised text-ink"
-      }`}
-    >
-      {selected && <Check size={14} weight="bold" />}
-      {label}
-    </button>
-  );
-}
-
-function Toggle({
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  label: string;
-  description?: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className="flex w-full items-center gap-3 rounded-brand border border-border bg-surface-raised px-4 py-3 text-left"
-    >
-      <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${checked ? "bg-brand-green" : "bg-border"}`}>
-        <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${checked ? "left-[22px]" : "left-0.5"}`} />
-      </span>
-      <span>
-        <span className="block font-semibold text-ink">{label}</span>
-        {description && <span className="text-xs text-ink-muted">{description}</span>}
-      </span>
-    </button>
-  );
-}

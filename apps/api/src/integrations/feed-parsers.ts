@@ -56,7 +56,7 @@ function normalize(value: string): string {
     .replace(/[̀-ͯ]/g, "");
 }
 
-type PropertyType = "house" | "apartment" | "land" | "commercial" | "penthouse" | "farm" | "warehouse";
+type PropertyType = "house" | "apartment" | "land" | "commercial" | "penthouse" | "farm" | "warehouse" | "condo_house" | "studio" | "store" | "garage";
 
 // "Residential / Apartment", "Commercial / Industrial", "Residential / Sobrado"…
 // — a lista oficial do VRSync tem dezenas de valores; agrupa por palavra-chave
@@ -68,9 +68,13 @@ export function mapVrsyncPropertyType(raw: string | undefined): PropertyType | u
   if (/land|lot\b|terreno|lote/.test(value)) return "land";
   if (/farm|ranch|sitio|chacara|fazenda|agricultural/.test(value)) return "farm";
   if (/industrial|warehouse|galpao|deposito/.test(value)) return "warehouse";
-  if (/apartment|flat|kitnet|studio|loft|apartamento/.test(value)) return "apartment";
+  if (/kitnet|studio|loft/.test(value)) return "studio";
+  if (/apartment|flat|apartamento/.test(value)) return "apartment";
+  if (/parking|garage|garagem|box/.test(value)) return "garage";
+  if (/retail|loja|store/.test(value)) return "store";
   if (/commercial|office|business|retail|loja|consultorio|edificio|sala|building|hotel/.test(value)) return "commercial";
-  if (/home|house|condo|sobrado|village|casa/.test(value)) return "house";
+  if (/condo|village|condominio/.test(value)) return "condo_house";
+  if (/home|house|sobrado|casa/.test(value)) return "house";
   return undefined;
 }
 
@@ -101,6 +105,10 @@ const PROPERTY_TYPE_LABEL: Record<PropertyType, string> = {
   penthouse: "Cobertura",
   farm: "Sítio/Fazenda",
   warehouse: "Galpão",
+  condo_house: "Casa em condomínio",
+  studio: "Kitnet/Studio",
+  store: "Loja",
+  garage: "Garagem",
 };
 
 function asArray<T>(value: T | T[] | undefined): T[] {

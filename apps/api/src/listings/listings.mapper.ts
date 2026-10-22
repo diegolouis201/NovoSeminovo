@@ -48,6 +48,8 @@ export type ListingFilterValues = {
   fuelType?: string;
   mileageMax?: number;
   propertyType?: string;
+  purpose?: string;
+  neighborhood?: string;
   features?: string[];
   conditions?: string[];
   noAuction?: boolean;
@@ -77,6 +79,8 @@ export function buildListingFilterWhere(
     fuelType,
     mileageMax,
     propertyType,
+    purpose,
+    neighborhood,
     features,
     conditions,
     noAuction,
@@ -104,10 +108,12 @@ export function buildListingFilterWhere(
   const propertyDetails: Prisma.PropertyDetailsWhereInput = {};
   if (bedroomsMin !== undefined) propertyDetails.bedrooms = { gte: bedroomsMin };
   if (propertyType) propertyDetails.propertyType = propertyType as PropertyType;
+  if (purpose === "sale" || purpose === "rent") propertyDetails.purpose = purpose;
 
   return {
     ...(assetType ? { type: assetType } : {}),
     ...(city ? { city: { equals: city, mode: "insensitive" } } : {}),
+    ...(neighborhood ? { neighborhood: { equals: neighborhood, mode: "insensitive" } } : {}),
     ...(priceMin !== undefined || priceMax !== undefined
       ? { price: { ...(priceMin !== undefined ? { gte: priceMin } : {}), ...(priceMax !== undefined ? { lte: priceMax } : {}) } }
       : {}),
@@ -139,6 +145,10 @@ const PROPERTY_TYPE_LABEL: Record<string, string> = {
   penthouse: "Cobertura",
   farm: "Sítio/Chácara",
   warehouse: "Galpão",
+  condo_house: "Casa em condomínio",
+  studio: "Kitnet/Studio",
+  store: "Loja",
+  garage: "Garagem",
 };
 
 const VEHICLE_BODY_TYPE_LABEL: Record<string, string> = Object.fromEntries(

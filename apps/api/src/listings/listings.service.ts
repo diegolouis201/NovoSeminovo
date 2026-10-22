@@ -111,6 +111,9 @@ export type ListingSearchQuery = {
   fuelType?: string;
   mileageMax?: string;
   propertyType?: string;
+  purpose?: string;
+  neighborhood?: string;
+  limit?: string;
   features?: string | string[];
   conditions?: string | string[];
   noAuction?: string;
@@ -130,7 +133,7 @@ export const MAX_LISTING_PHOTOS = 20;
 
 const TRANSMISSION_VALUES = new Set(["manual", "automatic"]);
 const FUEL_TYPE_VALUES = new Set(["flex", "gasoline", "ethanol", "diesel", "electric", "hybrid"]);
-const PROPERTY_TYPE_VALUES = new Set(["house", "apartment", "land", "commercial", "penthouse", "farm", "warehouse"]);
+const PROPERTY_TYPE_VALUES = new Set(["house", "apartment", "land", "commercial", "penthouse", "farm", "warehouse", "condo_house", "studio", "store", "garage"]);
 
 function toEnum<T extends string>(value: string | undefined, allowed: Set<T>): T | undefined {
   return value && allowed.has(value as T) ? (value as T) : undefined;
@@ -271,6 +274,8 @@ export class ListingsService {
         fuelType: toEnum(query.fuelType, FUEL_TYPE_VALUES),
         mileageMax: toNumber(query.mileageMax),
         propertyType: toEnum(query.propertyType, PROPERTY_TYPE_VALUES),
+        purpose: query.purpose,
+        neighborhood: query.neighborhood,
         features: toList(query.features, VEHICLE_FEATURE_VALUES),
         conditions: toList(query.conditions, VEHICLE_CONDITION_VALUES),
         noAuction: query.noAuction === "1" || query.noAuction === "true",
@@ -284,7 +289,7 @@ export class ListingsService {
       // Destaque pago (crédito da loja) primeiro, depois o plano do anúncio
       // (Nitro → Turbo → Flex/loja → Grátis), depois os mais novos.
       orderBy: [{ highlightedUntil: { sort: "desc", nulls: "last" } }, { tierRank: "desc" }, { publishedAt: "desc" }],
-      take: 60,
+      take: Math.min(Math.max(toNumber(query.limit) ?? 60, 1), 60),
     });
 
     return listings.map(toListingSummary);
@@ -901,13 +906,9 @@ export class ListingsService {
         // depois de aprovado (ver AdminModule), quando publishedAt é definido.
         status: "pending_review",
         tierRank: partner ? PARTNER_LISTING_TIER.rank : 0,
-        ...(input.assetType === "vehicle"
-          ? {
-              videoUrl: input.videoUrl?.trim() || undefined,
-              financingEnabled: input.financingEnabled ?? true,
-              showPhone: input.showPhone ?? true,
-            }
-          : {}),
+        videoUrl: input.videoUrl?.trim() || undefined,
+        financingEnabled: input.financingEnabled ?? true,
+        showPhone: input.showPhone ?? true,
         ...detailsData,
       },
       include: listingInclude,

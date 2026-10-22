@@ -33,7 +33,7 @@ const FUEL_ALIASES: Record<string, CreateVehicleInput["fuelType"]> = {
 
 const PROPERTY_TYPE_ALIASES: Record<
   string,
-  "house" | "apartment" | "land" | "commercial" | "penthouse" | "farm" | "warehouse"
+  "house" | "apartment" | "land" | "commercial" | "penthouse" | "farm" | "warehouse" | "condo_house" | "studio" | "store" | "garage"
 > = {
   house: "house",
   casa: "house",
@@ -53,6 +53,15 @@ const PROPERTY_TYPE_ALIASES: Record<
   warehouse: "warehouse",
   galpao: "warehouse",
   galpão: "warehouse",
+  condo_house: "condo_house",
+  "casa em condominio": "condo_house",
+  "casa em condomínio": "condo_house",
+  studio: "studio",
+  kitnet: "studio",
+  store: "store",
+  loja: "store",
+  garage: "garage",
+  garagem: "garage",
 };
 
 const PURPOSE_ALIASES: Record<string, "sale" | "rent"> = {

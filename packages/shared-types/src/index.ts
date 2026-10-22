@@ -100,7 +100,7 @@ export type VehicleFilters = z.infer<typeof VehicleFiltersSchema>;
 
 // Lista única — usada no filtro de busca, no formulário de anunciar e na
 // criação do anúncio — pra nunca ter o enum repetido divergindo entre eles.
-export const PropertyType = z.enum(["house", "apartment", "land", "commercial", "penthouse", "farm", "warehouse"]);
+export const PropertyType = z.enum(["house", "apartment", "land", "commercial", "penthouse", "farm", "warehouse", "condo_house", "studio", "store", "garage"]);
 export type PropertyType = z.infer<typeof PropertyType>;
 
 export const PropertyFiltersSchema = z.object({
@@ -450,6 +450,9 @@ export const CreatePropertyInputSchema = z.object({
   iptu: z.number().min(0).optional(),
   features: z.array(PropertyFeature).optional(),
   streetAddress: z.string().min(5, "Informe o endereço"),
+  videoUrl: z.string().regex(YOUTUBE_URL_REGEX, "Use um link de vídeo do YouTube").optional(),
+  financingEnabled: z.boolean().optional(),
+  showPhone: z.boolean().optional(),
 });
 export type CreatePropertyInput = z.infer<typeof CreatePropertyInputSchema>;
 

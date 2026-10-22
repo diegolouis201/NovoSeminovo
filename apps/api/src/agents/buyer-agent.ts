@@ -128,7 +128,7 @@ export function buildBuyerAgent(
             quartos_min: { type: "number", description: "Só imóvel." },
             tipo_imovel: {
               type: "string",
-              enum: ["house", "apartment", "land", "commercial", "penthouse", "farm", "warehouse"],
+              enum: ["house", "apartment", "land", "commercial", "penthouse", "farm", "warehouse", "condo_house", "studio", "store", "garage"],
               description: "Só imóvel.",
             },
           },
