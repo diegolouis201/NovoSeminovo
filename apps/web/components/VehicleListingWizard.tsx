@@ -354,7 +354,8 @@ export function VehicleListingWizard({
 
   function back() {
     setError(undefined);
-    if (step === 0) router.push("/anunciar");
+    // Primeira tela: volta pro painel (/anunciar abriria este mesmo cadastro de novo).
+    if (step === 0) router.push(isPartner ? "/parceiro/anuncios" : "/conta/anuncios");
     else setStep((s) => s - 1);
   }
 
