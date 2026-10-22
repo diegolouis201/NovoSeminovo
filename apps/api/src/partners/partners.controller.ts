@@ -18,8 +18,11 @@ import {
   AddPartnerMemberInputSchema,
   CreatePartnerInputSchema,
   SubscribeToPlanInputSchema,
+  CreateLeadInputSchema,
+  UpdateLeadInputSchema,
   UpdateLeadStatusInputSchema,
   UpdatePartnerAdminNotesInputSchema,
+  UpdateSaleInputSchema,
 } from "@novoseminovo/shared-types";
 import { AdminGuard } from "../admin/admin.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -92,6 +95,25 @@ export class PartnersController {
   @Get("partners/mine/sales")
   listSales(@CurrentUser() user: { id: string }) {
     return this.partnersService.listSales(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("partners/mine/leads")
+  createLead(@CurrentUser() user: { id: string }, @Body() body: unknown) {
+    return this.partnersService.createLead(user.id, parseOrBadRequest(CreateLeadInputSchema, body));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch("leads/:id")
+  updateLead(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
+    return this.partnersService.updateLead(user.id, id, parseOrBadRequest(UpdateLeadInputSchema, body));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch("partners/mine/sales/:listingId")
+  async updateSale(@CurrentUser() user: { id: string }, @Param("listingId") listingId: string, @Body() body: unknown) {
+    await this.partnersService.updateSale(user.id, listingId, parseOrBadRequest(UpdateSaleInputSchema, body));
+    return { ok: true };
   }
 
   @UseGuards(JwtAuthGuard)

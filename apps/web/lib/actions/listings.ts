@@ -295,10 +295,12 @@ export async function markListingSoldAction(listingId: string, formData: FormDat
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");
 
-  const raw = formData.get("soldPrice");
-  const soldPrice = typeof raw === "string" && raw.trim() !== "" ? Number(raw) : undefined;
+  const number = (key: string) => {
+    const raw = formData.get(key);
+    return typeof raw === "string" && raw.trim() !== "" ? Number(raw) : undefined;
+  };
 
-  await updateListingStatus(listingId, "sold", session.accessToken, soldPrice);
+  await updateListingStatus(listingId, "sold", session.accessToken, number("soldPrice"), number("costPrice"));
   revalidatePath("/");
   revalidatePath("/busca");
   revalidatePath("/parceiro");

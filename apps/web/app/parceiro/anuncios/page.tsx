@@ -139,6 +139,15 @@ export default async function PartnerListingsPage({
                       placeholder={`padrão: ${listing.priceLabel}`}
                       className="w-40 rounded-brand border border-border bg-surface-page px-2 py-1.5 text-sm text-ink"
                     />
+                    <input
+                      type="number"
+                      name="costPrice"
+                      min="0"
+                      step="0.01"
+                      placeholder="custo pra loja (opcional)"
+                      aria-label="Quanto custou pra loja (compra + preparação)"
+                      className="w-48 rounded-brand border border-border bg-surface-page px-2 py-1.5 text-sm text-ink"
+                    />
                     <Button type="submit" variant="secondary" className="px-3 py-1.5 text-xs">
                       Confirmar venda
                     </Button>

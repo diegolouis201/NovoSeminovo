@@ -10,6 +10,9 @@ import {
 } from "@nestjs/common";
 import { PARTNER_TRIAL_DAYS, PLAN_REQUIRED_PARTNER_TYPES, formatBRL } from "@novoseminovo/shared-types";
 import type {
+  CreateLeadInput,
+  UpdateLeadInput,
+  UpdateSaleInput,
   CreatePartnerInput,
   SubscriptionBoardCard,
   FeaturedPartner,
@@ -21,6 +24,7 @@ import type {
   Plan,
   SaleSummary,
 } from "@novoseminovo/shared-types";
+import type { Prisma } from "@novoseminovo/db";
 import { PrismaService } from "../prisma/prisma.service";
 import { PaymentsService } from "../payments/payments.service";
 import { listingInclude, toListingSummary } from "../listings/listings.mapper";
@@ -90,6 +94,30 @@ function toPlan(plan: { id: string; name: string; maxActiveListings: number; hig
     maxActiveListings: plan.maxActiveListings,
     highlightCredits: plan.highlightCredits,
     priceLabel: formatBRL(Number(plan.priceMonth)),
+  };
+}
+
+const leadInclude = {
+  listing: { select: { title: true } },
+  buyer: { select: { name: true, email: true, phone: true } },
+} satisfies Prisma.LeadInclude;
+
+type LeadRow = Prisma.LeadGetPayload<{ include: typeof leadInclude }>;
+
+function toLeadSummary(lead: LeadRow): LeadSummary {
+  return {
+    id: lead.id,
+    listingId: lead.listingId ?? undefined,
+    listingTitle: lead.listing?.title,
+    buyerName: lead.buyer?.name ?? lead.contactName ?? "Contato anônimo",
+    buyerEmail: lead.buyer?.email ?? "—",
+    buyerPhone: lead.buyer?.phone ?? lead.contactPhone ?? undefined,
+    source: lead.source,
+    status: lead.status,
+    notes: lead.notes ?? undefined,
+    proposalValue: lead.proposalValue != null ? Number(lead.proposalValue) : undefined,
+    statusChangedAt: lead.statusChangedAt.toISOString(),
+    createdAt: lead.createdAt.toISOString(),
   };
 }
 
@@ -400,7 +428,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
 
     const sales = await this.prisma.listing.findMany({
       where: { partnerId: partner.id, status: "sold" },
-      select: { id: true, title: true, type: true, price: true, soldPrice: true, soldAt: true, publishedAt: true },
+      select: { id: true, title: true, type: true, price: true, soldPrice: true, costPrice: true, soldAt: true, publishedAt: true },
       orderBy: { soldAt: "desc" },
     });
 
@@ -416,6 +444,8 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
         sale.publishedAt && sale.soldAt
           ? Math.max(0, Math.round((sale.soldAt.getTime() - sale.publishedAt.getTime()) / 86_400_000))
           : undefined,
+      costPriceValue: sale.costPrice != null ? Number(sale.costPrice) : undefined,
+      profitValue: sale.costPrice != null ? Number(sale.soldPrice ?? sale.price) - Number(sale.costPrice) : undefined,
     }));
   }
 
@@ -425,49 +455,77 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
 
     const leads = await this.prisma.lead.findMany({
       where: { partnerId: partner.id },
-      include: { listing: { select: { title: true } }, buyer: { select: { name: true, email: true } } },
+      include: leadInclude,
       orderBy: { createdAt: "desc" },
     });
-
-    return leads.map((lead) => ({
-      id: lead.id,
-      listingId: lead.listingId,
-      listingTitle: lead.listing.title,
-      buyerName: lead.buyer?.name ?? "Contato anônimo",
-      buyerEmail: lead.buyer?.email ?? "—",
-      source: lead.source,
-      status: lead.status,
-      createdAt: lead.createdAt.toISOString(),
-    }));
+    return leads.map(toLeadSummary);
   }
 
-  async updateLeadStatus(userId: string, leadId: string, status: LeadStatus): Promise<LeadSummary> {
-    const lead = await this.prisma.lead.findUnique({
-      where: { id: leadId },
-      include: {
-        listing: { select: { title: true } },
-        buyer: { select: { name: true, email: true } },
-      },
-    });
+  private async leadForPartner(userId: string, leadId: string) {
+    const lead = await this.prisma.lead.findUnique({ where: { id: leadId } });
     if (!lead) throw new NotFoundException(`Lead ${leadId} não encontrado`);
-
     const partner = await this.findPartnerForUser(userId);
     if (!partner || lead.partnerId !== partner.id) {
       throw new ForbiddenException("Este lead não pertence à sua loja/imobiliária.");
     }
+    return lead;
+  }
 
-    const updated = await this.prisma.lead.update({ where: { id: leadId }, data: { status } });
+  async updateLeadStatus(userId: string, leadId: string, status: LeadStatus): Promise<LeadSummary> {
+    return this.updateLead(userId, leadId, { status });
+  }
 
-    return {
-      id: updated.id,
-      listingId: lead.listingId,
-      listingTitle: lead.listing.title,
-      buyerName: lead.buyer?.name ?? "Contato anônimo",
-      buyerEmail: lead.buyer?.email ?? "—",
-      source: updated.source,
-      status: updated.status,
-      createdAt: updated.createdAt.toISOString(),
-    };
+  // Kanban de leads (/parceiro/leads): mover de etapa, anotar, valor da proposta.
+  async updateLead(userId: string, leadId: string, input: UpdateLeadInput): Promise<LeadSummary> {
+    const lead = await this.leadForPartner(userId, leadId);
+    const updated = await this.prisma.lead.update({
+      where: { id: leadId },
+      data: {
+        ...(input.status && input.status !== lead.status ? { status: input.status, statusChangedAt: new Date() } : {}),
+        ...(input.notes !== undefined ? { notes: input.notes.trim() || null } : {}),
+        ...(input.proposalValue !== undefined ? { proposalValue: input.proposalValue } : {}),
+      },
+      include: leadInclude,
+    });
+    return toLeadSummary(updated);
+  }
+
+  // Lead cadastrado à mão (cliente que ligou, foi à loja, indicação…).
+  async createLead(userId: string, input: CreateLeadInput): Promise<LeadSummary> {
+    const partner = await this.findPartnerForUser(userId);
+    if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
+    if (input.listingId) {
+      const listing = await this.prisma.listing.findUnique({ where: { id: input.listingId } });
+      if (!listing || listing.partnerId !== partner.id) throw new BadRequestException("Esse anúncio não é do seu estoque.");
+    }
+    const lead = await this.prisma.lead.create({
+      data: {
+        partnerId: partner.id,
+        listingId: input.listingId || undefined,
+        source: input.source,
+        status: "new",
+        contactName: input.contactName.trim(),
+        contactPhone: input.contactPhone?.replace(/\D/g, "") || undefined,
+        notes: input.notes?.trim() || undefined,
+      },
+      include: leadInclude,
+    });
+    return toLeadSummary(lead);
+  }
+
+  // Ajuste de venda já registrada (/parceiro/vendas): valor final e custo.
+  async updateSale(userId: string, listingId: string, input: UpdateSaleInput): Promise<void> {
+    const partner = await this.findPartnerForUser(userId);
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    if (!partner || !listing || listing.partnerId !== partner.id) throw new NotFoundException("Venda não encontrada.");
+    if (listing.status !== "sold") throw new BadRequestException("Este anúncio ainda não foi marcado como vendido.");
+    await this.prisma.listing.update({
+      where: { id: listingId },
+      data: {
+        ...(input.soldPrice !== undefined ? { soldPrice: input.soldPrice } : {}),
+        ...(input.costPrice !== undefined ? { costPrice: input.costPrice } : {}),
+      },
+    });
   }
 
   async listMembers(userId: string): Promise<PartnerMember[]> {

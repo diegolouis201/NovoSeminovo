@@ -434,6 +434,7 @@ export type CreateListingInput = z.infer<typeof CreateListingInputSchema>;
 export const UpdateListingStatusInputSchema = z.object({
   status: z.enum(["active", "paused", "sold"]),
   soldPrice: z.number().positive().optional(),
+  costPrice: z.number().nonnegative().optional(),
 });
 export type UpdateListingStatusInput = z.infer<typeof UpdateListingStatusInputSchema>;
 
@@ -804,7 +805,16 @@ export const SaleSummarySchema = z.object({
   // (ex.: marcado como vendido ainda em rascunho) — sem publishedAt não dá
   // pra calcular quanto tempo ficou no ar.
   daysOnMarket: z.number().int().optional(),
+  // Custo informado pela loja (compra + preparação) e o lucro da venda.
+  costPriceValue: z.number().optional(),
+  profitValue: z.number().optional(),
 });
+export const UpdateSaleInputSchema = z.object({
+  soldPrice: z.number().positive().optional(),
+  costPrice: z.number().nonnegative().nullable().optional(),
+});
+export type UpdateSaleInput = z.infer<typeof UpdateSaleInputSchema>;
+
 export type SaleSummary = z.infer<typeof SaleSummarySchema>;
 
 // Plan/Subscription já estavam no schema do banco desde a Etapa 2 — o seed
@@ -1014,20 +1024,26 @@ export const FeaturedPartnerSchema = z.object({
 });
 export type FeaturedPartner = z.infer<typeof FeaturedPartnerSchema>;
 
-export const LeadStatus = z.enum(["new", "negotiating", "won", "lost"]);
+export const LeadStatus = z.enum(["new", "contacted", "visit_scheduled", "negotiating", "won", "lost"]);
 export type LeadStatus = z.infer<typeof LeadStatus>;
 
-export const LeadSource = z.enum(["chat", "whatsapp", "phone"]);
+export const LeadSource = z.enum(["chat", "whatsapp", "phone", "walk_in", "referral", "social", "other"]);
 export type LeadSource = z.infer<typeof LeadSource>;
 
 export const LeadSummarySchema = z.object({
   id: z.string(),
-  listingId: z.string(),
-  listingTitle: z.string(),
+  listingId: z.string().optional(),
+  listingTitle: z.string().optional(),
   buyerName: z.string(),
   buyerEmail: z.string(),
+  // Telefone do comprador (cadastro do site) ou o digitado no lead manual —
+  // vira o botão de WhatsApp do card.
+  buyerPhone: z.string().optional(),
   source: LeadSource,
   status: LeadStatus,
+  notes: z.string().optional(),
+  proposalValue: z.number().optional(),
+  statusChangedAt: z.string(),
   createdAt: z.string(),
 });
 export type LeadSummary = z.infer<typeof LeadSummarySchema>;
@@ -1036,6 +1052,22 @@ export const UpdateLeadStatusInputSchema = z.object({
   status: LeadStatus,
 });
 export type UpdateLeadStatusInput = z.infer<typeof UpdateLeadStatusInputSchema>;
+
+export const UpdateLeadInputSchema = z.object({
+  status: LeadStatus.optional(),
+  notes: z.string().max(2000).optional(),
+  proposalValue: z.number().nonnegative().nullable().optional(),
+});
+export type UpdateLeadInput = z.infer<typeof UpdateLeadInputSchema>;
+
+export const CreateLeadInputSchema = z.object({
+  contactName: z.string().trim().min(2, "Informe o nome do cliente"),
+  contactPhone: z.string().trim().max(20).optional(),
+  source: z.enum(["phone", "walk_in", "referral", "social", "other"]),
+  listingId: z.string().optional(),
+  notes: z.string().max(2000).optional(),
+});
+export type CreateLeadInput = z.infer<typeof CreateLeadInputSchema>;
 
 // Moderação (Etapa 1 — painel do admin). MVP: um único papel "admin" sem
 // níveis; toda regra é manual, nenhuma automática ainda.

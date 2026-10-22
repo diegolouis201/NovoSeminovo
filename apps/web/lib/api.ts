@@ -1,4 +1,7 @@
 import type {
+  CreateLeadInput,
+  UpdateLeadInput,
+  UpdateSaleInput,
   FipePrice,
   FipeVersion,
   SubscriptionBoardCard,
@@ -526,13 +529,44 @@ export async function updateListingStatus(
   status: ListingStatus,
   accessToken: string,
   soldPrice?: number,
+  costPrice?: number,
 ): Promise<boolean> {
   const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/status`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
-    body: JSON.stringify({ status, soldPrice }),
+    body: JSON.stringify({ status, soldPrice, costPrice }),
   });
   return res.ok;
+}
+
+// Kanban de leads e vendas do parceiro.
+export type ApiResult<T = undefined> = { ok: true; value: T } | { ok: false; error: string };
+
+async function sendJson<T>(path: string, method: "POST" | "PATCH", body: unknown, accessToken: string): Promise<ApiResult<T>> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}${path}`, {
+      method,
+      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: (data as { message?: string }).message ?? "Não foi possível salvar agora." };
+    return { ok: true, value: data as T };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor agora." };
+  }
+}
+
+export function createPartnerLead(input: CreateLeadInput, accessToken: string): Promise<ApiResult<LeadSummary>> {
+  return sendJson("/partners/mine/leads", "POST", input, accessToken);
+}
+
+export function updatePartnerLead(leadId: string, input: UpdateLeadInput, accessToken: string): Promise<ApiResult<LeadSummary>> {
+  return sendJson(`/leads/${leadId}`, "PATCH", input, accessToken);
+}
+
+export function updatePartnerSale(listingId: string, input: UpdateSaleInput, accessToken: string): Promise<ApiResult> {
+  return sendJson(`/partners/mine/sales/${listingId}`, "PATCH", input, accessToken);
 }
 
 // Chat — igual favoritos/anúncios, exige a API no ar.

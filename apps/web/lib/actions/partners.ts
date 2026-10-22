@@ -2,10 +2,15 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import type { CreatePartnerInput, LeadStatus, PartnerType } from "@novoseminovo/shared-types";
+import type { CreateLeadInput, CreatePartnerInput, LeadStatus, LeadSummary, PartnerType, UpdateLeadInput } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import {
   addPartnerMember,
+  createPartnerLead,
+  updateListingStatus,
+  updatePartnerLead,
+  updatePartnerSale,
+  type ApiResult,
   cancelSubscription,
   confirmCheckoutSession,
   createPartner,
@@ -146,4 +151,55 @@ export async function confirmCheckoutAction(sessionId: string): Promise<void> {
   revalidatePath("/parceiro");
   revalidatePath("/parceiro/plano");
   redirect(ok ? "/parceiro/plano" : "/parceiro/plano?error=Não foi possível confirmar o pagamento ainda. Tente recarregar em alguns segundos.");
+}
+
+// ---------- Kanban de leads e vendas (/parceiro/leads, /parceiro/vendas) ----------
+// Devolvem resultado (em vez de redirect) porque quem chama é o kanban, um
+// componente de cliente que mostra o erro no próprio card.
+
+export async function createLeadAction(input: CreateLeadInput): Promise<ApiResult<LeadSummary>> {
+  const session = await auth();
+  if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
+  const result = await createPartnerLead(input, session.accessToken);
+  revalidatePath("/parceiro/leads");
+  return result;
+}
+
+export async function updateLeadAction(leadId: string, input: UpdateLeadInput): Promise<ApiResult<LeadSummary>> {
+  const session = await auth();
+  if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
+  const result = await updatePartnerLead(leadId, input, session.accessToken);
+  revalidatePath("/parceiro/leads");
+  revalidatePath("/parceiro");
+  return result;
+}
+
+// Lead ganho → registra a venda do anúncio (valor e custo) de uma vez.
+export async function registerSaleFromLeadAction(
+  listingId: string,
+  soldPrice: number,
+  costPrice?: number,
+): Promise<ApiResult> {
+  const session = await auth();
+  if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
+  const ok = await updateListingStatus(listingId, "sold", session.accessToken, soldPrice, costPrice);
+  if (!ok) return { ok: false, error: "Não foi possível registrar a venda — o anúncio precisa estar ativo ou pausado." };
+  for (const path of ["/parceiro", "/parceiro/vendas", "/parceiro/anuncios", "/parceiro/leads", "/busca"]) revalidatePath(path);
+  return { ok: true, value: undefined };
+}
+
+export async function updateSaleAction(listingId: string, formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+  const money = (key: string) => {
+    const raw = String(formData.get(key) ?? "").replace(/\./g, "").replace(",", ".").replace(/[^\d.]/g, "");
+    return raw ? Number(raw) : undefined;
+  };
+  const costPrice = money("costPrice");
+  await updatePartnerSale(
+    listingId,
+    { soldPrice: money("soldPrice"), costPrice: costPrice === undefined ? null : costPrice },
+    session.accessToken,
+  );
+  revalidatePath("/parceiro/vendas");
 }

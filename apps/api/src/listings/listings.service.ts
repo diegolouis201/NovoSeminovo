@@ -853,7 +853,12 @@ export class ListingsService {
       where: { id: listingId },
       data:
         input.status === "sold"
-          ? { status: input.status, soldAt: new Date(), soldPrice: input.soldPrice ?? listing.price }
+          ? {
+              status: input.status,
+              soldAt: new Date(),
+              soldPrice: input.soldPrice ?? listing.price,
+              ...(input.costPrice !== undefined ? { costPrice: input.costPrice } : {}),
+            }
           : { status: input.status, pausedByPlan: false },
       include: listingInclude,
     });

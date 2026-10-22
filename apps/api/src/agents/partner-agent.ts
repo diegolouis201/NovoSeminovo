@@ -30,12 +30,24 @@ const LISTING_STATUS_LABEL: Record<string, string> = {
 
 const LEAD_STATUS_LABEL: Record<LeadStatus, string> = {
   new: "novo",
-  negotiating: "em negociação",
+  contacted: "em contato",
+  visit_scheduled: "visita/test-drive agendado",
+  negotiating: "proposta/negociação",
   won: "ganho",
   lost: "perdido",
 };
 
-const LEAD_STATUSES = new Set<LeadStatus>(["new", "negotiating", "won", "lost"]);
+const LEAD_SOURCE_LABEL: Record<string, string> = {
+  chat: "chat do site",
+  whatsapp: "WhatsApp",
+  phone: "telefone",
+  walk_in: "foi à loja",
+  referral: "indicação",
+  social: "redes sociais",
+  other: "outro",
+};
+
+const LEAD_STATUSES = new Set<LeadStatus>(["new", "contacted", "visit_scheduled", "negotiating", "won", "lost"]);
 
 function str(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
@@ -244,7 +256,7 @@ export function buildPartnerAgent(
         input_schema: {
           type: "object",
           properties: {
-            status: { type: "string", enum: ["new", "negotiating", "won", "lost"] },
+            status: { type: "string", enum: ["new", "contacted", "visit_scheduled", "negotiating", "won", "lost"] },
             limite: { type: "number", description: "Padrão 20, máximo 50." },
           },
         },
@@ -261,7 +273,10 @@ export function buildPartnerAgent(
             email: lead.buyerEmail,
             anuncio: lead.listingTitle,
             anuncio_id: lead.listingId,
-            origem: lead.source === "whatsapp" ? "WhatsApp" : lead.source === "chat" ? "chat do site" : "telefone",
+            origem: LEAD_SOURCE_LABEL[lead.source],
+            telefone: lead.buyerPhone,
+            proposta: lead.proposalValue !== undefined ? formatBRL(lead.proposalValue) : undefined,
+            anotacoes: lead.notes,
             status: LEAD_STATUS_LABEL[lead.status],
             dias_desde_contato: daysSince(new Date(lead.createdAt)),
           })),
@@ -276,7 +291,7 @@ export function buildPartnerAgent(
           type: "object",
           properties: {
             lead_id: { type: "string" },
-            status: { type: "string", enum: ["new", "negotiating", "won", "lost"] },
+            status: { type: "string", enum: ["new", "contacted", "visit_scheduled", "negotiating", "won", "lost"] },
             confirmado: { type: "boolean", description: "true só depois que o usuário confirmar explicitamente." },
           },
           required: ["lead_id", "status", "confirmado"],
