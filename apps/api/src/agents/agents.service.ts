@@ -52,7 +52,7 @@ const MAX_STORED_MESSAGES = 200;
 
 // WhatsApp do NovoSeminovo pra "quero falar com uma pessoa" — o número que o
 // Diego usa no WhatsApp Business. Configurável sem mexer em código.
-const DEFAULT_HUMAN_WHATSAPP = "5531996959679";
+const DEFAULT_HUMAN_WHATSAPP = "5531936187896";
 
 export type AgentRequester = { id: string; role: string };
 

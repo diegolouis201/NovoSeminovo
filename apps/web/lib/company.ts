@@ -7,8 +7,12 @@ export const COMPANY = {
   legalName: "DLRLVM SOLUCOES LTDA",
   cnpj: "60.327.011/0001-02",
   site: "novoseminovo.com.br",
-  whatsappDisplay: "(31) 99695-9679",
-  whatsappLink: "https://wa.me/5531996959679",
+  // WhatsApp Business oficial (Diego, 22/10/2026).
+  whatsappDisplay: "(31) 93618-7896",
+  whatsappLink: "https://wa.me/5531936187896",
+  email: "diego.louis@novoseminovo.com.br",
+  instagram: "https://instagram.com/novoseminovooficial",
+  youtube: "https://www.youtube.com/@novoseminovo5623",
   city: "Belo Horizonte/MG",
 } as const;
 

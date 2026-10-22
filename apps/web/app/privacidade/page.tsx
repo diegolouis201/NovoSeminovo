@@ -139,6 +139,10 @@ export default function PrivacyPage() {
         <a href={COMPANY.whatsappLink} className="font-semibold text-brand-blue hover:underline">
           {COMPANY.whatsappDisplay}
         </a>{" "}
+        ou pelo e-mail{" "}
+        <a href={`mailto:${COMPANY.email}`} className="font-semibold text-brand-blue hover:underline">
+          {COMPANY.email}
+        </a>{" "}
         com o assunto “Exclusão de dados”, informando o e-mail da conta ou o telefone usado no atendimento. Isso vale
         também para conversas feitas com o assistente pelo WhatsApp. Respondemos em até 15 dias e confirmamos quando a
         exclusão for concluída (exceto dados que a lei nos obriga a manter).
@@ -155,6 +159,10 @@ export default function PrivacyPage() {
         {COMPANY.legalName} — CNPJ {COMPANY.cnpj}. Atendimento ao titular de dados pelo WhatsApp{" "}
         <a href={COMPANY.whatsappLink} className="font-semibold text-brand-blue hover:underline">
           {COMPANY.whatsappDisplay}
+        </a>{" "}
+        ou pelo e-mail{" "}
+        <a href={`mailto:${COMPANY.email}`} className="font-semibold text-brand-blue hover:underline">
+          {COMPANY.email}
         </a>
         . Veja também os{" "}
         <Link href="/termos" className="font-semibold text-brand-blue hover:underline">

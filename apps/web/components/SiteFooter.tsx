@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { InstagramLogo } from "@phosphor-icons/react/dist/ssr";
+import { InstagramLogo, YoutubeLogo } from "@phosphor-icons/react/dist/ssr";
 import { Logo } from "@/components/Logo";
 import { COMPANY, CORBAN } from "@/lib/company";
 
@@ -45,15 +45,26 @@ export function SiteFooter() {
         <div className="flex flex-col gap-3">
           <Logo variant="stacked" className="text-sm" />
           <p className="text-sm text-ink-muted">Carros e imóveis, sem enrolação.</p>
-          <Link
-            href="https://instagram.com/novoseminovooficial"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="NovoSeminovo no Instagram"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-ink transition-colors hover:border-brand-pink hover:text-brand-pink"
-          >
-            <InstagramLogo size={20} weight="bold" />
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href={COMPANY.instagram}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="NovoSeminovo no Instagram"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-ink transition-colors hover:border-brand-pink hover:text-brand-pink"
+            >
+              <InstagramLogo size={20} weight="bold" />
+            </Link>
+            <Link
+              href={COMPANY.youtube}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="NovoSeminovo no YouTube"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-ink transition-colors hover:border-status-danger hover:text-status-danger"
+            >
+              <YoutubeLogo size={20} weight="bold" />
+            </Link>
+          </div>
         </div>
 
         {COLUMNS.map((column) => (

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { COMPANY } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "API de integração — NovoSeminovo",
@@ -273,7 +274,7 @@ ${VEHICLE_EXAMPLE}`}</Code>
 
       <p className="mt-10 text-sm text-ink-muted">
         Dúvidas sobre a integração? Fale com a gente pelo{" "}
-        <a href="https://wa.me/5531996959679" className="font-semibold text-brand-blue hover:underline">
+        <a href={COMPANY.whatsappLink} className="font-semibold text-brand-blue hover:underline">
           WhatsApp
         </a>
         . É lojista ou corretor? Volte para o{" "}

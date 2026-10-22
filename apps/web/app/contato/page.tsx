@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChatCircleDots, InstagramLogo, Storefront, WhatsappLogo } from "@phosphor-icons/react/dist/ssr";
+import { ChatCircleDots, EnvelopeSimple, InstagramLogo, Storefront, WhatsappLogo, YoutubeLogo } from "@phosphor-icons/react/dist/ssr";
 import { PageHero, Section } from "@/components/marketing/PageHero";
 import { COMPANY } from "@/lib/company";
 
@@ -33,8 +33,22 @@ const CHANNELS = [
     icon: InstagramLogo,
     title: "Instagram",
     text: "@novoseminovooficial — novidades e anúncios em destaque.",
-    href: "https://instagram.com/novoseminovooficial",
+    href: COMPANY.instagram,
     cta: "Seguir no Instagram",
+  },
+  {
+    icon: YoutubeLogo,
+    title: "YouTube",
+    text: "@novoseminovo5623 — vídeos do NovoSeminovo.",
+    href: COMPANY.youtube,
+    cta: "Ver o canal",
+  },
+  {
+    icon: EnvelopeSimple,
+    title: "E-mail",
+    text: `${COMPANY.email} — parcerias, imprensa e assuntos que pedem mais detalhe.`,
+    href: `mailto:${COMPANY.email}`,
+    cta: "Enviar e-mail",
   },
 ];
 
