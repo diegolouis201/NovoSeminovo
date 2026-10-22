@@ -610,12 +610,17 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
   }
 
   async listPlans(audience?: "vehicle" | "property"): Promise<Plan[]> {
+    // No deploy a API sobe antes do `prisma db push` criar as colunas novas,
+    // então a conferência do onModuleInit pode falhar — tenta de novo aqui.
+    if (!this.planCatalogReady) await this.ensurePlanCatalog().catch(() => {});
     const plans = await this.prisma.plan.findMany({
       where: { active: true, ...(audience ? { audience } : {}) },
       orderBy: { priceMonth: "asc" },
     });
     return plans.map(toPlan);
   }
+
+  private planCatalogReady = false;
 
   async ensurePlanCatalog(): Promise<void> {
     // Planos antigos (Básico/Profissional de antes) ficam pras imobiliárias
@@ -635,6 +640,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
         });
       }
     }
+    this.planCatalogReady = true;
   }
 
   // Cancela qualquer assinatura ativa da loja e cria a nova já ativa —
