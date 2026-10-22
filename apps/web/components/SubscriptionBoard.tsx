@@ -19,6 +19,7 @@ export const SUBSCRIPTION_COLUMNS: { column: SubscriptionBoardColumn; label: str
 const PARTNER_TYPE_LABEL: Record<string, string> = {
   dealership: "Loja de veículos",
   real_estate_agency: "Imobiliária",
+  builder: "Construtora",
   broker: "Corretor(a)",
   workshop: "Oficina",
 };

@@ -83,8 +83,8 @@ export default async function ForPartnersPage() {
     fetchPublicRebateTiers(),
   ]);
   const planGroups = [
-    { title: "Lojas de veículos", plans: vehiclePlans, enterprise: true },
-    { title: "Imobiliárias e corretores", plans: propertyPlans, enterprise: false },
+    { title: "Lojas de veículos", plans: vehiclePlans, enterpriseText: "Mais de 100 anúncios, várias lojas ou condições especiais." },
+    { title: "Imobiliárias, construtoras e corretores", plans: propertyPlans, enterpriseText: "Mais de 50 anúncios, lançamentos ou condições especiais." },
   ].filter((group) => group.plans.length > 0);
   const tiersByType = Object.entries(TYPE_LABEL).map(([type, label]) => ({
     label,
@@ -169,7 +169,13 @@ export default async function ForPartnersPage() {
                       {plan.highlightCredits > 0 && (
                         <li className="flex gap-2">
                           <CheckCircle size={18} weight="fill" className="mt-0.5 shrink-0 text-brand-green" />
-                          {plan.highlightCredits} destaques na busca por mês
+                          {plan.highlightCredits} anúncios em destaque
+                        </li>
+                      )}
+                      {(plan.superHighlightCredits ?? 0) > 0 && (
+                        <li className="flex gap-2">
+                          <CheckCircle size={18} weight="fill" className="mt-0.5 shrink-0 text-brand-green" />
+                          {plan.superHighlightCredits} em super destaque (topo da busca)
                         </li>
                       )}
                       <li className="flex gap-2">
@@ -185,11 +191,11 @@ export default async function ForPartnersPage() {
                     </Link>
                   </div>
                 ))}
-                {group.enterprise && (
+                {group.enterpriseText && (
                   <div className="flex flex-col rounded-brand border border-dashed border-border bg-surface-raised p-5">
                     <h4 className="font-display text-xl font-semibold text-ink">Enterprise</h4>
                     <p className="mt-2 text-2xl font-extrabold text-ink">Sob consulta</p>
-                    <p className="mt-4 flex-1 text-sm text-ink">Mais de 100 anúncios, várias lojas ou condições especiais.</p>
+                    <p className="mt-4 flex-1 text-sm text-ink">{group.enterpriseText}</p>
                     <a
                       href={talkToSales}
                       target="_blank"

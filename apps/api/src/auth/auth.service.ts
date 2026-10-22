@@ -41,6 +41,12 @@ export class AuthService {
     }
   }
 
+  // Desfaz um cadastro que acabou de ser criado (cadastro de empresa que
+  // falhou no meio) — só apaga se a conta não tem nada ligado a ela.
+  async deleteUnusedUser(userId: string): Promise<void> {
+    await this.prisma.user.delete({ where: { id: userId } }).catch(() => undefined);
+  }
+
   async login(input: LoginInput): Promise<LoginResponse> {
     const user = await this.prisma.user.findUnique({ where: { email: input.email } });
     if (!user?.passwordHash) throw new UnauthorizedException("E-mail ou senha inválidos.");

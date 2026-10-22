@@ -10,6 +10,7 @@ import { getFavoriteContext } from "@/lib/favorites";
 const PARTNER_TYPE_LABEL: Record<string, string> = {
   dealership: "Loja de veículos",
   real_estate_agency: "Imobiliária",
+  builder: "Construtora",
   broker: "Corretor(a) autônomo(a)",
 };
 

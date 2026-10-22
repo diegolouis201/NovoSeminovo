@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import type { CreateLeadInput, CreatePartnerInput, LeadStatus, LeadSummary, PartnerType, UpdateLeadInput } from "@novoseminovo/shared-types";
+import type { CnpjLookup, CreateLeadInput, CreatePartnerInput, HighlightLevel, LeadStatus, LeadSummary, PartnerType, UpdateLeadInput } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import {
   addPartnerMember,
@@ -14,6 +14,8 @@ import {
   cancelSubscription,
   confirmCheckoutSession,
   createPartner,
+  lookupCnpj,
+  setListingHighlight,
   removePartnerMember,
   startBillingPortalSession,
   startCheckoutSession,
@@ -27,8 +29,8 @@ export async function createPartnerAction(formData: FormData): Promise<void> {
   if (!session?.accessToken) redirect("/entrar");
 
   const input: CreatePartnerInput = {
-    type: String(formData.get("type")) as PartnerType,
-    legalName: String(formData.get("legalName") ?? "").trim(),
+    type: (String(formData.get("type") ?? "") || undefined) as PartnerType | undefined,
+    legalName: String(formData.get("legalName") ?? "").trim() || undefined,
     document: String(formData.get("document") ?? "").trim(),
     description: String(formData.get("description") ?? "").trim() || undefined,
     address: String(formData.get("address") ?? "").trim() || undefined,
@@ -202,4 +204,19 @@ export async function updateSaleAction(listingId: string, formData: FormData): P
     session.accessToken,
   );
   revalidatePath("/parceiro/vendas");
+}
+
+// Botão "Buscar" do CNPJ (cadastro de empresa e "Sou loja ou imobiliária").
+export async function cnpjLookupAction(cnpj: string): Promise<ApiResult<CnpjLookup>> {
+  return lookupCnpj(cnpj);
+}
+
+// Destaque / super destaque no estoque (/parceiro/anuncios).
+export async function setHighlightAction(listingId: string, level: HighlightLevel): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+  const result = await setListingHighlight(listingId, level, session.accessToken);
+  revalidatePath("/parceiro/anuncios");
+  if (!result.ok) redirect(`/parceiro/anuncios?error=${encodeURIComponent(result.error)}`);
+  redirect("/parceiro/anuncios");
 }

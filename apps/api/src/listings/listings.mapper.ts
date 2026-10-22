@@ -14,6 +14,8 @@ import {
   type MyListingSummary,
   type SellerType,
   type SpecItem,
+  PARTNER_HIGHLIGHT_RANK,
+  highlightLevelFromRank,
 } from "@novoseminovo/shared-types";
 
 const listingWithDetails = Prisma.validator<Prisma.ListingDefaultArgs>()({
@@ -187,7 +189,8 @@ function location(listing: ListingWithDetails): string {
 
 function badge(listing: ListingWithDetails): Badge | undefined {
   const now = new Date();
-  if (listing.highlightedUntil && listing.highlightedUntil > now) {
+  if (listing.partnerId && listing.tierRank >= PARTNER_HIGHLIGHT_RANK.super) return { label: "Super destaque", tone: "purple" };
+  if ((listing.partnerId && listing.tierRank >= PARTNER_HIGHLIGHT_RANK.highlight) || (listing.highlightedUntil && listing.highlightedUntil > now)) {
     return { label: "Destaque", tone: "purple" };
   }
   const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
@@ -234,6 +237,7 @@ export function toMyListingSummary(listing: ListingWithDetails): MyListingSummar
     ...toListingSummary(listing),
     status: listing.status,
     planTier: listing.partnerId ? undefined : listingTier(listing.planTier).id,
+    highlightLevel: listing.partnerId ? highlightLevelFromRank(listing.tierRank) : undefined,
   };
 }
 

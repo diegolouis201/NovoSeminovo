@@ -1,72 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AuthError } from "next-auth";
-import { auth, signIn } from "@/auth";
-import { Button } from "@/components/Button";
-import { FormField } from "@/components/FormField";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+import { auth } from "@/auth";
+import { RegisterForm } from "@/components/RegisterForm";
 
 export default async function RegisterPage({ searchParams }: { searchParams: { error?: string } }) {
   const session = await auth();
   if (session?.user) redirect("/conta");
 
-  async function register(formData: FormData) {
-    "use server";
-    const name = String(formData.get("name") ?? "");
-    const email = String(formData.get("email") ?? "");
-    const password = String(formData.get("password") ?? "");
-    const phone = String(formData.get("phone") ?? "") || undefined;
-    const cpf = String(formData.get("cpf") ?? "");
-
-    const res = await fetch(`${API_URL}/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, phone, cpf }),
-    });
-
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as { message?: string };
-      redirect(`/cadastro?error=${encodeURIComponent(body.message ?? "Não foi possível criar a conta.")}`);
-    }
-
-    try {
-      await signIn("credentials", { email, password, redirectTo: "/conta" });
-    } catch (error) {
-      if (error instanceof AuthError) {
-        redirect("/entrar");
-      }
-      throw error;
-    }
-  }
-
   return (
-    <main className="mx-auto flex max-w-sm flex-col gap-6 px-4 py-16">
+    <main className="mx-auto flex max-w-md flex-col gap-6 px-4 py-16">
       <h1 className="font-display text-2xl font-semibold text-ink">Criar conta</h1>
 
-      {searchParams.error && (
-        <p className="rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">
-          {searchParams.error}
-        </p>
-      )}
-
-      <form action={register} className="flex flex-col gap-3">
-        <FormField label="Nome" name="name" />
-        <FormField label="E-mail" name="email" type="email" />
-        <div className="flex flex-col gap-1">
-          <FormField label="CPF" name="cpf" placeholder="000.000.000-00" />
-          <p className="text-xs text-ink-muted">Uma conta por pessoa, para a segurança de todos. O CPF nunca aparece no site.</p>
-        </div>
-        <FormField
-          label="WhatsApp"
-          name="phone"
-          type="tel"
-          required={false}
-          placeholder="(31) 99999-8888"
-        />
-        <FormField label="Senha" name="password" type="password" />
-        <Button type="submit">Criar conta</Button>
-      </form>
+      <RegisterForm initialError={searchParams.error} />
 
       <p className="text-sm text-ink-muted">
         Já tem conta?{" "}

@@ -17,6 +17,7 @@ import {
 const ACCOUNT_LABEL: Record<string, string> = {
   dealership: "Loja de veículos",
   real_estate_agency: "Imobiliária",
+  builder: "Construtora",
   broker: "Corretor(a)",
   workshop: "Oficina",
 };
@@ -75,6 +76,13 @@ function partnerCounters(partner: Partner): SidebarCounter[] {
     counters.push({ label: "Período grátis", value: `${days} dias`, tone: days <= 7 ? "warn" : "good", href: "/parceiro/plano" });
   }
   counters.push({ label: "Anúncios no ar", value: String(partner.stats.activeListings) });
+  if (partner.highlights && partner.highlights.max + partner.highlights.superMax > 0) {
+    counters.push({
+      label: "Destaques",
+      value: `${partner.highlights.used + partner.highlights.superUsed}/${partner.highlights.max + partner.highlights.superMax}`,
+      href: "/parceiro/anuncios",
+    });
+  }
   counters.push({ label: "Leads novos", value: String(partner.stats.leadsNew), tone: partner.stats.leadsNew ? "warn" : "default", href: "/parceiro/leads" });
   return counters;
 }

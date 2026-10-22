@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import type { Partner, Plan } from "@novoseminovo/shared-types";
+import { allowedAssetTypes, type Partner, type Plan } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { fetchMyPartner, fetchPaymentsStatus, fetchPlans } from "@/lib/api";
@@ -31,7 +31,7 @@ export default async function PartnerPlanPage({
   if (!partner) redirect("/parceiro");
   if (!partner.isOwner) redirect("/parceiro");
 
-  const audience = partner.type === "real_estate_agency" || partner.type === "broker" ? "property" : "vehicle";
+  const audience = allowedAssetTypes(partner.type).includes("property") ? "property" : "vehicle";
   const [plans, paymentsStatus] = await Promise.all([fetchPlans(audience), fetchPaymentsStatus()]);
 
   return (
@@ -116,11 +116,13 @@ export default async function PartnerPlanPage({
             stripeEnabled={paymentsStatus.stripeEnabled}
           />
         ))}
-        {audience === "vehicle" && (
+        {(
           <li className="flex flex-col gap-2 rounded-brand border border-dashed border-border bg-surface-raised p-4">
             <p className="font-display text-lg font-semibold text-ink">Enterprise</p>
             <p className="text-2xl font-extrabold text-ink">Sob consulta</p>
-            <p className="text-sm text-ink-muted">Mais de 100 anúncios, várias lojas ou condições especiais.</p>
+            <p className="text-sm text-ink-muted">
+              Mais de {audience === "vehicle" ? 100 : 50} anúncios, {audience === "vehicle" ? "várias lojas" : "lançamentos, várias unidades"} ou condições especiais.
+            </p>
             <a
               href={`${COMPANY.whatsappLink}?text=${encodeURIComponent(`Olá! Sou da ${partner.legalName} e quero saber do plano Enterprise.`)}`}
               target="_blank"
@@ -181,9 +183,14 @@ function PlanCard({ plan, isCurrent, stripeEnabled }: { plan: Plan; isCurrent: b
       <p className="text-sm text-ink-muted">Até {plan.maxActiveListings} anúncios no ar</p>
       <p className="text-sm text-ink-muted">
         {plan.highlightCredits > 0
-          ? `${plan.highlightCredits} destaque${plan.highlightCredits === 1 ? "" : "s"} na busca por mês`
+          ? `${plan.highlightCredits} anúncio${plan.highlightCredits === 1 ? "" : "s"} em destaque`
           : "Sem destaques na busca"}
       </p>
+      {(plan.superHighlightCredits ?? 0) > 0 && (
+        <p className="text-sm text-ink-muted">
+          {plan.superHighlightCredits} em super destaque (topo da busca)
+        </p>
+      )}
       {isCurrent ? (
         <span className="mt-2 self-start rounded-full bg-brand-green/10 px-3 py-1 text-xs font-bold text-brand-green">
           Plano atual

@@ -117,7 +117,7 @@ export default async function PartnerIntegrationsPage({
   if (!partner.isOwner) redirect("/parceiro");
 
   const overview = await fetchIntegrationOverview(session.accessToken);
-  const isRealEstate = partner.type === "real_estate_agency" || partner.type === "broker";
+  const isRealEstate = partner.type === "real_estate_agency" || partner.type === "broker" || partner.type === "builder";
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">

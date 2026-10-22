@@ -959,6 +959,8 @@ export class ListingsService {
       }
     }
 
+    // Anúncio de loja que sai do ar libera o destaque (volta à posição base).
+    const releaseHighlight = listing.partnerId && input.status !== "active" ? { tierRank: PARTNER_LISTING_TIER.rank } : {};
     const updated = await this.prisma.listing.update({
       where: { id: listingId },
       data:
@@ -968,8 +970,9 @@ export class ListingsService {
               soldAt: new Date(),
               soldPrice: input.soldPrice ?? listing.price,
               ...(input.costPrice !== undefined ? { costPrice: input.costPrice } : {}),
+              ...releaseHighlight,
             }
-          : { status: input.status, pausedByPlan: false },
+          : { status: input.status, pausedByPlan: false, ...releaseHighlight },
       include: listingInclude,
     });
     return toMyListingSummary(updated);

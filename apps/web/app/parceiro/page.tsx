@@ -4,20 +4,15 @@ import type { Icon } from "@phosphor-icons/react";
 import { ArrowRight, CurrencyCircleDollar, Funnel, Package } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { FormField, SelectField, TextAreaField } from "@/components/FormField";
+import { FormField, TextAreaField } from "@/components/FormField";
+import { CompanyCnpjFields } from "@/components/CompanyCnpjFields";
 import { fetchMyPartner, resolveMediaUrl } from "@/lib/api";
 import { createPartnerAction, uploadPartnerLogoAction } from "@/lib/actions/partners";
-
-const PARTNER_TYPE_OPTIONS = [
-  { value: "dealership", label: "Loja de veículos" },
-  { value: "real_estate_agency", label: "Imobiliária" },
-  { value: "broker", label: "Corretor(a) autônomo(a)" },
-  { value: "workshop", label: "Oficina mecânica" },
-];
 
 const PARTNER_TYPE_LABEL: Record<string, string> = {
   dealership: "Loja de veículos",
   real_estate_agency: "Imobiliária",
+  builder: "Construtora",
   broker: "Corretor(a) autônomo(a)",
   workshop: "Oficina mecânica",
 };
@@ -33,8 +28,9 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
       <main className="mx-auto max-w-xl px-4 py-16">
         <h1 className="font-display text-2xl font-semibold text-ink">Torne-se um parceiro</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Cadastre sua loja de veículos, imobiliária ou atuação de corretor autônomo para ganhar um
-          painel próprio: estoque, leads dos anúncios e uma vitrine pública.
+          Informe o CNPJ da sua imobiliária, construtora, corretora ou loja de veículos — pela atividade
+          na Receita a gente já sabe o tipo de conta. Você ganha um painel próprio: estoque, leads dos
+          anúncios e uma vitrine pública.
         </p>
 
         {searchParams.error && (
@@ -44,9 +40,7 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
         )}
 
         <form action={createPartnerAction} className="mt-6 flex flex-col gap-4">
-          <SelectField label="Tipo" name="type" options={PARTNER_TYPE_OPTIONS} />
-          <FormField label="Razão social / nome fantasia" name="legalName" placeholder="Autos Buritis Ltda" />
-          <FormField label="CNPJ ou CPF" name="document" placeholder="00.000.000/0001-00" />
+          <CompanyCnpjFields cnpjName="document" typeName="type" />
           <TextAreaField label="Descrição" name="description" required={false} />
           <FormField label="Endereço" name="address" required={false} />
           <Button type="submit" className="self-start">

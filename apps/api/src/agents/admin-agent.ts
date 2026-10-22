@@ -10,6 +10,7 @@ export type AdminAgentContext = { adminId: string; adminName: string };
 const PARTNER_TYPE_LABEL: Record<string, string> = {
   dealership: "loja de veículos",
   real_estate_agency: "imobiliária",
+  builder: "construtora",
   broker: "corretor(a)",
   workshop: "oficina",
 };

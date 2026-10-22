@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { fetchMyListings, fetchMyPartner } from "@/lib/api";
 import { markListingSoldAction, updateListingStatusAction } from "@/lib/actions/listings";
+import { setHighlightAction } from "@/lib/actions/partners";
 
 const STATUS_LABEL: Record<string, { label: string; tone: string }> = {
   draft: { label: "Rascunho", tone: "text-ink-muted" },
@@ -29,7 +30,7 @@ const STATUS_FILTER_OPTIONS = [
 export default async function PartnerListingsPage({
   searchParams,
 }: {
-  searchParams: { status?: string; q?: string };
+  searchParams: { status?: string; q?: string; error?: string };
 }) {
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");
@@ -38,6 +39,7 @@ export default async function PartnerListingsPage({
   if (!partner) redirect("/parceiro");
 
   const allListings = await fetchMyListings(session.accessToken);
+  const highlights = partner.highlights;
 
   const statusFilter = searchParams.status ?? "";
   const query = (searchParams.q ?? "").trim().toLowerCase();
@@ -50,6 +52,25 @@ export default async function PartnerListingsPage({
   return (
     <main className="mx-auto max-w-4xl px-4 py-12">
       <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
+
+      {searchParams.error && (
+        <p className="mt-4 rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">{searchParams.error}</p>
+      )}
+
+      {highlights && (highlights.max > 0 || highlights.superMax > 0) && (
+        <p className="mt-4 rounded-brand border border-border bg-surface-raised px-4 py-3 text-sm text-ink">
+          <strong>Destaques em uso:</strong> {highlights.used} de {highlights.max}
+          {highlights.superMax > 0 && (
+            <>
+              {" "}
+              · <strong>Super destaques:</strong> {highlights.superUsed} de {highlights.superMax}
+            </>
+          )}
+          <span className="block text-xs text-ink-muted">
+            Anúncio em destaque aparece antes dos outros na busca, com selo; super destaque vai para o topo. Dá para trocar o destaque de anúncio quando quiser.
+          </span>
+        </p>
+      )}
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-xl font-semibold text-ink">
@@ -114,7 +135,36 @@ export default async function PartnerListingsPage({
                       {listing.title}
                     </Link>
                     <p className="text-sm text-ink-muted">{listing.priceLabel}</p>
-                    <p className={`text-xs font-bold ${status.tone}`}>{status.label}</p>
+                    <p className={`text-xs font-bold ${status.tone}`}>
+                      {status.label}
+                      {listing.highlightLevel === "super" && <span className="ml-2 rounded-full bg-brand-purple px-2 py-0.5 text-on-purple">Super destaque</span>}
+                      {listing.highlightLevel === "highlight" && <span className="ml-2 rounded-full bg-brand-purple/15 px-2 py-0.5 text-brand-purple">Destaque</span>}
+                    </p>
+                    {listing.status === "active" && highlights && (highlights.max > 0 || highlights.superMax > 0) && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {listing.highlightLevel !== "highlight" && highlights.max > 0 && (
+                          <form action={setHighlightAction.bind(null, listing.id, "highlight")}>
+                            <button type="submit" className="rounded-full border border-brand-purple px-3 py-1 text-xs font-bold text-brand-purple hover:bg-brand-purple/10">
+                              Destacar
+                            </button>
+                          </form>
+                        )}
+                        {listing.highlightLevel !== "super" && highlights.superMax > 0 && (
+                          <form action={setHighlightAction.bind(null, listing.id, "super")}>
+                            <button type="submit" className="rounded-full bg-brand-purple px-3 py-1 text-xs font-bold text-on-purple hover:opacity-90">
+                              Super destaque
+                            </button>
+                          </form>
+                        )}
+                        {listing.highlightLevel && listing.highlightLevel !== "none" && (
+                          <form action={setHighlightAction.bind(null, listing.id, "none")}>
+                            <button type="submit" className="rounded-full border border-border px-3 py-1 text-xs font-bold text-ink-muted hover:bg-surface-sober">
+                              Tirar destaque
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    )}
                   </div>
                   {canToggle && (
                     <form action={updateListingStatusAction.bind(null, listing.id, nextStatus)} className="shrink-0">

@@ -1,4 +1,7 @@
 import type {
+  CnpjLookup,
+  HighlightLevel,
+  RegisterCompanyInput,
   StartBoostResult,
   CreateLeadInput,
   UpdateLeadInput,
@@ -657,17 +660,52 @@ export type CreatePartnerResult = { ok: true; partner: Partner } | { ok: false; 
 
 export async function createPartner(input: CreatePartnerInput, accessToken: string): Promise<CreatePartnerResult> {
   try {
-    const res = await fetchWithTimeout(`${API_URL}/partners`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
-      body: JSON.stringify(input),
-    });
+    // A API consulta o CNPJ na Receita antes de criar — pode demorar.
+    const res = await fetchWithTimeout(
+      `${API_URL}/partners`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+        body: JSON.stringify(input),
+      },
+      20000,
+    );
     const body = await res.json();
     if (!res.ok) return { ok: false, error: body.message ?? "Não foi possível cadastrar a loja/imobiliária." };
     return { ok: true, partner: body as Partner };
   } catch {
     return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
   }
+}
+
+export async function lookupCnpj(cnpj: string): Promise<ApiResult<CnpjLookup>> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/partners/cnpj/${cnpj.replace(/\D/g, "")}`, undefined, 20000);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: (data as { message?: string }).message ?? "Não foi possível consultar o CNPJ." };
+    return { ok: true, value: data as CnpjLookup };
+  } catch {
+    return { ok: false, error: "Não conseguimos consultar o CNPJ agora. Tente de novo em alguns minutos." };
+  }
+}
+
+export async function signupCompany(input: RegisterCompanyInput): Promise<ApiResult<{ partnerType: string }>> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/partners/signup`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) },
+      20000,
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: (data as { message?: string }).message ?? "Não foi possível criar a conta." };
+    return { ok: true, value: data as { partnerType: string } };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
+  }
+}
+
+export function setListingHighlight(listingId: string, level: HighlightLevel, accessToken: string): Promise<ApiResult<Partner>> {
+  return sendJson<Partner>(`/partners/mine/listings/${listingId}/highlight`, "PATCH", { level }, accessToken);
 }
 
 export type UploadPartnerLogoResult = { ok: true; partner: Partner } | { ok: false; error: string };

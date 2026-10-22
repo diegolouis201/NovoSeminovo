@@ -5,11 +5,12 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { PaymentsModule } from "../payments/payments.module";
 import { PartnersController } from "./partners.controller";
 import { PartnersService } from "./partners.service";
+import { CnpjService } from "./cnpj.service";
 
 @Module({
   imports: [AuthModule, PaymentsModule, ListingsModule, NotificationsModule],
   controllers: [PartnersController],
-  providers: [PartnersService],
+  providers: [PartnersService, CnpjService],
   exports: [PartnersService],
 })
 export class PartnersModule {}

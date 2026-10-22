@@ -17,6 +17,8 @@ import { memoryStorage } from "multer";
 import {
   AddPartnerMemberInputSchema,
   CreatePartnerInputSchema,
+  RegisterCompanyInputSchema,
+  SetHighlightInputSchema,
   SubscribeToPlanInputSchema,
   CreateLeadInputSchema,
   UpdateLeadInputSchema,
@@ -29,6 +31,8 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { PartnersService } from "./partners.service";
+import { CnpjService } from "./cnpj.service";
+import { AuthService } from "../auth/auth.service";
 
 const ALLOWED_LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -48,7 +52,41 @@ const logoInterceptor = FileInterceptor("logo", {
 
 @Controller()
 export class PartnersController {
-  constructor(private readonly partnersService: PartnersService) {}
+  constructor(
+    private readonly partnersService: PartnersService,
+    private readonly cnpj: CnpjService,
+    private readonly auth: AuthService,
+  ) {}
+
+  // Consulta do CNPJ na tela de cadastro (pública: a pessoa ainda não tem conta).
+  @Get("partners/cnpj/:cnpj")
+  lookupCnpj(@Param("cnpj") cnpj: string) {
+    if (cnpj.replace(/\D/g, "").length !== 14) throw new BadRequestException("Informe os 14 números do CNPJ.");
+    return this.cnpj.lookup(cnpj);
+  }
+
+  // Cadastro de conta PJ (/cadastro, "Empresa"): confere o CNPJ antes de
+  // criar o usuário, pra não sobrar conta pela metade se o CNPJ não servir.
+  @Post("partners/signup")
+  async signup(@Body() body: unknown) {
+    const input = parseOrBadRequest(RegisterCompanyInputSchema, body);
+    const company = await this.partnersService.resolveCompany({ document: input.cnpj, type: input.partnerType, legalName: input.legalName });
+    const user = await this.auth.register(input);
+    try {
+      await this.partnersService.createPartnerRow(user.id, company);
+    } catch (error) {
+      await this.auth.deleteUnusedUser(user.id);
+      throw error;
+    }
+    return { ok: true, partnerType: company.type };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch("partners/mine/listings/:id/highlight")
+  setHighlight(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
+    const input = parseOrBadRequest(SetHighlightInputSchema, body);
+    return this.partnersService.setHighlight(user.id, id, input.level);
+  }
 
   @UseGuards(JwtAuthGuard)
   @Post("partners")

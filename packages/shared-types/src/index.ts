@@ -274,6 +274,8 @@ export type ListingDetail = z.infer<typeof ListingDetailSchema>;
 export const MyListingSummarySchema = ListingSummarySchema.extend({
   status: ListingStatus,
   planTier: ListingTierIdSchema.optional(),
+  // Anúncio de loja: destaque em uso (ver PARTNER_HIGHLIGHT_RANK).
+  highlightLevel: z.enum(["none", "highlight", "super"]).optional(),
 });
 export type MyListingSummary = z.infer<typeof MyListingSummarySchema>;
 
@@ -794,17 +796,56 @@ export type SendMessageInput = z.infer<typeof SendMessageInputSchema>;
 // Painel do parceiro (lojista/imobiliária) — Etapa 1. MVP: sem upload em
 // lote de estoque, sem cobrança de plano de verdade (o schema já tem
 // Plan/Subscription para quando isso for construído).
-export const PartnerType = z.enum(["dealership", "real_estate_agency", "broker", "workshop"]);
+export const PartnerType = z.enum(["dealership", "real_estate_agency", "broker", "workshop", "builder"]);
+
+// Rótulo de cada tipo de conta PJ (painel, vitrine, admin).
+export const PARTNER_TYPE_LABELS: Record<string, string> = {
+  dealership: "Loja de veículos",
+  real_estate_agency: "Imobiliária",
+  broker: "Corretor(a)",
+  workshop: "Oficina",
+  builder: "Construtora",
+};
 export type PartnerType = z.infer<typeof PartnerType>;
 
+// Conta PJ: o CNPJ é consultado na Receita (ver CnpjService na API) e o
+// ramo de atividade (CNAE) decide o tipo — imobiliária, construtora,
+// corretor, loja de veículos/concessionária. `type`/`legalName` só valem
+// quando a consulta não identifica o ramo ou está fora do ar.
 export const CreatePartnerInputSchema = z.object({
-  type: PartnerType,
-  legalName: z.string().min(3, "Informe a razão social ou nome fantasia"),
-  document: z.string().min(11, "Informe o CNPJ ou CPF"),
+  type: PartnerType.optional(),
+  legalName: z.string().min(3, "Informe a razão social ou nome fantasia").optional(),
+  document: z.string().refine((value) => isValidCnpj(value), "CNPJ inválido"),
   description: z.string().optional(),
   address: z.string().optional(),
 });
 export type CreatePartnerInput = z.infer<typeof CreatePartnerInputSchema>;
+
+export const CnpjLookupSchema = z.object({
+  cnpj: z.string(),
+  legalName: z.string(),
+  tradeName: z.string().optional(),
+  active: z.boolean(),
+  situation: z.string(),
+  activity: z.string().optional(),
+  detectedType: PartnerType.optional(),
+  // "Concessionária", "Loja de veículos", "Imobiliária", "Construtora"…
+  detectedLabel: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  address: z.string().optional(),
+});
+export type CnpjLookup = z.infer<typeof CnpjLookupSchema>;
+
+// Cadastro de conta PJ (/cadastro, opção "Empresa"): os dados do
+// responsável (CPF incluso — uma conta por pessoa) + o CNPJ.
+export const RegisterCompanyInputSchema = RegisterInputSchema.extend({
+  cnpj: z.string().refine((value) => isValidCnpj(value), "CNPJ inválido"),
+  partnerType: PartnerType.optional(),
+  // Só quando a consulta do CNPJ está fora do ar.
+  legalName: z.string().min(3).optional(),
+});
+export type RegisterCompanyInput = z.infer<typeof RegisterCompanyInputSchema>;
 
 export const PartnerStatsSchema = z.object({
   activeListings: z.number().int(),
@@ -874,6 +915,7 @@ export const PARTNER_ALLOWED_ASSET_TYPES: Record<string, readonly ("vehicle" | "
   workshop: ["vehicle"],
   real_estate_agency: ["property"],
   broker: ["property"],
+  builder: ["property"],
 };
 
 export function allowedAssetTypes(partnerType: string | undefined): readonly ("vehicle" | "property")[] {
@@ -883,15 +925,16 @@ export function allowedAssetTypes(partnerType: string | undefined): readonly ("v
 export function assetTypeNotAllowedMessage(partnerType: string): string {
   return allowedAssetTypes(partnerType).includes("vehicle")
     ? "Contas de loja de veículos anunciam só carros. Para anunciar um imóvel, use uma conta de pessoa física ou de imobiliária."
-    : "Contas de imobiliária e corretor anunciam só imóveis. Para anunciar um carro, use uma conta de pessoa física ou de loja de veículos.";
+    : "Contas de imobiliária, construtora e corretor anunciam só imóveis. Para anunciar um carro, use uma conta de pessoa física ou de loja de veículos.";
 }
-export const PLAN_REQUIRED_PARTNER_TYPES = ["dealership", "real_estate_agency", "broker"] as const;
+export const PLAN_REQUIRED_PARTNER_TYPES = ["dealership", "real_estate_agency", "broker", "builder"] as const;
 
 export const PlanSchema = z.object({
   id: z.string(),
   name: z.string(),
   maxActiveListings: z.number().int(),
   highlightCredits: z.number().int(),
+  superHighlightCredits: z.number().int().optional(),
   priceLabel: z.string(),
   audience: z.enum(["vehicle", "property"]).optional(),
 });
@@ -986,6 +1029,10 @@ export const PartnerSchema = z.object({
   trialEndsAt: z.string().optional(),
   offline: z.boolean().optional(),
   stats: PartnerStatsSchema,
+  // Destaques em uso / disponíveis no plano (ou no período grátis).
+  highlights: z
+    .object({ used: z.number().int(), max: z.number().int(), superUsed: z.number().int(), superMax: z.number().int() })
+    .optional(),
   // Só o dono convida/remove gente da equipe (ver /parceiro/equipe) e
   // contrata/cancela plano (ver /parceiro/plano) — um agente vê e opera o
   // painel (anúncios, leads) igual, mas essas duas abas somem pra ele.
@@ -1332,6 +1379,29 @@ export function isValidCpf(raw: string): boolean {
   };
 
   return checkDigit(9) === digits[9] && checkDigit(10) === digits[10];
+}
+
+export function isValidCnpj(raw: string): boolean {
+  const cnpj = raw.replace(/\D/g, "");
+  if (cnpj.length !== 14 || /^(\d)\1{13}$/.test(cnpj)) return false;
+  const digits = cnpj.split("").map(Number);
+  const checkDigit = (length: number) => {
+    const weights = length === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    const sum = weights.reduce((acc, weight, i) => acc + weight * digits[i]!, 0);
+    const remainder = sum % 11;
+    return remainder < 2 ? 0 : 11 - remainder;
+  };
+  return checkDigit(12) === digits[12] && checkDigit(13) === digits[13];
+}
+
+export const HighlightLevelSchema = z.enum(["none", "highlight", "super"]);
+export type HighlightLevel = z.infer<typeof HighlightLevelSchema>;
+export const SetHighlightInputSchema = z.object({ level: HighlightLevelSchema });
+// Posição na busca (Listing.tierRank) do anúncio de loja: base 1; destaque
+// fica junto do Turbo (2) e super destaque junto do Nitro (3), o topo.
+export const PARTNER_HIGHLIGHT_RANK: Record<HighlightLevel, number> = { none: 1, highlight: 2, super: 3 };
+export function highlightLevelFromRank(rank: number): HighlightLevel {
+  return rank >= 3 ? "super" : rank === 2 ? "highlight" : "none";
 }
 
 export const Gender = z.enum(["male", "female", "other", "undisclosed"]);

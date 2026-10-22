@@ -8,7 +8,14 @@ import {
   type OnModuleDestroy,
   type OnModuleInit,
 } from "@nestjs/common";
-import { PARTNER_TRIAL_DAYS, PLAN_REQUIRED_PARTNER_TYPES, formatBRL } from "@novoseminovo/shared-types";
+import {
+  PARTNER_HIGHLIGHT_RANK,
+  PARTNER_TRIAL_DAYS,
+  PLAN_REQUIRED_PARTNER_TYPES,
+  formatBRL,
+  type HighlightLevel,
+  type PartnerType,
+} from "@novoseminovo/shared-types";
 import type {
   CreateLeadInput,
   UpdateLeadInput,
@@ -31,6 +38,7 @@ import { listingInclude, toListingSummary } from "../listings/listings.mapper";
 import { AiService } from "../listings/ai.service";
 import { getPhotoStorage } from "../common/storage";
 import { NotificationsService } from "../notifications/notifications.service";
+import { CnpjService } from "./cnpj.service";
 
 // Quantas vagas de anúncio um plano "ocupa": tudo que não é um estado final
 // (vendido/recusado/expirado) conta contra o limite, porque senão dava pra
@@ -92,6 +100,7 @@ function toPlan(plan: {
   name: string;
   maxActiveListings: number;
   highlightCredits: number;
+  superHighlightCredits: number;
   priceMonth: unknown;
   audience: string | null;
 }): Plan {
@@ -100,6 +109,7 @@ function toPlan(plan: {
     name: plan.name,
     maxActiveListings: plan.maxActiveListings,
     highlightCredits: plan.highlightCredits,
+    superHighlightCredits: plan.superHighlightCredits,
     priceLabel: formatBRL(Number(plan.priceMonth)),
     audience: plan.audience === "vehicle" || plan.audience === "property" ? plan.audience : undefined,
   };
@@ -110,15 +120,22 @@ function toPlan(plan: {
 // subir a API. Preço mudou → stripePriceId zera e o Stripe ganha um preço
 // novo no próximo checkout (quem já assinou continua no preço antigo lá).
 // "Enterprise" (mais de 100) é conversa no WhatsApp, não plano no sistema.
-const VEHICLE_PLAN_CATALOG = [
-  { name: "Inicial", priceMonth: 149, maxActiveListings: 30, highlightCredits: 5 },
-  { name: "Profissional", priceMonth: 249, maxActiveListings: 60, highlightCredits: 10 },
-  { name: "Loja Grande", priceMonth: 349, maxActiveListings: 100, highlightCredits: 20 },
-];
+// Imobiliária, construtora e corretor: "packs" no molde do Imovelweb, um
+// pouco abaixo do preço deles (decisão do Diego: abaixo da concorrência).
+// Os anúncios em destaque/super destaque contam dentro do total do pack.
+const PLAN_CATALOG = [
+  { audience: "vehicle", name: "Inicial", priceMonth: 149, maxActiveListings: 30, highlightCredits: 5, superHighlightCredits: 0 },
+  { audience: "vehicle", name: "Profissional", priceMonth: 249, maxActiveListings: 60, highlightCredits: 10, superHighlightCredits: 0 },
+  { audience: "vehicle", name: "Loja Grande", priceMonth: 349, maxActiveListings: 100, highlightCredits: 20, superHighlightCredits: 0 },
+  { audience: "property", name: "Pack 10", priceMonth: 189, maxActiveListings: 10, highlightCredits: 2, superHighlightCredits: 0 },
+  { audience: "property", name: "Pack 20", priceMonth: 289, maxActiveListings: 20, highlightCredits: 4, superHighlightCredits: 1 },
+  { audience: "property", name: "Pack 35", priceMonth: 389, maxActiveListings: 35, highlightCredits: 6, superHighlightCredits: 2 },
+  { audience: "property", name: "Pack 50", priceMonth: 449, maxActiveListings: 50, highlightCredits: 10, superHighlightCredits: 4 },
+] as const;
 
 // Tipo de parceiro → público dos planos (ver PARTNER_ALLOWED_ASSET_TYPES).
 export function planAudienceFor(partnerType: string): "vehicle" | "property" {
-  return partnerType === "real_estate_agency" || partnerType === "broker" ? "property" : "vehicle";
+  return partnerType === "real_estate_agency" || partnerType === "broker" || partnerType === "builder" ? "property" : "vehicle";
 }
 
 const leadInclude = {
@@ -164,6 +181,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
     private readonly payments: PaymentsService,
     private readonly ai: AiService,
     private readonly notifications: NotificationsService,
+    private readonly cnpj: CnpjService,
   ) {}
 
   // Fim do período grátis não tem evento nenhum — confere a cada 6 horas (e
@@ -243,30 +261,144 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  // Confere o CNPJ na Receita e decide o tipo da conta pelo ramo (CNAE).
+  // Consulta fora do ar: aceita o tipo escolhido na tela (o admin confere
+  // depois, a conta já nasce sem o selo de verificada).
+  async resolveCompany(input: { document: string; type?: PartnerType; legalName?: string; address?: string }) {
+    const cnpj = input.document.replace(/\D/g, "");
+    const taken = await this.prisma.partner.findFirst({ where: { document: { in: [cnpj, input.document] } } });
+    if (taken) throw new ConflictException("Este CNPJ já tem uma conta no NovoSeminovo. Entre com ela ou peça acesso ao responsável.");
+
+    const company = await this.cnpj.lookup(cnpj).catch((error: { status?: number }) => {
+      if (error.status === 503) return undefined;
+      throw error;
+    });
+    if (company && !company.active) {
+      throw new BadRequestException(`Este CNPJ está com situação "${company.situation}" na Receita Federal — só aceitamos empresas ativas.`);
+    }
+    const type = company?.detectedType ?? input.type;
+    if (!type) {
+      throw new BadRequestException(
+        company
+          ? "Não identificamos o ramo da empresa pela atividade do CNPJ. Escolha o tipo de conta."
+          : "Não conseguimos consultar o CNPJ agora. Escolha o tipo de conta para continuar.",
+      );
+    }
+    const legalName = company ? company.tradeName || company.legalName : input.legalName;
+    if (!legalName || legalName.length < 3) throw new BadRequestException("Informe a razão social ou nome fantasia.");
+    return { cnpj, type, legalName, address: input.address ?? company?.address };
+  }
+
   async create(ownerUserId: string, input: CreatePartnerInput): Promise<Partner> {
     const existing = await this.prisma.partner.findFirst({ where: { ownerUserId } });
     if (existing) throw new ConflictException("Você já tem uma loja/imobiliária cadastrada.");
 
-    const slug = await this.uniqueSlug(input.legalName);
+    const company = await this.resolveCompany(input);
+    await this.createPartnerRow(ownerUserId, company, input.description);
+    const partner = await this.getMine(ownerUserId);
+    if (!partner) throw new Error("Falha inesperada ao criar a loja/imobiliária.");
+    return partner;
+  }
 
+  async createPartnerRow(
+    ownerUserId: string,
+    company: { cnpj: string; type: PartnerType; legalName: string; address?: string },
+    description?: string,
+  ): Promise<void> {
+    const slug = await this.uniqueSlug(company.legalName);
     await this.prisma.$transaction([
       this.prisma.partner.create({
         data: {
           ownerUserId,
-          type: input.type,
-          legalName: input.legalName,
-          document: input.document,
-          description: input.description,
-          address: input.address,
+          type: company.type,
+          legalName: company.legalName,
+          document: company.cnpj,
+          description,
+          address: company.address,
           slug,
         },
       }),
       this.prisma.user.update({ where: { id: ownerUserId }, data: { role: "partner_owner" } }),
     ]);
+  }
 
-    const partner = await this.getMine(ownerUserId);
-    if (!partner) throw new Error("Falha inesperada ao criar a loja/imobiliária.");
-    return partner;
+  // ---------- Destaques (anúncios de loja) ----------
+
+  // Quantos destaques a loja pode usar ao mesmo tempo: os do plano; no
+  // período grátis, os do menor plano do público dela; sem plano, nenhum.
+  async highlightAllowance(partner: { id: string; type: string; createdAt: Date }): Promise<{ max: number; superMax: number }> {
+    if (!requiresPlan(partner.type)) return { max: 0, superMax: 0 };
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { partnerId: partner.id, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
+      include: { plan: true },
+      orderBy: { currentPeriodEnd: "desc" },
+    });
+    if (subscription) return { max: subscription.plan.highlightCredits, superMax: subscription.plan.superHighlightCredits };
+    if (trialEndsAt(partner) <= new Date()) return { max: 0, superMax: 0 };
+    const smallest = PLAN_CATALOG.find((item) => item.audience === planAudienceFor(partner.type));
+    return { max: smallest?.highlightCredits ?? 0, superMax: smallest?.superHighlightCredits ?? 0 };
+  }
+
+  private async highlightUsage(partnerId: string) {
+    const [used, superUsed] = await Promise.all([
+      this.prisma.listing.count({ where: { partnerId, status: "active", tierRank: PARTNER_HIGHLIGHT_RANK.highlight } }),
+      this.prisma.listing.count({ where: { partnerId, status: "active", tierRank: { gte: PARTNER_HIGHLIGHT_RANK.super } } }),
+    ]);
+    return { used, superUsed };
+  }
+
+  async setHighlight(userId: string, listingId: string, level: HighlightLevel): Promise<Partner> {
+    const partner = await this.findPartnerForUser(userId);
+    if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing || listing.partnerId !== partner.id) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
+    if (level !== "none") {
+      if (listing.status !== "active") throw new BadRequestException("Só dá para destacar anúncio que está no ar.");
+      const allowance = await this.highlightAllowance(partner);
+      const usage = await this.highlightUsage(partner.id);
+      const already = listing.tierRank === PARTNER_HIGHLIGHT_RANK[level];
+      if (!already && level === "super" && usage.superUsed >= allowance.superMax) {
+        throw new BadRequestException(
+          allowance.superMax
+            ? `Seu plano tem ${allowance.superMax} super destaque(s), e todos estão em uso. Tire o super destaque de outro anúncio primeiro.`
+            : "Seu plano não tem super destaque. Veja os planos em /parceiro/plano.",
+        );
+      }
+      if (!already && level === "highlight" && usage.used >= allowance.max) {
+        throw new BadRequestException(
+          allowance.max
+            ? `Seu plano tem ${allowance.max} destaque(s), e todos estão em uso. Tire o destaque de outro anúncio primeiro.`
+            : "Seu plano não tem destaques. Veja os planos em /parceiro/plano.",
+        );
+      }
+    }
+    await this.prisma.listing.update({ where: { id: listingId }, data: { tierRank: PARTNER_HIGHLIGHT_RANK[level] } });
+    const updated = await this.getMine(userId);
+    if (!updated) throw new Error("Falha inesperada ao salvar o destaque.");
+    return updated;
+  }
+
+  // Plano trocado por um menor (ou acabou): tira o excesso de destaques,
+  // mantendo os mais recentes; anúncio fora do ar não segura destaque.
+  async trimHighlights(partnerId: string): Promise<void> {
+    const partner = await this.prisma.partner.findUnique({ where: { id: partnerId } });
+    if (!partner) return;
+    await this.prisma.listing.updateMany({
+      where: { partnerId, status: { not: "active" }, tierRank: { gt: PARTNER_HIGHLIGHT_RANK.none } },
+      data: { tierRank: PARTNER_HIGHLIGHT_RANK.none },
+    });
+    const allowance = await this.highlightAllowance(partner);
+    for (const [level, max] of [["super", allowance.superMax], ["highlight", allowance.max]] as const) {
+      const rows = await this.prisma.listing.findMany({
+        where: { partnerId, status: "active", tierRank: PARTNER_HIGHLIGHT_RANK[level] },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true },
+      });
+      const extra = rows.slice(max).map((row) => row.id);
+      if (extra.length) {
+        await this.prisma.listing.updateMany({ where: { id: { in: extra } }, data: { tierRank: PARTNER_HIGHLIGHT_RANK.none } });
+      }
+    }
   }
 
   // Logo da loja/imobiliária (ver FeaturedPartners/vitrine pública, que já
@@ -345,6 +477,9 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
           }
         : undefined,
       isOwner: partner.ownerUserId === userId,
+      highlights: requiresPlan(partner.type)
+        ? { ...(await this.highlightUsage(partner.id)), ...(await this.highlightAllowance(partner)) }
+        : undefined,
       ...(requiresPlan(partner.type)
         ? {
             trialEndsAt: trialEndsAt(partner).toISOString(),
@@ -379,7 +514,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
         verifiedAt: { not: null },
         listings: { some: { status: "active" } },
         ...(forAssetType === "vehicle" ? { type: "dealership" } : {}),
-        ...(forAssetType === "property" ? { type: { in: ["real_estate_agency", "broker"] } } : {}),
+        ...(forAssetType === "property" ? { type: { in: ["real_estate_agency", "broker", "builder"] } } : {}),
       },
       orderBy: { listings: { _count: "desc" } },
       take: limit,
@@ -623,24 +758,34 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
   private planCatalogReady = false;
 
   async ensurePlanCatalog(): Promise<void> {
-    // Planos antigos (Básico/Profissional de antes) ficam pras imobiliárias
-    // até o Diego definir os delas.
+    // Planos antigos sem público definido eram de imobiliária.
     await this.prisma.plan.updateMany({ where: { audience: null }, data: { audience: "property" } });
     // Anúncio de loja tem posição "básica" na busca (acima do Grátis da PF).
     await this.prisma.listing.updateMany({ where: { partnerId: { not: null }, tierRank: 0 }, data: { tierRank: 1 } });
-    for (const item of VEHICLE_PLAN_CATALOG) {
-      const existing = await this.prisma.plan.findFirst({ where: { audience: "vehicle", name: item.name } });
+    for (const { audience, ...item } of PLAN_CATALOG) {
+      const existing = await this.prisma.plan.findFirst({ where: { audience, name: item.name } });
       if (!existing) {
-        await this.prisma.plan.create({ data: { ...item, audience: "vehicle" } });
+        await this.prisma.plan.create({ data: { ...item, audience } });
         continue;
       }
       const priceChanged = Number(existing.priceMonth) !== item.priceMonth;
-      if (priceChanged || existing.maxActiveListings !== item.maxActiveListings || existing.highlightCredits !== item.highlightCredits || !existing.active) {
+      if (
+        priceChanged ||
+        existing.maxActiveListings !== item.maxActiveListings ||
+        existing.highlightCredits !== item.highlightCredits ||
+        existing.superHighlightCredits !== item.superHighlightCredits ||
+        !existing.active
+      ) {
         await this.prisma.plan.update({
           where: { id: existing.id },
           data: { ...item, active: true, ...(priceChanged ? { stripePriceId: null } : {}) },
         });
       }
+    }
+    // Plano fora do catálogo sai da vitrine (quem já assinou continua nele).
+    for (const audience of ["vehicle", "property"] as const) {
+      const names = PLAN_CATALOG.filter((item) => item.audience === audience).map((item) => item.name as string);
+      await this.prisma.plan.updateMany({ where: { audience, active: true, name: { notIn: names } }, data: { active: false } });
     }
     this.planCatalogReady = true;
   }
@@ -700,6 +845,12 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
   // sozinhos quando a loja assinar (ver restoreListingsPausedByPlan). Ficam
   // no ar os mais recentes.
   async pauseListingsOverLimit(partnerId: string): Promise<number> {
+    const paused = await this.pauseListingsOverLimitInner(partnerId);
+    await this.trimHighlights(partnerId);
+    return paused;
+  }
+
+  private async pauseListingsOverLimitInner(partnerId: string): Promise<number> {
     const partner = await this.prisma.partner.findUnique({ where: { id: partnerId } });
     if (!partner) return 0;
     const limit = await listingLimitFor(this.prisma, partner);

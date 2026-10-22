@@ -15,6 +15,7 @@ export type PartnerAgentContext = {
 const PARTNER_TYPE_LABEL: Record<string, string> = {
   dealership: "loja de veículos",
   real_estate_agency: "imobiliária",
+  builder: "construtora",
   broker: "corretor(a) de imóveis autônomo(a)",
 };
 

@@ -44,6 +44,7 @@ enum PartnerType {
   real_estate_agency
   broker
   workshop
+  builder
 }
 
 enum PartnerMemberRole {
@@ -278,6 +279,8 @@ model Plan {
   name               String
   maxActiveListings  Int      @map("max_active_listings")
   highlightCredits   Int      @default(0) @map("highlight_credits")
+  // Super destaque (topo da busca, junto do Nitro) — packs de imobiliária.
+  superHighlightCredits Int   @default(0) @map("super_highlight_credits")
   priceMonth         Decimal  @map("price_month") @db.Decimal(10, 2)
   features           Json     @default("{}")
   // Price de teste criado via API (ver PaymentsService.ensureStripeCatalog)
