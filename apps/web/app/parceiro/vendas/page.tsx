@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { formatBRL } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
-import { PartnerNav } from "@/components/PartnerNav";
 import { fetchMyPartner, fetchPartnerSales } from "@/lib/api";
 
 const ASSET_TYPE_LABEL: Record<string, string> = {
@@ -23,9 +22,6 @@ export default async function PartnerSalesPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-12">
       <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
-      <div className="mt-6">
-        <PartnerNav active="vendas" showEquipe={partner.isOwner} showServicos={partner.type === "workshop"} />
-      </div>
 
       <h2 className="mt-6 font-display text-xl font-semibold text-ink">Vendas</h2>
       <p className="text-sm text-ink-muted">

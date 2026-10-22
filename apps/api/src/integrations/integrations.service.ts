@@ -14,6 +14,8 @@ import {
 import { Prisma, type IntegrationFeed as FeedRow } from "@novoseminovo/db";
 import {
   IntegrationListingInputSchema,
+  allowedAssetTypes,
+  assetTypeNotAllowedMessage,
   type CreateIntegrationFeedInput,
   type CreatedPartnerApiKey,
   type IntegrationFeed,
@@ -30,7 +32,7 @@ import { SafeFetchError, assertPublicHttpUrl, safeFetch } from "../common/safe-f
 import { FeedFormatError, parseNovoSeminovoJson, parseVrsync, type ParsedFeedItem } from "./feed-parsers";
 import { parseVehicleCatalog } from "./vehicle-catalog-parser";
 
-export type IntegrationPartner = { id: string; ownerUserId: string; verified: boolean };
+export type IntegrationPartner = { id: string; ownerUserId: string; verified: boolean; type: string };
 
 export type ItemOutcome = {
   externalId: string;
@@ -165,6 +167,10 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
       const parsed = IntegrationListingInputSchema.safeParse(item.input);
       if (!parsed.success) {
         record({ externalId: item.externalId, action: "error", message: zodMessage(parsed.error) });
+        continue;
+      }
+      if (!allowedAssetTypes(partner.type).includes(parsed.data.assetType)) {
+        record({ externalId: parsed.data.externalId, action: "error", message: assetTypeNotAllowedMessage(partner.type) });
         continue;
       }
       if (seen.has(parsed.data.externalId)) {
@@ -410,13 +416,13 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
   private async partnerForOwner(userId: string): Promise<IntegrationPartner> {
     const partner = await this.prisma.partner.findFirst({
       where: { OR: [{ ownerUserId: userId }, { members: { some: { userId } } }] },
-      select: { id: true, ownerUserId: true, verifiedAt: true },
+      select: { id: true, ownerUserId: true, verifiedAt: true, type: true },
     });
     if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
     // Mesmo critério de "Equipe": integrar mexe no estoque inteiro, então é
     // coisa do dono.
     if (partner.ownerUserId !== userId) throw new ForbiddenException("Só o dono da loja/imobiliária pode configurar integrações.");
-    return { id: partner.id, ownerUserId: partner.ownerUserId, verified: Boolean(partner.verifiedAt) };
+    return { id: partner.id, ownerUserId: partner.ownerUserId, verified: Boolean(partner.verifiedAt), type: partner.type };
   }
 
   private toFeed(row: FeedRow, listingsCount: number): IntegrationFeed {
@@ -532,7 +538,7 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
   private async beginSync(feedId: string) {
     const feed = await this.prisma.integrationFeed.findUnique({
       where: { id: feedId },
-      include: { partner: { select: { id: true, ownerUserId: true, verifiedAt: true } } },
+      include: { partner: { select: { id: true, ownerUserId: true, verifiedAt: true, type: true } } },
     });
     if (!feed) throw new NotFoundException("Feed não encontrado.");
     if (this.runningFeeds.has(feed.id)) {
@@ -557,7 +563,7 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
             ? parseVehicleCatalog(raw, await this.defaultLocation(feed.partner.id))
             : parseNovoSeminovoJson(raw);
       const { report } = await this.applyItems(
-        { id: feed.partner.id, ownerUserId: feed.partner.ownerUserId, verified: Boolean(feed.partner.verifiedAt) },
+        { id: feed.partner.id, ownerUserId: feed.partner.ownerUserId, verified: Boolean(feed.partner.verifiedAt), type: feed.partner.type },
         items,
         `feed:${feed.id}`,
         { fullSync: true },
@@ -626,7 +632,7 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
     if (!key.startsWith("nsk_")) return undefined;
     const row = await this.prisma.partnerApiKey.findUnique({
       where: { keyHash: hashKey(key) },
-      include: { partner: { select: { id: true, ownerUserId: true, verifiedAt: true } } },
+      include: { partner: { select: { id: true, ownerUserId: true, verifiedAt: true, type: true } } },
     });
     if (!row || row.revokedAt) return undefined;
 
@@ -643,7 +649,7 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
     if (!row.lastUsedAt || now - row.lastUsedAt.getTime() > 5 * 60 * 1000) {
       await this.prisma.partnerApiKey.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
     }
-    return { id: row.partner.id, ownerUserId: row.partner.ownerUserId, verified: Boolean(row.partner.verifiedAt) };
+    return { id: row.partner.id, ownerUserId: row.partner.ownerUserId, verified: Boolean(row.partner.verifiedAt), type: row.partner.type };
   }
 
   // ---------- Operações da API (push) ----------

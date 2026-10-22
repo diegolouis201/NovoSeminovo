@@ -2,7 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { fetchMyListings } from "@/lib/api";
+import { Car, House } from "@phosphor-icons/react/dist/ssr";
+import { allowedAssetTypes } from "@novoseminovo/shared-types";
+import { fetchMyListings, fetchMyPartner } from "@/lib/api";
 import { updateListingStatusAction } from "@/lib/actions/listings";
 
 const STATUS_LABEL: Record<string, { label: string; tone: string }> = {
@@ -19,7 +21,8 @@ export default async function MyListingsPage() {
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");
 
-  const listings = await fetchMyListings(session.accessToken);
+  const [listings, partner] = await Promise.all([fetchMyListings(session.accessToken), fetchMyPartner(session.accessToken)]);
+  const allowed = allowedAssetTypes(partner?.type);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-16">
@@ -34,13 +37,26 @@ export default async function MyListingsPage() {
       </div>
 
       {listings.length === 0 ? (
-        <p className="mt-6 text-ink-muted">
-          Você ainda não tem anúncios.{" "}
-          <Link href="/anunciar" className="font-semibold text-brand-blue">
-            Anuncie o seu primeiro carro ou imóvel
-          </Link>
-          .
-        </p>
+        <section className="mt-6 flex flex-col items-center gap-4 rounded-brand-lg border border-border bg-surface-raised px-6 py-12 text-center">
+          <h2 className="font-display text-xl font-semibold uppercase text-ink">Você ainda não possui anúncios</h2>
+          <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">Anuncie agora</p>
+          <div className="flex gap-4">
+            {allowed.map((type) => {
+              const TypeIcon = type === "vehicle" ? Car : House;
+              return (
+                <Link
+                  key={type}
+                  href={`/anunciar?tipo=${type}`}
+                  className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-brand bg-brand-green text-sm font-bold text-on-green hover:opacity-90"
+                >
+                  <TypeIcon size={36} weight="fill" />
+                  {type === "vehicle" ? "Carro" : "Imóvel"}
+                </Link>
+              );
+            })}
+          </div>
+          {allowed.length === 2 && <p className="text-xs text-ink-muted">Pessoa física anuncia grátis, até vender.</p>}
+        </section>
       ) : (
         <ul className="mt-6 flex flex-col gap-3">
           {listings.map((listing) => {
@@ -51,9 +67,17 @@ export default async function MyListingsPage() {
             return (
               <li
                 key={listing.id}
-                className="flex items-center justify-between gap-4 rounded-brand border border-border bg-surface-raised p-4"
+                className="flex flex-wrap items-center gap-4 rounded-brand border border-border bg-surface-raised p-4"
               >
-                <div className="min-w-0">
+                {listing.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={listing.image} alt="" className="h-16 w-24 shrink-0 rounded-sober object-cover" />
+                ) : (
+                  <span className="flex h-16 w-24 shrink-0 items-center justify-center rounded-sober bg-surface-sober text-ink-muted">
+                    {listing.assetType === "vehicle" ? <Car size={28} /> : <House size={28} />}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
                   <Link href={`/anuncio/${listing.id}`} className="font-semibold text-ink hover:underline">
                     {listing.title}
                   </Link>

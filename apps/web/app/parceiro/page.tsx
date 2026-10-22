@@ -5,7 +5,6 @@ import { ArrowRight, CurrencyCircleDollar, Funnel, Package } from "@phosphor-ico
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField, SelectField, TextAreaField } from "@/components/FormField";
-import { PartnerNav } from "@/components/PartnerNav";
 import { fetchMyPartner, resolveMediaUrl } from "@/lib/api";
 import { createPartnerAction, uploadPartnerLogoAction } from "@/lib/actions/partners";
 
@@ -121,10 +120,6 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
           </Button>
         </form>
       )}
-
-      <div className="mt-6">
-        <PartnerNav active="geral" showEquipe={partner.isOwner} showServicos={partner.type === "workshop"} />
-      </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <DashboardPanel

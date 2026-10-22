@@ -3,6 +3,8 @@ import { Prisma, type PropertyType } from "@novoseminovo/db";
 import {
   VEHICLE_BODY_TYPE_OPTIONS,
   VEHICLE_CONDITION_OPTIONS,
+  allowedAssetTypes,
+  assetTypeNotAllowedMessage,
   VEHICLE_FEATURE_OPTIONS,
   formatBRL,
   type CreateListingInput,
@@ -757,6 +759,10 @@ export class ListingsService {
     const partner = await this.prisma.partner.findFirst({
       where: { OR: [{ ownerUserId }, { members: { some: { userId: ownerUserId } } }] },
     });
+
+    if (partner && !allowedAssetTypes(partner.type).includes(assetType)) {
+      throw new ForbiddenException(assetTypeNotAllowedMessage(partner.type));
+    }
 
     // Limite do plano ou, sem plano, o grátis de loja de veículos e
     // imobiliária (ver listingLimitFor). Pessoa física não tem limite.

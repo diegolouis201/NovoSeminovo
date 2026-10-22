@@ -4,7 +4,6 @@ import type { IntegrationFeed } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { ApiKeyCreator } from "@/components/ApiKeyCreator";
 import { Button } from "@/components/Button";
-import { PartnerNav } from "@/components/PartnerNav";
 import { fetchIntegrationOverview, fetchMyPartner } from "@/lib/api";
 import {
   createIntegrationFeedAction,
@@ -123,9 +122,6 @@ export default async function PartnerIntegrationsPage({
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
-      <div className="mt-6">
-        <PartnerNav active="integracoes" />
-      </div>
 
       <h2 className="mt-6 font-display text-xl font-semibold text-ink">Integração com seu CRM</h2>
       <p className="text-sm text-ink-muted">

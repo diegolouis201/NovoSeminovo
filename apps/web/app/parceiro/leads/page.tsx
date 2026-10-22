@@ -3,7 +3,6 @@ import { ChatCircle, Phone, WhatsappLogo } from "@phosphor-icons/react/dist/ssr"
 import type { LeadSource, LeadStatus, LeadSummary } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { PartnerNav } from "@/components/PartnerNav";
 import { fetchMyPartner, fetchPartnerLeads } from "@/lib/api";
 import { updateLeadStatusAction } from "@/lib/actions/partners";
 
@@ -32,9 +31,6 @@ export default async function PartnerLeadsPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-12">
       <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
-      <div className="mt-6">
-        <PartnerNav active="leads" showEquipe={partner.isOwner} showServicos={partner.type === "workshop"} />
-      </div>
 
       <h2 className="mt-6 font-display text-xl font-semibold text-ink">Leads</h2>
       <p className="text-sm text-ink-muted">

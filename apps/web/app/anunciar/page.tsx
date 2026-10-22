@@ -12,6 +12,7 @@ import { VehicleOptionsFields } from "@/components/VehicleOptionsFields";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createListingAction, extractCrlvAction, generateListingDraftAction } from "@/lib/actions/listings";
 import { VehicleListingWizard } from "@/components/VehicleListingWizard";
+import { allowedAssetTypes } from "@novoseminovo/shared-types";
 import { fetchAiStatus, fetchMyPartner, fetchProfile } from "@/lib/api";
 import { FUEL_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
 
@@ -43,18 +44,19 @@ export default async function CreateListingPage({
   const session = await auth();
   if (!session?.user) redirect("/entrar");
 
-  const assetType = searchParams.tipo === "property" ? "property" : "vehicle";
-  const { aiEnabled } = await fetchAiStatus();
+  const [{ aiEnabled }, partner] = await Promise.all([fetchAiStatus(), fetchMyPartner(session.accessToken)]);
+  // Loja de veículos só anuncia carro; imobiliária e corretor só imóvel.
+  const allowed = allowedAssetTypes(partner?.type);
+  const requested = searchParams.tipo === "property" ? "property" : searchParams.tipo === "vehicle" ? "vehicle" : allowed[0]!;
+  if (!allowed.includes(requested)) redirect(`/anunciar?tipo=${allowed[0]}`);
+  const assetType = requested;
 
   // Carro: cadastro em passo a passo (ver VehicleListingWizard). O formulário
   // completo de uma tela só continua em ?modo=completo (lojista que prefere,
   // ou volta do leitor de CRLV/gerador de texto com campos preenchidos).
   const usingDraftParams = Object.keys(searchParams).some((key) => key.startsWith("draft"));
   if (assetType === "vehicle" && searchParams.modo !== "completo" && !usingDraftParams) {
-    const [profile, partner] = await Promise.all([
-      fetchProfile(session.accessToken),
-      fetchMyPartner(session.accessToken),
-    ]);
+    const profile = await fetchProfile(session.accessToken);
     return (
       <main>
         <nav className="mx-auto flex max-w-xl items-center justify-between gap-2 px-4 pt-6 text-sm">
@@ -62,9 +64,11 @@ export default async function CreateListingPage({
             <span className="flex items-center gap-1.5 rounded-full bg-brand-green px-4 py-2 font-semibold text-on-green">
               <Car size={18} weight="bold" /> Carro
             </span>
-            <Link href="/anunciar?tipo=property" className="flex items-center gap-1.5 rounded-full px-4 py-2 font-semibold text-ink">
-              <House size={18} weight="bold" /> Imóvel
-            </Link>
+            {allowed.includes("property") && (
+              <Link href="/anunciar?tipo=property" className="flex items-center gap-1.5 rounded-full px-4 py-2 font-semibold text-ink">
+                <House size={18} weight="bold" /> Imóvel
+              </Link>
+            )}
           </span>
           <Link href="/anunciar?tipo=vehicle&modo=completo" className="text-xs font-semibold text-ink-muted hover:underline">
             Formulário completo
@@ -84,22 +88,26 @@ export default async function CreateListingPage({
       </p>
 
       <nav className="mt-6 inline-flex gap-1 rounded-full bg-surface-sober p-1">
-        <Link
-          href="/anunciar?tipo=vehicle&modo=completo"
-          className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold ${
-            assetType === "vehicle" ? "bg-brand-green text-on-green" : "text-ink"
-          }`}
-        >
-          <Car size={18} weight="bold" /> Carro
-        </Link>
-        <Link
-          href="/anunciar?tipo=property"
-          className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold ${
-            assetType === "property" ? "bg-brand-green text-on-green" : "text-ink"
-          }`}
-        >
-          <House size={18} weight="bold" /> Imóvel
-        </Link>
+        {allowed.includes("vehicle") && (
+          <Link
+            href="/anunciar?tipo=vehicle&modo=completo"
+            className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold ${
+              assetType === "vehicle" ? "bg-brand-green text-on-green" : "text-ink"
+            }`}
+          >
+            <Car size={18} weight="bold" /> Carro
+          </Link>
+        )}
+        {allowed.includes("property") && (
+          <Link
+            href="/anunciar?tipo=property"
+            className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold ${
+              assetType === "property" ? "bg-brand-green text-on-green" : "text-ink"
+            }`}
+          >
+            <House size={18} weight="bold" /> Imóvel
+          </Link>
+        )}
       </nav>
 
       {searchParams.error && (

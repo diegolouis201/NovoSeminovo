@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { PartnerNav } from "@/components/PartnerNav";
 import { fetchMyListings, fetchMyPartner } from "@/lib/api";
 import { markListingSoldAction, updateListingStatusAction } from "@/lib/actions/listings";
 
@@ -51,9 +50,6 @@ export default async function PartnerListingsPage({
   return (
     <main className="mx-auto max-w-4xl px-4 py-12">
       <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
-      <div className="mt-6">
-        <PartnerNav active="anuncios" showEquipe={partner.isOwner} showServicos={partner.type === "workshop"} />
-      </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-xl font-semibold text-ink">

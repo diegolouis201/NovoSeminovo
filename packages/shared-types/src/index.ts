@@ -819,6 +819,26 @@ export type SaleSummary = z.infer<typeof SaleSummarySchema>;
 // saem do ar (pausados, nunca apagados) até assinar. Pessoa física (sem loja
 // cadastrada) e oficina não pagam.
 export const PARTNER_TRIAL_DAYS = 90;
+
+// O que cada tipo de conta pode anunciar (decisão do Diego): loja de carros
+// só carro, imobiliária e corretor só imóvel. Pessoa física (sem loja) anuncia
+// os dois. Vale no servidor (criar anúncio, integração) e no site.
+export const PARTNER_ALLOWED_ASSET_TYPES: Record<string, readonly ("vehicle" | "property")[]> = {
+  dealership: ["vehicle"],
+  workshop: ["vehicle"],
+  real_estate_agency: ["property"],
+  broker: ["property"],
+};
+
+export function allowedAssetTypes(partnerType: string | undefined): readonly ("vehicle" | "property")[] {
+  return partnerType ? PARTNER_ALLOWED_ASSET_TYPES[partnerType] ?? ["vehicle", "property"] : ["vehicle", "property"];
+}
+
+export function assetTypeNotAllowedMessage(partnerType: string): string {
+  return allowedAssetTypes(partnerType).includes("vehicle")
+    ? "Contas de loja de veículos anunciam só carros. Para anunciar um imóvel, use uma conta de pessoa física ou de imobiliária."
+    : "Contas de imobiliária e corretor anunciam só imóveis. Para anunciar um carro, use uma conta de pessoa física ou de loja de veículos.";
+}
 export const PLAN_REQUIRED_PARTNER_TYPES = ["dealership", "real_estate_agency", "broker"] as const;
 
 export const PlanSchema = z.object({

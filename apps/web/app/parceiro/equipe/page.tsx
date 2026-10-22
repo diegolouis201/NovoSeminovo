@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField } from "@/components/FormField";
-import { PartnerNav } from "@/components/PartnerNav";
 import { fetchMyPartner, fetchPartnerMembers } from "@/lib/api";
 import { addPartnerMemberAction, removePartnerMemberAction } from "@/lib/actions/partners";
 
@@ -19,9 +18,6 @@ export default async function PartnerTeamPage({ searchParams }: { searchParams: 
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
       <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
-      <div className="mt-6">
-        <PartnerNav active="equipe" />
-      </div>
 
       <h2 className="mt-6 font-display text-xl font-semibold text-ink">Equipe</h2>
       <p className="text-sm text-ink-muted">

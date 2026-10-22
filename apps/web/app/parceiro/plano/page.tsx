@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import type { Partner, Plan } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { PartnerNav } from "@/components/PartnerNav";
 import { fetchMyPartner, fetchPaymentsStatus, fetchPlans } from "@/lib/api";
 import {
   cancelSubscriptionAction,
@@ -36,9 +35,6 @@ export default async function PartnerPlanPage({
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
-      <div className="mt-6">
-        <PartnerNav active="plano" showEquipe={partner.isOwner} showServicos={partner.type === "workshop"} />
-      </div>
 
       <h2 className="mt-6 font-display text-xl font-semibold text-ink">Plano</h2>
       <p className="text-sm text-ink-muted">
