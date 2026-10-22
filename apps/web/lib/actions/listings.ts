@@ -25,6 +25,7 @@ import {
   updateProfile,
   fetchFipeVersions,
   fetchListings,
+  type SearchParams,
   classifyListingPhotos,
   createListing,
   deleteListingPhoto,
@@ -118,6 +119,11 @@ export async function generateVehicleTextAction(
   const result = await generateListingDraft({ assetType, freeText: summary }, session.accessToken);
   if (!result.ok) return { ok: false, error: result.error };
   return { ok: true, value: { title: result.draft.title, description: result.draft.description } };
+}
+
+// Busca de imóveis com mapa: refaz a busca com a área visível do mapa.
+export async function searchPropertiesInAreaAction(params: SearchParams, bbox: string): Promise<ListingSummary[]> {
+  return fetchListings({ ...params, assetType: "property", bbox }).catch(() => []);
 }
 
 // "Imóveis parecidos na região" ao lado da tela de valores do cadastro de

@@ -5,13 +5,14 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { VehiclesModule } from "../vehicles/vehicles.module";
 import { AiService } from "./ai.service";
 import { ListingsController } from "./listings.controller";
+import { GeocodingService } from "./geocoding.service";
 import { ListingsService } from "./listings.service";
 import { SocialAssetsService } from "./social-assets.service";
 
 @Module({
   imports: [AuthModule, NotificationsModule, VehiclesModule, PaymentsModule],
   controllers: [ListingsController],
-  providers: [ListingsService, AiService, SocialAssetsService],
+  providers: [ListingsService, AiService, SocialAssetsService, GeocodingService],
   exports: [AiService, ListingsService],
 })
 export class ListingsModule {}

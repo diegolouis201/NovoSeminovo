@@ -350,6 +350,12 @@ model Listing {
   city             String
   state            String
   neighborhood     String?
+  // Coordenada do endereço (geocodificado no servidor — ver GeocodingService).
+  // É a exata: nunca sai da API assim; o mapa recebe um ponto aproximado
+  // (approximatePoint no mapper), porque o endereço completo é privado.
+  latitude         Float?
+  longitude        Float?
+  geocodedAt       DateTime?     @map("geocoded_at")
   lat              Float?
   lng              Float?
   coverPhotoId     String?       @map("cover_photo_id")

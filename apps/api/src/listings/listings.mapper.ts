@@ -216,7 +216,24 @@ function subtitle(listing: ListingWithDetails): string | undefined {
   return undefined;
 }
 
+// Ponto aproximado pro mapa: desloca a coordenada real até ~150 m, sempre
+// igual pro mesmo anúncio (vem do id) — o marcador não pula a cada busca e
+// ninguém chega na porta pelo mapa (o endereço completo é privado).
+export function approximatePoint(id: string, lat: number, lng: number): { lat: number; lng: number } {
+  let hash = 0;
+  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) | 0;
+  const angle = ((hash >>> 0) % 360) * (Math.PI / 180);
+  const distance = 60 + ((hash >>> 9) % 90); // metros
+  const dLat = (distance * Math.cos(angle)) / 111_320;
+  const dLng = (distance * Math.sin(angle)) / (111_320 * Math.cos((lat * Math.PI) / 180));
+  return { lat: Math.round((lat + dLat) * 1e5) / 1e5, lng: Math.round((lng + dLng) * 1e5) / 1e5 };
+}
+
 export function toListingSummary(listing: ListingWithDetails): ListingSummary {
+  const point =
+    listing.type === "property" && listing.latitude != null && listing.longitude != null
+      ? approximatePoint(listing.id, listing.latitude, listing.longitude)
+      : undefined;
   return {
     id: listing.id,
     assetType: listing.type,
@@ -229,6 +246,8 @@ export function toListingSummary(listing: ListingWithDetails): ListingSummary {
     sellerType: sellerType(listing),
     partnerSlug: listing.partner?.slug,
     partnerVerified: listing.partner ? Boolean(listing.partner.verifiedAt) : undefined,
+    price: Number(listing.price),
+    ...point,
   };
 }
 

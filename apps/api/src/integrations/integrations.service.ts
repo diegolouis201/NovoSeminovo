@@ -375,7 +375,11 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
       };
       details = { vehicleDetails: { update: { ...brandModel, ...fields } } };
     } else {
+      // Endereço mudou no CRM: o mapa precisa de coordenada nova (ver GeocodingService).
+      const current = await this.prisma.propertyDetails.findUnique({ where: { listingId }, select: { streetAddress: true } });
+      const regeocode = current?.streetAddress !== listingInput.streetAddress ? { geocodedAt: null, latitude: null, longitude: null } : {};
       details = {
+        ...regeocode,
         propertyDetails: {
           update: {
             propertyType: listingInput.propertyType,

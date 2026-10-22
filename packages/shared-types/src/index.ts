@@ -80,6 +80,11 @@ export const ListingSummarySchema = z.object({
   // ver Etapa 1). Nunca afirme "verificada" sem checar este campo.
   partnerSlug: z.string().optional(),
   partnerVerified: z.boolean().optional(),
+  // Busca com mapa (imóveis): preço em número pro marcador e ponto
+  // APROXIMADO (~150 m do endereço real, que é privado).
+  price: z.number().optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
 });
 export type ListingSummary = z.infer<typeof ListingSummarySchema>;
 

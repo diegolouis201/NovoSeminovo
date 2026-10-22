@@ -54,3 +54,69 @@ body {
   background: var(--surface-page);
   color: var(--ink);
 }
+
+/* Mapa da busca de imóveis (components/map/PropertyMap.tsx). As cores do
+   mapa são fixas (o fundo do mapa é sempre claro, mesmo no tema escuro). */
+.ns-pin {
+  background: transparent;
+  border: 0;
+}
+.ns-pin span {
+  display: inline-block;
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #20261b;
+  font: 700 12px/1 var(--font-body, system-ui, sans-serif);
+  padding: 6px 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+.ns-pin.ns-pin-active span,
+.ns-pin:hover span {
+  background: #006aa4;
+  color: #ffffff;
+}
+.ns-pin.ns-pin-active {
+  z-index: 1000 !important;
+}
+.ns-cluster {
+  background: transparent;
+  border: 0;
+}
+.ns-cluster span {
+  display: flex;
+  height: 44px;
+  width: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #20261b;
+  font: 700 14px/1 var(--font-body, system-ui, sans-serif);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+}
+.ns-popup {
+  display: flex;
+  flex-direction: column;
+  color: #20261b !important;
+  text-decoration: none;
+}
+.ns-popup-img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.ns-popup-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 6px;
+}
+.ns-popup-body strong {
+  font-size: 15px;
+}
+.ns-popup-body small {
+  color: #5b6152;
+}

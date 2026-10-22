@@ -32,6 +32,7 @@ import { NotificationsService } from "../notifications/notifications.service";
 import { VehiclesService } from "../vehicles/vehicles.service";
 import { FipeService } from "../vehicles/fipe.service";
 import { contactInfoMessage, findContactInfo } from "../common/contact-filter";
+import { GeocodingService } from "./geocoding.service";
 import { PaymentsService } from "../payments/payments.service";
 import { blurRegions, previewForVision } from "../common/plate-blur";
 import { getPhotoStorage, readPhotoBytes } from "../common/storage";
@@ -114,6 +115,8 @@ export type ListingSearchQuery = {
   purpose?: string;
   neighborhood?: string;
   limit?: string;
+  // Área do mapa: "oeste,sul,leste,norte" (graus). Só imóveis com coordenada.
+  bbox?: string;
   features?: string | string[];
   conditions?: string | string[];
   noAuction?: string;
@@ -162,6 +165,7 @@ export class ListingsService {
     private readonly fipe: FipeService,
     private readonly ai: AiService,
     private readonly payments: PaymentsService,
+    private readonly geocoding: GeocodingService,
   ) {}
 
   // ---------- Planos por anúncio (pessoa física) ----------
@@ -282,6 +286,13 @@ export class ListingsService {
         bodyType: toEnum(query.bodyType, VEHICLE_BODY_TYPE_VALUES),
       }),
     };
+
+    const box = query.bbox?.split(",").map(Number);
+    if (box?.length === 4 && box.every(Number.isFinite)) {
+      const [west, south, east, north] = box as [number, number, number, number];
+      where.latitude = { gte: south, lte: north };
+      where.longitude = { gte: west, lte: east };
+    }
 
     const listings = await this.prisma.listing.findMany({
       where,
@@ -917,6 +928,7 @@ export class ListingsService {
     if (linkedVehicleId) {
       await this.vehicles.logListingPublished(linkedVehicleId, ownerUserId, listing.title);
     }
+    if (listing.type === "property") this.geocoding.kick();
 
     return toMyListingSummary(listing);
   }

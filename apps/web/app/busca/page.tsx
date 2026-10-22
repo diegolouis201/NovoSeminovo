@@ -1,5 +1,6 @@
 import { ListingCard } from "@/components/ListingCard";
-import { fetchListings, fetchPopularBrands } from "@/lib/api";
+import { fetchListings, fetchPopularBrands, type SearchParams } from "@/lib/api";
+import { PropertyMapSearch } from "@/components/map/PropertyMapSearch";
 import { getFavoriteContext } from "@/lib/favorites";
 import { saveSearchAction } from "@/lib/actions/saved-searches";
 import { VEHICLE_BODY_TYPE_OPTIONS, VEHICLE_CONDITION_OPTIONS, VEHICLE_FEATURE_OPTIONS } from "@novoseminovo/shared-types";
@@ -20,6 +21,8 @@ type SearchPageProps = {
     fuelType?: string;
     mileageMax?: string;
     propertyType?: string;
+    purpose?: string;
+    neighborhood?: string;
     features?: string | string[];
     conditions?: string | string[];
     noAuction?: string;
@@ -43,6 +46,13 @@ const PROPERTY_TYPE_LABEL: Record<string, string> = {
   apartment: "Apartamentos",
   land: "Terrenos",
   commercial: "Comercial",
+  condo_house: "Casas em condomínio",
+  penthouse: "Coberturas",
+  studio: "Kitnets e studios",
+  store: "Lojas",
+  garage: "Garagens",
+  farm: "Imóveis rurais",
+  warehouse: "Galpões",
 };
 
 function toNumber(value: string | undefined): number | undefined {
@@ -72,7 +82,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       priceMin,
       priceMax,
       ...(isProperty
-        ? { bedroomsMin, propertyType: searchParams.propertyType }
+        ? {
+            bedroomsMin,
+            propertyType: searchParams.propertyType || undefined,
+            purpose: searchParams.purpose === "rent" || searchParams.purpose === "sale" ? searchParams.purpose : undefined,
+            neighborhood: searchParams.neighborhood || undefined,
+          }
         : {
             yearMin,
             yearMax,
@@ -90,18 +105,74 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     isProperty ? Promise.resolve([]) : fetchPopularBrands(),
   ]);
 
+  if (isProperty) {
+    const purpose = searchParams.purpose === "rent" ? "rent" : searchParams.purpose === "sale" ? "sale" : undefined;
+    const typeLabel = PROPERTY_TYPE_LABEL[searchParams.propertyType ?? ""] ?? "Imóveis";
+    const params: SearchParams = {
+      assetType: "property",
+      q: searchParams.q,
+      city: searchParams.city || undefined,
+      neighborhood: searchParams.neighborhood || undefined,
+      priceMin,
+      priceMax,
+      bedroomsMin,
+      propertyType: searchParams.propertyType || undefined,
+      purpose,
+    };
+    return (
+      <main className="mx-auto max-w-[1600px] px-4 py-6">
+        <h1 className="font-display text-2xl font-semibold text-ink">
+          {typeLabel} {purpose === "rent" ? "para alugar" : purpose === "sale" ? "à venda" : ""}
+          {searchParams.neighborhood ? ` no ${searchParams.neighborhood}` : ""}
+          {searchParams.city ? ` em ${searchParams.city}` : ""}
+        </h1>
+        {searchParams.buscaSalva && (
+          <p className="mt-3 rounded-brand bg-brand-green/10 px-4 py-3 text-sm font-semibold text-brand-green">
+            Busca salva! Encontre ela em{" "}
+            <a href="/conta/buscas-salvas" className="underline">
+              Minhas buscas salvas
+            </a>
+            .
+          </p>
+        )}
+        <form action="/busca" className="mt-4 flex flex-wrap items-end gap-2 rounded-brand border border-border bg-surface-raised p-3">
+          <input type="hidden" name="assetType" value="property" />
+          {searchParams.q && <input type="hidden" name="q" value={searchParams.q} />}
+          <BarSelect name="purpose" label="Negócio" defaultValue={purpose} options={[{ value: "sale", label: "Comprar" }, { value: "rent", label: "Alugar" }]} />
+          <BarSelect name="propertyType" label="Tipo" defaultValue={searchParams.propertyType} options={PROPERTY_TYPE_OPTIONS} />
+          <BarInput name="city" label="Cidade" placeholder="Belo Horizonte" defaultValue={searchParams.city} />
+          <BarInput name="neighborhood" label="Bairro" placeholder="Qualquer" defaultValue={searchParams.neighborhood} />
+          <BarInput name="priceMin" label="Preço mín." placeholder="R$" defaultValue={searchParams.priceMin} type="number" />
+          <BarInput name="priceMax" label="Preço máx." placeholder="R$" defaultValue={searchParams.priceMax} type="number" />
+          <BarSelect name="bedroomsMin" label="Quartos" defaultValue={searchParams.bedroomsMin} options={["1", "2", "3", "4"].map((n) => ({ value: n, label: `${n}+` }))} />
+          <button type="submit" className="rounded-brand bg-brand-green px-4 py-2 text-sm font-bold text-on-green hover:opacity-90">
+            Buscar
+          </button>
+          {isAuthenticated && (
+            <button type="submit" formAction={saveSearchAction} className="rounded-brand border border-border px-4 py-2 text-sm font-bold text-ink hover:bg-surface-sober">
+              Criar alerta
+            </button>
+          )}
+        </form>
+        <PropertyMapSearch
+          key={JSON.stringify(params)}
+          initialListings={results}
+          params={params}
+          isAuthenticated={isAuthenticated}
+          favoriteIds={[...favoriteIds]}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="font-display text-2xl font-semibold text-ink">
         {searchParams.brand
           ? `${searchParams.brand} — Carros`
-          : PROPERTY_TYPE_LABEL[searchParams.propertyType ?? ""]
-            ? `${PROPERTY_TYPE_LABEL[searchParams.propertyType ?? ""]}`
-            : assetType === "property"
-              ? "Imóveis"
-              : assetType === "vehicle"
-                ? "Carros"
-                : "Todos os anúncios"}
+          : assetType === "vehicle"
+            ? "Carros"
+            : "Todos os anúncios"}
         <span className="ml-2 text-base font-normal text-ink-muted">({results.length} resultados)</span>
       </h1>
 
@@ -341,5 +412,58 @@ function RangeGroup({
         />
       </div>
     </div>
+  );
+}
+
+function BarSelect({
+  name,
+  label,
+  options,
+  defaultValue,
+}: {
+  name: string;
+  label: string;
+  options: readonly { value: string; label: string }[];
+  defaultValue?: string;
+}) {
+  return (
+    <label className="flex flex-col gap-0.5 text-xs font-semibold text-ink-muted">
+      {label}
+      <select name={name} defaultValue={defaultValue ?? ""} className="rounded-brand border border-border bg-surface-page px-3 py-2 text-sm font-normal text-ink">
+        <option value="">Qualquer</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function BarInput({
+  name,
+  label,
+  placeholder,
+  defaultValue,
+  type = "text",
+}: {
+  name: string;
+  label: string;
+  placeholder: string;
+  defaultValue?: string;
+  type?: string;
+}) {
+  return (
+    <label className="flex flex-col gap-0.5 text-xs font-semibold text-ink-muted">
+      {label}
+      <input
+        name={name}
+        type={type}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        className="w-32 rounded-brand border border-border bg-surface-page px-3 py-2 text-sm font-normal text-ink placeholder:text-ink-muted"
+      />
+    </label>
   );
 }

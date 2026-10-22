@@ -140,6 +140,7 @@ export type SearchParams = {
   purpose?: "sale" | "rent";
   neighborhood?: string;
   limit?: number;
+  bbox?: string;
   // Lista separada por vírgula (ver VEHICLE_FEATURE_OPTIONS/VEHICLE_CONDITION_OPTIONS).
   features?: string;
   conditions?: string;
