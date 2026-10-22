@@ -47,15 +47,19 @@ export function CompanyCnpjFields({ cnpjName = "cnpj", typeName = "partnerType" 
     setLoading(true);
     const found = await cnpjLookupAction(value).catch(() => ({ ok: false as const, error: "Não conseguimos consultar o CNPJ agora." }));
     setLoading(false);
-    if (found.ok) setResult(found.value);
+    if (found.ok) {
+      setResult(found.value);
+      setManualType(found.value.detectedFromSecondary ? found.value.detectedType ?? "" : "");
+    }
     else {
       setError(found.error);
       setUnavailable(/consultar o CNPJ agora/i.test(found.error));
     }
   }
 
-  const needsManualType = unavailable || Boolean(result?.active && !result.detectedType);
-  const type = result?.detectedType ?? manualType;
+  const confirmSuggestion = Boolean(result?.active && result.detectedFromSecondary);
+  const needsManualType = unavailable || confirmSuggestion || Boolean(result?.active && !result.detectedType);
+  const type = result?.detectedType && !result.detectedFromSecondary ? result.detectedType : manualType;
   const sells = type ? (allowedAssetTypes(type).includes("property") ? "imóveis" : "veículos") : undefined;
 
   return (
@@ -113,7 +117,7 @@ export function CompanyCnpjFields({ cnpjName = "cnpj", typeName = "partnerType" 
               {result.city}/{result.state}
             </p>
           )}
-          {result.detectedLabel && (
+          {result.detectedLabel && !confirmSuggestion && (
             <p className="mt-1">
               Tipo de conta: <strong>{result.detectedLabel}</strong> — você vai anunciar {sells}.
             </p>
@@ -124,7 +128,11 @@ export function CompanyCnpjFields({ cnpjName = "cnpj", typeName = "partnerType" 
       {needsManualType && (
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-semibold text-ink">
-            {unavailable ? "Tipo de empresa" : "Não identificamos o ramo pelo CNPJ — qual é o tipo de empresa?"}
+            {unavailable
+              ? "Tipo de empresa"
+              : confirmSuggestion
+                ? "A atividade principal do CNPJ não é de imóveis nem de veículos. Confirme o tipo de empresa:"
+                : "Não identificamos o ramo pelo CNPJ — qual é o tipo de empresa?"}
           </span>
           <select value={manualType} onChange={(event) => setManualType(event.target.value)} required className={inputClass}>
             <option value="">Selecione</option>

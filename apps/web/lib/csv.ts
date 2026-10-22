@@ -1,8 +1,8 @@
 // Parser de CSV sem dependência externa (RFC4180: campos entre aspas podem
 // conter vírgula/quebra de linha, aspas duplicadas viram uma aspas literal).
-// Suficiente pro uso daqui (planilha simples de estoque) — não lida com
-// coisas como delimitador customizado ou BOM de outros encodings.
-function parseCsvRows(text: string): string[][] {
+// Separador "," ou ";" (o Excel em português salva com ponto e vírgula),
+// detectado pela linha de cabeçalho.
+function parseCsvRows(text: string, delimiter: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -37,7 +37,7 @@ function parseCsvRows(text: string): string[][] {
 
     if (char === '"') {
       inQuotes = true;
-    } else if (char === ",") {
+    } else if (char === delimiter) {
       pushField();
     } else if (char === "\r") {
       // ignora — \n (sozinho ou depois do \r) é quem fecha a linha
@@ -54,8 +54,11 @@ function parseCsvRows(text: string): string[][] {
 
 // Primeira linha é o cabeçalho; cada linha seguinte vira um registro
 // { nomeDaColuna: valor }, na ordem em que aparecem no arquivo.
-export function parseCsvRecords(text: string): Record<string, string>[] {
-  const rows = parseCsvRows(text);
+export function parseCsvRecords(raw: string): Record<string, string>[] {
+  const text = raw.replace(/^\uFEFF/, "");
+  const firstLine = text.slice(0, text.indexOf("\n") === -1 ? undefined : text.indexOf("\n"));
+  const delimiter = (firstLine.match(/;/g)?.length ?? 0) > (firstLine.match(/,/g)?.length ?? 0) ? ";" : ",";
+  const rows = parseCsvRows(text, delimiter);
   const headerRow = rows[0];
   if (!headerRow) return [];
 

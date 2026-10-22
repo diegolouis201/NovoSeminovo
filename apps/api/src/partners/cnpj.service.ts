@@ -48,14 +48,19 @@ function clean(value: unknown): string | undefined {
   return text ? text : undefined;
 }
 
-export function classifyCompany(company: Pick<RawCompany, "mainCnae" | "secondaryCnaes" | "individual">): { type: PartnerType; label: string } | undefined {
+// Atividade principal decide sozinha; se só uma secundária bate (ex.: fábrica
+// de esquadrias que também tem "compra e venda de imóveis próprios"), vira
+// sugestão que a pessoa confirma na tela (fromSecondary).
+export function classifyCompany(
+  company: Pick<RawCompany, "mainCnae" | "secondaryCnaes" | "individual">,
+): { type: PartnerType; label: string; fromSecondary: boolean } | undefined {
   for (const cnae of [company.mainCnae, ...company.secondaryCnaes]) {
     if (!cnae) continue;
     const rule = CNAE_RULES.find((candidate) => cnae.startsWith(candidate.prefix));
     if (!rule) continue;
     // Corretagem em nome próprio (MEI/empresário individual) é corretor(a).
     const type = rule.type === "real_estate_agency" && company.individual && cnae.startsWith("6821") ? "broker" : rule.type;
-    return { type, label: rule.label ?? PARTNER_TYPE_LABELS[type] ?? type };
+    return { type, label: rule.label ?? PARTNER_TYPE_LABELS[type] ?? type, fromSecondary: cnae !== company.mainCnae };
   }
   return undefined;
 }
@@ -96,6 +101,7 @@ export class CnpjService {
       activity: company.mainActivity,
       detectedType: detected?.type,
       detectedLabel: detected?.label,
+      detectedFromSecondary: detected?.fromSecondary || undefined,
       city: company.city,
       state: company.state,
       address: company.address,

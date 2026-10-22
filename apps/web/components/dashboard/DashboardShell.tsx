@@ -31,7 +31,7 @@ function partnerItems(partner: Partner): SidebarItem[] {
   return [
     { href: "/parceiro", label: "Visão geral", icon: "gauge" },
     { href: "/parceiro/anuncios", label: "Estoque", icon: partner.type === "dealership" ? "car" : "house" },
-    { href: "/parceiro/anuncios/importar", label: "Importar planilha", icon: "csv" },
+    { href: "/parceiro/anuncios/importar", label: "Anunciar em escala", icon: "csv" },
     { href: "/parceiro/leads", label: "Leads", icon: "chart" },
     { href: "/parceiro/vendas", label: "Vendas", icon: "card" },
     { href: "/conta/mensagens", label: "Chat", icon: "chat" },

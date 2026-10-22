@@ -55,7 +55,12 @@ const PROPERTY_TYPE_ALIASES: Record<
   galpão: "warehouse",
   condo_house: "condo_house",
   "casa em condominio": "condo_house",
-  "casa em condomínio": "condo_house",
+  "kitnet/studio": "studio",
+  "kitnet / studio": "studio",
+  sala: "commercial",
+  "sala comercial": "commercial",
+  rural: "farm",
+  fazenda: "farm",
   studio: "studio",
   kitnet: "studio",
   store: "store",
@@ -79,16 +84,37 @@ function normalize(value: string): string {
     .replace(/[̀-ͯ]/g, "");
 }
 
+// Nome de coluna sem acento, maiúscula, espaço, "_" ou "-": "Título",
+// "titulo" e "TITULO" são a mesma coluna.
+function columnKey(name: string): string {
+  return normalize(name).replace(/[\s_-]/g, "");
+}
+
+function cell(record: Record<string, string>, column: string): string | undefined {
+  const key = columnKey(column);
+  const found = Object.keys(record).find((name) => columnKey(name) === key);
+  return found === undefined ? undefined : record[found];
+}
+
 function requiredText(record: Record<string, string>, column: string): string | undefined {
-  const value = record[column]?.trim();
+  const value = cell(record, column)?.trim();
   return value ? value : undefined;
 }
 
-function optionalNumber(record: Record<string, string>, column: string): number | undefined {
-  const raw = record[column]?.trim();
-  if (!raw) return undefined;
-  const n = Number(raw.replace(",", "."));
+// Número no jeito brasileiro ou não: "R$ 420.000,00", "420.000", "420000",
+// "65,5" e "65.5" funcionam.
+export function parseNumberBR(raw: string): number | undefined {
+  let value = raw.replace(/r\$|\s/gi, "");
+  if (!value) return undefined;
+  if (value.includes(",")) value = value.replace(/\./g, "").replace(",", ".");
+  else if (/^\d{1,3}(\.\d{3})+$/.test(value)) value = value.replace(/\./g, "");
+  const n = Number(value);
   return Number.isFinite(n) ? n : undefined;
+}
+
+function optionalNumber(record: Record<string, string>, column: string): number | undefined {
+  const raw = cell(record, column)?.trim();
+  return raw ? parseNumberBR(raw) : undefined;
 }
 
 export type ListingCsvRowResult =
@@ -98,7 +124,7 @@ export type ListingCsvRowResult =
 // Uma linha por vez: erro numa linha não derruba as outras — cada CSV vira
 // uma lista de resultados independentes, igual criar os anúncios um a um.
 export function rowToListingInput(record: Record<string, string>): ListingCsvRowResult {
-  const assetTypeRaw = normalize(record.assetType ?? record.tipo ?? "");
+  const assetTypeRaw = normalize(cell(record, "assetType") ?? cell(record, "tipo") ?? "");
   const assetType = ASSET_TYPE_ALIASES[assetTypeRaw];
   if (!assetType) {
     return { ok: false, error: `Coluna "assetType"/"tipo" inválida ou vazia (use "vehicle"/"carro" ou "property"/"imovel")` };
@@ -130,8 +156,8 @@ export function rowToListingInput(record: Record<string, string>): ListingCsvRow
     const yearManufacture = optionalNumber(record, "yearManufacture") ?? optionalNumber(record, "anoFabricacao");
     const yearModel = optionalNumber(record, "yearModel") ?? optionalNumber(record, "anoModelo");
     const mileage = optionalNumber(record, "mileage") ?? optionalNumber(record, "km");
-    const transmission = TRANSMISSION_ALIASES[normalize(record.transmission ?? record.cambio ?? "")];
-    const fuelType = FUEL_ALIASES[normalize(record.fuelType ?? record.combustivel ?? "")];
+    const transmission = TRANSMISSION_ALIASES[normalize(cell(record, "transmission") ?? cell(record, "cambio") ?? "")];
+    const fuelType = FUEL_ALIASES[normalize(cell(record, "fuelType") ?? cell(record, "combustivel") ?? "")];
     const color = requiredText(record, "color") ?? requiredText(record, "cor");
 
     if (!brand || !model) return { ok: false, error: "Marca e modelo obrigatórios pra veículo" };
@@ -156,16 +182,18 @@ export function rowToListingInput(record: Record<string, string>): ListingCsvRow
         fuelType,
         color,
         doors: optionalNumber(record, "doors") ?? optionalNumber(record, "portas"),
+        plate: requiredText(record, "plate")?.toUpperCase().replace(/[^A-Z0-9]/g, "") ?? requiredText(record, "placa")?.toUpperCase().replace(/[^A-Z0-9]/g, ""),
+        videoUrl: requiredText(record, "videoUrl") ?? requiredText(record, "video"),
       },
     };
   }
 
-  const propertyType = PROPERTY_TYPE_ALIASES[normalize(record.propertyType ?? record.tipoImovel ?? "")];
-  const purpose = PURPOSE_ALIASES[normalize(record.purpose ?? record.finalidade ?? "")];
+  const propertyType = PROPERTY_TYPE_ALIASES[normalize(cell(record, "propertyType") ?? cell(record, "tipoImovel") ?? "")];
+  const purpose = PURPOSE_ALIASES[normalize(cell(record, "purpose") ?? cell(record, "finalidade") ?? "")];
   const areaM2 = optionalNumber(record, "areaM2") ?? optionalNumber(record, "area");
   const streetAddress = requiredText(record, "streetAddress") ?? requiredText(record, "endereco");
 
-  if (!propertyType) return { ok: false, error: "Tipo de imóvel inválido (casa, apartamento, terreno ou comercial)" };
+  if (!propertyType) return { ok: false, error: "Tipo de imóvel inválido (apartamento, casa, casa em condominio, cobertura, kitnet, comercial, loja, garagem, terreno, sitio ou galpao)" };
   if (!purpose) return { ok: false, error: 'Finalidade inválida (use "venda" ou "aluguel")' };
   if (!areaM2 || areaM2 <= 0) return { ok: false, error: "Área (m²) obrigatória e maior que zero" };
   if (!streetAddress) return { ok: false, error: "Endereço obrigatório pra imóvel" };
@@ -178,12 +206,14 @@ export function rowToListingInput(record: Record<string, string>): ListingCsvRow
       propertyType,
       purpose,
       bedrooms: optionalNumber(record, "bedrooms") ?? optionalNumber(record, "quartos"),
+      suites: optionalNumber(record, "suites"),
       bathrooms: optionalNumber(record, "bathrooms") ?? optionalNumber(record, "banheiros"),
       parkingSpots: optionalNumber(record, "parkingSpots") ?? optionalNumber(record, "vagas"),
       areaM2,
       condoFee: optionalNumber(record, "condoFee") ?? optionalNumber(record, "condominio"),
       iptu: optionalNumber(record, "iptu"),
       streetAddress,
+      videoUrl: requiredText(record, "videoUrl") ?? requiredText(record, "video"),
     },
   };
 }

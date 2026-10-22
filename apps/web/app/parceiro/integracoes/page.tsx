@@ -121,9 +121,10 @@ export default async function PartnerIntegrationsPage({
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
-
-      <h2 className="mt-6 font-display text-xl font-semibold text-ink">Integração com seu CRM</h2>
+      <Link href="/parceiro/anuncios/importar" className="text-sm font-semibold text-brand-blue hover:underline">
+        ← Anunciar em escala
+      </Link>
+      <h1 className="mt-2 font-display text-2xl font-semibold text-ink">Integração com seu CRM</h1>
       <p className="text-sm text-ink-muted">
         Conecte o sistema que você já usa e seus anúncios entram e se atualizam aqui sozinhos — sem cadastrar nada à
         mão. Mudou o preço ou as fotos no CRM? Atualiza aqui. Saiu do CRM? Pausa aqui. Voltou? Reativa.
@@ -195,7 +196,7 @@ export default async function PartnerIntegrationsPage({
             </form>
           </section>
 
-          <section className="mt-10">
+          <section id="api" className="mt-10 scroll-mt-6">
             <h3 className="font-display text-lg font-semibold text-ink">2. API em tempo real (para o seu CRM ou integrador)</h3>
             <p className="mt-1 text-sm text-ink-muted">
               Para atualização instantânea: seu sistema envia cada alteração na hora (novo anúncio, preço, vendido). Crie
@@ -239,8 +240,8 @@ export default async function PartnerIntegrationsPage({
             <h3 className="font-display text-lg font-semibold text-ink">3. Planilha</h3>
             <p className="mt-1 text-sm text-ink-muted">
               Sem CRM? Importe vários anúncios de uma vez por planilha em{" "}
-              <Link href="/parceiro/anuncios/importar" className="font-semibold text-brand-blue hover:underline">
-                Importar CSV
+              <Link href="/parceiro/anuncios/importar#planilha" className="font-semibold text-brand-blue hover:underline">
+                Anunciar em escala → Planilha
               </Link>
               .
             </p>

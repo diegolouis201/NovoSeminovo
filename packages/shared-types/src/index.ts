@@ -831,6 +831,8 @@ export const CnpjLookupSchema = z.object({
   detectedType: PartnerType.optional(),
   // "Concessionária", "Loja de veículos", "Imobiliária", "Construtora"…
   detectedLabel: z.string().optional(),
+  // Só uma atividade secundária bateu: é sugestão, a pessoa confirma o tipo.
+  detectedFromSecondary: z.boolean().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   address: z.string().optional(),

@@ -276,7 +276,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
     if (company && !company.active) {
       throw new BadRequestException(`Este CNPJ está com situação "${company.situation}" na Receita Federal — só aceitamos empresas ativas.`);
     }
-    const type = company?.detectedType ?? input.type;
+    const type = company?.detectedType && !company.detectedFromSecondary ? company.detectedType : input.type ?? company?.detectedType;
     if (!type) {
       throw new BadRequestException(
         company

@@ -446,7 +446,15 @@ export async function importListingsCsvAction(formData: FormData): Promise<void>
     redirect(`/parceiro/anuncios/importar?error=${encodeURIComponent("Selecione um arquivo CSV.")}`);
   }
 
-  const text = await file.text();
+  // Excel no Windows salva o CSV em Windows-1252 (acentos viram "�" se
+  // lidos como UTF-8) — tenta UTF-8 e, se não for, cai no do Windows.
+  const bytes = await file.arrayBuffer();
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    text = new TextDecoder("windows-1252").decode(bytes);
+  }
   const parsedRows = parseListingsCsv(text);
   if (parsedRows.length === 0) {
     redirect(`/parceiro/anuncios/importar?error=${encodeURIComponent("O CSV está vazio ou não tem linhas de dados.")}`);
