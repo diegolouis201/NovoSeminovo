@@ -1,4 +1,5 @@
 import type {
+  StartBoostResult,
   CreateLeadInput,
   UpdateLeadInput,
   UpdateSaleInput,
@@ -563,6 +564,39 @@ export function createPartnerLead(input: CreateLeadInput, accessToken: string): 
 
 export function updatePartnerLead(leadId: string, input: UpdateLeadInput, accessToken: string): Promise<ApiResult<LeadSummary>> {
   return sendJson(`/leads/${leadId}`, "PATCH", input, accessToken);
+}
+
+export function startListingBoost(listingId: string, tier: string, accessToken: string): Promise<ApiResult<StartBoostResult>> {
+  return sendJson(`/listings/${listingId}/boost`, "POST", { tier }, accessToken);
+}
+
+export async function confirmListingBoost(listingId: string, sessionId: string, accessToken: string): Promise<boolean> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listings/${listingId}/boost/confirm?session_id=${encodeURIComponent(sessionId)}`,
+      { headers: authHeaders(accessToken) },
+      10000,
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export type BoostPurchases = {
+  monthTotal: number;
+  monthCount: number;
+  recent: { id: string; listingId: string; listingTitle: string; tier: string; amount: number; paidAt: string }[];
+};
+
+export async function fetchBoostPurchases(accessToken: string): Promise<BoostPurchases | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/listings/admin/boosts`, { headers: authHeaders(accessToken) });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as BoostPurchases;
+  } catch {
+    return undefined;
+  }
 }
 
 export function updatePartnerSale(listingId: string, input: UpdateSaleInput, accessToken: string): Promise<ApiResult> {

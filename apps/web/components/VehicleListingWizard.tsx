@@ -24,8 +24,11 @@ import {
   VEHICLE_FEATURE_OPTIONS,
   VEHICLE_STEERING_OPTIONS,
   YOUTUBE_URL_REGEX,
+  LISTING_TIERS,
   formatBRL,
   isValidCpf,
+  listingTier,
+  type ListingTierId,
   type CreateListingInput,
   type FipeVersion,
 } from "@novoseminovo/shared-types";
@@ -35,6 +38,7 @@ import {
   fipePriceAction,
   fipeVersionsAction,
   generateVehicleTextAction,
+  startBoostAction,
   uploadWizardPhotosAction,
 } from "@/lib/actions/listings";
 import { FUEL_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
@@ -90,6 +94,7 @@ type Draft = {
   showPhone: boolean;
   acceptsTrade: boolean;
   phone: string;
+  planTier: ListingTierId;
 };
 
 const EMPTY: Draft = {
@@ -121,6 +126,7 @@ const EMPTY: Draft = {
   showPhone: true,
   acceptsTrade: false,
   phone: "",
+  planTier: "free",
 };
 
 type StepId =
@@ -138,6 +144,7 @@ type StepId =
   | "price"
   | "location"
   | "contact"
+  | "plan"
   | "review";
 
 const STEPS: StepId[] = [
@@ -155,6 +162,7 @@ const STEPS: StepId[] = [
   "price",
   "location",
   "contact",
+  "plan",
   "review",
 ];
 
@@ -224,6 +232,8 @@ export function VehicleListingWizard({
   needsCpf?: boolean;
 }) {
   const router = useRouter();
+  // Loja não escolhe plano por anúncio (o plano mensal dela já cobre).
+  const steps = useMemo(() => (isPartner ? STEPS.filter((id) => id !== "plan") : STEPS), [isPartner]);
   const [draft, setDraft] = useState<Draft>({ ...EMPTY, phone: profilePhone ? formatPhone(profilePhone) : "" });
   const [step, setStep] = useState(0);
   const [restored, setRestored] = useState(false);
@@ -238,7 +248,7 @@ export function VehicleListingWizard({
   const [cpf, setCpf] = useState("");
   const versionsKey = useRef("");
 
-  const current = STEPS[step]!;
+  const current = steps[step]!;
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
 
   // Rascunho salvo (menos as fotos, que não cabem no localStorage).
@@ -248,7 +258,7 @@ export function VehicleListingWizard({
       if (saved) {
         const parsed = JSON.parse(saved) as { draft: Draft; step: number };
         setDraft((d) => ({ ...d, ...parsed.draft, phone: parsed.draft.phone || d.phone }));
-        setStep(Math.min(parsed.step, STEPS.indexOf("photos")));
+        setStep(Math.min(parsed.step, steps.indexOf("photos")));
         setRestored(true);
       }
     } catch {
@@ -369,7 +379,7 @@ export function VehicleListingWizard({
       setShowTerms(true);
       return;
     }
-    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+    setStep((s) => Math.min(s + 1, steps.length - 1));
   }
 
   function back() {
@@ -482,8 +492,8 @@ export function VehicleListingWizard({
       setBusy(undefined);
       setError(created.error);
       // Erro de texto (ex.: telefone na descrição) volta pra tela da descrição.
-      if (/título|descrição/i.test(created.error)) setStep(STEPS.indexOf("description"));
-      else if (/CPF/i.test(created.error)) setStep(STEPS.indexOf("contact"));
+      if (/título|descrição/i.test(created.error)) setStep(steps.indexOf("description"));
+      else if (/CPF/i.test(created.error)) setStep(steps.indexOf("contact"));
       return;
     }
 
@@ -509,6 +519,20 @@ export function VehicleListingWizard({
     } catch {
       // ignora
     }
+    if (!isPartner && draft.planTier !== "free") {
+      setBusy("Abrindo o pagamento…");
+      const boost = await startBoostAction(listingId, draft.planTier).catch(() => ({ ok: false as const, error: "" }));
+      if (boost.ok && boost.value.url) {
+        window.location.assign(boost.value.url);
+        return;
+      }
+      router.push(
+        boost.ok
+          ? `/anuncio/${listingId}?publicado=1&pagamento=ok`
+          : `/anuncio/${listingId}/turbinar?erro=${encodeURIComponent(boost.error || "O anúncio foi publicado como Grátis — não foi possível abrir o pagamento agora.")}`,
+      );
+      return;
+    }
     router.push(`/anuncio/${listingId}?publicado=1`);
   }
 
@@ -531,7 +555,7 @@ export function VehicleListingWizard({
     option.label.toLowerCase().includes(featureQuery.trim().toLowerCase()),
   );
   const complete = VEHICLE_COMPLETE_FEATURES.every((value) => draft.features.includes(value));
-  const progress = Math.round((step / (STEPS.length - 1)) * 100);
+  const progress = Math.round((step / (steps.length - 1)) * 100);
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-xl flex-col px-4 pb-6 pt-4">
@@ -539,7 +563,7 @@ export function VehicleListingWizard({
         <button type="button" onClick={back} aria-label="Voltar" className="rounded-full p-2 text-ink hover:bg-surface-sober">
           <ArrowLeft size={24} weight="bold" />
         </button>
-        {restored && step < STEPS.indexOf("review") && (
+        {restored && step < steps.indexOf("review") && (
           <button type="button" onClick={restart} className="text-xs font-semibold text-ink-muted hover:underline">
             Começar do zero
           </button>
@@ -788,7 +812,12 @@ export function VehicleListingWizard({
         )}
 
         {current === "photos" && (
-          <Step title={`Adicione até ${MAX_PHOTOS} fotos`} hint="A primeira é a capa. Use as setas para mudar a ordem. A placa é borrada automaticamente antes de publicar.">
+          <Step
+            title={`Adicione até ${MAX_PHOTOS} fotos`}
+            hint={`A primeira é a capa. Use as setas para mudar a ordem. A placa é borrada automaticamente antes de publicar.${
+              isPartner ? "" : " O plano Grátis mostra 5 fotos; Flex 10, Turbo 15 e Nitro 20."
+            }`}
+          >
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {photos.map((photo, index) => (
                 <figure
@@ -837,7 +866,12 @@ export function VehicleListingWizard({
         )}
 
         {current === "video" && (
-          <Step title="Tem um vídeo do carro?" hint="Cole o link de um vídeo do YouTube — ele aparece junto com as fotos. É opcional (e grátis).">
+          <Step
+            title="Tem um vídeo do carro?"
+            hint={`Cole o link de um vídeo do YouTube — ele aparece junto com as fotos. É opcional.${
+              isPartner ? "" : " O vídeo aparece nos planos Flex, Turbo e Nitro."
+            }`}
+          >
             <Field label="Link do YouTube">
               <input value={draft.videoUrl} onChange={(event) => set({ videoUrl: event.target.value })} placeholder="https://www.youtube.com/watch?v=..." className={inputClass} />
             </Field>
@@ -1016,6 +1050,49 @@ export function VehicleListingWizard({
           </Step>
         )}
 
+        {current === "plan" && (
+          <Step title="Escolha seu plano" hint="Pagamento único, sem mensalidade. Em todos o anúncio fica no ar até vender.">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {LISTING_TIERS.map((tier) => {
+                const selected = draft.planTier === tier.id;
+                return (
+                  <button
+                    key={tier.id}
+                    type="button"
+                    onClick={() => set({ planTier: tier.id })}
+                    aria-pressed={selected}
+                    className={`relative flex flex-col gap-1 rounded-brand border-2 p-4 text-left ${
+                      selected ? "border-brand-green bg-brand-green/10" : "border-border bg-surface-raised hover:bg-surface-sober"
+                    }`}
+                  >
+                    {tier.id === "nitro" && (
+                      <span className="absolute -top-3 left-4 rounded-full bg-brand-purple px-2 py-0.5 text-[11px] font-bold text-on-purple">Recomendado</span>
+                    )}
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="font-display text-xl font-bold uppercase text-ink">{tier.name}</span>
+                      {selected && <Check size={22} weight="bold" className="text-brand-green" />}
+                    </span>
+                    <span className="text-2xl font-extrabold text-ink">{tier.price ? formatBRL(tier.price) : "R$ 0"}</span>
+                    <span className="text-xs text-ink-muted">{tier.price ? "pagamento único" : "sem custo"}</span>
+                    <ul className="mt-2 space-y-1 text-sm text-ink">
+                      <li>✓ {tier.position}</li>
+                      <li>✓ No ar até vender</li>
+                      <li>✓ Até {tier.photos} fotos</li>
+                      {tier.video && <li>✓ Vídeo do veículo</li>}
+                    </ul>
+                  </button>
+                );
+              })}
+            </div>
+            {photos.length > listingTier(draft.planTier).photos && (
+              <p className="mt-3 rounded-brand bg-brand-orange/10 px-3 py-2 text-sm text-ink">
+                Você adicionou {photos.length} fotos — o plano {listingTier(draft.planTier).name} mostra as{" "}
+                {listingTier(draft.planTier).photos} primeiras. Dá para turbinar depois e liberar as outras.
+              </p>
+            )}
+          </Step>
+        )}
+
         {current === "review" && (
           <Step title="Tudo pronto!" hint="Confira o resumo antes de publicar. Depois da aprovação, o anúncio aparece na busca.">
             <div className="mt-4 overflow-hidden rounded-brand border border-border bg-surface-raised">
@@ -1041,7 +1118,10 @@ export function VehicleListingWizard({
             </div>
             {!isPartner && (
               <p className="mt-4 rounded-brand bg-brand-green/10 px-4 py-3 text-sm text-ink">
-                <strong className="text-brand-green">Grátis até vender.</strong> Com até {MAX_PHOTOS} fotos e vídeo, sem plano e sem taxa.
+                <strong className="text-brand-green">Plano {listingTier(draft.planTier).name}</strong> —{" "}
+                {draft.planTier === "free"
+                  ? "grátis até vender, com até 5 fotos."
+                  : `${formatBRL(listingTier(draft.planTier).price)}, pagamento único: até ${listingTier(draft.planTier).photos} fotos, vídeo e ${listingTier(draft.planTier).position.toLowerCase()}. O pagamento abre depois de publicar.`}
               </p>
             )}
           </Step>
@@ -1066,7 +1146,13 @@ export function VehicleListingWizard({
             disabled={Boolean(busy)}
             className="flex items-center gap-2 rounded-full bg-brand-green px-6 py-3 text-base font-bold text-on-green hover:opacity-90 disabled:opacity-60"
           >
-            {current === "intro1" ? "Vamos começar" : current === "intro2" ? "Combinado, continuar" : current === "review" ? (isPartner ? "Publicar anúncio" : "Publicar anúncio grátis") : "Continuar"}
+            {current === "intro1" ? "Vamos começar" : current === "intro2" ? "Combinado, continuar" : current === "review"
+                    ? isPartner
+                      ? "Publicar anúncio"
+                      : draft.planTier === "free"
+                        ? "Publicar anúncio grátis"
+                        : `Publicar e pagar ${formatBRL(listingTier(draft.planTier).price)}`
+                    : "Continuar"}
             <ArrowRight size={18} weight="bold" />
           </button>
         </div>

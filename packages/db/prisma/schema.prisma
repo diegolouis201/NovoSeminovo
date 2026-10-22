@@ -291,6 +291,24 @@ model Plan {
   @@map("plans")
 }
 
+// Compra de plano de anúncio (pessoa física, pagamento único — ver
+// ListingsService.startBoost). status: pending → paid.
+model ListingBoostPurchase {
+  id              String    @id @default(cuid())
+  listingId       String    @map("listing_id")
+  listing         Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  userId          String    @map("user_id")
+  tier            String
+  amount          Decimal   @db.Decimal(10, 2)
+  stripeSessionId String?   @unique @map("stripe_session_id")
+  status          String    @default("pending")
+  paidAt          DateTime? @map("paid_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([status, paidAt])
+  @@map("listing_boost_purchases")
+}
+
 model Subscription {
   id                 String             @id @default(cuid())
   partnerId          String             @map("partner_id")
@@ -334,6 +352,11 @@ model Listing {
   // Escolhas do vendedor no cadastro em passo a passo: vídeo do YouTube,
   // mostrar ou não a simulação/contato de financiamento e o botão de WhatsApp.
   videoUrl         String?       @map("video_url")
+  // Plano do anúncio de pessoa física (ver LISTING_TIERS no shared-types):
+  // "free" | "flex" | "turbo" | "nitro". tierRank é o número usado na
+  // ordenação da busca (nitro=3 no topo). Só muda depois do pagamento.
+  planTier         String        @default("free") @map("plan_tier")
+  tierRank         Int           @default(0) @map("tier_rank")
   financingEnabled Boolean       @default(true) @map("financing_enabled")
   showPhone        Boolean       @default(true) @map("show_phone")
   expiresAt        DateTime?     @map("expires_at")
@@ -365,6 +388,7 @@ model Listing {
   vehicleDetails VehicleDetails?
   propertyDetails PropertyDetails?
   photos         Photo[]
+  boostPurchases ListingBoostPurchase[]
   favorites      Favorite[]
   conversations  Conversation[]
   leads          Lead[]

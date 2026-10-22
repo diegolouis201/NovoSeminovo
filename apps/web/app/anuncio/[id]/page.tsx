@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { listingTier } from "@novoseminovo/shared-types";
 import { cache } from "react";
 import { Bank, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
@@ -11,7 +12,7 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
 import { PhotoCarousel } from "@/components/PhotoCarousel";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
-import { fetchListing, resolveMediaUrl } from "@/lib/api";
+import { confirmListingBoost, fetchListing, resolveMediaUrl } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
 import { startConversationAction } from "@/lib/actions/conversations";
 
@@ -62,11 +63,25 @@ export default async function ListingDetailPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { erroConversa?: string; denunciaEnviada?: string; avaliacaoEnviada?: string; publicado?: string };
+  searchParams: {
+    erroConversa?: string;
+    denunciaEnviada?: string;
+    avaliacaoEnviada?: string;
+    publicado?: string;
+    pagamento?: string;
+    session_id?: string;
+  };
 }) {
   // Precisa vir antes do fetchListing: sem o accessToken, o dono não vê o
   // próprio anúncio pendente de moderação (a API só libera pra dono/admin).
   const session = await auth();
+
+  // Voltou do checkout do plano do anúncio: confirma no Stripe e recarrega
+  // numa URL limpa (sem session_id, pra não confirmar de novo no F5).
+  if (searchParams.pagamento === "ok" && searchParams.session_id && session?.accessToken) {
+    const confirmed = await confirmListingBoost(params.id, searchParams.session_id, session.accessToken);
+    redirect(`/anuncio/${params.id}?pagamento=${confirmed ? "confirmado" : "pendente"}`);
+  }
   const [listing, { isAuthenticated, favoriteIds }] = await Promise.all([
     loadListing(params.id),
     getFavoriteContext(),
@@ -97,6 +112,24 @@ export default async function ListingDetailPage({
       {isOwnListing && listing.status === "sold" && (
         <p className="mb-6 rounded-brand bg-brand-blue/10 px-4 py-3 text-sm font-semibold text-brand-blue">
           Este anúncio foi marcado como vendido e não aparece mais na busca.
+        </p>
+      )}
+      {(searchParams.pagamento === "confirmado" || (searchParams.pagamento === "ok" && !searchParams.session_id)) && (
+        <p className="mb-6 rounded-brand bg-brand-green/10 px-4 py-3 text-sm font-semibold text-brand-green">
+          Pagamento confirmado — seu anúncio agora é {listingTier(listing.planTier).name}.
+        </p>
+      )}
+      {searchParams.pagamento === "pendente" && (
+        <p className="mb-6 rounded-brand bg-brand-orange/10 px-4 py-3 text-sm font-semibold text-brand-orange">
+          Ainda não recebemos a confirmação do pagamento. Recarregue em alguns segundos.
+        </p>
+      )}
+      {searchParams.pagamento === "cancelado" && (
+        <p className="mb-6 rounded-brand bg-surface-sober px-4 py-3 text-sm text-ink-muted">
+          Pagamento não concluído — o anúncio segue no plano {listingTier(listing.planTier).name}.{" "}
+          <Link href={`/anuncio/${listing.id}/turbinar`} className="font-semibold text-brand-blue hover:underline">
+            Tentar de novo
+          </Link>
         </p>
       )}
       {searchParams.denunciaEnviada && (
@@ -133,6 +166,21 @@ export default async function ListingDetailPage({
                 allowFullScreen
                 className="h-full w-full"
               />
+            </div>
+          )}
+          {isOwnListing && !listing.isPartnerListing && listing.status !== "sold" && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-brand border border-border bg-surface-raised px-4 py-3 text-sm">
+              <span className="text-ink">
+                Plano do anúncio: <strong>{listingTier(listing.planTier).name}</strong>
+                {listing.hiddenPhotosCount
+                  ? ` · ${listing.hiddenPhotosCount} foto(s) suas não aparecem neste plano`
+                  : ""}
+              </span>
+              {listing.planTier !== "nitro" && (
+                <Link href={`/anuncio/${listing.id}/turbinar`} className="rounded-brand bg-brand-green px-3 py-1.5 font-bold text-on-green">
+                  Turbinar anúncio
+                </Link>
+              )}
             </div>
           )}
           {isOwnListing && (

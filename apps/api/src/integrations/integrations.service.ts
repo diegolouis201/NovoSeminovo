@@ -332,6 +332,7 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
         state: listingInput.state,
         neighborhood: listingInput.neighborhood,
         status,
+        tierRank: 1,
         publishedAt: status === "active" ? new Date() : undefined,
         externalSource: source,
         externalId,

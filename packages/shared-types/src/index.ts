@@ -206,6 +206,30 @@ export const ListingStatus = z.enum([
 ]);
 export type ListingStatus = z.infer<typeof ListingStatus>;
 
+// Planos por anúncio da pessoa física (decisão do Diego, out/2026): pagamento
+// único, o anúncio fica no ar até vender em todos. Mais fotos e vídeo
+// aparecem no anúncio conforme o plano; rank é a ordem na busca (destaque
+// pago da loja vem antes de tudo). Loja/imobiliária não usa: o plano mensal
+// dela já inclui 20 fotos, vídeo e posição básica (rank 1).
+export const LISTING_TIERS = [
+  { id: "free", name: "Grátis", price: 0, photos: 5, video: false, rank: 0, position: "Sem destaque na busca" },
+  { id: "flex", name: "Flex", price: 39.9, photos: 10, video: true, rank: 1, position: "Posição básica na busca" },
+  { id: "turbo", name: "Turbo", price: 69.9, photos: 15, video: true, rank: 2, position: "Posição intermediária na busca" },
+  { id: "nitro", name: "Nitro", price: 129.9, photos: 20, video: true, rank: 3, position: "Topo da busca" },
+] as const;
+export type ListingTierId = (typeof LISTING_TIERS)[number]["id"];
+export const ListingTierIdSchema = z.enum(["free", "flex", "turbo", "nitro"]);
+export const PARTNER_LISTING_TIER = { photos: 20, video: true, rank: 1 } as const;
+
+export function listingTier(id: string | undefined) {
+  return LISTING_TIERS.find((tier) => tier.id === id) ?? LISTING_TIERS[0];
+}
+
+export const StartBoostInputSchema = z.object({ tier: z.enum(["flex", "turbo", "nitro"]) });
+export type StartBoostInput = z.infer<typeof StartBoostInputSchema>;
+export const StartBoostResultSchema = z.object({ url: z.string().optional(), applied: z.boolean() });
+export type StartBoostResult = z.infer<typeof StartBoostResultSchema>;
+
 export const ListingDetailSchema = ListingSummarySchema.extend({
   description: z.string(),
   specs: z.array(SpecItemSchema),
@@ -238,12 +262,18 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
   // a simulação/contato de financiamento no anúncio.
   youtubeVideoId: z.string().optional(),
   financingEnabled: z.boolean(),
+  // Plano do anúncio (pessoa física) e, só pro dono, quantas fotos ele subiu
+  // a mais do que o plano mostra — pra oferecer "turbinar".
+  planTier: ListingTierIdSchema,
+  isPartnerListing: z.boolean(),
+  hiddenPhotosCount: z.number().int().optional(),
 });
 export type ListingDetail = z.infer<typeof ListingDetailSchema>;
 
 // "Meus anúncios" precisa do status (a busca pública, não — só mostra ativos).
 export const MyListingSummarySchema = ListingSummarySchema.extend({
   status: ListingStatus,
+  planTier: ListingTierIdSchema.optional(),
 });
 export type MyListingSummary = z.infer<typeof MyListingSummarySchema>;
 
@@ -831,6 +861,7 @@ export type SaleSummary = z.infer<typeof SaleSummarySchema>;
 // saem do ar (pausados, nunca apagados) até assinar. Pessoa física (sem loja
 // cadastrada) e oficina não pagam.
 export const PARTNER_TRIAL_DAYS = 90;
+
 
 // O que cada tipo de conta pode anunciar (decisão do Diego): loja de carros
 // só carro, imobiliária e corretor só imóvel. Pessoa física (sem loja) anuncia

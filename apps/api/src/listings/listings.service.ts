@@ -4,6 +4,9 @@ import {
   VEHICLE_BODY_TYPE_OPTIONS,
   VEHICLE_CONDITION_OPTIONS,
   allowedAssetTypes,
+  listingTier,
+  PARTNER_LISTING_TIER,
+  type StartBoostResult,
   assetTypeNotAllowedMessage,
   VEHICLE_FEATURE_OPTIONS,
   formatBRL,
@@ -29,6 +32,7 @@ import { NotificationsService } from "../notifications/notifications.service";
 import { VehiclesService } from "../vehicles/vehicles.service";
 import { FipeService } from "../vehicles/fipe.service";
 import { contactInfoMessage, findContactInfo } from "../common/contact-filter";
+import { PaymentsService } from "../payments/payments.service";
 import { blurRegions, previewForVision } from "../common/plate-blur";
 import { getPhotoStorage, readPhotoBytes } from "../common/storage";
 import {
@@ -154,7 +158,100 @@ export class ListingsService {
     private readonly vehicles: VehiclesService,
     private readonly fipe: FipeService,
     private readonly ai: AiService,
+    private readonly payments: PaymentsService,
   ) {}
+
+  // ---------- Planos por anúncio (pessoa física) ----------
+
+  // "Turbinar" (no cadastro ou depois): cria a compra pendente e devolve o
+  // checkout do Stripe; sem Stripe configurado, aplica na hora (simulação,
+  // igual às assinaturas).
+  async startBoost(listingId: string, userId: string, tierId: string): Promise<StartBoostResult> {
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId }, include: { owner: { select: { email: true } } } });
+    if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
+    if (listing.ownerUserId !== userId) throw new ForbiddenException("Você só pode turbinar os seus próprios anúncios.");
+    if (listing.partnerId) throw new BadRequestException("Anúncio de loja já tem os benefícios do plano mensal da loja.");
+    if (listing.status === "sold" || listing.status === "rejected") throw new BadRequestException("Este anúncio não pode mais ser turbinado.");
+    const tier = listingTier(tierId);
+    if (tier.price <= 0) throw new BadRequestException("Escolha Flex, Turbo ou Nitro.");
+    if (tier.rank <= listingTier(listing.planTier).rank) throw new BadRequestException(`O anúncio já está no plano ${listingTier(listing.planTier).name} ou superior.`);
+
+    const purchase = await this.prisma.listingBoostPurchase.create({
+      data: { listingId, userId, tier: tier.id, amount: tier.price },
+    });
+    if (!this.payments.isEnabled()) {
+      await this.applyBoost(purchase.id);
+      return { applied: true };
+    }
+    const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
+    const { url, sessionId } = await this.payments.createListingBoostCheckout({
+      purchaseId: purchase.id,
+      listingId,
+      tierName: tier.name,
+      amount: tier.price,
+      email: listing.owner.email,
+      successUrl: `${webOrigin}/anuncio/${listingId}?pagamento=ok&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${webOrigin}/anuncio/${listingId}?pagamento=cancelado`,
+    });
+    await this.prisma.listingBoostPurchase.update({ where: { id: purchase.id }, data: { stripeSessionId: sessionId } });
+    return { url, applied: false };
+  }
+
+  async confirmBoost(listingId: string, userId: string, sessionId: string): Promise<{ tier: string }> {
+    const purchaseId = await this.payments.confirmListingBoostSession(sessionId);
+    const purchase = purchaseId ? await this.prisma.listingBoostPurchase.findUnique({ where: { id: purchaseId } }) : null;
+    if (!purchase || purchase.listingId !== listingId || purchase.userId !== userId) {
+      throw new BadRequestException("Pagamento não encontrado ou ainda não confirmado pelo Stripe.");
+    }
+    await this.applyBoost(purchase.id);
+    return { tier: purchase.tier };
+  }
+
+  // Admin (/admin/assinaturas): planos de anúncio pagos por pessoa física.
+  async listBoostPurchases() {
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const [recent, month] = await Promise.all([
+      this.prisma.listingBoostPurchase.findMany({
+        where: { status: "paid" },
+        include: { listing: { select: { title: true } } },
+        orderBy: { paidAt: "desc" },
+        take: 30,
+      }),
+      this.prisma.listingBoostPurchase.aggregate({
+        where: { status: "paid", paidAt: { gte: monthStart } },
+        _sum: { amount: true },
+        _count: true,
+      }),
+    ]);
+    return {
+      monthTotal: Number(month._sum.amount ?? 0),
+      monthCount: month._count,
+      recent: recent.map((purchase) => ({
+        id: purchase.id,
+        listingId: purchase.listingId,
+        listingTitle: purchase.listing.title,
+        tier: listingTier(purchase.tier).name,
+        amount: Number(purchase.amount),
+        paidAt: (purchase.paidAt ?? purchase.createdAt).toISOString(),
+      })),
+    };
+  }
+
+  // Idempotente: o retorno do checkout e o webhook podem chegar os dois.
+  // Nunca rebaixa (comprou Turbo depois de Nitro? fica Nitro).
+  async applyBoost(purchaseId: string): Promise<void> {
+    const purchase = await this.prisma.listingBoostPurchase.findUnique({ where: { id: purchaseId }, include: { listing: true } });
+    if (!purchase || purchase.status === "paid") return;
+    const tier = listingTier(purchase.tier);
+    await this.prisma.$transaction([
+      this.prisma.listingBoostPurchase.update({ where: { id: purchaseId }, data: { status: "paid", paidAt: new Date() } }),
+      ...(tier.rank > listingTier(purchase.listing.planTier).rank
+        ? [this.prisma.listing.update({ where: { id: purchase.listingId }, data: { planTier: tier.id, tierRank: tier.rank } })]
+        : []),
+    ]);
+  }
 
   async search(query: ListingSearchQuery): Promise<ListingSummary[]> {
     const assetType = query.assetType === "vehicle" || query.assetType === "property" ? query.assetType : undefined;
@@ -184,7 +281,9 @@ export class ListingsService {
     const listings = await this.prisma.listing.findMany({
       where,
       include: listingInclude,
-      orderBy: [{ highlightedUntil: "desc" }, { publishedAt: "desc" }],
+      // Destaque pago (crédito da loja) primeiro, depois o plano do anúncio
+      // (Nitro → Turbo → Flex/loja → Grátis), depois os mais novos.
+      orderBy: [{ highlightedUntil: { sort: "desc", nulls: "last" } }, { tierRank: "desc" }, { publishedAt: "desc" }],
       take: 60,
     });
 
@@ -518,7 +617,7 @@ export class ListingsService {
     }
 
     const reviewStatus = await this.getReviewStatus(listing.id, listing.ownerUserId, viewer?.id);
-    return toListingDetail(listing, reviewStatus);
+    return toListingDetail(listing, reviewStatus, isOwner || isAdmin);
   }
 
   // "can_review" exige ter conversado sobre o anúncio — sem isso, qualquer
@@ -801,6 +900,7 @@ export class ListingsService {
         // Vai para a fila do painel do admin — só fica visível na busca
         // depois de aprovado (ver AdminModule), quando publishedAt é definido.
         status: "pending_review",
+        tierRank: partner ? PARTNER_LISTING_TIER.rank : 0,
         ...(input.assetType === "vehicle"
           ? {
               videoUrl: input.videoUrl?.trim() || undefined,

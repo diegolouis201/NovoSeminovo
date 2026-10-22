@@ -33,6 +33,8 @@ const LISTINGS: ListingDetail[] = [
       { label: "FIPE", value: formatBRL(96200) + " (anúncio abaixo da FIPE)" },
     ],
     financingEnabled: true,
+    planTier: "free",
+    isPartnerListing: false,
     financing: {
       price: formatBRL(94500),
       priceValue: 94500,
@@ -66,6 +68,8 @@ const LISTINGS: ListingDetail[] = [
       { label: "IPTU", value: formatBRL(95) + "/mês" },
     ],
     financingEnabled: true,
+    planTier: "free",
+    isPartnerListing: false,
     financing: {
       price: formatBRL(520000),
       priceValue: 520000,
@@ -95,6 +99,8 @@ const LISTINGS: ListingDetail[] = [
       { label: "Quilometragem", value: "58.000 km" },
     ],
     financingEnabled: true,
+    planTier: "free",
+    isPartnerListing: false,
     financing: {
       price: formatBRL(112900),
       priceValue: 112900,
@@ -122,6 +128,8 @@ const LISTINGS: ListingDetail[] = [
       { label: "Vagas", value: "2" },
     ],
     financingEnabled: true,
+    planTier: "free",
+    isPartnerListing: false,
     financing: {
       price: formatBRL(780000),
       priceValue: 780000,

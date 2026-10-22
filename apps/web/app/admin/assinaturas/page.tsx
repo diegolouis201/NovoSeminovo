@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { PARTNER_TRIAL_DAYS, type SubscriptionBoardCard } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { SubscriptionBoard } from "@/components/SubscriptionBoard";
-import { fetchSubscriptionBoard } from "@/lib/api";
+import { fetchBoostPurchases, fetchSubscriptionBoard } from "@/lib/api";
 
 function brl(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -67,7 +67,7 @@ export default async function AdminSubscriptionsPage() {
     );
   }
 
-  const cards = await fetchSubscriptionBoard(session.accessToken);
+  const [cards, boosts] = await Promise.all([fetchSubscriptionBoard(session.accessToken), fetchBoostPurchases(session.accessToken)]);
   const stats = cards ? summarize(cards) : undefined;
 
   return (
@@ -123,6 +123,33 @@ export default async function AdminSubscriptionsPage() {
             faltam. A loja recebe aviso 7 dias antes do fim.
           </p>
         </>
+      )}
+
+      {boosts && (
+        <section className="mt-10">
+          <h2 className="font-display text-xl font-semibold text-ink">Planos de anúncio — pessoa física</h2>
+          <p className="text-sm text-ink-muted">
+            Flex, Turbo e Nitro (pagamento único). Este mês: <strong className="text-ink">{boosts.monthCount}</strong>{" "}
+            venda(s), <strong className="text-ink">{brl(boosts.monthTotal)}</strong>.
+          </p>
+          {boosts.recent.length === 0 ? (
+            <p className="mt-3 text-sm text-ink-muted">Nenhum plano de anúncio pago ainda.</p>
+          ) : (
+            <ul className="mt-3 divide-y divide-border rounded-brand border border-border bg-surface-raised">
+              {boosts.recent.map((purchase) => (
+                <li key={purchase.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
+                  <Link href={`/anuncio/${purchase.listingId}`} className="min-w-0 truncate font-semibold text-ink hover:underline">
+                    {purchase.listingTitle}
+                  </Link>
+                  <span className="text-ink-muted">
+                    {purchase.tier} · <strong className="text-ink">{brl(purchase.amount)}</strong> ·{" "}
+                    {new Date(purchase.paidAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
     </main>
   );

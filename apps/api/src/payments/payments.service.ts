@@ -149,6 +149,53 @@ export class PaymentsService {
     }
   }
 
+  // Plano de anúncio de pessoa física (pagamento único, sem catálogo no
+  // Stripe — o preço vai inline). metadata.kind diferencia do checkout de
+  // assinatura no webhook.
+  async createListingBoostCheckout(params: {
+    purchaseId: string;
+    listingId: string;
+    tierName: string;
+    amount: number;
+    email?: string;
+    successUrl: string;
+    cancelUrl: string;
+  }): Promise<{ url: string; sessionId: string }> {
+    try {
+      const session = await this.getClient().checkout.sessions.create({
+        mode: "payment",
+        customer_email: params.email,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "brl",
+              unit_amount: Math.round(params.amount * 100),
+              product_data: { name: `NovoSeminovo — Anúncio ${params.tierName}` },
+            },
+          },
+        ],
+        success_url: params.successUrl,
+        cancel_url: params.cancelUrl,
+        metadata: { kind: "listing_boost", purchaseId: params.purchaseId, listingId: params.listingId },
+      });
+      if (!session.url) throw new Error("Stripe não devolveu uma URL de checkout");
+      return { url: session.url, sessionId: session.id };
+    } catch (error) {
+      this.logger.error(`Falha ao criar checkout do anúncio ${params.listingId}: ${error}`);
+      throw new ServiceUnavailableException("Não foi possível abrir o pagamento agora. Tente novamente em instantes.");
+    }
+  }
+
+  // Volta do checkout: confirma direto no Stripe (o redirecionamento do
+  // navegador sozinho pode ser forjado).
+  async confirmListingBoostSession(sessionId: string): Promise<string | undefined> {
+    const session = await this.getClient().checkout.sessions.retrieve(sessionId);
+    if (session.status !== "complete" || session.payment_status !== "paid") return undefined;
+    if (session.metadata?.kind !== "listing_boost") return undefined;
+    return session.metadata.purchaseId;
+  }
+
   // Portal do cliente do Stripe: a loja troca o cartão, vê as faturas e
   // cancela por lá. Precisa estar ativado no dashboard (Configurações →
   // Billing → Customer portal), senão o Stripe recusa a sessão.

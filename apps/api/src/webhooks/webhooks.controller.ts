@@ -2,6 +2,7 @@ import { BadRequestException, Controller, Headers, Logger, Post, RawBodyRequest,
 import type { Request } from "express";
 import { PartnersService } from "../partners/partners.service";
 import { PaymentsService } from "../payments/payments.service";
+import { ListingsService } from "../listings/listings.service";
 
 // Sem guard — quem garante que a chamada é legítima é a assinatura do
 // Stripe (Stripe-Signature), verificada aqui antes de confiar em qualquer
@@ -15,6 +16,7 @@ export class WebhooksController {
   constructor(
     private readonly payments: PaymentsService,
     private readonly partners: PartnersService,
+    private readonly listings: ListingsService,
   ) {}
 
   @Post("stripe")
@@ -31,6 +33,11 @@ export class WebhooksController {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object;
+        // Plano de anúncio de pessoa física (pagamento único).
+        if (session.metadata?.kind === "listing_boost" && session.metadata.purchaseId) {
+          if (session.payment_status === "paid") await this.listings.applyBoost(session.metadata.purchaseId);
+          break;
+        }
         const partnerId = session.metadata?.partnerId;
         const planId = session.metadata?.planId;
         const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;

@@ -38,7 +38,7 @@ const GROUPS: { title: string; items: Faq[] }[] = [
     items: [
       {
         q: "Quanto custa anunciar?",
-        a: "Pessoa física anuncia sem custo. Lojas de veículos, imobiliárias e corretores têm 3 meses grátis, sem limite de anúncios, a partir do cadastro; depois, para continuar no ar, é preciso um plano mensal do painel do parceiro.",
+        a: "Pessoa física anuncia grátis até vender, com até 5 fotos. Para aparecer mais na busca e mostrar mais fotos e vídeo, há os planos Flex (R$ 39,90), Turbo (R$ 69,90) e Nitro (R$ 129,90), com pagamento único por anúncio. Lojas de veículos, imobiliárias e corretores têm 3 meses grátis, sem limite de anúncios, a partir do cadastro; depois, para continuar no ar, é preciso um plano mensal do painel do parceiro.",
       },
       {
         q: "Por que meu anúncio está “em análise”?",

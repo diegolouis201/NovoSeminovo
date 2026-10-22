@@ -626,6 +626,8 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
     // Planos antigos (Básico/Profissional de antes) ficam pras imobiliárias
     // até o Diego definir os delas.
     await this.prisma.plan.updateMany({ where: { audience: null }, data: { audience: "property" } });
+    // Anúncio de loja tem posição "básica" na busca (acima do Grátis da PF).
+    await this.prisma.listing.updateMany({ where: { partnerId: { not: null }, tierRank: 0 }, data: { tierRank: 1 } });
     for (const item of VEHICLE_PLAN_CATALOG) {
       const existing = await this.prisma.plan.findFirst({ where: { audience: "vehicle", name: item.name } });
       if (!existing) {

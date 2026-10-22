@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { Car, House } from "@phosphor-icons/react/dist/ssr";
-import { allowedAssetTypes } from "@novoseminovo/shared-types";
+import { allowedAssetTypes, listingTier } from "@novoseminovo/shared-types";
 import { fetchMyListings, fetchMyPartner } from "@/lib/api";
 import { updateListingStatusAction } from "@/lib/actions/listings";
 
@@ -84,7 +84,19 @@ export default async function MyListingsPage() {
                   <p className="text-sm text-ink-muted">
                     {listing.priceLabel} · {listing.location}
                   </p>
-                  <p className={`text-xs font-bold ${status.tone}`}>{status.label}</p>
+                  <p className={`text-xs font-bold ${status.tone}`}>
+                    {status.label}
+                    {listing.planTier && (
+                      <span className="ml-2 rounded-full bg-surface-sober px-2 py-0.5 font-semibold text-ink">
+                        Plano {listingTier(listing.planTier).name}
+                      </span>
+                    )}
+                  </p>
+                  {listing.planTier && listing.planTier !== "nitro" && listing.status !== "sold" && (
+                    <Link href={`/anuncio/${listing.id}/turbinar`} className="text-xs font-bold text-brand-green hover:underline">
+                      Turbinar anúncio →
+                    </Link>
+                  )}
                 </div>
 
                 {canToggle && (

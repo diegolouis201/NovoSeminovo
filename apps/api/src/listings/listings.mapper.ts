@@ -1,5 +1,7 @@
 import { Prisma, type FuelType, type PropertyType, type Transmission } from "@novoseminovo/db";
 import {
+  PARTNER_LISTING_TIER,
+  listingTier,
   VEHICLE_BODY_TYPE_OPTIONS,
   VEHICLE_STEERING_OPTIONS,
   youtubeVideoId,
@@ -218,7 +220,11 @@ export function toListingSummary(listing: ListingWithDetails): ListingSummary {
 }
 
 export function toMyListingSummary(listing: ListingWithDetails): MyListingSummary {
-  return { ...toListingSummary(listing), status: listing.status };
+  return {
+    ...toListingSummary(listing),
+    status: listing.status,
+    planTier: listing.partnerId ? undefined : listingTier(listing.planTier).id,
+  };
 }
 
 function specs(listing: ListingWithDetails): SpecItem[] {
@@ -317,10 +323,22 @@ export function principalFromInstallment(installment: number, monthlyRate: numbe
   return (installment * (factor - 1)) / (monthlyRate * factor);
 }
 
+// O que o plano do anúncio libera (fotos/vídeo/posição). Anúncio de loja
+// sempre tem o pacote do plano mensal (ver PARTNER_LISTING_TIER).
+export function listingBenefits(listing: { partnerId: string | null; planTier: string }) {
+  return listing.partnerId ? PARTNER_LISTING_TIER : listingTier(listing.planTier);
+}
+
 export function toListingDetail(
   listing: ListingWithDetails,
   reviewStatus: ListingDetail["reviewStatus"],
+  // Dono/admin vê todas as fotos (e quantas o plano esconde); o público vê
+  // só as que o plano libera.
+  fullView = false,
 ): ListingDetail {
+  const benefits = listingBenefits(listing);
+  const visiblePhotos = fullView ? listing.photos : listing.photos.slice(0, benefits.photos);
+  const hiddenPhotosCount = Math.max(0, listing.photos.length - benefits.photos);
   const price = Number(listing.price);
   const rateInfo = DEFAULT_RATE[listing.type];
   const downPaymentPct = rateInfo.defaultDownPaymentPct;
@@ -336,9 +354,12 @@ export function toListingDetail(
     // O vendedor pode esconder o WhatsApp no cadastro — aí só o chat fica.
     sellerPhone: listing.showPhone ? listing.owner.phone ?? undefined : undefined,
     reviewStatus,
-    photos: listing.photos.map((photo) => ({ id: photo.id, url: photo.url })),
+    photos: visiblePhotos.map((photo) => ({ id: photo.id, url: photo.url })),
     vehicleId: listing.type === "vehicle" ? listing.vehicleDetails?.vehicleId ?? undefined : undefined,
-    youtubeVideoId: youtubeVideoId(listing.videoUrl ?? undefined),
+    youtubeVideoId: benefits.video || fullView ? youtubeVideoId(listing.videoUrl ?? undefined) : undefined,
+    planTier: listingTier(listing.planTier).id,
+    isPartnerListing: Boolean(listing.partnerId),
+    hiddenPhotosCount: fullView && hiddenPhotosCount > 0 ? hiddenPhotosCount : undefined,
     financingEnabled: listing.financingEnabled,
     financing: {
       price: formatBRL(price),

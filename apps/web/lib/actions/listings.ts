@@ -17,6 +17,7 @@ import type {
 } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import {
+  startListingBoost,
   fetchFipeBrands,
   fetchFipePrice,
   fetchProfile,
@@ -112,6 +113,23 @@ export async function generateVehicleTextAction(summary: string): Promise<Wizard
   const result = await generateListingDraft({ assetType: "vehicle", freeText: summary }, session.accessToken);
   if (!result.ok) return { ok: false, error: result.error };
   return { ok: true, value: { title: result.draft.title, description: result.draft.description } };
+}
+
+// Plano do anúncio (pessoa física): o passo a passo chama isto depois de
+// publicar; a página "Turbinar" usa a versão de formulário logo abaixo.
+export async function startBoostAction(listingId: string, tier: string): Promise<WizardResult<{ url?: string }>> {
+  const session = await auth();
+  if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
+  const result = await startListingBoost(listingId, tier, session.accessToken);
+  if (!result.ok) return { ok: false, error: result.error };
+  revalidatePath(`/anuncio/${listingId}`);
+  return { ok: true, value: { url: result.value.url } };
+}
+
+export async function boostFormAction(listingId: string, tier: string): Promise<void> {
+  const result = await startBoostAction(listingId, tier);
+  if (!result.ok) redirect(`/anuncio/${listingId}/turbinar?erro=${encodeURIComponent(result.error)}`);
+  redirect(result.value.url ?? `/anuncio/${listingId}?pagamento=ok`);
 }
 
 export async function fipeVersionsAction(brand: string, model: string, yearModel?: number): Promise<FipeVersion[]> {

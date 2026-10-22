@@ -33,8 +33,10 @@ import {
 } from "@novoseminovo/shared-types";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { AdminGuard } from "../admin/admin.guard";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
+import { StartBoostInputSchema } from "@novoseminovo/shared-types";
 import { AiService } from "./ai.service";
 import { ListingsService, MAX_LISTING_PHOTOS, type ListingSearchQuery } from "./listings.service";
 import { FipeService } from "../vehicles/fipe.service";
@@ -204,6 +206,27 @@ export class ListingsController {
   simulate(@Param("id") id: string, @Body() body: unknown) {
     const input = parseOrBadRequest(FinancingSimulationInputSchema.omit({ listingId: true }), body);
     return this.listingsService.simulateFinancing(id, input);
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get("admin/boosts")
+  boostPurchases() {
+    return this.listingsService.listBoostPurchases();
+  }
+
+  // Plano do anúncio (pessoa física): Flex/Turbo/Nitro.
+  @UseGuards(JwtAuthGuard)
+  @Post(":id/boost")
+  startBoost(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
+    const input = parseOrBadRequest(StartBoostInputSchema, body);
+    return this.listingsService.startBoost(id, user.id, input.tier);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(":id/boost/confirm")
+  confirmBoost(@CurrentUser() user: { id: string }, @Param("id") id: string, @Query("session_id") sessionId?: string) {
+    if (!sessionId) throw new BadRequestException("session_id é obrigatório");
+    return this.listingsService.confirmBoost(id, user.id, sessionId);
   }
 
   @UseGuards(OptionalJwtAuthGuard)
