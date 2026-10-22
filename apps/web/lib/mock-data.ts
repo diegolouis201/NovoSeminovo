@@ -32,6 +32,7 @@ const LISTINGS: ListingDetail[] = [
       { label: "Cor", value: "Prata" },
       { label: "FIPE", value: formatBRL(96200) + " (anúncio abaixo da FIPE)" },
     ],
+    financingEnabled: true,
     financing: {
       price: formatBRL(94500),
       priceValue: 94500,
@@ -64,6 +65,7 @@ const LISTINGS: ListingDetail[] = [
       { label: "Condomínio", value: formatBRL(480) + "/mês" },
       { label: "IPTU", value: formatBRL(95) + "/mês" },
     ],
+    financingEnabled: true,
     financing: {
       price: formatBRL(520000),
       priceValue: 520000,
@@ -92,6 +94,7 @@ const LISTINGS: ListingDetail[] = [
       { label: "Combustível", value: "Gasolina" },
       { label: "Quilometragem", value: "58.000 km" },
     ],
+    financingEnabled: true,
     financing: {
       price: formatBRL(112900),
       priceValue: 112900,
@@ -118,6 +121,7 @@ const LISTINGS: ListingDetail[] = [
       { label: "Quartos", value: "3 (1 suíte)" },
       { label: "Vagas", value: "2" },
     ],
+    financingEnabled: true,
     financing: {
       price: formatBRL(780000),
       priceValue: 780000,

@@ -134,6 +134,7 @@ export type SearchParams = {
   features?: string;
   conditions?: string;
   noAuction?: "1";
+  bodyType?: string;
 };
 
 export async function fetchListings(params: SearchParams): Promise<ListingSummary[]> {
@@ -774,6 +775,16 @@ export async function generateListingDraft(
 export type RecommendVehicleResult = { ok: true; recommendation: VehicleRecommendation } | { ok: false; error: string };
 
 // Botão "qual carro é ideal pra mim?" (ver ListingsService.recommendVehicle).
+export async function fetchFipeBrands(): Promise<string[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/listings/fipe-brands`, undefined, 8000);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return ((await res.json()) as { name: string }[]).map((brand) => brand.name);
+  } catch {
+    return [];
+  }
+}
+
 // Tabela FIPE pro /anunciar (versões do modelo e preço da versão escolhida).
 // Timeout maior: a primeira consulta de um modelo busca os anos de cada versão.
 export async function fetchFipeVersions(brand: string, model: string, yearModel?: number): Promise<FipeVersion[]> {

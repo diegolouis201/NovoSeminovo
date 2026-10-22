@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Prisma, type PropertyType } from "@novoseminovo/db";
 import {
+  VEHICLE_BODY_TYPE_OPTIONS,
   VEHICLE_CONDITION_OPTIONS,
   VEHICLE_FEATURE_OPTIONS,
   formatBRL,
@@ -107,6 +108,7 @@ export type ListingSearchQuery = {
   features?: string | string[];
   conditions?: string | string[];
   noAuction?: string;
+  bodyType?: string;
 };
 
 function toNumber(value: string | undefined): number | undefined {
@@ -118,6 +120,8 @@ function toNumber(value: string | undefined): number | undefined {
 // Query string é texto livre — nunca confiar que "transmission=qualquercoisa"
 // bate com o enum do Prisma. Valor fora da lista vira "sem filtro" em vez de
 // estourar erro 500 no banco.
+export const MAX_LISTING_PHOTOS = 20;
+
 const TRANSMISSION_VALUES = new Set(["manual", "automatic"]);
 const FUEL_TYPE_VALUES = new Set(["flex", "gasoline", "ethanol", "diesel", "electric", "hybrid"]);
 const PROPERTY_TYPE_VALUES = new Set(["house", "apartment", "land", "commercial", "penthouse", "farm", "warehouse"]);
@@ -126,6 +130,7 @@ function toEnum<T extends string>(value: string | undefined, allowed: Set<T>): T
   return value && allowed.has(value as T) ? (value as T) : undefined;
 }
 
+const VEHICLE_BODY_TYPE_VALUES = new Set<string>(VEHICLE_BODY_TYPE_OPTIONS.map((option) => option.value));
 const VEHICLE_FEATURE_VALUES = new Set<string>(VEHICLE_FEATURE_OPTIONS.map((option) => option.value));
 const VEHICLE_CONDITION_VALUES = new Set<string>(VEHICLE_CONDITION_OPTIONS.map((option) => option.value));
 
@@ -170,6 +175,7 @@ export class ListingsService {
         features: toList(query.features, VEHICLE_FEATURE_VALUES),
         conditions: toList(query.conditions, VEHICLE_CONDITION_VALUES),
         noAuction: query.noAuction === "1" || query.noAuction === "true",
+        bodyType: toEnum(query.bodyType, VEHICLE_BODY_TYPE_VALUES),
       }),
     };
 
@@ -703,6 +709,9 @@ export class ListingsService {
                 fuelType: input.fuelType,
                 color: input.color,
                 doors: input.doors,
+                bodyType: input.bodyType,
+                steering: input.steering,
+                engine: input.engine?.trim() || undefined,
                 features: [...new Set(input.features ?? [])],
                 conditions: [...new Set(input.conditions ?? [])],
                 condition: "used",
@@ -777,6 +786,13 @@ export class ListingsService {
         // Vai para a fila do painel do admin — só fica visível na busca
         // depois de aprovado (ver AdminModule), quando publishedAt é definido.
         status: "pending_review",
+        ...(input.assetType === "vehicle"
+          ? {
+              videoUrl: input.videoUrl?.trim() || undefined,
+              financingEnabled: input.financingEnabled ?? true,
+              showPhone: input.showPhone ?? true,
+            }
+          : {}),
         ...detailsData,
       },
       include: listingInclude,
@@ -852,6 +868,9 @@ export class ListingsService {
       throw new ForbiddenException("Você só pode editar os seus próprios anúncios.");
     }
 
+    if (listing.photos.length + files.length > MAX_LISTING_PHOTOS) {
+      throw new BadRequestException(`O anúncio pode ter até ${MAX_LISTING_PHOTOS} fotos.`);
+    }
     const startPosition = listing.photos.length;
     const alreadyHasCover = listing.photos.some((photo) => photo.isCover);
 

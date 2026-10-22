@@ -232,6 +232,10 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
   // CreateVehicleInputSchema.plate) — o site usa isto pra mostrar "Ver
   // histórico completo deste veículo" linkando pro Passaporte Digital.
   vehicleId: z.string().optional(),
+  // Vídeo do YouTube (só o id, pra montar o player) e se o vendedor liberou
+  // a simulação/contato de financiamento no anúncio.
+  youtubeVideoId: z.string().optional(),
+  financingEnabled: z.boolean(),
 });
 export type ListingDetail = z.infer<typeof ListingDetailSchema>;
 
@@ -281,7 +285,55 @@ export const VEHICLE_FEATURE_OPTIONS = [
   { value: "sunroof", label: "Teto solar" },
   { value: "rear_defroster", label: "Desembaçador traseiro" },
   { value: "four_wheel_drive", label: "Tração 4x4" },
+  { value: "seven_seats", label: "7 lugares" },
+  { value: "side_airbags", label: "Airbags laterais" },
+  { value: "digital_ac", label: "Ar-condicionado digital" },
+  { value: "traction_control", label: "Controle de tração/estabilidade" },
+  { value: "hill_start", label: "Assistente de partida em rampa" },
+  { value: "keyless", label: "Partida sem chave" },
+  { value: "start_stop", label: "Start-stop" },
+  { value: "led_headlights", label: "Faróis de LED" },
+  { value: "fog_lights", label: "Faróis de neblina" },
+  { value: "rain_sensor", label: "Sensor de chuva" },
+  { value: "electric_mirrors", label: "Retrovisores elétricos" },
+  { value: "steering_controls", label: "Comandos no volante" },
+  { value: "bluetooth", label: "Bluetooth" },
+  { value: "gps", label: "GPS/navegador" },
+  { value: "usb", label: "Entrada USB" },
+  { value: "isofix", label: "Isofix" },
 ] as const;
+// "Veículo completo" no cadastro marca estes de uma vez.
+export const VEHICLE_COMPLETE_FEATURES = ["air_conditioning", "power_windows", "power_locks", "airbag", "abs", "power_steering"];
+
+export const VEHICLE_BODY_TYPE_OPTIONS = [
+  { value: "hatch", label: "Hatch" },
+  { value: "sedan", label: "Sedã" },
+  { value: "suv", label: "SUV" },
+  { value: "pickup", label: "Picape" },
+  { value: "minivan", label: "Minivan" },
+  { value: "wagon", label: "Perua/SW" },
+  { value: "coupe", label: "Cupê" },
+  { value: "convertible", label: "Conversível" },
+  { value: "van", label: "Van/Utilitário" },
+] as const;
+export const VehicleBodyType = z.enum(VEHICLE_BODY_TYPE_OPTIONS.map((o) => o.value) as [string, ...string[]]);
+
+export const VEHICLE_STEERING_OPTIONS = [
+  { value: "mechanical", label: "Mecânica" },
+  { value: "hydraulic", label: "Hidráulica" },
+  { value: "electric", label: "Elétrica" },
+  { value: "electrohydraulic", label: "Eletro-hidráulica" },
+] as const;
+export const VehicleSteering = z.enum(VEHICLE_STEERING_OPTIONS.map((o) => o.value) as [string, ...string[]]);
+
+// Só YouTube (o anúncio mostra o vídeo embutido pelo youtube-nocookie).
+export const YOUTUBE_URL_REGEX = /^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/;
+export function youtubeVideoId(url: string | undefined): string | undefined {
+  return url ? YOUTUBE_URL_REGEX.exec(url.trim())?.[1] : undefined;
+}
+
+export const FipeBrandSchema = z.object({ name: z.string() });
+export type FipeBrand = z.infer<typeof FipeBrandSchema>;
 export const VehicleFeature = z.enum(VEHICLE_FEATURE_OPTIONS.map((o) => o.value) as [string, ...string[]]);
 
 export const VEHICLE_CONDITION_OPTIONS = [
@@ -323,6 +375,12 @@ export const CreateVehicleInputSchema = z.object({
   // Versão escolhida na lista da FIPE no /anunciar (código do modelo na
   // tabela) — a API busca o preço por ela em vez de adivinhar pelo nome.
   fipeModelCode: z.number().int().positive().optional(),
+  bodyType: VehicleBodyType.optional(),
+  steering: VehicleSteering.optional(),
+  engine: z.string().max(20).optional(),
+  videoUrl: z.string().regex(YOUTUBE_URL_REGEX, "Use um link de vídeo do YouTube").optional(),
+  financingEnabled: z.boolean().optional(),
+  showPhone: z.boolean().optional(),
   features: z.array(VehicleFeature).max(40).optional(),
   conditions: z.array(VehicleConditionTag).max(20).optional(),
 });

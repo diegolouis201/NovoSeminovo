@@ -17,7 +17,10 @@ import type {
 } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import {
+  fetchFipeBrands,
   fetchFipePrice,
+  fetchProfile,
+  updateProfile,
   fetchFipeVersions,
   classifyListingPhotos,
   createListing,
@@ -53,6 +56,55 @@ export async function suggestPriceAction(query: {
   city?: string;
 }): Promise<PriceSuggestion | undefined> {
   return fetchPriceSuggestion(query);
+}
+
+export async function fipeBrandsAction(): Promise<string[]> {
+  return fetchFipeBrands();
+}
+
+// ---------- Cadastro de carro em passo a passo (ver VehicleListingWizard) ----------
+// Ações que devolvem resultado (em vez de redirect) porque o passo a passo é
+// um componente de cliente que decide sozinho pra onde ir e em qual tela
+// mostrar o erro.
+
+export type WizardResult<T = undefined> = { ok: true; value: T } | { ok: false; error: string };
+
+export async function createVehicleFromWizardAction(
+  input: CreateListingInput,
+  phone?: string,
+): Promise<WizardResult<string>> {
+  const session = await auth();
+  if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo para publicar." };
+
+  // Telefone digitado no cadastro vira o do perfil (é ele que o botão de
+  // WhatsApp do anúncio usa) — só quando a pessoa ainda não tinha um.
+  const digits = phone?.replace(/\D/g, "");
+  if (digits && digits.length >= 10) {
+    const profile = await fetchProfile(session.accessToken);
+    if (profile && !profile.phone) await updateProfile({ phone: digits }, session.accessToken);
+  }
+
+  const result = await createListing(input, session.accessToken);
+  if (!result.ok) return { ok: false, error: result.error };
+  revalidatePath("/conta/anuncios");
+  return { ok: true, value: result.listing.id };
+}
+
+export async function uploadWizardPhotosAction(listingId: string, formData: FormData): Promise<WizardResult> {
+  const session = await auth();
+  if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo para enviar as fotos." };
+  const result = await uploadListingPhotos(listingId, formData, session.accessToken);
+  if (!result.ok) return { ok: false, error: result.error };
+  revalidatePath(`/anuncio/${listingId}`);
+  return { ok: true, value: undefined };
+}
+
+export async function generateVehicleTextAction(summary: string): Promise<WizardResult<{ title: string; description: string }>> {
+  const session = await auth();
+  if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
+  const result = await generateListingDraft({ assetType: "vehicle", freeText: summary }, session.accessToken);
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true, value: { title: result.draft.title, description: result.draft.description } };
 }
 
 export async function fipeVersionsAction(brand: string, model: string, yearModel?: number): Promise<FipeVersion[]> {
@@ -94,7 +146,7 @@ export async function generateListingDraftAction(formData: FormData): Promise<vo
 
   const result = await generateListingDraft({ assetType, freeText }, session.accessToken);
   if (!result.ok) {
-    redirect(`/anunciar?tipo=${assetType}&error=${encodeURIComponent(result.error)}`);
+    redirect(`/anunciar?tipo=${assetType}${assetType === "vehicle" ? "&modo=completo" : ""}&error=${encodeURIComponent(result.error)}`);
   }
 
   // Preserva o que já tinha vindo do CRLV (campos ocultos no formulário, ver
@@ -131,7 +183,7 @@ export async function extractCrlvAction(formData: FormData): Promise<void> {
 
   const result = await extractCrlvData(formData, session.accessToken);
   if (!result.ok) {
-    redirect(`/anunciar?tipo=vehicle&error=${encodeURIComponent(result.error)}`);
+    redirect(`/anunciar?tipo=vehicle&modo=completo&error=${encodeURIComponent(result.error)}`);
   }
 
   // Preserva o que já tinha vindo do gerador de texto por IA (campos ocultos
@@ -215,7 +267,7 @@ export async function createListingAction(formData: FormData): Promise<void> {
 
   const result = await createListing(input, session.accessToken);
   if (!result.ok) {
-    redirect(`/anunciar?tipo=${assetType}&error=${encodeURIComponent(result.error)}`);
+    redirect(`/anunciar?tipo=${assetType}${assetType === "vehicle" ? "&modo=completo" : ""}&error=${encodeURIComponent(result.error)}`);
   }
 
   revalidatePath("/");

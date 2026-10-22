@@ -317,6 +317,11 @@ model Listing {
   viewsCount       Int           @default(0) @map("views_count")
   highlightedUntil DateTime?     @map("highlighted_until")
   publishedAt      DateTime?     @map("published_at")
+  // Escolhas do vendedor no cadastro em passo a passo: vídeo do YouTube,
+  // mostrar ou não a simulação/contato de financiamento e o botão de WhatsApp.
+  videoUrl         String?       @map("video_url")
+  financingEnabled Boolean       @default(true) @map("financing_enabled")
+  showPhone        Boolean       @default(true) @map("show_phone")
   expiresAt        DateTime?     @map("expires_at")
   // Preenchidos só na transição pra "sold" (ver ListingsService.updateStatus)
   // — soldPrice pode diferir do price anunciado (negociação), por isso é
@@ -380,6 +385,11 @@ model VehicleDetails {
   // no shared-types) — viram filtro na busca.
   features        String[]          @default([])
   conditions      String[]          @default([])
+  // Carroceria, direção e motor (ver VEHICLE_BODY_TYPE_OPTIONS etc. no
+  // shared-types) — opcionais porque anúncios antigos/CRM não têm.
+  bodyType        String?           @map("body_type")
+  steering        String?
+  engine          String?
   // Ligação com o "prontuário" do carro de verdade (ver Vehicle abaixo) —
   // opcional porque a pessoa pode não informar a placa ao anunciar; sem
   // placa, não dá pra saber com certeza que é o mesmo carro de um anúncio

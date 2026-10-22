@@ -2,7 +2,7 @@ import { ListingCard } from "@/components/ListingCard";
 import { fetchListings, fetchPopularBrands } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
 import { saveSearchAction } from "@/lib/actions/saved-searches";
-import { VEHICLE_CONDITION_OPTIONS, VEHICLE_FEATURE_OPTIONS } from "@novoseminovo/shared-types";
+import { VEHICLE_BODY_TYPE_OPTIONS, VEHICLE_CONDITION_OPTIONS, VEHICLE_FEATURE_OPTIONS } from "@novoseminovo/shared-types";
 import { FUEL_OPTIONS, PROPERTY_TYPE_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
 
 type SearchPageProps = {
@@ -23,6 +23,7 @@ type SearchPageProps = {
     features?: string | string[];
     conditions?: string | string[];
     noAuction?: string;
+    bodyType?: string;
     buscaSalva?: string;
   };
 };
@@ -82,6 +83,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             features: features.join(",") || undefined,
             conditions: conditions.join(",") || undefined,
             noAuction: noAuction ? ("1" as const) : undefined,
+            bodyType: searchParams.bodyType || undefined,
           }),
     }),
     getFavoriteContext(),
@@ -153,6 +155,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                   maxName="yearMax"
                   minDefault={searchParams.yearMin}
                   maxDefault={searchParams.yearMax}
+                />
+                <SelectGroup
+                  label="Tipo de veículo"
+                  name="bodyType"
+                  options={[...VEHICLE_BODY_TYPE_OPTIONS]}
+                  defaultValue={searchParams.bodyType}
                 />
                 <SelectGroup label="Câmbio" name="transmission" options={TRANSMISSION_OPTIONS} defaultValue={searchParams.transmission} />
                 <SelectGroup label="Combustível" name="fuelType" options={FUEL_OPTIONS} defaultValue={searchParams.fuelType} />

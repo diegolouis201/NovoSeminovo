@@ -1,5 +1,8 @@
 import { Prisma, type FuelType, type PropertyType, type Transmission } from "@novoseminovo/db";
 import {
+  VEHICLE_BODY_TYPE_OPTIONS,
+  VEHICLE_STEERING_OPTIONS,
+  youtubeVideoId,
   VEHICLE_CONDITION_OPTIONS,
   VEHICLE_FEATURE_OPTIONS,
   formatBRL,
@@ -46,6 +49,7 @@ export type ListingFilterValues = {
   features?: string[];
   conditions?: string[];
   noAuction?: boolean;
+  bodyType?: string;
 };
 
 // Compartilhado entre a busca pública (ListingsService.search, que faz o
@@ -74,6 +78,7 @@ export function buildListingFilterWhere(
     features,
     conditions,
     noAuction,
+    bodyType,
   } = filters;
 
   // vehicleDetails e propertyDetails acumulam condições em vez de serem
@@ -91,6 +96,7 @@ export function buildListingFilterWhere(
   if (mileageMax !== undefined) vehicleDetails.mileage = { lte: mileageMax };
   if (features?.length) vehicleDetails.features = { hasEvery: features };
   if (conditions?.length) vehicleDetails.conditions = { hasEvery: conditions };
+  if (bodyType) vehicleDetails.bodyType = bodyType;
   if (noAuction) vehicleDetails.NOT = { conditions: { has: "auction" } };
 
   const propertyDetails: Prisma.PropertyDetailsWhereInput = {};
@@ -133,6 +139,12 @@ const PROPERTY_TYPE_LABEL: Record<string, string> = {
   warehouse: "Galpão",
 };
 
+const VEHICLE_BODY_TYPE_LABEL: Record<string, string> = Object.fromEntries(
+  VEHICLE_BODY_TYPE_OPTIONS.map((option) => [option.value, option.label]),
+);
+const VEHICLE_STEERING_LABEL: Record<string, string> = Object.fromEntries(
+  VEHICLE_STEERING_OPTIONS.map((option) => [option.value, option.label]),
+);
 const VEHICLE_FEATURE_LABEL: Record<string, string> = Object.fromEntries(
   VEHICLE_FEATURE_OPTIONS.map((option) => [option.value, option.label]),
 );
@@ -219,6 +231,10 @@ function specs(listing: ListingWithDetails): SpecItem[] {
       { label: "Combustível", value: FUEL_LABEL[v.fuelType] ?? v.fuelType },
       { label: "Quilometragem", value: `${new Intl.NumberFormat("pt-BR").format(v.mileage)} km` },
       { label: "Cor", value: v.color },
+      ...(v.bodyType ? [{ label: "Carroceria", value: VEHICLE_BODY_TYPE_LABEL[v.bodyType] ?? v.bodyType }] : []),
+      ...(v.engine ? [{ label: "Motor", value: v.engine }] : []),
+      ...(v.steering ? [{ label: "Direção", value: VEHICLE_STEERING_LABEL[v.steering] ?? v.steering }] : []),
+      ...(v.doors ? [{ label: "Portas", value: String(v.doors) }] : []),
       ...(v.features.length ? [{ label: "Opcionais", value: v.features.map((f) => VEHICLE_FEATURE_LABEL[f] ?? f).join(", ") }] : []),
       ...(v.conditions.length
         ? [{ label: "Condições", value: v.conditions.map((c) => VEHICLE_CONDITION_LABEL[c] ?? c).join(", ") }]
@@ -317,10 +333,13 @@ export function toListingDetail(
     specs: specs(listing),
     ownerUserId: listing.ownerUserId,
     status: listing.status,
-    sellerPhone: listing.owner.phone ?? undefined,
+    // O vendedor pode esconder o WhatsApp no cadastro — aí só o chat fica.
+    sellerPhone: listing.showPhone ? listing.owner.phone ?? undefined : undefined,
     reviewStatus,
     photos: listing.photos.map((photo) => ({ id: photo.id, url: photo.url })),
     vehicleId: listing.type === "vehicle" ? listing.vehicleDetails?.vehicleId ?? undefined : undefined,
+    youtubeVideoId: youtubeVideoId(listing.videoUrl ?? undefined),
+    financingEnabled: listing.financingEnabled,
     financing: {
       price: formatBRL(price),
       priceValue: price,

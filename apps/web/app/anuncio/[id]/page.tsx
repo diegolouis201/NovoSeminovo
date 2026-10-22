@@ -62,7 +62,7 @@ export default async function ListingDetailPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { erroConversa?: string; denunciaEnviada?: string; avaliacaoEnviada?: string };
+  searchParams: { erroConversa?: string; denunciaEnviada?: string; avaliacaoEnviada?: string; publicado?: string };
 }) {
   // Precisa vir antes do fetchListing: sem o accessToken, o dono não vê o
   // próprio anúncio pendente de moderação (a API só libera pra dono/admin).
@@ -79,8 +79,14 @@ export default async function ListingDetailPage({
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       {isOwnListing && listing.status === "pending_review" && (
-        <p className="mb-6 rounded-brand bg-brand-orange/10 px-4 py-3 text-sm font-semibold text-brand-orange">
-          Seu anúncio está em análise — ele só aparece na busca depois de aprovado pela moderação.
+        <p
+          className={`mb-6 rounded-brand px-4 py-3 text-sm font-semibold ${
+            searchParams.publicado ? "bg-brand-green/10 text-brand-green" : "bg-brand-orange/10 text-brand-orange"
+          }`}
+        >
+          {searchParams.publicado
+            ? "Anúncio enviado! Ele passa por uma revisão rápida e aparece na busca assim que for aprovado — você recebe um aviso."
+            : "Seu anúncio está em análise — ele só aparece na busca depois de aprovado pela moderação."}
         </p>
       )}
       {isOwnListing && listing.status === "rejected" && (
@@ -117,6 +123,18 @@ export default async function ListingDetailPage({
               />
             }
           />
+          {listing.youtubeVideoId && (
+            <div className="aspect-video w-full overflow-hidden rounded-brand bg-black">
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${listing.youtubeVideoId}`}
+                title={`Vídeo: ${listing.title}`}
+                loading="lazy"
+                allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="h-full w-full"
+              />
+            </div>
+          )}
           {isOwnListing && (
             <Link
               href={`/anuncio/${listing.id}/fotos`}
@@ -225,6 +243,7 @@ export default async function ListingDetailPage({
             )}
           </div>
 
+          {listing.financingEnabled && (
           <FinancingCallout
             listingId={listing.id}
             assetType={listing.assetType}
@@ -234,6 +253,7 @@ export default async function ListingDetailPage({
             installments={listing.financing.installments}
             rate={listing.financing.rate}
           />
+          )}
 
           {listing.assetType === "property" && (
             <a

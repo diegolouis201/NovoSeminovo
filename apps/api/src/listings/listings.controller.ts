@@ -36,7 +36,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { AiService } from "./ai.service";
-import { ListingsService, type ListingSearchQuery } from "./listings.service";
+import { ListingsService, MAX_LISTING_PHOTOS, type ListingSearchQuery } from "./listings.service";
 import { FipeService } from "../vehicles/fipe.service";
 import { SocialAssetsService } from "./social-assets.service";
 
@@ -45,7 +45,7 @@ const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 // Buffer em memória em vez de gravar direto no disco (diskStorage): quem
 // decide onde o arquivo final mora é ListingsService.addPhotos, via
 // PhotoStorage (disco local ou S3/R2 — ver common/storage.ts), não o multer.
-const photosInterceptor = FilesInterceptor("photos", 8, {
+const photosInterceptor = FilesInterceptor("photos", MAX_LISTING_PHOTOS, {
   storage: memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, callback) => {
@@ -138,6 +138,11 @@ export class ListingsController {
   // Lista "Escolha uma versão" e preço FIPE no /anunciar (mesmo motivo de
   // "popular-brands" pra ficar antes de ":id"). Públicos: só repassam a
   // tabela FIPE, com cache (ver FipeService).
+  @Get("fipe-brands")
+  fipeBrands() {
+    return this.fipe.listBrands();
+  }
+
   @Get("fipe-versions")
   fipeVersions(@Query() query: { brand?: string; model?: string; yearModel?: string }) {
     const year = Number(query.yearModel);

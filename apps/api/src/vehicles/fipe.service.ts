@@ -65,6 +65,20 @@ function parseFipeValue(value: string): number | undefined {
 export class FipeService {
   private readonly logger = new Logger(FipeService.name);
 
+  // Marcas da tabela FIPE com nome "de gente" ("VW - VolksWagen" → "Volkswagen",
+  // "GM - Chevrolet" → "Chevrolet") pra lista do cadastro. findBrand aceita os
+  // dois jeitos, então o nome limpo continua batendo com a FIPE depois.
+  async listBrands(): Promise<{ name: string }[]> {
+    const brands = (await fetchJson<FipeBrand[]>(`${FIPE_BASE_URL}/marcas`)) ?? [];
+    return brands
+      .map((brand) => {
+        const parts = brand.nome.split(" - ");
+        const name = parts.length > 1 ? parts[parts.length - 1]!.trim() : brand.nome.trim();
+        return { name: name === "VolksWagen" ? "Volkswagen" : name };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }
+
   private async findBrand(brandName: string): Promise<FipeBrand | undefined> {
     const brands = await fetchJson<FipeBrand[]>(`${FIPE_BASE_URL}/marcas`);
     const wanted = normalize(brandName);
