@@ -1,6 +1,8 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Prisma, type PropertyType } from "@novoseminovo/db";
 import {
+  VEHICLE_CONDITION_OPTIONS,
+  VEHICLE_FEATURE_OPTIONS,
   formatBRL,
   type CreateListingInput,
   type CreateReviewInput,
@@ -23,6 +25,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { VehiclesService } from "../vehicles/vehicles.service";
 import { FipeService } from "../vehicles/fipe.service";
+import { contactInfoMessage, findContactInfo } from "../common/contact-filter";
+import { blurRegions, previewForVision } from "../common/plate-blur";
 import { getPhotoStorage, readPhotoBytes } from "../common/storage";
 import {
   LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA,
@@ -100,6 +104,9 @@ export type ListingSearchQuery = {
   fuelType?: string;
   mileageMax?: string;
   propertyType?: string;
+  features?: string | string[];
+  conditions?: string | string[];
+  noAuction?: string;
 };
 
 function toNumber(value: string | undefined): number | undefined {
@@ -119,8 +126,21 @@ function toEnum<T extends string>(value: string | undefined, allowed: Set<T>): T
   return value && allowed.has(value as T) ? (value as T) : undefined;
 }
 
+const VEHICLE_FEATURE_VALUES = new Set<string>(VEHICLE_FEATURE_OPTIONS.map((option) => option.value));
+const VEHICLE_CONDITION_VALUES = new Set<string>(VEHICLE_CONDITION_OPTIONS.map((option) => option.value));
+
+// "?conditions=a,b" ou "?conditions=a&conditions=b" — valor desconhecido é ignorado.
+function toList(value: string | string[] | undefined, allowed: Set<string>): string[] | undefined {
+  if (!value) return undefined;
+  const items = (Array.isArray(value) ? value : [value]).flatMap((item) => item.split(",")).map((item) => item.trim());
+  const valid = [...new Set(items.filter((item) => allowed.has(item)))];
+  return valid.length ? valid : undefined;
+}
+
 @Injectable()
 export class ListingsService {
+  private readonly logger = new Logger(ListingsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
@@ -147,6 +167,9 @@ export class ListingsService {
         fuelType: toEnum(query.fuelType, FUEL_TYPE_VALUES),
         mileageMax: toNumber(query.mileageMax),
         propertyType: toEnum(query.propertyType, PROPERTY_TYPE_VALUES),
+        features: toList(query.features, VEHICLE_FEATURE_VALUES),
+        conditions: toList(query.conditions, VEHICLE_CONDITION_VALUES),
+        noAuction: query.noAuction === "1" || query.noAuction === "true",
       }),
     };
 
@@ -650,7 +673,9 @@ export class ListingsService {
       vehicleBrandModel = await this.vehicles.resolveBrandAndModel(input.brand, input.model);
       // Best-effort — nunca atrasa nem derruba a criação do anúncio se a
       // FIPE estiver fora do ar ou não reconhecer marca/modelo (ver FipeService).
-      fipeMatch = await this.fipe.lookupPrice(input.brand, input.model, input.yearModel);
+      fipeMatch = input.fipeModelCode
+        ? await this.fipe.priceForVersion(input.brand, input.fipeModelCode, input.yearModel)
+        : await this.fipe.lookupPrice(input.brand, input.model, input.yearModel);
       if (input.plate) {
         linkedVehicleId = await this.vehicles.resolveForListing({
           plate: input.plate,
@@ -678,6 +703,8 @@ export class ListingsService {
                 fuelType: input.fuelType,
                 color: input.color,
                 doors: input.doors,
+                features: [...new Set(input.features ?? [])],
+                conditions: [...new Set(input.conditions ?? [])],
                 condition: "used",
                 fipeCode: fipeMatch?.fipeCode,
                 fipePrice: fipeMatch?.price,
@@ -709,6 +736,11 @@ export class ListingsService {
 
   async create(ownerUserId: string, input: CreateListingInput): Promise<MyListingSummary> {
     const { assetType, title, description, price, city, state, neighborhood } = input;
+
+    for (const [field, text] of [["no título", title], ["na descrição", description]] as const) {
+      const kind = findContactInfo(text);
+      if (kind) throw new BadRequestException(contactInfoMessage(kind, field));
+    }
 
     // Quem tem uma loja/imobiliária cadastrada (dono ou membro da equipe,
     // ver PartnerMember) anuncia sempre em nome dela — é isso que liga o
@@ -824,7 +856,8 @@ export class ListingsService {
     const alreadyHasCover = listing.photos.some((photo) => photo.isCover);
 
     const storage = getPhotoStorage();
-    const urls = await Promise.all(files.map((file) => storage.save(file.buffer, file.originalname, file.mimetype)));
+    const prepared = listing.type === "vehicle" ? await Promise.all(files.map((file) => this.blurPlates(file))) : files;
+    const urls = await Promise.all(prepared.map((file) => storage.save(file.buffer, file.originalname, file.mimetype)));
 
     await this.prisma.photo.createMany({
       data: urls.map((url, index) => ({
@@ -840,6 +873,23 @@ export class ListingsService {
       orderBy: [{ isCover: "desc" }, { position: "asc" }],
     });
     return photos.map((photo) => ({ id: photo.id, url: photo.url }));
+  }
+
+  // Foto de carro: a IA localiza a placa e ela é borrada antes de salvar
+  // (estilo Webmotors). Best-effort — sem IA configurada, com
+  // PLATE_BLUR_DISABLED=1 ou se algo falhar, a foto sobe como veio.
+  private async blurPlates<T extends { buffer: Buffer; mimetype: string }>(file: T): Promise<T> {
+    if (process.env.PLATE_BLUR_DISABLED === "1" || !this.ai.isEnabled()) return file;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) return file;
+    try {
+      const preview = await previewForVision(file.buffer);
+      const boxes = await this.ai.findLicensePlates(preview.buffer, preview.mimeType);
+      if (boxes.length === 0) return file;
+      return { ...file, buffer: await blurRegions(file.buffer, boxes) };
+    } catch (error) {
+      this.logger.warn(`Não foi possível borrar a placa da foto: ${error}`);
+      return file;
+    }
   }
 
   async removePhoto(listingId: string, ownerUserId: string, photoId: string): Promise<void> {

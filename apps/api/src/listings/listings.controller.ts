@@ -37,6 +37,7 @@ import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { AiService } from "./ai.service";
 import { ListingsService, type ListingSearchQuery } from "./listings.service";
+import { FipeService } from "../vehicles/fipe.service";
 import { SocialAssetsService } from "./social-assets.service";
 
 const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -79,6 +80,7 @@ export class ListingsController {
     private readonly listingsService: ListingsService,
     private readonly aiService: AiService,
     private readonly socialAssetsService: SocialAssetsService,
+    private readonly fipe: FipeService,
   ) {}
 
   // Precisa vir antes de ":id" — mesmo caso de "popular-brands"/"mine".
@@ -131,6 +133,24 @@ export class ListingsController {
     query: { assetType?: string; brand?: string; model?: string; propertyType?: string; city?: string },
   ) {
     return this.listingsService.suggestPrice(query);
+  }
+
+  // Lista "Escolha uma versão" e preço FIPE no /anunciar (mesmo motivo de
+  // "popular-brands" pra ficar antes de ":id"). Públicos: só repassam a
+  // tabela FIPE, com cache (ver FipeService).
+  @Get("fipe-versions")
+  fipeVersions(@Query() query: { brand?: string; model?: string; yearModel?: string }) {
+    const year = Number(query.yearModel);
+    if (!query.brand || !query.model) return [];
+    return this.fipe.listVersions(query.brand, query.model, Number.isInteger(year) && year > 1950 ? year : undefined);
+  }
+
+  @Get("fipe-price")
+  async fipePrice(@Query() query: { brand?: string; modelCode?: string; yearModel?: string }) {
+    const code = Number(query.modelCode);
+    const year = Number(query.yearModel);
+    if (!query.brand || !Number.isInteger(code) || !Number.isInteger(year)) return null;
+    return (await this.fipe.priceForVersion(query.brand, code, year)) ?? null;
   }
 
   // Botão "qual carro é ideal pra mim?" — público (não exige login) porque é

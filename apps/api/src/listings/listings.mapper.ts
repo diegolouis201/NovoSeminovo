@@ -1,5 +1,7 @@
 import { Prisma, type FuelType, type PropertyType, type Transmission } from "@novoseminovo/db";
 import {
+  VEHICLE_CONDITION_OPTIONS,
+  VEHICLE_FEATURE_OPTIONS,
   formatBRL,
   type Badge,
   type ListingDetail,
@@ -41,6 +43,9 @@ export type ListingFilterValues = {
   fuelType?: string;
   mileageMax?: number;
   propertyType?: string;
+  features?: string[];
+  conditions?: string[];
+  noAuction?: boolean;
 };
 
 // Compartilhado entre a busca pública (ListingsService.search, que faz o
@@ -52,8 +57,24 @@ export function buildListingFilterWhere(
   assetType: "vehicle" | "property" | undefined,
   filters: ListingFilterValues,
 ): Prisma.ListingWhereInput {
-  const { q, city, priceMin, priceMax, yearMin, yearMax, bedroomsMin, brand, model, transmission, fuelType, mileageMax, propertyType } =
-    filters;
+  const {
+    q,
+    city,
+    priceMin,
+    priceMax,
+    yearMin,
+    yearMax,
+    bedroomsMin,
+    brand,
+    model,
+    transmission,
+    fuelType,
+    mileageMax,
+    propertyType,
+    features,
+    conditions,
+    noAuction,
+  } = filters;
 
   // vehicleDetails e propertyDetails acumulam condições em vez de serem
   // setados de uma vez só — "yearMin" (geral) e "brand"/"transmission"/etc.
@@ -68,6 +89,9 @@ export function buildListingFilterWhere(
   if (transmission) vehicleDetails.transmission = transmission as Transmission;
   if (fuelType) vehicleDetails.fuelType = fuelType as FuelType;
   if (mileageMax !== undefined) vehicleDetails.mileage = { lte: mileageMax };
+  if (features?.length) vehicleDetails.features = { hasEvery: features };
+  if (conditions?.length) vehicleDetails.conditions = { hasEvery: conditions };
+  if (noAuction) vehicleDetails.NOT = { conditions: { has: "auction" } };
 
   const propertyDetails: Prisma.PropertyDetailsWhereInput = {};
   if (bedroomsMin !== undefined) propertyDetails.bedrooms = { gte: bedroomsMin };
@@ -108,6 +132,13 @@ const PROPERTY_TYPE_LABEL: Record<string, string> = {
   farm: "Sítio/Chácara",
   warehouse: "Galpão",
 };
+
+const VEHICLE_FEATURE_LABEL: Record<string, string> = Object.fromEntries(
+  VEHICLE_FEATURE_OPTIONS.map((option) => [option.value, option.label]),
+);
+const VEHICLE_CONDITION_LABEL: Record<string, string> = Object.fromEntries(
+  VEHICLE_CONDITION_OPTIONS.map((option) => [option.value, option.label]),
+);
 
 const PROPERTY_FEATURE_LABEL: Record<string, string> = {
   pool: "Piscina",
@@ -188,6 +219,10 @@ function specs(listing: ListingWithDetails): SpecItem[] {
       { label: "Combustível", value: FUEL_LABEL[v.fuelType] ?? v.fuelType },
       { label: "Quilometragem", value: `${new Intl.NumberFormat("pt-BR").format(v.mileage)} km` },
       { label: "Cor", value: v.color },
+      ...(v.features.length ? [{ label: "Opcionais", value: v.features.map((f) => VEHICLE_FEATURE_LABEL[f] ?? f).join(", ") }] : []),
+      ...(v.conditions.length
+        ? [{ label: "Condições", value: v.conditions.map((c) => VEHICLE_CONDITION_LABEL[c] ?? c).join(", ") }]
+        : []),
       ...(v.fipePrice
         ? [
             {

@@ -257,6 +257,52 @@ const listingCoreFields = {
   neighborhood: z.string().optional(),
 };
 
+// Opcionais e condições do carro (estilo Webmotors) — lista fechada com
+// rótulo PT-BR aqui mesmo, pra formulário, página do anúncio e filtros da
+// busca usarem sempre o mesmo texto. Guardados em VehicleDetails.features /
+// .conditions (String[]), então item novo não precisa de migração.
+export const VEHICLE_FEATURE_OPTIONS = [
+  { value: "air_conditioning", label: "Ar-condicionado" },
+  { value: "heater", label: "Ar quente" },
+  { value: "power_steering", label: "Direção hidráulica/elétrica" },
+  { value: "power_windows", label: "Vidros elétricos" },
+  { value: "power_locks", label: "Travas elétricas" },
+  { value: "airbag", label: "Airbag" },
+  { value: "abs", label: "Freio ABS" },
+  { value: "alarm", label: "Alarme" },
+  { value: "onboard_computer", label: "Computador de bordo" },
+  { value: "multimedia", label: "Central multimídia" },
+  { value: "rear_camera", label: "Câmera de ré" },
+  { value: "parking_sensor", label: "Sensor de estacionamento" },
+  { value: "cruise_control", label: "Piloto automático" },
+  { value: "leather_seats", label: "Bancos de couro" },
+  { value: "seat_height", label: "Banco com ajuste de altura" },
+  { value: "alloy_wheels", label: "Rodas de liga leve" },
+  { value: "sunroof", label: "Teto solar" },
+  { value: "rear_defroster", label: "Desembaçador traseiro" },
+  { value: "four_wheel_drive", label: "Tração 4x4" },
+] as const;
+export const VehicleFeature = z.enum(VEHICLE_FEATURE_OPTIONS.map((o) => o.value) as [string, ...string[]]);
+
+export const VEHICLE_CONDITION_OPTIONS = [
+  { value: "single_owner", label: "Único dono" },
+  { value: "ipva_paid", label: "IPVA pago" },
+  { value: "licensed", label: "Licenciado" },
+  { value: "dealer_serviced", label: "Revisões em concessionária" },
+  { value: "factory_warranty", label: "Garantia de fábrica" },
+  { value: "accepts_trade", label: "Aceita troca" },
+  { value: "financed", label: "Com financiamento em aberto" },
+  { value: "auction", label: "Passagem por leilão" },
+  { value: "collector", label: "Veículo de colecionador" },
+  { value: "adapted", label: "Adaptado para PcD" },
+] as const;
+export const FipeVersionSchema = z.object({ code: z.number().int(), name: z.string() });
+export type FipeVersion = z.infer<typeof FipeVersionSchema>;
+export const FipePriceSchema = z.object({ fipeCode: z.string(), price: z.number(), versionName: z.string().optional() });
+export type FipePrice = z.infer<typeof FipePriceSchema>;
+
+export const VehicleConditionTag = z.enum(VEHICLE_CONDITION_OPTIONS.map((o) => o.value) as [string, ...string[]]);
+
 export const CreateVehicleInputSchema = z.object({
   assetType: z.literal("vehicle"),
   ...listingCoreFields,
@@ -274,6 +320,11 @@ export const CreateVehicleInputSchema = z.object({
   // mas sem ela a API não consegue reconhecer "é o mesmo carro de um
   // anúncio anterior" (ver VehiclesService.resolveForListing na API).
   plate: z.string().min(7, "Informe uma placa válida").max(8).optional(),
+  // Versão escolhida na lista da FIPE no /anunciar (código do modelo na
+  // tabela) — a API busca o preço por ela em vez de adivinhar pelo nome.
+  fipeModelCode: z.number().int().positive().optional(),
+  features: z.array(VehicleFeature).max(40).optional(),
+  conditions: z.array(VehicleConditionTag).max(20).optional(),
 });
 export type CreateVehicleInput = z.infer<typeof CreateVehicleInputSchema>;
 

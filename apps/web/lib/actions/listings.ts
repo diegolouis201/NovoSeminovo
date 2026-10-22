@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type {
+  FipePrice,
+  FipeVersion,
   CreateListingInput,
   ListingStatus,
   Photo,
@@ -15,6 +17,8 @@ import type {
 } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import {
+  fetchFipePrice,
+  fetchFipeVersions,
   classifyListingPhotos,
   createListing,
   deleteListingPhoto,
@@ -49,6 +53,14 @@ export async function suggestPriceAction(query: {
   city?: string;
 }): Promise<PriceSuggestion | undefined> {
   return fetchPriceSuggestion(query);
+}
+
+export async function fipeVersionsAction(brand: string, model: string, yearModel?: number): Promise<FipeVersion[]> {
+  return fetchFipeVersions(brand, model, yearModel);
+}
+
+export async function fipePriceAction(brand: string, modelCode: number, yearModel: number): Promise<FipePrice | undefined> {
+  return fetchFipePrice(brand, modelCode, yearModel);
 }
 
 // Botão "qual carro é ideal pra mim?" — mesma lógica de Server Action que
@@ -179,6 +191,9 @@ export async function createListingAction(formData: FormData): Promise<void> {
           color: str(formData, "color"),
           doors: num(formData, "doors"),
           plate: str(formData, "plate") || undefined,
+          fipeModelCode: num(formData, "fipeModelCode"),
+          features: formData.getAll("features").map(String),
+          conditions: formData.getAll("conditions").map(String),
         }
       : {
           assetType: "property",

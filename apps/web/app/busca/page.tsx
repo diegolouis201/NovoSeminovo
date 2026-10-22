@@ -2,6 +2,7 @@ import { ListingCard } from "@/components/ListingCard";
 import { fetchListings, fetchPopularBrands } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
 import { saveSearchAction } from "@/lib/actions/saved-searches";
+import { VEHICLE_CONDITION_OPTIONS, VEHICLE_FEATURE_OPTIONS } from "@novoseminovo/shared-types";
 import { FUEL_OPTIONS, PROPERTY_TYPE_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
 
 type SearchPageProps = {
@@ -19,9 +20,22 @@ type SearchPageProps = {
     fuelType?: string;
     mileageMax?: string;
     propertyType?: string;
+    features?: string | string[];
+    conditions?: string | string[];
+    noAuction?: string;
     buscaSalva?: string;
   };
 };
+
+// Filtros de condição/opcional que mais pesam na decisão — a lista completa
+// fica só no formulário de anunciar, pra barra lateral não virar um muro.
+const CONDITION_FILTERS = ["single_owner", "ipva_paid", "licensed", "dealer_serviced", "factory_warranty", "accepts_trade"];
+const FEATURE_FILTERS = ["air_conditioning", "multimedia", "rear_camera", "parking_sensor", "leather_seats", "sunroof", "four_wheel_drive"];
+
+function asList(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  return (Array.isArray(value) ? value : value.split(",")).filter(Boolean);
+}
 
 const PROPERTY_TYPE_LABEL: Record<string, string> = {
   house: "Casas",
@@ -45,6 +59,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const yearMax = toNumber(searchParams.yearMax);
   const bedroomsMin = toNumber(searchParams.bedroomsMin);
   const mileageMax = toNumber(searchParams.mileageMax);
+  const features = asList(searchParams.features);
+  const conditions = asList(searchParams.conditions);
+  const noAuction = searchParams.noAuction === "1";
 
   const [results, { isAuthenticated, favoriteIds }, popularBrands] = await Promise.all([
     fetchListings({
@@ -55,7 +72,17 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       priceMax,
       ...(isProperty
         ? { bedroomsMin, propertyType: searchParams.propertyType }
-        : { yearMin, yearMax, brand: searchParams.brand, transmission: searchParams.transmission, fuelType: searchParams.fuelType, mileageMax }),
+        : {
+            yearMin,
+            yearMax,
+            brand: searchParams.brand,
+            transmission: searchParams.transmission,
+            fuelType: searchParams.fuelType,
+            mileageMax,
+            features: features.join(",") || undefined,
+            conditions: conditions.join(",") || undefined,
+            noAuction: noAuction ? ("1" as const) : undefined,
+          }),
     }),
     getFavoriteContext(),
     isProperty ? Promise.resolve([]) : fetchPopularBrands(),
@@ -136,6 +163,22 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                   defaultValue={searchParams.mileageMax}
                   type="number"
                 />
+                <CheckGroup
+                  label="Condições"
+                  name="conditions"
+                  options={VEHICLE_CONDITION_OPTIONS.filter((option) => CONDITION_FILTERS.includes(option.value))}
+                  selected={conditions}
+                />
+                <label className="flex items-center gap-2 text-sm text-ink">
+                  <input type="checkbox" name="noAuction" value="1" defaultChecked={noAuction} />
+                  Sem passagem por leilão
+                </label>
+                <CheckGroup
+                  label="Opcionais"
+                  name="features"
+                  options={VEHICLE_FEATURE_OPTIONS.filter((option) => FEATURE_FILTERS.includes(option.value))}
+                  selected={features}
+                />
               </>
             )}
             <FilterGroup label="Cidade" name="city" placeholder="Belo Horizonte" defaultValue={searchParams.city} />
@@ -200,6 +243,30 @@ function FilterGroup({
         className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink placeholder:text-ink-muted"
       />
     </label>
+  );
+}
+
+function CheckGroup({
+  label,
+  name,
+  options,
+  selected,
+}: {
+  label: string;
+  name: string;
+  options: readonly { value: string; label: string }[];
+  selected: string[];
+}) {
+  return (
+    <fieldset className="flex flex-col gap-1 text-sm">
+      <legend className="mb-1 font-semibold text-ink">{label}</legend>
+      {options.map((option) => (
+        <label key={option.value} className="flex items-center gap-2 text-ink">
+          <input type="checkbox" name={name} value={option.value} defaultChecked={selected.includes(option.value)} />
+          {option.label}
+        </label>
+      ))}
+    </fieldset>
   );
 }
 

@@ -15,6 +15,36 @@ const MODEL = "claude-sonnet-5-5";
 // acima, só nesses dois métodos.
 const VISION_MODEL = "claude-opus-5-5";
 
+// Placa visível na foto do carro (ver AiService.findLicensePlates) —
+// coordenadas em fração da imagem (0 a 1), que independem do tamanho em que
+// o modelo enxergou a foto.
+const PLATE_TOOL = {
+  name: "localizar_placas",
+  description:
+    "Informa onde estão as placas de veículo legíveis ou parcialmente legíveis na foto, para que sejam borradas antes de publicar. Lista vazia se não houver nenhuma placa.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      plates: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            x: { type: "number", description: "Borda esquerda da placa, em fração da largura da imagem (0 a 1)." },
+            y: { type: "number", description: "Borda superior da placa, em fração da altura da imagem (0 a 1)." },
+            width: { type: "number", description: "Largura da placa, em fração da largura da imagem (0 a 1)." },
+            height: { type: "number", description: "Altura da placa, em fração da altura da imagem (0 a 1)." },
+          },
+          required: ["x", "y", "width", "height"],
+        },
+      },
+    },
+    required: ["plates"],
+  },
+};
+
+export type PlateBox = { x: number; y: number; width: number; height: number };
+
 const DRAFT_TOOL = {
   name: "gerar_anuncio",
   description: "Gera o rascunho de um anúncio (título, descrição e, se der pra estimar, um preço sugerido) a partir do texto livre que o dono do bem escreveu.",
@@ -678,6 +708,53 @@ Use a ferramenta "destacar_anuncios".`,
     } catch (error) {
       this.logger.error(`${errorLogPrefix}: ${error}`);
       throw new ServiceUnavailableException("Não foi possível organizar as fotos automaticamente agora.");
+    }
+  }
+
+  // Foto de carro antes de salvar (ver ListingsService.addPhotos): devolve
+  // onde estão as placas pra serem borradas. Nunca lança — se a IA falhar, a
+  // foto sobe como veio (o dono ainda pode trocar), e o erro fica no log.
+  async findLicensePlates(image: Buffer, mimeType: string): Promise<PlateBox[]> {
+    try {
+      const client = this.getClient();
+      const message = await client.messages.create({
+        model: VISION_MODEL,
+        max_tokens: 1024,
+        tools: [PLATE_TOOL],
+        tool_choice: { type: "auto" },
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mimeType as "image/jpeg" | "image/png" | "image/webp",
+                  data: image.toString("base64"),
+                },
+              },
+              {
+                type: "text",
+                text: 'Foto de um anúncio de veículo. Use a ferramenta "localizar_placas" para informar a posição de toda placa de veículo visível (inclusive de outros carros ao fundo). Se não houver placa, devolva a lista vazia.',
+              },
+            ],
+          },
+        ],
+      });
+
+      const toolUse = message.content.find((block) => block.type === "tool_use");
+      if (!toolUse || toolUse.type !== "tool_use") return [];
+      const plates = (toolUse.input as { plates?: PlateBox[] }).plates ?? [];
+      return plates.filter(
+        (box) =>
+          [box.x, box.y, box.width, box.height].every((n) => typeof n === "number" && Number.isFinite(n)) &&
+          box.width > 0 &&
+          box.height > 0,
+      );
+    } catch (error) {
+      this.logger.error(`Falha ao localizar placa na foto com IA: ${error}`);
+      return [];
     }
   }
 }

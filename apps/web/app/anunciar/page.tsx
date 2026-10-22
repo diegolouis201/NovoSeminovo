@@ -4,8 +4,11 @@ import { Car, FileText, House, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField, SelectField, TextAreaField } from "@/components/FormField";
+import { CepLookup } from "@/components/CepLookup";
+import { FipePriceHelper } from "@/components/FipePriceHelper";
 import { PriceSuggestionHint } from "@/components/PriceSuggestionHint";
 import { PropertyTypeFields } from "@/components/PropertyTypeFields";
+import { VehicleOptionsFields } from "@/components/VehicleOptionsFields";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createListingAction, extractCrlvAction, generateListingDraftAction } from "@/lib/actions/listings";
 import { fetchAiStatus } from "@/lib/api";
@@ -168,17 +171,24 @@ export default async function CreateListingPage({
           placeholder="Ex.: Corolla XEi 2020, único dono"
           defaultValue={searchParams.draftTitle}
         />
-        <TextAreaField label="Descrição" name="description" minLength={20} defaultValue={searchParams.draftDescription} />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField label="Preço (R$)" name="price" type="number" min={0} defaultValue={searchParams.draftPrice} />
-          {assetType === "vehicle" ? (
-            <FormField label="Cor" name="color" defaultValue={searchParams.draftColor} />
-          ) : (
-            <FormField label="Área (m²)" name="areaM2" type="number" min={1} step={0.01} />
-          )}
+        <div className="flex flex-col gap-1">
+          <TextAreaField label="Descrição" name="description" minLength={20} defaultValue={searchParams.draftDescription} />
+          <p className="text-xs text-ink-muted">
+            Não coloque telefone, e-mail, link ou @ de rede social — o anúncio é recusado. Os interessados falam com você
+            pelo chat e pelo botão de WhatsApp do site.
+          </p>
         </div>
-        <PriceSuggestionHint assetType={assetType} />
+        {assetType === "property" && (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField label="Preço (R$)" name="price" type="number" min={0} defaultValue={searchParams.draftPrice} />
+              <FormField label="Área (m²)" name="areaM2" type="number" min={1} step={0.01} />
+            </div>
+            <PriceSuggestionHint assetType={assetType} />
+          </>
+        )}
 
+        <CepLookup />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <FormField label="Cidade" name="city" defaultValue="Belo Horizonte" />
           <FormField label="Estado (UF)" name="state" defaultValue="MG" />
@@ -238,6 +248,13 @@ export default async function CreateListingPage({
               />
               <FormField label="Portas" name="doors" type="number" min={2} required={false} />
             </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField label="Preço (R$)" name="price" type="number" min={0} defaultValue={searchParams.draftPrice} />
+              <FormField label="Cor" name="color" defaultValue={searchParams.draftColor} />
+            </div>
+            <FipePriceHelper />
+            <PriceSuggestionHint assetType={assetType} />
+            <VehicleOptionsFields />
           </>
         ) : (
           <>

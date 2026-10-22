@@ -1,4 +1,6 @@
 import type {
+  FipePrice,
+  FipeVersion,
   SubscriptionBoardCard,
   CreatedPartnerApiKey,
   IntegrationFeed,
@@ -128,6 +130,10 @@ export type SearchParams = {
   fuelType?: string;
   mileageMax?: number;
   propertyType?: string;
+  // Lista separada por vírgula (ver VEHICLE_FEATURE_OPTIONS/VEHICLE_CONDITION_OPTIONS).
+  features?: string;
+  conditions?: string;
+  noAuction?: "1";
 };
 
 export async function fetchListings(params: SearchParams): Promise<ListingSummary[]> {
@@ -768,6 +774,30 @@ export async function generateListingDraft(
 export type RecommendVehicleResult = { ok: true; recommendation: VehicleRecommendation } | { ok: false; error: string };
 
 // Botão "qual carro é ideal pra mim?" (ver ListingsService.recommendVehicle).
+// Tabela FIPE pro /anunciar (versões do modelo e preço da versão escolhida).
+// Timeout maior: a primeira consulta de um modelo busca os anos de cada versão.
+export async function fetchFipeVersions(brand: string, model: string, yearModel?: number): Promise<FipeVersion[]> {
+  try {
+    const params = new URLSearchParams({ brand, model, ...(yearModel ? { yearModel: String(yearModel) } : {}) });
+    const res = await fetchWithTimeout(`${API_URL}/listings/fipe-versions?${params.toString()}`, undefined, 15000);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as FipeVersion[];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchFipePrice(brand: string, modelCode: number, yearModel: number): Promise<FipePrice | undefined> {
+  try {
+    const params = new URLSearchParams({ brand, modelCode: String(modelCode), yearModel: String(yearModel) });
+    const res = await fetchWithTimeout(`${API_URL}/listings/fipe-price?${params.toString()}`, undefined, 10000);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return ((await res.json()) as FipePrice | null) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // Público — não exige login, igual fetchPriceSuggestion acima — mas usa POST
 // porque o perfil financeiro não cabe bem numa querystring.
 export async function recommendVehicle(input: VehicleProfileInput): Promise<RecommendVehicleResult> {
