@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
 // Prévia padrão do site ao compartilhar um link (WhatsApp, Instagram,
@@ -7,7 +9,12 @@ export const alt = "NovoSeminovo — carros e imóveis, sem enrolação";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OpenGraphImage() {
+// Logo oficial (padrão da marca em grade — public/marca), recortada sem margem.
+const LOGO_FILE = join(process.cwd(), "public/marca/novoseminovo-logo-recortado.png");
+const LOGO_HEIGHT = 230;
+const LOGO_WIDTH = Math.round((LOGO_HEIGHT * 764) / 590);
+export default async function OpenGraphImage() {
+  const logo = `data:image/png;base64,${(await readFile(LOGO_FILE)).toString("base64")}`;
   return new ImageResponse(
     (
       <div
@@ -22,15 +29,8 @@ export default function OpenGraphImage() {
           color: "#20261b",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, fontSize: 80, fontWeight: 800, lineHeight: 0.95 }}>
-          <span style={{ color: "#006aa4" }}>NOVO</span>
-          <span style={{ color: "#f18e29" }}>
-            SEM<span style={{ color: "#76b82a" }}>I</span>
-          </span>
-          <span style={{ color: "#f18e29" }}>
-            NOV<span style={{ color: "#76b82a" }}>O</span>
-          </span>
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
+        <img src={logo} width={LOGO_WIDTH} height={LOGO_HEIGHT} style={{ flexShrink: 0 }} />
         <div style={{ display: "flex", flexShrink: 0, marginTop: 36, fontSize: 52, fontWeight: 800, lineHeight: 1.15 }}>
           Carros e imóveis, sem enrolação.
         </div>

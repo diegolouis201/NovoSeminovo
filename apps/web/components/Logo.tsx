@@ -1,4 +1,4 @@
-// Wordmark da identidade visual original (ver PDF de marca e o vídeo da
+// Wordmark da identidade visual (ver PDF de marca e o vídeo da
 // campanha de lançamento): "Novo" (azul) / "Sem" + "i" verde / "Nov" + "o"
 // verde, fechando com um traço grosso em forma de lua crescente (o
 // "sorriso") — a última letra de cada uma das duas linhas de baixo é verde,
@@ -24,8 +24,8 @@ type LogoProps = {
 function Smile({ tall = false }: { tall?: boolean }) {
   if (tall) {
     return (
-      <svg viewBox="0 0 26 100" className="ml-1 h-[1.64em] w-[0.5em] self-end text-brand-green" fill="none" aria-hidden>
-        <path d="M7 6 Q 22 50 7 94" stroke="currentColor" strokeWidth="11" strokeLinecap="round" />
+      <svg viewBox="0 0 26 100" className="ml-[0.08em] h-[1.64em] w-[0.36em] self-end text-brand-green" fill="none" aria-hidden>
+        <path d="M7 6 Q 22 50 7 94" stroke="currentColor" strokeWidth="12.5" strokeLinecap="round" />
       </svg>
     );
   }
@@ -39,22 +39,24 @@ function Smile({ tall = false }: { tall?: boolean }) {
 
 export function Logo({ variant = "inline", className }: LogoProps) {
   if (variant === "stacked") {
+    // Padrão da marca (out/2026): grade de 4 colunas, cada letra centralizada
+    // sobre a de baixo (N/S/N, O/E/O, V/M/V, O/I/O) — mesmo desenho dos
+    // arquivos em public/marca e do pedido de registro no INPI.
+    const cells: [string, string][] = [
+      ["N", "text-brand-blue"], ["O", "text-brand-blue"], ["V", "text-brand-blue"], ["O", "text-brand-blue"],
+      ["S", "text-brand-orange"], ["E", "text-brand-orange"], ["M", "text-brand-orange"], ["I", "text-brand-green"],
+      ["N", "text-brand-orange"], ["O", "text-brand-orange"], ["V", "text-brand-orange"], ["O", "text-brand-green"],
+    ];
     return (
-      <span className={`flex flex-col font-display font-bold uppercase leading-[0.82] tracking-tight ${className ?? ""}`}>
-        <span className="text-brand-blue">Novo</span>
-        <span className="inline-flex items-end">
-          <span className="flex flex-col">
-            <span>
-              <span className="text-brand-orange">Sem</span>
-              <span className="ml-[0.37em] text-brand-green">i</span>
+      <span className={`inline-flex items-stretch font-display font-bold leading-[0.82] ${className ?? ""}`} aria-label="NovoSeminovo">
+        <span className="grid grid-cols-[repeat(4,0.68em)]" aria-hidden>
+          {cells.map(([letter, color], index) => (
+            <span key={index} className={`text-center ${color}`}>
+              {letter}
             </span>
-            <span>
-              <span className="text-brand-orange">Nov</span>
-              <span className="text-brand-green">o</span>
-            </span>
-          </span>
-          <Smile tall />
+          ))}
         </span>
+        <Smile tall />
       </span>
     );
   }
