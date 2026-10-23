@@ -155,7 +155,7 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
 
 ## Pendências e dívidas conhecidas (não esquecer)
 
-- **Afiliados do Arquiteto**: Amazon ligada em produção (`AFFILIATE_AMAZON_TAG=meusite0240-20` no .env da VPS, 23/10/2026; Diego precisa cadastrar novoseminovo.com.br no perfil de associado e fazer 3 vendas em 180 dias). Magalu: Diego se cadastrou por engano no Magalu Marketplace (vendedor) — o certo é o Parceiro Magalu (magazinevoce), aguardando o nome da loja. Mercado Livre e Leroy Merlin ainda sem código.
+- **Afiliados do Arquiteto**: Amazon ligada em produção (`AFFILIATE_AMAZON_TAG=meusite0240-20` no .env da VPS, 23/10/2026; site novoseminovo.com.br já cadastrado no perfil de associado; falta fazer 3 vendas em 180 dias). Magalu: Diego se cadastrou por engano no Magalu Marketplace (vendedor) — o certo é o Parceiro Magalu (magazinevoce), aguardando o nome da loja. Mercado Livre e Leroy Merlin ainda sem código.
 - **Senha do admin de demonstração (`senha1234`) foi exposta várias vezes nesta conversa.** Insegura pra produção se a conta de admin real usar essa mesma senha — nunca confirmado se foi trocada. Perguntar ao Diego.
 - **Integração Credihome (financiamento real via API do Loft)**: bloqueada — sem acesso à documentação/credenciais no ambiente usado até agora. Diego compartilhou um PDF sobre o parceiro; revisitar quando ele tiver as credenciais.
 - **Verificação por WhatsApp/SMS**: bloqueada até o Diego configurar uma conta Twilio ou Zenvia.
