@@ -59,6 +59,24 @@ function withoutThinking(messages: Anthropic.MessageParam[]): Anthropic.MessageP
   });
 }
 
+// Pedido de ferramenta sem o resultado logo em seguida (resposta cortada
+// pelo limite de tamanho no meio do tool_use, por exemplo) faz a API
+// recusar a conversa inteira dali pra frente — sai do histórico.
+function withoutDanglingToolUse(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
+  return messages.map((message, index) => {
+    if (message.role !== "assistant" || typeof message.content === "string") return message;
+    const next = messages[index + 1];
+    const answered = new Set(
+      next && next.role === "user" && Array.isArray(next.content)
+        ? next.content.filter((block) => block.type === "tool_result").map((block) => (block as Anthropic.ToolResultBlockParam).tool_use_id)
+        : [],
+    );
+    const content = message.content.filter((block) => block.type !== "tool_use" || answered.has(block.id));
+    if (content.length === message.content.length) return message;
+    return { ...message, content: content.length ? content : [{ type: "text" as const, text: "…" }] };
+  });
+}
+
 export function trimHistory(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
   if (messages.length <= MAX_HISTORY_MESSAGES) return messages;
   let start = messages.length - MAX_HISTORY_MESSAGES;
@@ -87,7 +105,7 @@ export async function runAgentTurn(
   // Corta o histórico uma vez, antes da mensagem nova — cortar no meio das
   // rodadas mudaria o começo da conversa e invalidaria o raciocínio assinado
   // da rodada em andamento.
-  const base = trimHistory([...withoutThinking(history), { role: "user", content: userText }]);
+  const base = trimHistory([...withoutDanglingToolUse(withoutThinking(history)), { role: "user", content: userText }]);
   const messages: Anthropic.MessageParam[] = [...base];
   const toolsByName = new Map(agent.tools.map((tool) => [tool.definition.name, tool]));
   const replies: string[] = [];

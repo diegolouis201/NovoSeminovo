@@ -255,7 +255,9 @@ Como conversar:
 - Valorização: fale em termos gerais (reforma bem feita costuma ajudar na venda/aluguel); nunca prometa percentual nem invente dados de mercado.
 - Imagens são ilustrativas, não são projeto.`;
 
-    return { system, tools, maxTokens: 2500 };
+    // Lista de compras grande + raciocínio da IA cabem com folga — com pouco
+    // espaço a resposta era cortada no meio da ferramenta.
+    return { system, tools, maxTokens: 12000 };
   }
 
   private async generateImage(session: SessionRow, userId: string, photoId: string, instructions: string, summary: string) {
