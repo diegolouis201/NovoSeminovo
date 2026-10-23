@@ -224,6 +224,7 @@ model User {
   agentConversations AgentConversation[]
 
   @@map("users")
+  architectSessions ArchitectSession[]
 }
 
 model Partner {
@@ -401,6 +402,7 @@ model Listing {
   vehicleDetails VehicleDetails?
   propertyDetails PropertyDetails?
   photos         Photo[]
+  architectSessions ArchitectSession[]
   boostPurchases ListingBoostPurchase[]
   favorites      Favorite[]
   conversations  Conversation[]
@@ -947,4 +949,58 @@ model PartnerApiKey {
 
   @@index([partnerId])
   @@map("partner_api_keys")
+}
+
+// ---------- Arquiteto NovoSeminovo (IA de reforma, ver apps/api/src/architect) ----------
+
+// Uma conversa por pessoa + anúncio de imóvel (retomada se voltar). messages
+// no formato da API da Anthropic, sem as fotos em base64 (trocadas por texto
+// antes de salvar); shoppingList = última lista de compras montada pela IA.
+model ArchitectSession {
+  id           String           @id @default(cuid())
+  userId       String           @map("user_id")
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listingId    String           @map("listing_id")
+  listing      Listing          @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  messages     Json             @default("[]")
+  shoppingList Json?            @map("shopping_list")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  images       ArchitectImage[]
+  clicks       AffiliateClick[]
+
+  @@index([userId, listingId])
+  @@map("architect_sessions")
+}
+
+// Imagem de "depois da reforma" gerada a partir de uma foto do anúncio. Conta
+// no limite diário por pessoa (ARCHITECT_DAILY_IMAGES).
+model ArchitectImage {
+  id           String           @id @default(cuid())
+  sessionId    String           @map("session_id")
+  session      ArchitectSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId       String           @map("user_id")
+  photoId      String?          @map("photo_id")
+  sourceUrl    String           @map("source_url")
+  instructions String
+  resultUrl    String           @map("result_url")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("architect_images")
+}
+
+// Clique num link de loja da lista de compras — base pra negociar comissão
+// com lojas/programas de afiliados.
+model AffiliateClick {
+  id        String            @id @default(cuid())
+  sessionId String?           @map("session_id")
+  session   ArchitectSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  userId    String?           @map("user_id")
+  store     String
+  query     String
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("affiliate_clicks")
 }

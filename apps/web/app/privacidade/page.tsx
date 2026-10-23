@@ -63,6 +63,10 @@ export default function PrivacyPage() {
           <strong>Uso do site:</strong> anúncios favoritados, buscas salvas, notificações, contagem de visualizações de
           anúncios e cliques em “Chamar no WhatsApp”.
         </li>
+        <li>
+          <strong>Arquiteto NovoSeminovo:</strong> a conversa sobre a reforma, as imagens geradas e a lista de compras
+          ficam salvas na sua conta; contamos os cliques nos links de lojas da lista.
+        </li>
       </ul>
 
       <H2>2. Para que usamos</H2>
@@ -102,12 +106,17 @@ export default function PrivacyPage() {
         <li>
           <strong>Prestadores de serviço</strong> que operam o site em nosso nome: hospedagem e armazenamento de
           fotos, envio de e-mails, processamento de pagamentos dos planos de parceiros (Stripe), modelos de IA
-          (Anthropic), mensagens de WhatsApp (Meta) e estatísticas de uso (Google Analytics, só com seu aceite). Alguns desses fornecedores podem tratar dados fora do Brasil, com
+          (Anthropic; e Google Gemini, que recebe as fotos do anúncio para gerar as imagens do Arquiteto NovoSeminovo),
+          mensagens de WhatsApp (Meta) e estatísticas de uso (Google Analytics, só com seu aceite). Alguns desses fornecedores podem tratar dados fora do Brasil, com
           as garantias exigidas pela LGPD.
         </li>
         <li>Autoridades, quando exigido por lei ou ordem judicial.</li>
       </ul>
-      <p>Não vendemos seus dados pessoais.</p>
+      <p>
+        Não vendemos seus dados pessoais. Os links de lojas da lista de compras do Arquiteto podem ser links de
+        afiliado: se você comprar por eles, a loja pode nos pagar uma comissão — sem custo extra para você e sem
+        compartilharmos seus dados com a loja.
+      </p>
 
       <H2>5. Cookies e armazenamento no navegador</H2>
       <p>

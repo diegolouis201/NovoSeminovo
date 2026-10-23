@@ -1643,3 +1643,57 @@ export const UpdateFinancingLeadInputSchema = z.object({
   adminNotes: z.string().trim().max(2000).nullable().optional(),
 });
 export type UpdateFinancingLeadInput = z.infer<typeof UpdateFinancingLeadInputSchema>;
+
+// ---------- Arquiteto NovoSeminovo (IA de reforma) ----------
+
+// Lojas dos links da lista de compras. Os links passam por
+// GET /architect/go (conta o clique e acrescenta o código de afiliado quando
+// configurado no servidor).
+export const ARCHITECT_STORES = [
+  { id: "leroymerlin", name: "Leroy Merlin" },
+  { id: "mercadolivre", name: "Mercado Livre" },
+  { id: "amazon", name: "Amazon" },
+  { id: "magalu", name: "Magalu" },
+] as const;
+export type ArchitectStoreId = (typeof ARCHITECT_STORES)[number]["id"];
+
+export const ArchitectShoppingItemSchema = z.object({
+  category: z.enum(["material", "acabamento", "movel", "decoracao", "iluminacao", "servico"]),
+  name: z.string(),
+  spec: z.string().optional(),
+  quantity: z.number(),
+  unit: z.string(),
+  priceMin: z.number(),
+  priceMax: z.number(),
+  searchTerm: z.string(),
+  room: z.string().optional(),
+});
+export type ArchitectShoppingItem = z.infer<typeof ArchitectShoppingItemSchema>;
+
+export const ArchitectShoppingListSchema = z.object({
+  items: z.array(ArchitectShoppingItemSchema),
+  notes: z.string().optional(),
+  updatedAt: z.string(),
+});
+export type ArchitectShoppingList = z.infer<typeof ArchitectShoppingListSchema>;
+
+export const ArchitectSessionViewSchema = z.object({
+  id: z.string(),
+  listing: z.object({ id: z.string(), title: z.string(), location: z.string(), priceLabel: z.string() }),
+  photos: z.array(z.object({ id: z.string(), url: z.string(), caption: z.string().optional() })),
+  messages: z.array(z.object({ role: z.enum(["user", "assistant"]), text: z.string() })),
+  images: z.array(
+    z.object({ id: z.string(), photoId: z.string().optional(), sourceUrl: z.string(), resultUrl: z.string(), instructions: z.string(), createdAt: z.string() }),
+  ),
+  shoppingList: ArchitectShoppingListSchema.optional(),
+  imagesLeftToday: z.number().int(),
+  dailyImageLimit: z.number().int(),
+  imageGenerationEnabled: z.boolean(),
+});
+export type ArchitectSessionView = z.infer<typeof ArchitectSessionViewSchema>;
+
+export const ArchitectMessageInputSchema = z.object({
+  text: z.string().trim().min(1, "Escreva sua ideia").max(1500),
+  // Foto que a pessoa selecionou na tela (a IA olha essa primeiro).
+  photoId: z.string().optional(),
+});

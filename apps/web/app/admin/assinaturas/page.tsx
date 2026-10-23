@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PARTNER_TRIAL_DAYS, type SubscriptionBoardCard } from "@novoseminovo/shared-types";
+import { ARCHITECT_STORES, PARTNER_TRIAL_DAYS, type SubscriptionBoardCard } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { SubscriptionBoard } from "@/components/SubscriptionBoard";
-import { fetchBoostPurchases, fetchSubscriptionBoard } from "@/lib/api";
+import { fetchArchitectStats, fetchBoostPurchases, fetchSubscriptionBoard } from "@/lib/api";
 
 function brl(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -67,7 +67,11 @@ export default async function AdminSubscriptionsPage() {
     );
   }
 
-  const [cards, boosts] = await Promise.all([fetchSubscriptionBoard(session.accessToken), fetchBoostPurchases(session.accessToken)]);
+  const [cards, boosts, architect] = await Promise.all([
+    fetchSubscriptionBoard(session.accessToken),
+    fetchBoostPurchases(session.accessToken),
+    fetchArchitectStats(session.accessToken),
+  ]);
   const stats = cards ? summarize(cards) : undefined;
 
   return (
@@ -149,6 +153,26 @@ export default async function AdminSubscriptionsPage() {
               ))}
             </ul>
           )}
+        </section>
+      )}
+
+      {architect && (
+        <section className="mt-10">
+          <h2 className="font-display text-xl font-semibold text-ink">Arquiteto NovoSeminovo — últimos 30 dias</h2>
+          <p className="text-sm text-ink-muted">
+            <strong className="text-ink">{architect.sessions}</strong> conversa(s) · <strong className="text-ink">{architect.images}</strong> imagem(ns) de
+            reforma geradas. Cliques nos links de loja da lista de compras (base para negociar comissão com as lojas):
+          </p>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-4">
+            {ARCHITECT_STORES.map((store) => (
+              <li key={store.id} className="rounded-brand border border-border bg-surface-raised px-4 py-3 text-sm">
+                <span className="block text-ink-muted">{store.name}</span>
+                <strong className="text-xl text-ink [font-variant-numeric:tabular-nums]">
+                  {architect.clicksByStore.find((row) => row.store === store.id)?.clicks ?? 0}
+                </strong>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </main>

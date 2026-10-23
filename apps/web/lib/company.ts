@@ -25,7 +25,7 @@ export const CORBAN = {
   cnpj: "61.452.517/0001-06",
 } as const;
 
-export const LEGAL_UPDATED_AT = "22/10/2026";
+export const LEGAL_UPDATED_AT = "23/10/2026";
 
 // Endereço público do site — base dos links absolutos de prévia (WhatsApp,
 // Instagram, Google) e do sitemap.

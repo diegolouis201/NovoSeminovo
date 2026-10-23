@@ -10,6 +10,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export type RegisterState = { error?: string };
 
+// Volta pra onde a pessoa estava (ex.: Arquiteto NovoSeminovo) — só caminho interno.
+function returnPath(value: string): string {
+  return value.startsWith("/") && !value.startsWith("//") ? value : "/conta";
+}
+
 // /cadastro: pessoa física cria a conta; empresa cria a conta do responsável
 // e a loja/imobiliária juntas (o tipo sai do CNPJ — ver CnpjService na API).
 export async function registerAction(_prev: RegisterState, formData: FormData): Promise<RegisterState> {
@@ -34,7 +39,7 @@ export async function registerAction(_prev: RegisterState, formData: FormData): 
   }
 
   try {
-    await signIn("credentials", { email: account.email, password: account.password, redirectTo: isCompany ? "/parceiro" : "/conta" });
+    await signIn("credentials", { email: account.email, password: account.password, redirectTo: isCompany ? "/parceiro" : returnPath(field("voltar")) });
   } catch (error) {
     if (error instanceof AuthError) redirect("/entrar");
     throw error;

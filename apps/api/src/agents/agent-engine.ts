@@ -24,7 +24,17 @@ export type AgentTool = {
 export type AgentDefinition = {
   system: string;
   tools: AgentTool[];
+  maxTokens?: number;
 };
+
+// Ferramenta que precisa mostrar algo ao modelo além de texto (ex.: a foto
+// de um cômodo pro Arquiteto) devolve { contentBlocks: [...] } — vai como
+// conteúdo do tool_result em vez de JSON.
+export type ToolContentOutput = { contentBlocks: Anthropic.ToolResultBlockParam["content"] };
+
+function isContentOutput(output: unknown): output is ToolContentOutput {
+  return Boolean(output && typeof output === "object" && Array.isArray((output as ToolContentOutput).contentBlocks));
+}
 
 // Mensagem do usuário "de verdade" (texto digitado), em oposição a uma
 // mensagem role=user que só carrega tool_result. O histórico mandado pro
@@ -69,7 +79,7 @@ export async function runAgentTurn(
     const lastRound = round === MAX_TOOL_ROUNDS;
     const response = await client.messages.create({
       model: AGENT_MODEL,
-      max_tokens: 1500,
+      max_tokens: agent.maxTokens ?? 1500,
       system: agent.system,
       tools: agent.tools.map((tool) => tool.definition),
       // Na última rodada o modelo é obrigado a responder em texto com o que
@@ -97,7 +107,7 @@ export async function runAgentTurn(
         results.push({
           type: "tool_result",
           tool_use_id: toolUse.id,
-          content: JSON.stringify(output ?? null).slice(0, MAX_TOOL_RESULT_CHARS),
+          content: isContentOutput(output) ? output.contentBlocks : JSON.stringify(output ?? null).slice(0, MAX_TOOL_RESULT_CHARS),
         });
       } catch (error) {
         results.push({

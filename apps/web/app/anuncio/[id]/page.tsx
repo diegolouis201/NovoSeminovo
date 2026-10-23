@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { listingTier } from "@novoseminovo/shared-types";
 import { cache } from "react";
-import { Bank, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
+import { Bank, IdentificationCard, PaintBrushHousehold } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
@@ -301,6 +301,18 @@ export default async function ListingDetailPage({
             installments={listing.financing.installments}
             rate={listing.financing.rate}
           />
+          )}
+
+          {listing.assetType === "property" && (
+            <Link
+              href={`/anuncio/${listing.id}/arquiteto`}
+              className="flex w-full max-w-sm flex-col items-center gap-0.5 rounded-brand bg-brand-purple px-4 py-3 text-center text-on-purple transition-opacity hover:opacity-90"
+            >
+              <span className="flex items-center gap-2 text-sm font-bold">
+                <PaintBrushHousehold size={20} weight="fill" /> Arquiteto NovoSeminovo
+              </span>
+              <span className="text-xs opacity-90">Veja como este imóvel ficaria reformado, com lista de compras</span>
+            </Link>
           )}
 
           {listing.assetType === "property" && (

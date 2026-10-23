@@ -120,3 +120,19 @@ body {
 .ns-popup-body small {
   color: #5b6152;
 }
+
+/* Arquiteto NovoSeminovo: "Imprimir ou salvar PDF" imprime só a lista de compras. */
+@media print {
+  body:has(.architect-print) * {
+    visibility: hidden;
+  }
+  body:has(.architect-print) .architect-print,
+  body:has(.architect-print) .architect-print * {
+    visibility: visible;
+  }
+  body:has(.architect-print) .architect-print {
+    position: absolute;
+    inset: 0 0 auto 0;
+    border: 0;
+  }
+}

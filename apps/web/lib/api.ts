@@ -1,4 +1,5 @@
 import type {
+  ArchitectSessionView,
   CnpjLookup,
   HighlightLevel,
   RegisterCompanyInput,
@@ -708,6 +709,48 @@ export async function signupCompany(input: RegisterCompanyInput): Promise<ApiRes
 export function setListingHighlight(listingId: string, level: HighlightLevel, accessToken: string): Promise<ApiResult<Partner>> {
   return sendJson<Partner>(`/partners/mine/listings/${listingId}/highlight`, "PATCH", { level }, accessToken);
 }
+
+// ---------- Arquiteto NovoSeminovo ----------
+
+export async function openArchitectSession(listingId: string, accessToken: string): Promise<ApiResult<ArchitectSessionView>> {
+  return sendJson<ArchitectSessionView>("/architect/sessions", "POST", { listingId }, accessToken);
+}
+
+// A resposta pode levar até ~1 min quando a IA gera imagem (Gemini).
+export async function sendArchitectMessage(
+  sessionId: string,
+  input: { text: string; photoId?: string },
+  accessToken: string,
+): Promise<ApiResult<ArchitectSessionView>> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/architect/sessions/${encodeURIComponent(sessionId)}/messages`,
+      { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders(accessToken) }, body: JSON.stringify(input) },
+      150_000,
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: (data as { message?: string }).message ?? "O Arquiteto não conseguiu responder agora." };
+    return { ok: true, value: data as ArchitectSessionView };
+  } catch {
+    return { ok: false, error: "O Arquiteto demorou demais para responder. Tente de novo." };
+  }
+}
+
+export async function fetchArchitectStats(
+  accessToken: string,
+): Promise<{ sessions: number; images: number; clicksByStore: { store: string; clicks: number }[] } | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/architect/stats`, { headers: authHeaders(accessToken) });
+    if (!res.ok) return undefined;
+    return (await res.json()) as { sessions: number; images: number; clicksByStore: { store: string; clicks: number }[] };
+  } catch {
+    return undefined;
+  }
+}
+
+// Base pública da API — o Arquiteto monta os links de loja (contagem de
+// clique) no navegador a partir dela.
+export const PUBLIC_API_URL = API_URL;
 
 export type UploadPartnerLogoResult = { ok: true; partner: Partner } | { ok: false; error: string };
 

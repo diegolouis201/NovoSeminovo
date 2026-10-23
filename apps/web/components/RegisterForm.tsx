@@ -20,7 +20,7 @@ function Submit() {
   );
 }
 
-export function RegisterForm({ initialError }: { initialError?: string }) {
+export function RegisterForm({ initialError, returnTo }: { initialError?: string; returnTo?: string }) {
   const [accountType, setAccountType] = useState<"pf" | "pj">("pf");
   const [state, formAction] = useFormState<RegisterState, FormData>(registerAction, { error: initialError });
   const isCompany = accountType === "pj";
@@ -54,6 +54,7 @@ export function RegisterForm({ initialError }: { initialError?: string }) {
         })}
       </div>
       <input type="hidden" name="accountType" value={accountType} />
+      {returnTo && <input type="hidden" name="voltar" value={returnTo} />}
 
       {state.error && (
         <p role="alert" className="rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">

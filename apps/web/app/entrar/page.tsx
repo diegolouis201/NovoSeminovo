@@ -5,9 +5,16 @@ import { auth, signIn } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField } from "@/components/FormField";
 
-export default async function LoginPage({ searchParams }: { searchParams: { error?: string } }) {
+// "?voltar=/caminho" (ex.: Arquiteto NovoSeminovo, que exige login) — só
+// caminho interno, nunca outro site.
+function safeReturnPath(value: string | undefined): string {
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/conta";
+}
+
+export default async function LoginPage({ searchParams }: { searchParams: { error?: string; voltar?: string } }) {
   const session = await auth();
-  if (session?.user) redirect("/conta");
+  const returnTo = safeReturnPath(searchParams.voltar);
+  if (session?.user) redirect(returnTo);
 
   async function authenticate(formData: FormData) {
     "use server";
@@ -15,11 +22,11 @@ export default async function LoginPage({ searchParams }: { searchParams: { erro
       await signIn("credentials", {
         email: formData.get("email"),
         password: formData.get("password"),
-        redirectTo: "/conta",
+        redirectTo: safeReturnPath(String(formData.get("voltar") ?? "")),
       });
     } catch (error) {
       if (error instanceof AuthError) {
-        redirect("/entrar?error=1");
+        redirect(`/entrar?error=1${returnTo !== "/conta" ? `&voltar=${encodeURIComponent(returnTo)}` : ""}`);
       }
       throw error;
     }
@@ -36,6 +43,7 @@ export default async function LoginPage({ searchParams }: { searchParams: { erro
       )}
 
       <form action={authenticate} className="flex flex-col gap-3">
+        <input type="hidden" name="voltar" value={returnTo} />
         <FormField label="E-mail" name="email" type="email" />
         <FormField label="Senha" name="password" type="password" />
         <Button type="submit">Entrar</Button>
@@ -43,7 +51,7 @@ export default async function LoginPage({ searchParams }: { searchParams: { erro
 
       <p className="text-sm text-ink-muted">
         Ainda não tem conta?{" "}
-        <Link href="/cadastro" className="font-semibold text-brand-blue">
+        <Link href={returnTo !== "/conta" ? `/cadastro?voltar=${encodeURIComponent(returnTo)}` : "/cadastro"} className="font-semibold text-brand-blue">
           Cadastre-se
         </Link>
       </p>
