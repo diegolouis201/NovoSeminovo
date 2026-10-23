@@ -34,6 +34,13 @@ const STORES_BY_CATEGORY: Record<ArchitectShoppingItem["category"], string[]> = 
   servico: [],
 };
 
+// A IA às vezes marca **negrito** — vira <strong> em vez de mostrar os asteriscos.
+function richText(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
+    part.startsWith("**") && part.endsWith("**") && part.length > 4 ? <strong key={index}>{part.slice(2, -2)}</strong> : part,
+  );
+}
+
 function media(apiBase: string, url: string): string {
   return url.startsWith("http") ? url : `${apiBase}${url}`;
 }
@@ -159,7 +166,7 @@ export function ArchitectStudio({ initial, apiBase }: { initial: ArchitectSessio
                   message.role === "user" ? "ml-8 bg-brand-blue text-on-blue" : "mr-4 bg-surface-sober text-ink"
                 }`}
               >
-                {message.text}
+                {message.role === "assistant" ? richText(message.text) : message.text}
               </p>
             ))}
             {busy && <p className="mr-4 rounded-brand bg-surface-sober px-3 py-2 text-sm text-ink-muted">O Arquiteto está pensando… se ele for gerar uma imagem, pode levar até 1 minuto.</p>}

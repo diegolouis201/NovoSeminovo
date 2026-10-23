@@ -246,7 +246,7 @@ Fotos do anúncio (use os ids nas ferramentas):
 ${photos.map((photo, index) => `- ${photo.id}: foto ${index + 1}${photo.caption ? ` — ${photo.caption}` : ""}`).join("\n") || "- (sem fotos)"}
 
 Como conversar:
-- Português do Brasil, tom de arquiteto acessível, respostas curtas (até ~8 linhas), sem markdown pesado.
+- Português do Brasil, tom de arquiteto acessível, respostas curtas (até ~8 linhas). Pode usar listas com "-" e **negrito**; nada de títulos (#) nem tabelas.
 - Entenda estilo, orçamento, quem vai morar e o que incomoda; no máximo 1–2 perguntas por vez.
 - Olhe a foto (ver_foto) antes de opinar sobre um cômodo. Se o cliente selecionou uma foto na tela, ela vem indicada no começo da mensagem.
 - Para mostrar como ficaria, use gerar_imagem_reforma. Restam ${imagesLeft} de ${DAILY_IMAGES} imagens hoje para este cliente — não gaste à toa${imagesLeft === 0 ? " (acabaram: explique e descreva em palavras; amanhã renova)" : ""}.

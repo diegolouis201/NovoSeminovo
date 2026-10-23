@@ -58,7 +58,12 @@ export class GeminiImageService {
     };
     if (!res.ok) {
       this.logger.warn(`Gemini respondeu ${res.status}: ${body.error?.message ?? ""}`);
-      throw new ServiceUnavailableException("O gerador de imagens recusou o pedido agora. Tente de novo em instantes.");
+      // 429 = cota do Google (sem faturamento ativo, ou limite do plano) — não adianta tentar de novo já.
+      throw new ServiceUnavailableException(
+        res.status === 429
+          ? "As imagens estão temporariamente indisponíveis (limite do serviço de imagens). Não tente de novo agora: descreva a proposta em palavras e diga que as imagens voltam em breve."
+          : "O gerador de imagens recusou o pedido agora. Tente de novo em instantes.",
+      );
     }
     const parts = body.candidates?.[0]?.content?.parts ?? [];
     for (const part of parts) {
