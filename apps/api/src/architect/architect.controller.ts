@@ -32,7 +32,7 @@ export class ArchitectController {
   @Post("architect/sessions/:id/messages")
   message(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
     const input = parseOrBadRequest(ArchitectMessageInputSchema, body);
-    return this.architect.sendMessage(user.id, id, input.text, input.photoId);
+    return this.architect.sendMessage(user.id, id, input);
   }
 
   // Link de loja da lista de compras: conta o clique e redireciona. Público

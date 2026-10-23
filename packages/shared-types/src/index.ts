@@ -1692,8 +1692,17 @@ export const ArchitectSessionViewSchema = z.object({
 });
 export type ArchitectSessionView = z.infer<typeof ArchitectSessionViewSchema>;
 
+export const ARCHITECT_MAX_PHOTOS = 5;
+
 export const ArchitectMessageInputSchema = z.object({
   text: z.string().trim().min(1, "Escreva sua ideia").max(1500),
-  // Foto que a pessoa selecionou na tela (a IA olha essa primeiro).
+  // Fotos que a pessoa selecionou na tela (até 5 cômodos; a IA olha essas).
+  photoIds: z.array(z.string()).max(ARCHITECT_MAX_PHOTOS, `Escolha até ${ARCHITECT_MAX_PHOTOS} fotos`).optional(),
+  // Com mais de uma foto: "todos" reforma todos de uma vez; "separado" trata
+  // um cômodo por vez (activePhotoId) e a lista de compras vai juntando.
+  mode: z.enum(["todos", "separado"]).optional(),
+  activePhotoId: z.string().optional(),
+  // Compatibilidade com a tela antiga (uma foto só).
   photoId: z.string().optional(),
 });
+export type ArchitectMessageInput = z.infer<typeof ArchitectMessageInputSchema>;

@@ -1,4 +1,5 @@
 import type {
+  ArchitectMessageInput,
   ArchitectSessionView,
   CnpjLookup,
   HighlightLevel,
@@ -716,17 +717,18 @@ export async function openArchitectSession(listingId: string, accessToken: strin
   return sendJson<ArchitectSessionView>("/architect/sessions", "POST", { listingId }, accessToken);
 }
 
-// A resposta pode levar até ~1 min quando a IA gera imagem (Gemini).
+// A resposta pode levar alguns minutos quando a IA reforma vários cômodos de
+// uma vez (imagens do Gemini + lista de compras completa).
 export async function sendArchitectMessage(
   sessionId: string,
-  input: { text: string; photoId?: string },
+  input: ArchitectMessageInput,
   accessToken: string,
 ): Promise<ApiResult<ArchitectSessionView>> {
   try {
     const res = await fetchWithTimeout(
       `${API_URL}/architect/sessions/${encodeURIComponent(sessionId)}/messages`,
       { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders(accessToken) }, body: JSON.stringify(input) },
-      150_000,
+      300_000,
     );
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return { ok: false, error: (data as { message?: string }).message ?? "O Arquiteto não conseguiu responder agora." };

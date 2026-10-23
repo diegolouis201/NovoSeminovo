@@ -25,6 +25,10 @@ export type AgentDefinition = {
   system: string;
   tools: AgentTool[];
   maxTokens?: number;
+  // Agente que trabalha em lote (o Arquiteto com vários cômodos) precisa de
+  // mais rodadas e roda as ferramentas pedidas na mesma resposta em paralelo.
+  maxToolRounds?: number;
+  parallelTools?: boolean;
 };
 
 // Ferramenta que precisa mostrar algo ao modelo além de texto (ex.: a foto
@@ -110,8 +114,9 @@ export async function runAgentTurn(
   const toolsByName = new Map(agent.tools.map((tool) => [tool.definition.name, tool]));
   const replies: string[] = [];
 
-  for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-    const lastRound = round === MAX_TOOL_ROUNDS;
+  const maxRounds = agent.maxToolRounds ?? MAX_TOOL_ROUNDS;
+  for (let round = 0; round <= maxRounds; round++) {
+    const lastRound = round === maxRounds;
     const response = await client.messages.create({
       model: AGENT_MODEL,
       max_tokens: agent.maxTokens ?? 1500,
@@ -133,26 +138,23 @@ export async function runAgentTurn(
     );
     if (response.stop_reason !== "tool_use" || toolUses.length === 0) break;
 
-    const results: Anthropic.ToolResultBlockParam[] = [];
-    for (const toolUse of toolUses) {
+    const runTool = async (toolUse: Anthropic.ToolUseBlock): Promise<Anthropic.ToolResultBlockParam> => {
       const tool = toolsByName.get(toolUse.name);
       try {
         if (!tool) throw new Error(`Ferramenta desconhecida: ${toolUse.name}`);
         const output = await tool.run((toolUse.input ?? {}) as Record<string, unknown>);
-        results.push({
+        return {
           type: "tool_result",
           tool_use_id: toolUse.id,
           content: isContentOutput(output) ? output.contentBlocks : JSON.stringify(output ?? null).slice(0, MAX_TOOL_RESULT_CHARS),
-        });
+        };
       } catch (error) {
-        results.push({
-          type: "tool_result",
-          tool_use_id: toolUse.id,
-          is_error: true,
-          content: error instanceof Error ? error.message : String(error),
-        });
+        return { type: "tool_result", tool_use_id: toolUse.id, is_error: true, content: error instanceof Error ? error.message : String(error) };
       }
-    }
+    };
+    const results: Anthropic.ToolResultBlockParam[] = [];
+    if (agent.parallelTools) results.push(...(await Promise.all(toolUses.map(runTool))));
+    else for (const toolUse of toolUses) results.push(await runTool(toolUse));
     messages.push({ role: "user", content: results });
   }
 
