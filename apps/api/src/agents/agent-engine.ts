@@ -46,6 +46,19 @@ function isUserText(message: Anthropic.MessageParam): boolean {
   return message.content.every((block) => block.type !== "tool_result");
 }
 
+// Blocos de raciocínio ("thinking") de respostas antigas vêm assinados e só
+// valem se tudo antes deles voltar idêntico — e o histórico guardado muda
+// (cortado por trimHistory; o Arquiteto troca as fotos por texto). Numa
+// mensagem nova do usuário a API não precisa deles, então saem do histórico.
+function withoutThinking(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
+  return messages.map((message) => {
+    if (message.role !== "assistant" || typeof message.content === "string") return message;
+    const content = message.content.filter((block) => block.type !== "thinking" && block.type !== "redacted_thinking");
+    if (content.length === message.content.length) return message;
+    return { ...message, content: content.length ? content : [{ type: "text" as const, text: "…" }] };
+  });
+}
+
 export function trimHistory(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
   if (messages.length <= MAX_HISTORY_MESSAGES) return messages;
   let start = messages.length - MAX_HISTORY_MESSAGES;
@@ -71,7 +84,11 @@ export async function runAgentTurn(
   history: Anthropic.MessageParam[],
   userText: string,
 ): Promise<{ messages: Anthropic.MessageParam[]; reply: string }> {
-  const messages: Anthropic.MessageParam[] = [...history, { role: "user", content: userText }];
+  // Corta o histórico uma vez, antes da mensagem nova — cortar no meio das
+  // rodadas mudaria o começo da conversa e invalidaria o raciocínio assinado
+  // da rodada em andamento.
+  const base = trimHistory([...withoutThinking(history), { role: "user", content: userText }]);
+  const messages: Anthropic.MessageParam[] = [...base];
   const toolsByName = new Map(agent.tools.map((tool) => [tool.definition.name, tool]));
   const replies: string[] = [];
 
@@ -86,7 +103,7 @@ export async function runAgentTurn(
       // já tem — sem isso a conversa ficaria terminando num tool_use sem
       // resposta pro usuário.
       tool_choice: lastRound ? { type: "none" } : { type: "auto" },
-      messages: trimHistory(messages),
+      messages,
     });
 
     messages.push({ role: "assistant", content: response.content });
