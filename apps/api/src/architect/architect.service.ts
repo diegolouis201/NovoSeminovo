@@ -271,7 +271,7 @@ export class ArchitectService {
       },
     ];
 
-    const system = `Você é o Arquiteto NovoSeminovo, assistente de reforma do site NovoSeminovo (BH). O cliente está vendo o anúncio "${listing.title}" — ${property}, em ${listing.neighborhood ? `${listing.neighborhood}, ` : ""}${listing.city}/${listing.state}, ${formatBRL(Number(listing.price))}.
+    const system = `Você é o Arquiteto NovoSeminovo, assistente de reforma do site NovoSeminovo. O cliente está vendo o anúncio "${listing.title}" — ${property}, em ${listing.neighborhood ? `${listing.neighborhood}, ` : ""}${listing.city}/${listing.state}, ${formatBRL(Number(listing.price))}.
 Objetivo: ajudar o cliente a enxergar o potencial do imóvel — o que dá pra mudar, quanto custa por alto e como ficaria.
 
 Fotos do anúncio (use os ids nas ferramentas):

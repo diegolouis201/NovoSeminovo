@@ -140,7 +140,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           {searchParams.q && <input type="hidden" name="q" value={searchParams.q} />}
           <BarSelect name="purpose" label="Negócio" defaultValue={purpose} options={[{ value: "sale", label: "Comprar" }, { value: "rent", label: "Alugar" }]} />
           <BarSelect name="propertyType" label="Tipo" defaultValue={searchParams.propertyType} options={PROPERTY_TYPE_OPTIONS} />
-          <BarInput name="city" label="Cidade" placeholder="Belo Horizonte" defaultValue={searchParams.city} />
+          <BarInput name="city" label="Cidade" placeholder="Qualquer cidade" defaultValue={searchParams.city} />
           <BarInput name="neighborhood" label="Bairro" placeholder="Qualquer" defaultValue={searchParams.neighborhood} />
           <BarInput name="priceMin" label="Preço mín." placeholder="R$" defaultValue={searchParams.priceMin} type="number" />
           <BarInput name="priceMax" label="Preço máx." placeholder="R$" defaultValue={searchParams.priceMax} type="number" />
@@ -260,7 +260,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 />
               </>
             )}
-            <FilterGroup label="Cidade" name="city" placeholder="Belo Horizonte" defaultValue={searchParams.city} />
+            <FilterGroup label="Cidade" name="city" placeholder="Qualquer cidade" defaultValue={searchParams.city} />
 
             <button
               type="submit"

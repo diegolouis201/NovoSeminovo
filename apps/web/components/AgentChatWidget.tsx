@@ -24,7 +24,7 @@ const BUYER_AGENT: AgentConfig = {
     "Oi! Sou o assistente do NovoSeminovo. Posso te ajudar a encontrar um carro ou imóvel e a entender quanto fica o financiamento. O que você procura?",
   suggestions: [
     "Quero um carro até R$ 80 mil",
-    "Procuro apartamento de 2 quartos em BH",
+    "Procuro apartamento de 2 quartos até R$ 400 mil",
     "Quanto fica a parcela de um carro de R$ 60 mil?",
   ],
 };

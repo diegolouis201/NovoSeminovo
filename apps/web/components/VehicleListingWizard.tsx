@@ -123,8 +123,8 @@ const EMPTY: Draft = {
   conditions: [],
   financingEnabled: true,
   cep: "",
-  city: "Belo Horizonte",
-  state: "MG",
+  city: "",
+  state: "",
   neighborhood: "",
   showPhone: true,
   acceptsTrade: false,
@@ -327,7 +327,7 @@ export function VehicleListingWizard({
         return undefined;
       case "location":
         if (!draft.city.trim()) return "Informe a cidade.";
-        if (draft.state.trim().length !== 2) return "Informe a sigla do estado (ex.: MG).";
+        if (draft.state.trim().length !== 2) return "Informe a sigla do estado (ex.: SP).";
         return undefined;
       case "contact":
         if (draft.showPhone && digits(draft.phone).length < 10) return "Informe um telefone com DDD, ou desligue o WhatsApp.";

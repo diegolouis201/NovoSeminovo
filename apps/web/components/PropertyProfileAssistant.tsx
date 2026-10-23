@@ -97,7 +97,7 @@ export function PropertyProfileAssistant() {
           required={false}
           placeholder="Ex.: 2"
         />
-        <FormField label="Cidade de preferência" name="preferredCity" required={false} placeholder="Ex.: Belo Horizonte" />
+        <FormField label="Cidade de preferência" name="preferredCity" required={false} placeholder="Ex.: São Paulo" />
         <FormField label="Bairro de preferência" name="preferredNeighborhood" required={false} placeholder="Ex.: Savassi" />
         <SelectField label="Prioridade" name="priority" options={PRIORITY_OPTIONS} />
         <div className="sm:col-span-2">

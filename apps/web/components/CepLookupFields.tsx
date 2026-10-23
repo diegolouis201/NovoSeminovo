@@ -63,7 +63,7 @@ export function CepLookupFields({
           name="state"
           value={state}
           onChange={(event) => setState(event.target.value)}
-          placeholder="MG"
+          placeholder="UF"
           className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink placeholder:text-ink-muted"
         />
       </label>
@@ -75,7 +75,7 @@ export function CepLookupFields({
           name="city"
           value={city}
           onChange={(event) => setCity(event.target.value)}
-          placeholder="Belo Horizonte"
+          placeholder="Cidade"
           className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink placeholder:text-ink-muted"
         />
       </label>

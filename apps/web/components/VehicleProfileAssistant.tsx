@@ -96,7 +96,7 @@ export function VehicleProfileAssistant() {
           required={false}
           placeholder="Ex.: 4"
         />
-        <FormField label="Cidade de preferência" name="preferredCity" required={false} placeholder="Ex.: Belo Horizonte" />
+        <FormField label="Cidade de preferência" name="preferredCity" required={false} placeholder="Ex.: São Paulo" />
         <div className="sm:col-span-2">
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-semibold text-ink">

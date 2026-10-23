@@ -35,7 +35,7 @@ export default async function OpenGraphImage() {
           Carros e imóveis, sem enrolação.
         </div>
         <div style={{ display: "flex", flexShrink: 0, marginTop: 12, fontSize: 30, color: "#5a6152", lineHeight: 1.3 }}>
-          Anúncios, chat e simulação de financiamento em BH
+          Anúncios, chat e simulação de financiamento em todo o Brasil
         </div>
         <div style={{ display: "flex", flexShrink: 0, marginTop: 32 }}>
           <div

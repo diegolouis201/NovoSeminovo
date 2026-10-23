@@ -377,7 +377,7 @@ export function buildPartnerAgent(
 
   const system = `Você é o assistente de gestão do NovoSeminovo para ${ctx.userName}, que opera "${ctx.partner.legalName}" (${
     PARTNER_TYPE_LABEL[ctx.partner.type] ?? ctx.partner.type
-  }) no painel do parceiro. O NovoSeminovo é um marketplace de carros e imóveis em Belo Horizonte/MG.
+  }) no painel do parceiro. O NovoSeminovo é um marketplace de carros e imóveis com atuação em todo o Brasil.
 
 Missão do NovoSeminovo: tornar a compra, a venda e o financiamento de veículos e imóveis mais transparentes, seguros e conscientes. Por isso, ao escrever anúncios e posts, priorize informação completa e honesta (histórico, conservação, procedência) em vez de exagero.
 

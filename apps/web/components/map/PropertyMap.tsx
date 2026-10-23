@@ -16,7 +16,9 @@ import type { ListingSummary } from "@novoseminovo/shared-types";
 
 const TILE_URL = process.env.NEXT_PUBLIC_MAP_TILE_URL ?? "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
-const BH: [number, number] = [-19.9208, -43.9378];
+// Sem anúncios com ponto, o mapa abre no Brasil inteiro (atuação nacional);
+// com resultados, enquadra os pins (fitOnLoad).
+const BRASIL: [number, number] = [-14.235, -51.9253];
 
 export type Bbox = string; // "oeste,sul,leste,norte"
 
@@ -117,7 +119,7 @@ export default function PropertyMap(props: {
   onBoundsChange: (bbox: Bbox) => void;
 }) {
   return (
-    <MapContainer center={BH} zoom={12} scrollWheelZoom className="h-full w-full" attributionControl>
+    <MapContainer center={BRASIL} zoom={4} scrollWheelZoom className="h-full w-full" attributionControl>
       <TileLayer url={TILE_URL} attribution={ATTRIBUTION} subdomains="abcd" maxZoom={19} />
       <Markers listings={props.listings} hoveredId={props.hoveredId} fitOnLoad onBoundsChange={props.onBoundsChange} />
     </MapContainer>

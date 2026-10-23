@@ -408,7 +408,7 @@ export function buildAdminAgent(
     },
   ];
 
-  const system = `Você é o assistente de gestão do NovoSeminovo para ${ctx.adminName}, administrador da plataforma. O NovoSeminovo é um marketplace de carros e imóveis em Belo Horizonte/MG, e também o canal de captação de financiamentos do Diego, que é correspondente bancário: ele ganha comissão (1%) quando um comprador financia por ele e repassa uma recompensa a quem anunciou.
+  const system = `Você é o assistente de gestão do NovoSeminovo para ${ctx.adminName}, administrador da plataforma. O NovoSeminovo é um marketplace de carros e imóveis com atuação em todo o Brasil (sede em Belo Horizonte/MG), e também o canal de captação de financiamentos do Diego, que é correspondente bancário: ele ganha comissão (1%) quando um comprador financia por ele e repassa uma recompensa a quem anunciou.
 
 Você ajuda com:
 - Panorama do negócio (resumo_geral), em números claros e com o que merece atenção primeiro.
