@@ -7,16 +7,14 @@ import "leaflet.markercluster";
 import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import type { ListingSummary } from "@novoseminovo/shared-types";
+import type { MapTiles } from "@/lib/map-tiles";
 
-// Mapa da busca de imóveis (Leaflet + mapa do próprio OpenStreetMap — grátis,
-// sem chave; a CARTO passou a exigir chave em 10/2026 e o mapa saía com
-// "API KEY REQUIRED"). Se o volume crescer, NEXT_PUBLIC_MAP_TILE_URL troca o
-// fornecedor (ex.: MapTiler com chave) — variável NEXT_PUBLIC_, entra no build. Marcadores com o preço, agrupados com a
+// Mapa da busca de imóveis (Leaflet). O desenho do mapa vem do servidor
+// (lib/map-tiles.ts: MapTiler com chave, ou OpenStreetMap sem chave — a CARTO
+// passou a exigir chave em 10/2026 e o mapa saía com "API KEY REQUIRED"). Marcadores com o preço, agrupados com a
 // contagem quando estão perto (como no QuintoAndar). Os pontos já chegam
 // aproximados da API.
 
-const TILE_URL = process.env.NEXT_PUBLIC_MAP_TILE_URL ?? "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">colaboradores do OpenStreetMap</a>';
 // Sem anúncios com ponto, o mapa abre no Brasil inteiro (atuação nacional);
 // com resultados, enquadra os pins (fitOnLoad).
 const BRASIL: [number, number] = [-14.235, -51.9253];
@@ -115,13 +113,14 @@ function Markers({
 }
 
 export default function PropertyMap(props: {
+  tiles: MapTiles;
   listings: ListingSummary[];
   hoveredId?: string;
   onBoundsChange: (bbox: Bbox) => void;
 }) {
   return (
     <MapContainer center={BRASIL} zoom={4} scrollWheelZoom className="h-full w-full" attributionControl>
-      <TileLayer url={TILE_URL} attribution={ATTRIBUTION} maxZoom={19} />
+      <TileLayer url={props.tiles.url} attribution={props.tiles.attribution} maxZoom={19} />
       <Markers listings={props.listings} hoveredId={props.hoveredId} fitOnLoad onBoundsChange={props.onBoundsChange} />
     </MapContainer>
   );

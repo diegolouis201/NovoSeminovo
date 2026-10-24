@@ -69,6 +69,8 @@ services:
       AUTH_SECRET: ${AUTH_SECRET}
       AUTH_URL: https://${DOMAIN}
       NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
+      MAPTILER_KEY: ${MAPTILER_KEY:-}
+      MAPTILER_STYLE: ${MAPTILER_STYLE:-}
 
   caddy:
     image: caddy:2

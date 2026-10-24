@@ -7,6 +7,7 @@ import type { ListingSummary } from "@novoseminovo/shared-types";
 import { ListingCard } from "@/components/ListingCard";
 import { searchPropertiesInAreaAction } from "@/lib/actions/listings";
 import type { SearchParams } from "@/lib/api";
+import type { MapTiles } from "@/lib/map-tiles";
 
 // Busca de imóveis estilo QuintoAndar: lista à esquerda, mapa à direita.
 // Mexeu no mapa (arrastar/zoom) → a lista passa a mostrar só o que está na
@@ -23,7 +24,9 @@ export function PropertyMapSearch({
   params,
   isAuthenticated,
   favoriteIds,
+  tiles,
 }: {
+  tiles: MapTiles;
   initialListings: ListingSummary[];
   params: SearchParams;
   isAuthenticated: boolean;
@@ -91,7 +94,7 @@ export function PropertyMapSearch({
 
         <section className={`${mobileView === "list" ? "hidden" : ""} lg:block`}>
           <div className="relative isolate h-[70vh] overflow-hidden rounded-brand-lg border border-border lg:sticky lg:top-4 lg:h-[calc(100vh-8rem)]">
-            <PropertyMap listings={listings} hoveredId={hoveredId} onBoundsChange={onBoundsChange} />
+            <PropertyMap tiles={tiles} listings={listings} hoveredId={hoveredId} onBoundsChange={onBoundsChange} />
             <label className="absolute left-1/2 top-3 z-[1000] flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-white px-4 py-2 text-xs font-semibold text-[#20261b] shadow-card sm:text-sm">
               <input type="checkbox" checked={searchOnMove} onChange={(event) => setSearchOnMove(event.target.checked)} />
               Buscar ao mover o mapa

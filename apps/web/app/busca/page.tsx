@@ -1,6 +1,7 @@
 import { ListingCard } from "@/components/ListingCard";
 import { fetchListings, fetchPopularBrands, type SearchParams } from "@/lib/api";
 import { PropertyMapSearch } from "@/components/map/PropertyMapSearch";
+import { mapTiles } from "@/lib/map-tiles";
 import { getFavoriteContext } from "@/lib/favorites";
 import { saveSearchAction } from "@/lib/actions/saved-searches";
 import { VEHICLE_BODY_TYPE_OPTIONS, VEHICLE_CONDITION_OPTIONS, VEHICLE_FEATURE_OPTIONS } from "@novoseminovo/shared-types";
@@ -160,6 +161,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           params={params}
           isAuthenticated={isAuthenticated}
           favoriteIds={[...favoriteIds]}
+          tiles={mapTiles()}
         />
       </main>
     );
