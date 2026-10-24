@@ -1,4 +1,7 @@
 import type {
+  AdminAffiliateRow,
+  AffiliateApplyInput,
+  AffiliateDashboard,
   ArchitectMessageInput,
   ArchitectSessionView,
   CnpjLookup,
@@ -1635,4 +1638,47 @@ export function createPartnerApiKey(name: string, accessToken: string) {
 
 export function revokePartnerApiKey(keyId: string, accessToken: string) {
   return integrationCall<void>(`/api-keys/${keyId}`, "DELETE", accessToken);
+}
+
+// ---- Programa de afiliados ----
+
+export async function fetchAffiliateDashboard(accessToken: string): Promise<AffiliateDashboard | null | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/affiliates/me`, { headers: authHeaders(accessToken), cache: "no-store" });
+    if (!res.ok) return undefined;
+    return ((await res.json()) as { affiliate: AffiliateDashboard | null }).affiliate;
+  } catch {
+    return undefined;
+  }
+}
+
+export function applyAffiliate(input: AffiliateApplyInput, accessToken: string): Promise<ApiResult<AffiliateDashboard>> {
+  return sendJson("/affiliates/apply", "POST", input, accessToken);
+}
+
+// Clique no link ?ref= — melhor esforço, nunca atrapalha a navegação.
+export async function recordAffiliateClick(code: string): Promise<void> {
+  await fetchWithTimeout(`${API_URL}/affiliates/click`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  }).catch(() => undefined);
+}
+
+export async function fetchAdminAffiliates(accessToken: string): Promise<AdminAffiliateRow[] | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/affiliates`, { headers: authHeaders(accessToken), cache: "no-store" });
+    if (!res.ok) return undefined;
+    return (await res.json()) as AdminAffiliateRow[];
+  } catch {
+    return undefined;
+  }
+}
+
+export function adminAffiliateAction(id: string, action: string, note: string | undefined, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/admin/affiliates/${encodeURIComponent(id)}`, "PATCH", { action, note: note || undefined }, accessToken);
+}
+
+export function adminAffiliatePayout(id: string, note: string, accessToken: string): Promise<ApiResult<{ paid: number }>> {
+  return sendJson(`/admin/affiliates/${encodeURIComponent(id)}/payout`, "POST", { note }, accessToken);
 }

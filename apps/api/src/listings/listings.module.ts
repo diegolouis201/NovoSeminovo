@@ -1,3 +1,4 @@
+import { AffiliatesModule } from "../affiliates/affiliates.module";
 import { Module } from "@nestjs/common";
 import { PaymentsModule } from "../payments/payments.module";
 import { AuthModule } from "../auth/auth.module";
@@ -10,7 +11,7 @@ import { ListingsService } from "./listings.service";
 import { SocialAssetsService } from "./social-assets.service";
 
 @Module({
-  imports: [AuthModule, NotificationsModule, VehiclesModule, PaymentsModule],
+  imports: [AuthModule, NotificationsModule, VehiclesModule, PaymentsModule, AffiliatesModule],
   controllers: [ListingsController],
   providers: [ListingsService, AiService, SocialAssetsService, GeocodingService],
   exports: [AiService, ListingsService],

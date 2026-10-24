@@ -189,74 +189,81 @@ model User {
   // Perfil completo (ver tela "Minha conta") — tudo opcional porque o
   // cadastro inicial continua mínimo (nome/e-mail/senha); CPF em especial é
   // o que falta pra poder pagar o rebate de PF via Pix (ver RebatesService).
-  cpf         String?   @unique
-  gender      Gender?
-  birthDate   DateTime? @map("birth_date")
-  zipCode     String?   @map("zip_code")
-  state       String?
-  city        String?
+  cpf       String?   @unique
+  gender    Gender?
+  birthDate DateTime? @map("birth_date")
+  zipCode   String?   @map("zip_code")
+  state     String?
+  city      String?
 
   // Verificação de e-mail por código (ver EmailVerificationService) —
   // emailVerifiedAt nulo até a pessoa confirmar o código mandado pro
   // próprio e-mail cadastrado.
-  emailVerifiedAt             DateTime? @map("email_verified_at")
-  emailVerificationCode       String?   @map("email_verification_code")
-  emailVerificationExpiresAt  DateTime? @map("email_verification_expires_at")
+  emailVerifiedAt            DateTime? @map("email_verified_at")
+  emailVerificationCode      String?   @map("email_verification_code")
+  emailVerificationExpiresAt DateTime? @map("email_verification_expires_at")
 
-  ownedPartners      Partner[]             @relation("PartnerOwner")
-  partnerMemberships PartnerMember[]
-  listings           Listing[]             @relation("ListingOwner")
-  favorites          Favorite[]
-  savedSearches      SavedSearch[]
-  conversationsAsBuyer  Conversation[]      @relation("ConversationBuyer")
-  conversationsAsSeller Conversation[]      @relation("ConversationSeller")
-  messages           Message[]
-  leadsAsBuyer       Lead[]
-  simulations        FinancingSimulation[]
-  reviewsWritten     Review[]              @relation("ReviewAuthor")
-  reviewsReceived    Review[]              @relation("ReviewTarget")
-  reports            Report[]
-  moderationLogs     ModerationLog[]
-  notifications      Notification[]
-  vehiclesOwned      Vehicle[]             @relation("VehicleCurrentOwner")
-  vehicleEvents      VehicleEvent[]
-  financingDealsRegistered FinancingDeal[] @relation("FinancingDealRegisteredBy")
-  agentConversations AgentConversation[]
+  ownedPartners            Partner[]             @relation("PartnerOwner")
+  partnerMemberships       PartnerMember[]
+  listings                 Listing[]             @relation("ListingOwner")
+  favorites                Favorite[]
+  savedSearches            SavedSearch[]
+  conversationsAsBuyer     Conversation[]        @relation("ConversationBuyer")
+  conversationsAsSeller    Conversation[]        @relation("ConversationSeller")
+  messages                 Message[]
+  leadsAsBuyer             Lead[]
+  simulations              FinancingSimulation[]
+  reviewsWritten           Review[]              @relation("ReviewAuthor")
+  reviewsReceived          Review[]              @relation("ReviewTarget")
+  reports                  Report[]
+  moderationLogs           ModerationLog[]
+  notifications            Notification[]
+  vehiclesOwned            Vehicle[]             @relation("VehicleCurrentOwner")
+  vehicleEvents            VehicleEvent[]
+  financingDealsRegistered FinancingDeal[]       @relation("FinancingDealRegisteredBy")
+  agentConversations       AgentConversation[]
+
+  // Programa de afiliados: a conta de afiliado desta pessoa (se ela se
+  // inscreveu) e quem a indicou (link ?ref= ou código no cadastro).
+  affiliate             Affiliate?
+  referredByAffiliateId String?            @map("referred_by_affiliate_id")
+  referredByAffiliate   Affiliate?         @relation("AffiliateReferrals", fields: [referredByAffiliateId], references: [id])
+  referredAt            DateTime?          @map("referred_at")
+  architectSessions     ArchitectSession[]
 
   @@map("users")
-  architectSessions ArchitectSession[]
 }
 
 model Partner {
-  id               String      @id @default(cuid())
-  ownerUserId      String      @map("owner_user_id")
-  owner            User        @relation("PartnerOwner", fields: [ownerUserId], references: [id])
-  type             PartnerType
-  legalName        String      @map("legal_name")
-  document         String
-  verifiedAt       DateTime?   @map("verified_at")
-  slug             String      @unique
-  logoUrl          String?     @map("logo_url")
-  description      String?
-  address          String?
+  id                 String      @id @default(cuid())
+  ownerUserId        String      @map("owner_user_id")
+  owner              User        @relation("PartnerOwner", fields: [ownerUserId], references: [id])
+  type               PartnerType
+  legalName          String      @map("legal_name")
+  document           String
+  verifiedAt         DateTime?   @map("verified_at")
+  slug               String      @unique
+  logoUrl            String?     @map("logo_url")
+  description        String?
+  address            String?
   // Reaproveitado entre tentativas de checkout — sem isso, cada contratação
   // criaria um Customer novo no Stripe pra mesma loja.
-  stripeCustomerId String?     @map("stripe_customer_id")
+  stripeCustomerId   String?     @map("stripe_customer_id")
   // Anotações internas da equipe no quadro de assinaturas (/admin/assinaturas)
   // — nunca aparece pro parceiro.
-  adminNotes       String?     @map("admin_notes")
+  adminNotes         String?     @map("admin_notes")
   // Aviso de "faltam 7 dias pro fim do período grátis" já enviado (uma vez só).
-  trialWarningSentAt DateTime? @map("trial_warning_sent_at")
-  createdAt        DateTime    @default(now()) @map("created_at")
+  trialWarningSentAt DateTime?   @map("trial_warning_sent_at")
+  createdAt          DateTime    @default(now()) @map("created_at")
 
-  members       PartnerMember[]
-  listings      Listing[]
-  subscriptions Subscription[]
-  leads         Lead[]
-  reviews       Review[]        @relation("ReviewPartnerTarget")
+  members               PartnerMember[]
+  listings              Listing[]
+  subscriptions         Subscription[]
+  leads                 Lead[]
+  reviews               Review[]          @relation("ReviewPartnerTarget")
   verifiedVehicleEvents VehicleEvent[]
-  integrationFeeds IntegrationFeed[]
-  apiKeys          PartnerApiKey[]
+  integrationFeeds      IntegrationFeed[]
+  apiKeys               PartnerApiKey[]
 
   @@map("partners")
 }
@@ -276,23 +283,23 @@ model PartnerMember {
 // ---------- Plans & subscriptions ----------
 
 model Plan {
-  id                 String   @id @default(cuid())
-  name               String
-  maxActiveListings  Int      @map("max_active_listings")
-  highlightCredits   Int      @default(0) @map("highlight_credits")
+  id                    String  @id @default(cuid())
+  name                  String
+  maxActiveListings     Int     @map("max_active_listings")
+  highlightCredits      Int     @default(0) @map("highlight_credits")
   // Super destaque (topo da busca, junto do Nitro) — packs de imobiliária.
-  superHighlightCredits Int   @default(0) @map("super_highlight_credits")
-  priceMonth         Decimal  @map("price_month") @db.Decimal(10, 2)
-  features           Json     @default("{}")
+  superHighlightCredits Int     @default(0) @map("super_highlight_credits")
+  priceMonth            Decimal @map("price_month") @db.Decimal(10, 2)
+  features              Json    @default("{}")
   // Price de teste criado via API (ver PaymentsService.ensureStripeCatalog)
   // na primeira vez que o servidor sobe com STRIPE_SECRET_KEY configurado —
   // nulo enquanto não tiver chave nenhuma, aí "contratar" cai na simulação.
-  stripePriceId      String?  @map("stripe_price_id")
+  stripePriceId         String? @map("stripe_price_id")
   // Pra quem é o plano: "vehicle" (loja de veículos) ou "property"
   // (imobiliária/corretor). Os planos de loja de veículos vêm do catálogo
   // em código (ver PartnersService.ensurePlanCatalog).
-  audience           String?
-  active             Boolean  @default(true)
+  audience              String?
+  active                Boolean @default(true)
 
   subscriptions Subscription[]
 
@@ -403,20 +410,20 @@ model Listing {
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")
 
-  vehicleDetails VehicleDetails?
-  propertyDetails PropertyDetails?
-  photos         Photo[]
+  vehicleDetails    VehicleDetails?
+  propertyDetails   PropertyDetails?
+  photos            Photo[]
   architectSessions ArchitectSession[]
-  boostPurchases ListingBoostPurchase[]
-  favorites      Favorite[]
-  conversations  Conversation[]
-  leads          Lead[]
-  reports        Report[]
-  simulations    FinancingSimulation[]
-  reviews        Review[]
-  moderationLogs ModerationLog[]
-  financingDeals FinancingDeal[]
-  financingLeads FinancingLead[]
+  boostPurchases    ListingBoostPurchase[]
+  favorites         Favorite[]
+  conversations     Conversation[]
+  leads             Lead[]
+  reports           Report[]
+  simulations       FinancingSimulation[]
+  reviews           Review[]
+  moderationLogs    ModerationLog[]
+  financingDeals    FinancingDeal[]
+  financingLeads    FinancingLead[]
 
   @@unique([partnerId, externalId])
   @@index([type, status, city, price])
@@ -424,30 +431,30 @@ model Listing {
 }
 
 model VehicleDetails {
-  listingId       String            @id @map("listing_id")
-  listing         Listing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  brandId         String            @map("brand_id")
-  brand           VehicleBrand      @relation(fields: [brandId], references: [id])
-  modelId         String            @map("model_id")
-  model           VehicleModel      @relation(fields: [modelId], references: [id])
+  listingId       String           @id @map("listing_id")
+  listing         Listing          @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  brandId         String           @map("brand_id")
+  brand           VehicleBrand     @relation(fields: [brandId], references: [id])
+  modelId         String           @map("model_id")
+  model           VehicleModel     @relation(fields: [modelId], references: [id])
   version         String?
-  yearManufacture Int               @map("year_manufacture")
-  yearModel       Int               @map("year_model")
+  yearManufacture Int              @map("year_manufacture")
+  yearModel       Int              @map("year_model")
   mileage         Int
   transmission    Transmission
-  fuelType        FuelType          @map("fuel_type")
+  fuelType        FuelType         @map("fuel_type")
   color           String
   doors           Int?
-  fipeCode        String?           @map("fipe_code")
-  fipePrice       Decimal?          @map("fipe_price") @db.Decimal(12, 2)
-  condition       VehicleCondition  @default(used)
+  fipeCode        String?          @map("fipe_code")
+  fipePrice       Decimal?         @map("fipe_price") @db.Decimal(12, 2)
+  condition       VehicleCondition @default(used)
   // Opcionais e condições (ver VEHICLE_FEATURE_OPTIONS/VEHICLE_CONDITION_OPTIONS
   // no shared-types) — viram filtro na busca.
-  features        String[]          @default([])
-  conditions      String[]          @default([])
+  features        String[]         @default([])
+  conditions      String[]         @default([])
   // Carroceria, direção e motor (ver VEHICLE_BODY_TYPE_OPTIONS etc. no
   // shared-types) — opcionais porque anúncios antigos/CRM não têm.
-  bodyType        String?           @map("body_type")
+  bodyType        String?          @map("body_type")
   steering        String?
   engine          String?
   // Ligação com o "prontuário" do carro de verdade (ver Vehicle abaixo) —
@@ -455,8 +462,8 @@ model VehicleDetails {
   // placa, não dá pra saber com certeza que é o mesmo carro de um anúncio
   // anterior, então o anúncio fica sem histórico em vez de criar um Vehicle
   // "órfão" que nunca vai casar com nada.
-  vehicleId       String?           @map("vehicle_id")
-  vehicle         Vehicle?          @relation(fields: [vehicleId], references: [id])
+  vehicleId       String?          @map("vehicle_id")
+  vehicle         Vehicle?         @relation(fields: [vehicleId], references: [id])
 
   @@index([brandId, modelId, yearModel])
   @@map("vehicle_details")
@@ -470,19 +477,19 @@ model VehicleDetails {
 // mesma placa de um Vehicle existente vira um evento no histórico dele, em
 // vez de um registro novo do zero.
 model Vehicle {
-  id              String    @id @default(cuid())
-  plateHash       String?   @unique @map("plate_hash")
-  plateMasked     String?   @map("plate_masked")
-  brandId         String?   @map("brand_id")
+  id              String        @id @default(cuid())
+  plateHash       String?       @unique @map("plate_hash")
+  plateMasked     String?       @map("plate_masked")
+  brandId         String?       @map("brand_id")
   brand           VehicleBrand? @relation(fields: [brandId], references: [id])
-  modelId         String?   @map("model_id")
+  modelId         String?       @map("model_id")
   model           VehicleModel? @relation(fields: [modelId], references: [id])
-  yearManufacture Int?      @map("year_manufacture")
-  yearModel       Int?      @map("year_model")
+  yearManufacture Int?          @map("year_manufacture")
+  yearModel       Int?          @map("year_model")
   color           String?
-  currentOwnerId  String?   @map("current_owner_id")
-  currentOwner    User?     @relation("VehicleCurrentOwner", fields: [currentOwnerId], references: [id])
-  createdAt       DateTime  @default(now()) @map("created_at")
+  currentOwnerId  String?       @map("current_owner_id")
+  currentOwner    User?         @relation("VehicleCurrentOwner", fields: [currentOwnerId], references: [id])
+  createdAt       DateTime      @default(now()) @map("created_at")
 
   listings VehicleDetails[]
   events   VehicleEvent[]
@@ -497,28 +504,28 @@ model Vehicle {
 // other são autoanunciados (source=owner_reported) até existir parceiro
 // verificado (oficina, despachante) alimentando isso de verdade.
 model VehicleEvent {
-  id              String              @id @default(cuid())
-  vehicleId       String              @map("vehicle_id")
-  vehicle         Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  type            VehicleEventType
-  source          VehicleEventSource  @default(owner_reported)
-  title           String
-  description     String?
-  mileageAtEvent  Int?                @map("mileage_at_event")
-  occurredAt      DateTime            @map("occurred_at")
+  id                  String             @id @default(cuid())
+  vehicleId           String             @map("vehicle_id")
+  vehicle             Vehicle            @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type                VehicleEventType
+  source              VehicleEventSource @default(owner_reported)
+  title               String
+  description         String?
+  mileageAtEvent      Int?               @map("mileage_at_event")
+  occurredAt          DateTime           @map("occurred_at")
   // Comprovante (nota fiscal, ordem de serviço, foto do serviço) — exigido
   // pra registrar qualquer evento autoanunciado (ver VehiclesController.addEvent),
   // pra não virar um campo de texto livre sem nenhuma prova por trás.
-  photoUrls       String[]            @default([]) @map("photo_urls")
-  createdByUserId String?             @map("created_by_user_id")
-  createdByUser   User?               @relation(fields: [createdByUserId], references: [id])
-  createdAt       DateTime            @default(now()) @map("created_at")
+  photoUrls           String[]           @default([]) @map("photo_urls")
+  createdByUserId     String?            @map("created_by_user_id")
+  createdByUser       User?              @relation(fields: [createdByUserId], references: [id])
+  createdAt           DateTime           @default(now()) @map("created_at")
   // Oficina marcada pelo dono como responsável pelo serviço — enquanto
   // source continuar "owner_reported", é uma confirmação pendente; quando a
   // própria oficina confirma (ver VehiclesService.confirmService), source
   // vira "partner_verified" e este campo passa a dizer quem verificou.
-  verifiedByPartnerId String?         @map("verified_by_partner_id")
-  verifiedByPartner   Partner?        @relation(fields: [verifiedByPartnerId], references: [id])
+  verifiedByPartnerId String?            @map("verified_by_partner_id")
+  verifiedByPartner   Partner?           @relation(fields: [verifiedByPartnerId], references: [id])
 
   @@index([vehicleId, occurredAt])
   @@map("vehicle_events")
@@ -527,26 +534,26 @@ model VehicleEvent {
 model PropertyDetails {
   listingId          String       @id @map("listing_id")
   listing            Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  propertyType        PropertyType @map("property_type")
-  purpose             Purpose
-  bedrooms            Int?
-  suites              Int?
-  bathrooms            Int?
-  parkingSpots         Int?        @map("parking_spots")
-  floor               Int?
-  areaM2               Decimal     @map("area_m2") @db.Decimal(8, 2)
+  propertyType       PropertyType @map("property_type")
+  purpose            Purpose
+  bedrooms           Int?
+  suites             Int?
+  bathrooms          Int?
+  parkingSpots       Int?         @map("parking_spots")
+  floor              Int?
+  areaM2             Decimal      @map("area_m2") @db.Decimal(8, 2)
   // Área total do terreno — distinta da área construída/útil acima (ex.:
   // casa com quintal, sítio, terreno puro). Opcional: só faz sentido
   // informar quando o imóvel tem terreno além da área construída.
-  totalAreaM2          Decimal?    @map("total_area_m2") @db.Decimal(10, 2)
-  condoFee            Decimal?     @map("condo_fee") @db.Decimal(10, 2)
-  iptu                Decimal?     @db.Decimal(10, 2)
+  totalAreaM2        Decimal?     @map("total_area_m2") @db.Decimal(10, 2)
+  condoFee           Decimal?     @map("condo_fee") @db.Decimal(10, 2)
+  iptu               Decimal?     @db.Decimal(10, 2)
   // Diferenciais soltos (piscina, varanda, churrasqueira, elevador, área
   // gourmet, jardim etc.) — lista livre em vez de uma coluna booleana por
   // item, pra não exigir migração toda vez que surgir um diferencial novo.
-  features            String[]     @default([])
-  streetAddress       String       @map("street_address")
-  registrationNumber  String?      @map("registration_number")
+  features           String[]     @default([])
+  streetAddress      String       @map("street_address")
+  registrationNumber String?      @map("registration_number")
 
   @@index([propertyType, purpose, bedrooms, areaM2])
   @@map("property_details")
@@ -605,28 +612,28 @@ model Favorite {
 }
 
 model SavedSearch {
-  id            String      @id @default(cuid())
-  userId        String      @map("user_id")
-  user          User        @relation(fields: [userId], references: [id])
-  type          ListingType
-  filters       Json
-  alertEnabled  Boolean     @default(true) @map("alert_enabled")
-  createdAt     DateTime    @default(now()) @map("created_at")
+  id           String      @id @default(cuid())
+  userId       String      @map("user_id")
+  user         User        @relation(fields: [userId], references: [id])
+  type         ListingType
+  filters      Json
+  alertEnabled Boolean     @default(true) @map("alert_enabled")
+  createdAt    DateTime    @default(now()) @map("created_at")
 
   @@index([userId])
   @@map("saved_searches")
 }
 
 model Conversation {
-  id             String    @id @default(cuid())
-  listingId      String    @map("listing_id")
-  listing        Listing   @relation(fields: [listingId], references: [id])
-  buyerId        String    @map("buyer_id")
-  buyer          User      @relation("ConversationBuyer", fields: [buyerId], references: [id])
-  sellerUserId   String?   @map("seller_user_id")
-  sellerUser     User?     @relation("ConversationSeller", fields: [sellerUserId], references: [id])
-  lastMessageAt  DateTime? @map("last_message_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
+  id            String    @id @default(cuid())
+  listingId     String    @map("listing_id")
+  listing       Listing   @relation(fields: [listingId], references: [id])
+  buyerId       String    @map("buyer_id")
+  buyer         User      @relation("ConversationBuyer", fields: [buyerId], references: [id])
+  sellerUserId  String?   @map("seller_user_id")
+  sellerUser    User?     @relation("ConversationSeller", fields: [sellerUserId], references: [id])
+  lastMessageAt DateTime? @map("last_message_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
 
   messages Message[]
 
@@ -648,42 +655,42 @@ model Message {
 }
 
 model Lead {
-  id        String     @id @default(cuid())
+  id              String     @id @default(cuid())
   // Opcional: lead cadastrado à mão pode ser "procura SUV até 80 mil", sem
   // anúncio específico.
-  listingId String?    @map("listing_id")
-  listing   Listing?   @relation(fields: [listingId], references: [id])
-  partnerId String     @map("partner_id")
-  partner   Partner    @relation(fields: [partnerId], references: [id])
-  buyerId   String?    @map("buyer_id")
-  buyer     User?      @relation(fields: [buyerId], references: [id])
-  source    LeadSource
-  status    LeadStatus @default(new)
+  listingId       String?    @map("listing_id")
+  listing         Listing?   @relation(fields: [listingId], references: [id])
+  partnerId       String     @map("partner_id")
+  partner         Partner    @relation(fields: [partnerId], references: [id])
+  buyerId         String?    @map("buyer_id")
+  buyer           User?      @relation(fields: [buyerId], references: [id])
+  source          LeadSource
+  status          LeadStatus @default(new)
   // Lead manual (sem conta no site): nome e telefone digitados pela loja.
-  contactName  String?  @map("contact_name")
-  contactPhone String?  @map("contact_phone")
-  notes        String?
-  proposalValue Decimal? @map("proposal_value") @db.Decimal(12, 2)
-  statusChangedAt DateTime @default(now()) @map("status_changed_at")
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  contactName     String?    @map("contact_name")
+  contactPhone    String?    @map("contact_phone")
+  notes           String?
+  proposalValue   Decimal?   @map("proposal_value") @db.Decimal(12, 2)
+  statusChangedAt DateTime   @default(now()) @map("status_changed_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
 
   @@index([partnerId, status])
   @@map("leads")
 }
 
 model FinancingSimulation {
-  id           String          @id @default(cuid())
-  listingId    String          @map("listing_id")
-  listing      Listing         @relation(fields: [listingId], references: [id])
-  userId       String?         @map("user_id")
-  user         User?           @relation(fields: [userId], references: [id])
-  simType      SimulationType  @map("sim_type")
-  downPayment  Decimal         @map("down_payment") @db.Decimal(12, 2)
-  installments Int
+  id            String         @id @default(cuid())
+  listingId     String         @map("listing_id")
+  listing       Listing        @relation(fields: [listingId], references: [id])
+  userId        String?        @map("user_id")
+  user          User?          @relation(fields: [userId], references: [id])
+  simType       SimulationType @map("sim_type")
+  downPayment   Decimal        @map("down_payment") @db.Decimal(12, 2)
+  installments  Int
   estimatedRate Decimal        @map("estimated_rate") @db.Decimal(5, 2)
-  result       Json
-  createdAt    DateTime        @default(now()) @map("created_at")
+  result        Json
+  createdAt     DateTime       @default(now()) @map("created_at")
 
   @@map("financing_simulations")
 }
@@ -719,16 +726,16 @@ model Report {
 }
 
 model ModerationLog {
-  id        String            @id @default(cuid())
-  listingId String            @map("listing_id")
-  listing   Listing           @relation(fields: [listingId], references: [id])
+  id        String           @id @default(cuid())
+  listingId String           @map("listing_id")
+  listing   Listing          @relation(fields: [listingId], references: [id])
   // Vazio quando quem decidiu foi a moderação automática (automated).
-  adminId   String?           @map("admin_id")
-  admin     User?             @relation(fields: [adminId], references: [id])
-  automated Boolean           @default(false)
+  adminId   String?          @map("admin_id")
+  admin     User?            @relation(fields: [adminId], references: [id])
+  automated Boolean          @default(false)
   action    ModerationAction
   reason    String?
-  createdAt DateTime          @default(now()) @map("created_at")
+  createdAt DateTime         @default(now()) @map("created_at")
 
   @@map("moderation_logs")
 }
@@ -770,29 +777,29 @@ model PartnerRebateTier {
 }
 
 model FinancingDeal {
-  id                String              @id @default(cuid())
-  listingId         String              @map("listing_id")
-  listing           Listing             @relation(fields: [listingId], references: [id])
+  id                 String              @id @default(cuid())
+  listingId          String              @map("listing_id")
+  listing            Listing             @relation(fields: [listingId], references: [id])
   // Nome livre (não um enum fechado) porque o programa não é exclusivo da
   // Credihome — qualquer parceiro de financiamento futuro usa o mesmo fluxo.
-  financingProvider String              @map("financing_provider")
-  externalRef       String?             @map("external_ref")
-  assetValue        Decimal             @map("asset_value") @db.Decimal(12, 2)
-  financedAmount    Decimal             @map("financed_amount") @db.Decimal(12, 2)
-  commissionRate    Decimal             @default(1.00) @map("commission_rate") @db.Decimal(5, 2)
-  commissionAmount  Decimal             @map("commission_amount") @db.Decimal(12, 2)
+  financingProvider  String              @map("financing_provider")
+  externalRef        String?             @map("external_ref")
+  assetValue         Decimal             @map("asset_value") @db.Decimal(12, 2)
+  financedAmount     Decimal             @map("financed_amount") @db.Decimal(12, 2)
+  commissionRate     Decimal             @default(1.00) @map("commission_rate") @db.Decimal(5, 2)
+  commissionAmount   Decimal             @map("commission_amount") @db.Decimal(12, 2)
   // Percentual e valor do rebate são um retrato de quando o negócio foi
   // registrado — o nível de um parceiro pode mudar depois, mas isso não deve
   // alterar o valor de um negócio já fechado.
-  rebatePercent     Decimal             @map("rebate_percent") @db.Decimal(5, 2)
-  rebateAmount      Decimal             @map("rebate_amount") @db.Decimal(12, 2)
-  status            FinancingDealStatus @default(registered)
-  registeredByUserId String             @map("registered_by_user_id")
-  registeredBy      User                @relation("FinancingDealRegisteredBy", fields: [registeredByUserId], references: [id])
-  paidAt            DateTime?           @map("paid_at")
-  paidNote          String?             @map("paid_note")
-  createdAt         DateTime            @default(now()) @map("created_at")
-  financingLead     FinancingLead?
+  rebatePercent      Decimal             @map("rebate_percent") @db.Decimal(5, 2)
+  rebateAmount       Decimal             @map("rebate_amount") @db.Decimal(12, 2)
+  status             FinancingDealStatus @default(registered)
+  registeredByUserId String              @map("registered_by_user_id")
+  registeredBy       User                @relation("FinancingDealRegisteredBy", fields: [registeredByUserId], references: [id])
+  paidAt             DateTime?           @map("paid_at")
+  paidNote           String?             @map("paid_note")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  financingLead      FinancingLead?
 
   @@index([status])
   @@map("financing_deals")
@@ -921,19 +928,19 @@ enum IntegrationSyncStatus {
 // Link de feed que o CRM do parceiro gera. A API baixa e sincroniza
 // periodicamente (ver IntegrationsScheduler) e quando o parceiro pede.
 model IntegrationFeed {
-  id             String                @id @default(cuid())
-  partnerId      String                @map("partner_id")
-  partner        Partner               @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  url            String
-  format         IntegrationFeedFormat
-  active         Boolean               @default(true)
-  lastSyncAt     DateTime?             @map("last_sync_at")
-  lastStatus     IntegrationSyncStatus @default(never) @map("last_status")
-  lastError      String?               @map("last_error")
+  id         String                @id @default(cuid())
+  partnerId  String                @map("partner_id")
+  partner    Partner               @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  url        String
+  format     IntegrationFeedFormat
+  active     Boolean               @default(true)
+  lastSyncAt DateTime?             @map("last_sync_at")
+  lastStatus IntegrationSyncStatus @default(never) @map("last_status")
+  lastError  String?               @map("last_error")
   // Relatório da última sincronização (criados/atualizados/pausados/erros
   // por item) — mostrado no painel pro parceiro entender o que aconteceu.
-  lastReport     Json?                 @map("last_report")
-  createdAt      DateTime              @default(now()) @map("created_at")
+  lastReport Json?                 @map("last_report")
+  createdAt  DateTime              @default(now()) @map("created_at")
 
   @@index([active, lastSyncAt])
   @@map("integration_feeds")
@@ -1009,4 +1016,69 @@ model AffiliateClick {
 
   @@index([createdAt])
   @@map("affiliate_clicks")
+}
+
+// Programa de afiliados (influenciadores, criadores, parceiros comerciais):
+// indicam pelo link novoseminovo.com.br/?ref=CODIGO ou pelo código digitado
+// no cadastro, e ganham comissão sobre o que os indicados pagam (ver
+// AffiliatesService e AFFILIATE_RULES no shared-types).
+model Affiliate {
+  id         String    @id @default(cuid())
+  userId     String    @unique @map("user_id")
+  user       User      @relation(fields: [userId], references: [id])
+  code       String    @unique
+  // pending → approved | rejected; approved → suspended (e volta).
+  status     String    @default("pending")
+  channels   String
+  audience   String?
+  pixKey     String    @map("pix_key")
+  adminNote  String?   @map("admin_note")
+  approvedAt DateTime? @map("approved_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  referrals   User[]                @relation("AffiliateReferrals")
+  commissions AffiliateCommission[]
+  clicks      AffiliateClickDay[]
+
+  @@index([status])
+  @@map("affiliates")
+}
+
+// Cliques no link do afiliado, somados por dia (não uma linha por clique).
+model AffiliateClickDay {
+  affiliateId String    @map("affiliate_id")
+  affiliate   Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  day         String
+  count       Int       @default(0)
+
+  @@id([affiliateId, day])
+  @@map("affiliate_click_days")
+}
+
+// Uma comissão por pagamento do indicado. sourceRef é o id do pagamento
+// (fatura do Stripe ou compra do plano do anúncio) — único, então um evento
+// repetido do Stripe nunca paga duas vezes.
+model AffiliateCommission {
+  id             String    @id @default(cuid())
+  affiliateId    String    @map("affiliate_id")
+  affiliate      Affiliate @relation(fields: [affiliateId], references: [id])
+  // "partner_subscription" (mensalidade de loja/imobiliária) | "listing_plan" (plano de anúncio de PF)
+  source         String
+  sourceRef      String    @unique @map("source_ref")
+  referredUserId String    @map("referred_user_id")
+  partnerId      String?   @map("partner_id")
+  description    String
+  baseAmount     Decimal   @map("base_amount") @db.Decimal(12, 2)
+  rate           Decimal   @db.Decimal(5, 2)
+  amount         Decimal   @db.Decimal(12, 2)
+  // pending (período de garantia contra estorno) → available → paid; canceled se estornar.
+  status         String    @default("pending")
+  availableAt    DateTime  @map("available_at")
+  paidAt         DateTime? @map("paid_at")
+  paidNote       String?   @map("paid_note")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([affiliateId, status])
+  @@index([partnerId])
+  @@map("affiliate_commissions")
 }

@@ -3,6 +3,7 @@ import type { Request } from "express";
 import { PartnersService } from "../partners/partners.service";
 import { PaymentsService } from "../payments/payments.service";
 import { ListingsService } from "../listings/listings.service";
+import { AffiliatesService } from "../affiliates/affiliates.service";
 
 // Sem guard — quem garante que a chamada é legítima é a assinatura do
 // Stripe (Stripe-Signature), verificada aqui antes de confiar em qualquer
@@ -17,6 +18,7 @@ export class WebhooksController {
     private readonly payments: PaymentsService,
     private readonly partners: PartnersService,
     private readonly listings: ListingsService,
+    private readonly affiliates: AffiliatesService,
   ) {}
 
   @Post("stripe")
@@ -60,6 +62,28 @@ export class WebhooksController {
         const status = event.type === "customer.subscription.deleted" ? "canceled" : subscription.status;
         const updated = await this.partners.syncSubscriptionFromStripe(subscription.id, status, period);
         if (updated > 0) this.logger.log(`Assinatura ${subscription.id} sincronizada: ${status}`);
+        break;
+      }
+      // Toda fatura paga de assinatura (a primeira e as renovações) — base da
+      // comissão recorrente do afiliado que indicou a loja/imobiliária.
+      case "invoice.paid": {
+        const invoice = event.data.object as {
+          id: string;
+          amount_paid: number;
+          subscription?: string | { id: string } | null;
+          parent?: { subscription_details?: { subscription?: string | { id: string } | null } | null } | null;
+          status_transitions?: { paid_at?: number | null };
+        };
+        const ref = invoice.parent?.subscription_details?.subscription ?? invoice.subscription;
+        const stripeSubscriptionId = typeof ref === "string" ? ref : ref?.id;
+        if (stripeSubscriptionId) {
+          await this.affiliates.recordPartnerInvoice({
+            invoiceId: invoice.id,
+            stripeSubscriptionId,
+            amountPaid: (invoice.amount_paid ?? 0) / 100,
+            paidAt: invoice.status_transitions?.paid_at ? new Date(invoice.status_transitions.paid_at * 1000) : new Date(),
+          });
+        }
         break;
       }
       default:

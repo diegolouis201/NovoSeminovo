@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Buildings, User } from "@phosphor-icons/react";
 import { CompanyCnpjFields } from "@/components/CompanyCnpjFields";
 import { FormField } from "@/components/FormField";
 import { registerAction, type RegisterState } from "@/lib/actions/auth";
+import { REFERRAL_COOKIE, cleanReferralCode } from "@/lib/referral";
 
 // Criar conta: Pessoa física (anuncia carro e imóvel, planos por anúncio)
 // ou Empresa (CNPJ decide se é imobiliária/construtora/corretor ou loja de
@@ -24,6 +25,12 @@ export function RegisterForm({ initialError, returnTo }: { initialError?: string
   const [accountType, setAccountType] = useState<"pf" | "pj">("pf");
   const [state, formAction] = useFormState<RegisterState, FormData>(registerAction, { error: initialError });
   const isCompany = accountType === "pj";
+  const [referral, setReferral] = useState<string>();
+
+  useEffect(() => {
+    const match = document.cookie.match(new RegExp(`(?:^|; )${REFERRAL_COOKIE}=([^;]+)`));
+    setReferral(cleanReferralCode(match?.[1]));
+  }, []);
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
@@ -77,6 +84,8 @@ export function RegisterForm({ initialError, returnTo }: { initialError?: string
       </div>
       <FormField label="WhatsApp" name="phone" type="tel" required={false} placeholder="(31) 99999-8888" />
       <FormField label="Senha" name="password" type="password" />
+      {/* Programa de afiliados: vem preenchido quando a pessoa chegou pelo link ?ref=. */}
+      <FormField key={referral ?? "sem-indicacao"} label="Código de indicação" name="referralCode" required={false} defaultValue={referral} placeholder="Ex.: MARIA27" />
       <Submit />
     </form>
   );

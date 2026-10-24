@@ -1,3 +1,4 @@
+import { AffiliatesModule } from "./affiliates/affiliates.module";
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -38,6 +39,7 @@ import { ArchitectModule } from "./architect/architect.module";
     AgentsModule,
     IntegrationsModule,
     ArchitectModule,
+    AffiliatesModule,
   ],
 })
 export class AppModule {}

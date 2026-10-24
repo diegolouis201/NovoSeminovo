@@ -54,6 +54,7 @@ import {
   toMyListingSummary,
   type ListingWithDetails,
 } from "./listings.mapper";
+import { AffiliatesService } from "../affiliates/affiliates.service";
 
 // Não existe campo de "tipo de carroceria" (SUV/hatch/sedã) no schema (ver
 // comentário em popularBrands acima) — esses atributos de VehicleDetails são
@@ -166,6 +167,7 @@ export class ListingsService {
     private readonly ai: AiService,
     private readonly payments: PaymentsService,
     private readonly geocoding: GeocodingService,
+    private readonly affiliates: AffiliatesService,
   ) {}
 
   // ---------- Planos por anúncio (pessoa física) ----------
@@ -258,6 +260,11 @@ export class ListingsService {
         ? [this.prisma.listing.update({ where: { id: purchase.listingId }, data: { planTier: tier.id, tierRank: tier.rank } })]
         : []),
     ]);
+    // Comissão de afiliado só sobre pagamento de verdade (sem Stripe a compra
+    // é simulada e não tem stripeSessionId).
+    if (purchase.stripeSessionId) {
+      await this.affiliates.recordListingPlan(purchaseId).catch((error: Error) => this.logger.warn(`Comissão de afiliado não registrada (${purchaseId}): ${error.message}`));
+    }
   }
 
   async search(query: ListingSearchQuery): Promise<ListingSummary[]> {

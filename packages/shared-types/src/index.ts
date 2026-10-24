@@ -32,6 +32,8 @@ export const RegisterInputSchema = z.object({
   phone: z.string().min(8, "Informe um telefone válido com DDD").optional(),
   // Obrigatório: uma conta por pessoa (User.cpf é único). Nunca aparece no site.
   cpf: z.string({ required_error: "Informe seu CPF" }).refine((value) => isValidCpf(value), "CPF inválido"),
+  // Código do afiliado que indicou (link ?ref= guardado em cookie, ou digitado).
+  referralCode: z.string().trim().max(40).optional(),
 });
 export type RegisterInput = z.infer<typeof RegisterInputSchema>;
 
@@ -1261,6 +1263,8 @@ export const NotificationType = z.enum([
   "financing_lead_created",
   "partner_trial_ending",
   "partner_offline",
+  "affiliate_approved",
+  "affiliate_commission",
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
@@ -1715,3 +1719,98 @@ export const ArchitectMessageInputSchema = z.object({
   photoId: z.string().optional(),
 });
 export type ArchitectMessageInput = z.infer<typeof ArchitectMessageInputSchema>;
+
+// ---------------------------------------------------------------------------
+// Programa de afiliados — influenciadores e parceiros indicam pelo link
+// novoseminovo.com.br/?ref=CODIGO (ou o código no cadastro) e ganham comissão
+// sobre o que os indicados pagam. As regras (percentuais e prazos) ficam
+// aqui porque aparecem na página pública do programa e são as mesmas que a
+// API usa pra calcular.
+export const AFFILIATE_RULES = {
+  // Mensalidade de loja/imobiliária/construtora indicada: % de cada fatura paga…
+  partnerSubscriptionRate: 20,
+  // …durante os primeiros N meses desde a primeira fatura.
+  partnerSubscriptionMonths: 12,
+  // Plano pago de anúncio de pessoa física (Flex/Turbo/Nitro): % do valor.
+  listingPlanRate: 20,
+  // O link vale por N dias (cookie) até a pessoa se cadastrar.
+  cookieDays: 60,
+  // Comissão fica "em análise" N dias (estornos/chargebacks) antes de liberar.
+  holdDays: 30,
+  // Valor mínimo disponível pra pedir o pagamento (Pix).
+  minPayout: 50,
+} as const;
+
+export const AFFILIATE_CODE_PATTERN = /^[A-Z0-9]{4,20}$/;
+
+export const AffiliateApplyInputSchema = z.object({
+  channels: z.string().trim().min(3, "Conte onde você divulga (ex.: @perfil no Instagram)").max(600),
+  audience: z.string().trim().max(200).optional(),
+  pixKey: z.string().trim().min(5, "Informe a chave Pix para receber").max(140),
+  acceptTerms: z.literal(true, { errorMap: () => ({ message: "Aceite as regras do programa" }) }),
+});
+export type AffiliateApplyInput = z.infer<typeof AffiliateApplyInputSchema>;
+
+export const AffiliateCommissionViewSchema = z.object({
+  id: z.string(),
+  source: z.enum(["partner_subscription", "listing_plan"]),
+  description: z.string(),
+  baseAmount: z.number(),
+  rate: z.number(),
+  amount: z.number(),
+  status: z.enum(["pending", "available", "paid", "canceled"]),
+  availableAt: z.string(),
+  paidAt: z.string().optional(),
+  createdAt: z.string(),
+});
+export type AffiliateCommissionView = z.infer<typeof AffiliateCommissionViewSchema>;
+
+export const AffiliateTotalsSchema = z.object({
+  pending: z.number(),
+  available: z.number(),
+  paid: z.number(),
+});
+export type AffiliateTotals = z.infer<typeof AffiliateTotalsSchema>;
+
+export const AffiliateDashboardSchema = z.object({
+  status: z.enum(["pending", "approved", "rejected", "suspended"]),
+  code: z.string(),
+  channels: z.string(),
+  audience: z.string().optional(),
+  pixKey: z.string(),
+  adminNote: z.string().optional(),
+  stats: z.object({
+    clicks30d: z.number(),
+    signups: z.number(),
+    payingCustomers: z.number(),
+  }),
+  totals: AffiliateTotalsSchema,
+  commissions: z.array(AffiliateCommissionViewSchema),
+});
+export type AffiliateDashboard = z.infer<typeof AffiliateDashboardSchema>;
+
+export const AdminAffiliateRowSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string(),
+  code: z.string(),
+  status: z.enum(["pending", "approved", "rejected", "suspended"]),
+  channels: z.string(),
+  audience: z.string().optional(),
+  pixKey: z.string(),
+  createdAt: z.string(),
+  signups: z.number(),
+  totals: AffiliateTotalsSchema,
+});
+export type AdminAffiliateRow = z.infer<typeof AdminAffiliateRowSchema>;
+
+export const AdminAffiliateActionInputSchema = z.object({
+  action: z.enum(["approve", "reject", "suspend", "reactivate"]),
+  note: z.string().trim().max(500).optional(),
+});
+export type AdminAffiliateActionInput = z.infer<typeof AdminAffiliateActionInputSchema>;
+
+export const AdminAffiliatePayoutInputSchema = z.object({
+  note: z.string().trim().min(3, "Anote o comprovante do Pix (ex.: id da transação)").max(300),
+});
+export type AdminAffiliatePayoutInput = z.infer<typeof AdminAffiliatePayoutInputSchema>;

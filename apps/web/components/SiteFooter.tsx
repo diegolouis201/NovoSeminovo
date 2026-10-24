@@ -20,6 +20,7 @@ const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/assistente-compra", label: "Assistente de compra" },
       { href: "/consultar-veiculo", label: "Passaporte Digital do veículo" },
       { href: "/recompensas", label: "Recompensa por financiamento" },
+      { href: "/afiliados", label: "Programa de afiliados" },
     ],
   },
   {

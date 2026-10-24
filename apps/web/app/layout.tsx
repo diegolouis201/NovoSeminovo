@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import localFont from "next/font/local";
 import "./globals.css";
 import { SITE_URL } from "@/lib/company";
 import { auth } from "@/auth";
 import { AgentChatWidget } from "@/components/AgentChatWidget";
 import { Analytics } from "@/components/Analytics";
+import { ReferralCapture } from "@/components/ReferralCapture";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -61,6 +63,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <div className="flex-1">{children}</div>
         <SiteFooter />
         <Analytics />
+        {/* Link de afiliado (?ref=) — useSearchParams pede Suspense no layout. */}
+        <Suspense fallback={null}>
+          <ReferralCapture />
+        </Suspense>
         <AgentChatWidget isLoggedIn={Boolean(session?.accessToken)} isAdmin={session?.user?.role === "admin"} />
       </body>
     </html>

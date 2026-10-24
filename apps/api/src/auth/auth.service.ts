@@ -4,6 +4,7 @@ import { compare, hash } from "bcryptjs";
 import { Prisma } from "@novoseminovo/db";
 import type { AuthUser, LoginInput, LoginResponse, RegisterInput } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import { normalizeAffiliateCode } from "../affiliates/affiliates.service";
 
 const SALT_ROUNDS = 10;
 
@@ -16,15 +17,18 @@ export class AuthService {
 
   async register(input: RegisterInput): Promise<AuthUser> {
     const passwordHash = await hash(input.password, SALT_ROUNDS);
+    const cpf = input.cpf.replace(/\D/g, "");
+    const affiliateId = await this.referringAffiliate(input.referralCode, cpf);
     try {
       const user = await this.prisma.user.create({
         data: {
           name: input.name,
           email: input.email,
           phone: input.phone,
-          cpf: input.cpf.replace(/\D/g, ""),
+          cpf,
           passwordHash,
           role: "buyer",
+          ...(affiliateId ? { referredByAffiliateId: affiliateId, referredAt: new Date() } : {}),
         },
       });
       return { id: user.id, name: user.name, email: user.email, role: user.role };
@@ -39,6 +43,17 @@ export class AuthService {
       }
       throw error;
     }
+  }
+
+  // Programa de afiliados: o código (link ?ref= ou digitado) só vale se for de
+  // afiliado aprovado e não da própria pessoa (mesmo CPF). Código inválido
+  // não trava o cadastro — só não fica indicado.
+  private async referringAffiliate(code: string | undefined, cpf: string): Promise<string | undefined> {
+    const clean = normalizeAffiliateCode(code);
+    if (!clean) return undefined;
+    const affiliate = await this.prisma.affiliate.findUnique({ where: { code: clean }, include: { user: { select: { cpf: true } } } });
+    if (!affiliate || affiliate.status !== "approved" || affiliate.user.cpf === cpf) return undefined;
+    return affiliate.id;
   }
 
   // Desfaz um cadastro que acabou de ser criado (cadastro de empresa que

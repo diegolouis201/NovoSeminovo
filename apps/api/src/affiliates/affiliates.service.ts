@@ -1,0 +1,306 @@
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  AFFILIATE_CODE_PATTERN,
+  AFFILIATE_RULES,
+  PARTNER_TYPE_LABELS,
+  formatBRL,
+  listingTier,
+  type AdminAffiliateActionInput,
+  type AdminAffiliateRow,
+  type AffiliateApplyInput,
+  type AffiliateCommissionView,
+  type AffiliateDashboard,
+  type AffiliateTotals,
+} from "@novoseminovo/shared-types";
+import type { Prisma } from "@novoseminovo/db";
+import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
+
+// Programa de afiliados: quem se inscreve (e é aprovado no /admin) ganha um
+// código; o link novoseminovo.com.br/?ref=CODIGO (cookie de
+// AFFILIATE_RULES.cookieDays dias) ou o código digitado no cadastro amarra a
+// conta nova ao afiliado (User.referredByAffiliateId). Daí em diante:
+// - cada fatura paga da assinatura de loja/imobiliária dessa pessoa gera
+//   partnerSubscriptionRate% durante partnerSubscriptionMonths meses;
+// - cada plano pago de anúncio (Flex/Turbo/Nitro) gera listingPlanRate%,
+//   no mesmo prazo contado do cadastro.
+// A comissão fica "pending" holdDays dias (estornos) e depois "available";
+// o admin paga por Pix e marca "paid".
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MONTH_MS = 30.44 * DAY_MS;
+
+type CommissionRow = Prisma.AffiliateCommissionGetPayload<object>;
+
+function toView(row: CommissionRow): AffiliateCommissionView {
+  return {
+    id: row.id,
+    source: row.source as AffiliateCommissionView["source"],
+    description: row.description,
+    baseAmount: Number(row.baseAmount),
+    rate: Number(row.rate),
+    amount: Number(row.amount),
+    status: row.status as AffiliateCommissionView["status"],
+    availableAt: row.availableAt.toISOString(),
+    paidAt: row.paidAt?.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+function totalsOf(rows: { status: string; amount: Prisma.Decimal | number }[]): AffiliateTotals {
+  const totals = { pending: 0, available: 0, paid: 0 };
+  for (const row of rows) {
+    if (row.status === "pending" || row.status === "available" || row.status === "paid") totals[row.status] += Number(row.amount);
+  }
+  return { pending: round(totals.pending), available: round(totals.available), paid: round(totals.paid) };
+}
+
+function round(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function normalizeAffiliateCode(code: string | undefined | null): string | undefined {
+  const clean = (code ?? "").trim().toUpperCase();
+  return AFFILIATE_CODE_PATTERN.test(clean) ? clean : undefined;
+}
+
+@Injectable()
+export class AffiliatesService {
+  private readonly logger = new Logger(AffiliatesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
+
+  // ---- Inscrição e painel do afiliado ------------------------------------
+
+  async apply(userId: string, input: AffiliateApplyInput): Promise<AffiliateDashboard> {
+    const existing = await this.prisma.affiliate.findUnique({ where: { userId } });
+    const data = { channels: input.channels, audience: input.audience || null, pixKey: input.pixKey };
+    if (existing) {
+      if (existing.status === "suspended") throw new ConflictException("Sua conta de afiliado está suspensa. Fale com a gente pelo WhatsApp.");
+      // Aprovado só atualiza os dados (Pix, canais); recusado volta pra análise.
+      await this.prisma.affiliate.update({
+        where: { id: existing.id },
+        data: { ...data, ...(existing.status === "rejected" ? { status: "pending", adminNote: null } : {}) },
+      });
+    } else {
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+      await this.prisma.affiliate.create({ data: { ...data, userId, code: await this.newCode(user?.name ?? "") } });
+    }
+    return (await this.dashboard(userId))!;
+  }
+
+  async dashboard(userId: string): Promise<AffiliateDashboard | null> {
+    const affiliate = await this.prisma.affiliate.findUnique({ where: { userId } });
+    if (!affiliate) return null;
+    await this.releaseMatured();
+    const since = new Date(Date.now() - 30 * DAY_MS).toISOString().slice(0, 10);
+    const [clicks, signups, commissions] = await Promise.all([
+      this.prisma.affiliateClickDay.aggregate({ where: { affiliateId: affiliate.id, day: { gte: since } }, _sum: { count: true } }),
+      this.prisma.user.count({ where: { referredByAffiliateId: affiliate.id } }),
+      this.prisma.affiliateCommission.findMany({ where: { affiliateId: affiliate.id }, orderBy: { createdAt: "desc" }, take: 200 }),
+    ]);
+    return {
+      status: affiliate.status as AffiliateDashboard["status"],
+      code: affiliate.code,
+      channels: affiliate.channels,
+      audience: affiliate.audience ?? undefined,
+      pixKey: affiliate.pixKey,
+      adminNote: affiliate.adminNote ?? undefined,
+      stats: {
+        clicks30d: clicks._sum.count ?? 0,
+        signups,
+        payingCustomers: new Set(commissions.filter((row) => row.status !== "canceled").map((row) => row.referredUserId)).size,
+      },
+      totals: totalsOf(commissions),
+      commissions: commissions.map(toView),
+    };
+  }
+
+  // Clique no link ?ref= (somado por dia). Código desconhecido ou de
+  // afiliado não aprovado é ignorado em silêncio.
+  async recordClick(code: string): Promise<void> {
+    const clean = normalizeAffiliateCode(code);
+    if (!clean) return;
+    const affiliate = await this.prisma.affiliate.findUnique({ where: { code: clean }, select: { id: true, status: true } });
+    if (!affiliate || affiliate.status !== "approved") return;
+    await this.prisma.affiliateClickDay.upsert({
+      where: { affiliateId_day: { affiliateId: affiliate.id, day: today() } },
+      create: { affiliateId: affiliate.id, day: today(), count: 1 },
+      update: { count: { increment: 1 } },
+    });
+  }
+
+  // ---- Comissões (chamadas pelo webhook do Stripe) -----------------------
+
+  // Fatura paga de assinatura de loja/imobiliária.
+  async recordPartnerInvoice(params: { invoiceId: string; stripeSubscriptionId: string; amountPaid: number; paidAt: Date }): Promise<void> {
+    if (params.amountPaid <= 0) return;
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { paymentProviderRef: params.stripeSubscriptionId },
+      include: { plan: { select: { name: true } }, partner: { include: { owner: { select: { id: true, referredByAffiliateId: true } } } } },
+    });
+    const owner = subscription?.partner.owner;
+    if (!subscription || !owner?.referredByAffiliateId) return;
+    const affiliate = await this.prisma.affiliate.findUnique({ where: { id: owner.referredByAffiliateId } });
+    if (!affiliate || affiliate.status !== "approved") return;
+
+    // O prazo conta da primeira mensalidade comissionada dessa loja.
+    const first = await this.prisma.affiliateCommission.findFirst({
+      where: { partnerId: subscription.partnerId, source: "partner_subscription" },
+      orderBy: { createdAt: "asc" },
+    });
+    if (first && params.paidAt.getTime() - first.createdAt.getTime() > AFFILIATE_RULES.partnerSubscriptionMonths * MONTH_MS) return;
+
+    const typeLabel = PARTNER_TYPE_LABELS[subscription.partner.type] ?? "Parceiro";
+    await this.createCommission({
+      affiliateId: affiliate.id,
+      affiliateUserId: affiliate.userId,
+      source: "partner_subscription",
+      sourceRef: `invoice:${params.invoiceId}`,
+      referredUserId: owner.id,
+      partnerId: subscription.partnerId,
+      description: `Mensalidade ${subscription.plan.name} — ${typeLabel}`,
+      baseAmount: params.amountPaid,
+      rate: AFFILIATE_RULES.partnerSubscriptionRate,
+    });
+  }
+
+  // Plano de anúncio de pessoa física pago (ListingsService.applyBoost).
+  async recordListingPlan(purchaseId: string): Promise<void> {
+    const purchase = await this.prisma.listingBoostPurchase.findUnique({ where: { id: purchaseId } });
+    if (!purchase || purchase.status !== "paid") return;
+    const buyer = await this.prisma.user.findUnique({ where: { id: purchase.userId }, select: { id: true, referredByAffiliateId: true, referredAt: true } });
+    if (!buyer?.referredByAffiliateId || !buyer.referredAt) return;
+    if ((purchase.paidAt ?? new Date()).getTime() - buyer.referredAt.getTime() > AFFILIATE_RULES.partnerSubscriptionMonths * MONTH_MS) return;
+    const affiliate = await this.prisma.affiliate.findUnique({ where: { id: buyer.referredByAffiliateId } });
+    if (!affiliate || affiliate.status !== "approved") return;
+    await this.createCommission({
+      affiliateId: affiliate.id,
+      affiliateUserId: affiliate.userId,
+      source: "listing_plan",
+      sourceRef: `boost:${purchase.id}`,
+      referredUserId: buyer.id,
+      description: `Plano ${listingTier(purchase.tier).name} de anúncio`,
+      baseAmount: Number(purchase.amount),
+      rate: AFFILIATE_RULES.listingPlanRate,
+    });
+  }
+
+  private async createCommission(params: {
+    affiliateId: string;
+    affiliateUserId: string;
+    source: "partner_subscription" | "listing_plan";
+    sourceRef: string;
+    referredUserId: string;
+    partnerId?: string;
+    description: string;
+    baseAmount: number;
+    rate: number;
+  }): Promise<void> {
+    const amount = round((params.baseAmount * params.rate) / 100);
+    if (amount <= 0) return;
+    // sourceRef é único: o mesmo evento do Stripe chegando duas vezes não paga em dobro.
+    const exists = await this.prisma.affiliateCommission.findUnique({ where: { sourceRef: params.sourceRef } });
+    if (exists) return;
+    await this.prisma.affiliateCommission.create({
+      data: {
+        affiliateId: params.affiliateId,
+        source: params.source,
+        sourceRef: params.sourceRef,
+        referredUserId: params.referredUserId,
+        partnerId: params.partnerId,
+        description: params.description,
+        baseAmount: params.baseAmount,
+        rate: params.rate,
+        amount,
+        availableAt: new Date(Date.now() + AFFILIATE_RULES.holdDays * DAY_MS),
+      },
+    });
+    this.logger.log(`Comissão de afiliado ${params.affiliateId}: ${formatBRL(amount)} (${params.sourceRef})`);
+    await this.notifications
+      .notify(params.affiliateUserId, "affiliate_commission", { amountLabel: formatBRL(amount), description: params.description, holdDays: AFFILIATE_RULES.holdDays })
+      .catch(() => undefined);
+  }
+
+  // Comissão que passou do período de garantia fica disponível pra saque.
+  private async releaseMatured(): Promise<void> {
+    await this.prisma.affiliateCommission.updateMany({ where: { status: "pending", availableAt: { lte: new Date() } }, data: { status: "available" } });
+  }
+
+  // ---- Admin --------------------------------------------------------------
+
+  async adminList(): Promise<AdminAffiliateRow[]> {
+    await this.releaseMatured();
+    const affiliates = await this.prisma.affiliate.findMany({
+      include: { user: { select: { name: true, email: true } }, _count: { select: { referrals: true } }, commissions: { select: { status: true, amount: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    return affiliates.map((affiliate) => ({
+      id: affiliate.id,
+      name: affiliate.user.name,
+      email: affiliate.user.email,
+      code: affiliate.code,
+      status: affiliate.status as AdminAffiliateRow["status"],
+      channels: affiliate.channels,
+      audience: affiliate.audience ?? undefined,
+      pixKey: affiliate.pixKey,
+      createdAt: affiliate.createdAt.toISOString(),
+      signups: affiliate._count.referrals,
+      totals: totalsOf(affiliate.commissions),
+    }));
+  }
+
+  async adminAction(affiliateId: string, input: AdminAffiliateActionInput): Promise<void> {
+    const affiliate = await this.prisma.affiliate.findUnique({ where: { id: affiliateId } });
+    if (!affiliate) throw new NotFoundException("Afiliado não encontrado.");
+    const next = { approve: "approved", reject: "rejected", suspend: "suspended", reactivate: "approved" }[input.action];
+    await this.prisma.affiliate.update({
+      where: { id: affiliateId },
+      data: {
+        status: next,
+        adminNote: input.note || null,
+        ...(input.action === "approve" && !affiliate.approvedAt ? { approvedAt: new Date() } : {}),
+      },
+    });
+    if (input.action === "approve") {
+      await this.notifications.notify(affiliate.userId, "affiliate_approved", { code: affiliate.code }).catch(() => undefined);
+    }
+  }
+
+  // Pix feito: tudo que estava disponível vira pago, com a anotação do comprovante.
+  async adminPayout(affiliateId: string, note: string): Promise<{ paid: number }> {
+    await this.releaseMatured();
+    const available = await this.prisma.affiliateCommission.findMany({ where: { affiliateId, status: "available" } });
+    if (available.length === 0) throw new BadRequestException("Este afiliado não tem comissão disponível para pagar.");
+    await this.prisma.affiliateCommission.updateMany({
+      where: { id: { in: available.map((row) => row.id) } },
+      data: { status: "paid", paidAt: new Date(), paidNote: note },
+    });
+    return { paid: round(available.reduce((sum, row) => sum + Number(row.amount), 0)) };
+  }
+
+  private async newCode(name: string): Promise<string> {
+    const base =
+      name
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .toUpperCase()
+        .replace(/[^A-Z]/g, " ")
+        .trim()
+        .split(/\s+/)[0]
+        ?.slice(0, 10) || "PARCEIRO";
+    const prefix = base.length >= 3 ? base : `${base}NS`;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const code = `${prefix}${Math.floor(10 + Math.random() * (attempt < 10 ? 90 : 9990))}`;
+      if (!(await this.prisma.affiliate.findUnique({ where: { code } }))) return code;
+    }
+    throw new ConflictException("Não foi possível gerar o código agora. Tente de novo.");
+  }
+}

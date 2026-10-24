@@ -43,6 +43,7 @@ function partnerItems(partner: Partner): SidebarItem[] {
         ]
       : []),
     { href: "/conta/recompensas", label: "Recompensas", icon: "gift" },
+    { href: "/afiliado", label: "Programa de afiliados", icon: "chart" },
     { href: "/conta/notificacoes", label: "Notificações", icon: "bell" },
     { href: "/conta/perfil", label: "Meus dados", icon: "user" },
   ];
@@ -56,6 +57,7 @@ const PERSON_ITEMS: SidebarItem[] = [
   { href: "/conta/notificacoes", label: "Notificações", icon: "bell" },
   { href: "/conta/veiculos", label: "Passaporte dos meus carros", icon: "id" },
   { href: "/conta/recompensas", label: "Recompensas", icon: "gift" },
+  { href: "/afiliado", label: "Programa de afiliados", icon: "chart" },
   { href: "/conta/perfil", label: "Meus dados", icon: "user" },
   { href: "/parceiro", label: "Sou loja ou imobiliária", icon: "store" },
 ];

@@ -85,6 +85,18 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: `O período grátis de "${payload.partnerName}" termina em ${payload.endsAtLabel}. Contrate um plano para seus anúncios continuarem no ar.`,
         link: "/parceiro/plano",
       };
+    case "affiliate_approved":
+      return {
+        title: "Você agora é afiliado NovoSeminovo",
+        body: `Sua inscrição foi aprovada. Seu código é ${payload.code} — pegue o link e os materiais no painel do afiliado.`,
+        link: "/afiliado",
+      };
+    case "affiliate_commission":
+      return {
+        title: "Nova comissão de afiliado",
+        body: `Você ganhou ${payload.amountLabel} (${payload.description}). Ela fica em análise por ${payload.holdDays} dias antes de liberar.`,
+        link: "/afiliado",
+      };
     case "partner_offline":
       return {
         title: "Seus anúncios saíram do ar",
