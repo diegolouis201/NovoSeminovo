@@ -46,6 +46,9 @@ export const metadata: Metadata = {
     url: "/",
   },
   twitter: { card: "summary_large_image" },
+  // Verificação do domínio no Meta Business (portfólio NovoSeminovo) — exigida
+  // pra verificação da empresa e o WhatsApp oficial. Não é segredo.
+  other: { "facebook-domain-verification": "dy47jl5g0uy0nh6mrv5clp6wlpy100" },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
