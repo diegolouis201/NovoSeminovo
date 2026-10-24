@@ -20,6 +20,7 @@ const GRACE_MS = 3 * 60 * 1000;
 const BATCH = 5;
 const MAX_PHOTOS = 8;
 const MAX_ATTEMPTS = 3;
+const FAILED_NOTE = "A moderação automática não conseguiu analisar este anúncio — revise manualmente.";
 
 const listingInclude = {
   photos: { orderBy: { position: "asc" } },
@@ -98,6 +99,11 @@ export class AutoModerationService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit(): void {
     if (!this.isEnabled()) return;
+    // Anúncio que ficou pra revisão só porque a IA falhou (erro da API, já
+    // corrigido) volta pra fila e é analisado de novo.
+    void this.prisma.listing
+      .updateMany({ where: { status: "pending_review", autoReviewNote: FAILED_NOTE }, data: { autoReviewedAt: null, autoReviewNote: null } })
+      .catch((error: Error) => this.logger.warn(`Não reabri a fila da moderação: ${error.message}`));
     this.timer = setInterval(() => void this.sweep(), SWEEP_MS);
     this.timer.unref();
   }
@@ -138,7 +144,7 @@ export class AutoModerationService implements OnModuleInit, OnModuleDestroy {
         this.logger.warn(`IA não analisou o anúncio ${listing.id} (tentativa ${attempts}): ${(error as Error).message}`);
         if (attempts < MAX_ATTEMPTS) return;
         this.failures.delete(listing.id);
-        decision = { decision: "human", adminNote: "A moderação automática não conseguiu analisar este anúncio — revise manualmente." };
+        decision = { decision: "human", adminNote: FAILED_NOTE };
       }
     }
 
@@ -172,13 +178,17 @@ export class AutoModerationService implements OnModuleInit, OnModuleDestroy {
     if (images.length === 0) return { decision: "human", adminNote: "Nenhuma foto do anúncio abriu para a análise automática — confira as fotos." };
     const response = await this.client.messages.create({
       model: AGENT_MODEL,
-      max_tokens: 1000,
-      system: SYSTEM,
+      // O modelo atual não aceita tool_choice forçado ("tool"/"any") — vai
+      // "auto" e o prompt manda sempre terminar na ferramenta. Espaço folgado
+      // pro raciocínio antes da chamada.
+      max_tokens: 4000,
+      system: `${SYSTEM}\n\nResponda SEMPRE chamando a ferramenta registrar_decisao, uma única vez — sem texto fora dela.`,
       tools: [DECISION_TOOL],
-      tool_choice: { type: "tool", name: DECISION_TOOL.name },
+      tool_choice: { type: "auto" },
       messages: [{ role: "user", content: [{ type: "text", text: describe(listing) }, ...images] }],
     });
     const call = response.content.find((block): block is Anthropic.ToolUseBlock => block.type === "tool_use");
+    if (!call) throw new Error(`a IA respondeu sem chamar registrar_decisao (stop_reason ${response.stop_reason})`);
     const input = (call?.input ?? {}) as { decisao?: string; motivo_para_anunciante?: string; nota_para_admin?: string };
     if (input.decisao === "aprovar") return { decision: "approve" };
     // Recusa sem motivo não ajuda o anunciante — vira revisão humana.
