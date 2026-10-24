@@ -94,7 +94,8 @@ O README cobre bem o marketplace básico (anúncios, busca, chat, favoritos, Pas
 **Comando atual (23/10/2026) — usar este.** Monta api e web uma de cada vez (montar as duas juntas esgotava a memória do VPS e derrubava o SSH do Diego), chama o Prisma direto (o `pnpm` via corepack baixava o pnpm da internet a cada deploy e falhava quando a rede oscilava) e limpa imagens antigas (o disco chegou a 77%):
 
 ```bash
-cd ~/NovoSeminovo && git pull origin claude/vehicle-marketplace-platform-lmif9s && nohup sh -c 'docker compose build api && docker compose build web && docker compose up -d && sleep 15 && docker compose exec -T -w /app/packages/db api ./node_modules/.bin/prisma db push --accept-data-loss --skip-generate && docker compose restart api && docker image prune -f && echo PRONTO-OK' > ~/deploy.log 2>&1 &
+cd ~/NovoSeminovo && git pull origin claude/vehicle-marketplace-platform-lmif9s && nohup sh -c 'docker compose build api && docker compose build web && docker compose up -d && sleep 15 && docker compose exec -T -w /app/packages/db api ./node_modules/.bin/prisma db push --accept-data-loss --skip-generate && docker compose restart api && docker image prune -f && docker builder prune -f --filter until=48h && echo PRONTO-OK' > ~/deploy.log 2>&1 &
+(24/10/2026: `docker builder prune --filter until=48h` no fim — o cache de montagem chegou a levar o disco de 22% a 52% em 3 deploys; mantém só o cache recente, que acelera o próximo build.)
 ```
 Conferir com `tail -3 ~/deploy.log`. Entrar no VPS com `ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10 root@177.153.68.113` (a conexão cai durante o build; o deploy continua rodando).
 
