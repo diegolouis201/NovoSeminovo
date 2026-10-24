@@ -14,12 +14,15 @@ import {
   isValidCpf,
   type ListingTierId,
   type CreateListingInput,
+  type FipeModelSuggestion,
   type FipeVersion,
 } from "@novoseminovo/shared-types";
 import {
   createVehicleFromWizardAction,
   fipeBrandsAction,
+  fipeModelsAction,
   fipePriceAction,
+  fipeReferenceAction,
   fipeVersionsAction,
   generateVehicleTextAction,
   startBoostAction,
@@ -59,6 +62,8 @@ import {
 const DRAFT_KEY = "ns-anunciar-carro";
 const QUICK_SALE_DISCOUNT = 0.03;
 const CURRENT_YEAR = new Date().getFullYear();
+// Trocar marca, modelo ou ano invalida versão e preço FIPE já achados.
+const CLEAR_FIPE = { fipeModelCode: undefined, fipePrice: undefined, fipeApprox: false, version: "" } satisfies Partial<Draft>;
 
 const COLORS = ["Branco", "Preto", "Prata", "Cinza", "Vermelho", "Azul", "Marrom", "Bege", "Verde", "Amarelo", "Dourado", "Laranja", "Vinho", "Outra"];
 const ENGINES = ["1.0", "1.0 Turbo", "1.2", "1.3", "1.4", "1.4 Turbo", "1.5", "1.6", "1.8", "2.0", "2.0 Turbo", "2.4", "2.5", "2.8", "3.0 ou mais", "Elétrico"];
@@ -74,6 +79,8 @@ type Draft = {
   yearModel: string;
   fipeModelCode?: number;
   fipePrice?: number;
+  // FIPE achada pelo nome do modelo, sem versão escolhida (valor aproximado).
+  fipeApprox?: boolean;
   version: string;
   mileage: string;
   bodyType: string;
@@ -212,6 +219,8 @@ export function VehicleListingWizard({
   const [brands, setBrands] = useState<string[]>([]);
   const [versions, setVersions] = useState<FipeVersion[] | undefined>();
   const [loadingVersions, setLoadingVersions] = useState(false);
+  const [models, setModels] = useState<FipeModelSuggestion[]>([]);
+  const [fipeLookup, setFipeLookup] = useState<"idle" | "loading" | "none">("idle");
   const [busy, setBusy] = useState<string | undefined>();
   const [showTerms, setShowTerms] = useState(false);
   const [featureQuery, setFeatureQuery] = useState("");
@@ -249,6 +258,44 @@ export function VehicleListingWizard({
     window.scrollTo({ top: 0 });
   }, [step]);
 
+  // Modelos sugeridos assim que marca e ano estão preenchidos (FIPE).
+  useEffect(() => {
+    if (current !== "car" || !draft.brand.trim()) return setModels([]);
+    const year = Number(draft.yearModel || draft.yearManufacture);
+    if (!Number.isInteger(year) || year < 1950 || year > CURRENT_YEAR + 1) return setModels([]);
+    let stale = false;
+    const timer = setTimeout(() => {
+      void fipeModelsAction(draft.brand.trim(), year)
+        .catch(() => [])
+        .then((found) => {
+          if (!stale) setModels(found);
+        });
+    }, 300);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
+  }, [current, draft.brand, draft.yearModel, draft.yearManufacture]);
+
+  // Etapa de preço sem FIPE da versão: busca a referência pelo modelo digitado.
+  useEffect(() => {
+    if (current !== "price" || draft.fipePrice) return;
+    const year = Number(draft.yearModel);
+    if (!draft.brand.trim() || !draft.model.trim() || !Number.isInteger(year)) return setFipeLookup("none");
+    let stale = false;
+    setFipeLookup("loading");
+    void fipeReferenceAction(draft.brand.trim(), draft.model.trim(), year)
+      .catch(() => undefined)
+      .then((found) => {
+        if (stale) return;
+        if (found) set({ fipePrice: found.price, fipeApprox: true });
+        setFipeLookup(found ? "idle" : "none");
+      });
+    return () => {
+      stale = true;
+    };
+  }, [current, draft.brand, draft.model, draft.yearModel, draft.fipePrice]);
+
   // Versões da FIPE ao chegar na tela de versão (uma consulta por carro).
   useEffect(() => {
     if (current !== "version") return;
@@ -271,6 +318,7 @@ export function VehicleListingWizard({
       ...d,
       fipeModelCode: version.code,
       version: version.name,
+      fipeApprox: false,
       engine: d.engine || guess.engine || "",
       transmission: d.transmission || guess.transmission || "",
       fuelType: d.fuelType || guess.fuelType || "",
@@ -501,6 +549,8 @@ export function VehicleListingWizard({
   const filteredFeatures = VEHICLE_FEATURE_OPTIONS.filter((option) =>
     option.label.toLowerCase().includes(featureQuery.trim().toLowerCase()),
   );
+  const modelQuery = draft.model.trim().toLowerCase();
+  const suggestedModels = (modelQuery ? models.filter((model) => model.name.toLowerCase().includes(modelQuery)) : models).slice(0, 40);
   const complete = VEHICLE_COMPLETE_FEATURES.every((value) => draft.features.includes(value));
   const progress = Math.round((step / (steps.length - 1)) * 100);
 
@@ -562,7 +612,7 @@ export function VehicleListingWizard({
           <Step title="Qual é o carro?" hint="Usamos a tabela FIPE para achar a versão certa e sugerir o preço.">
             <Field label="Marca">
               {brands.length > 0 ? (
-                <select value={draft.brand} onChange={(event) => set({ brand: event.target.value, fipeModelCode: undefined, version: "" })} className={inputClass}>
+                <select value={draft.brand} onChange={(event) => set({ brand: event.target.value, ...CLEAR_FIPE })} className={inputClass}>
                   <option value="">Escolha a marca</option>
                   {brands.map((brand) => (
                     <option key={brand} value={brand}>
@@ -571,16 +621,8 @@ export function VehicleListingWizard({
                   ))}
                 </select>
               ) : (
-                <input value={draft.brand} onChange={(event) => set({ brand: event.target.value })} placeholder="Ex.: Fiat" className={inputClass} />
+                <input value={draft.brand} onChange={(event) => set({ brand: event.target.value, ...CLEAR_FIPE })} placeholder="Ex.: Fiat" className={inputClass} />
               )}
-            </Field>
-            <Field label="Modelo">
-              <input
-                value={draft.model}
-                onChange={(event) => set({ model: event.target.value, fipeModelCode: undefined, version: "" })}
-                placeholder="Ex.: Argo, Onix, Corolla"
-                className={inputClass}
-              />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Ano de fabricação">
@@ -589,7 +631,7 @@ export function VehicleListingWizard({
                   value={draft.yearManufacture}
                   onChange={(event) => {
                     const value = digits(event.target.value).slice(0, 4);
-                    set({ yearManufacture: value, yearModel: draft.yearModel || value });
+                    set({ yearManufacture: value, yearModel: draft.yearModel || value, ...CLEAR_FIPE });
                   }}
                   placeholder="2021"
                   className={inputClass}
@@ -599,12 +641,52 @@ export function VehicleListingWizard({
                 <input
                   inputMode="numeric"
                   value={draft.yearModel}
-                  onChange={(event) => set({ yearModel: digits(event.target.value).slice(0, 4), fipeModelCode: undefined, version: "" })}
+                  onChange={(event) => set({ yearModel: digits(event.target.value).slice(0, 4), ...CLEAR_FIPE })}
                   placeholder="2022"
                   className={inputClass}
                 />
               </Field>
             </div>
+            <Field label="Modelo">
+              <input
+                value={draft.model}
+                onChange={(event) => set({ model: event.target.value, ...CLEAR_FIPE })}
+                placeholder={models.length > 0 ? "Digite ou escolha abaixo" : "Ex.: Argo, Onix, Corolla"}
+                list="fipe-models"
+                autoComplete="off"
+                className={inputClass}
+              />
+              <datalist id="fipe-models">
+                {models.map((model) => (
+                  <option key={model.name} value={model.name} />
+                ))}
+              </datalist>
+            </Field>
+            {suggestedModels.length > 0 && (
+              <div className="mt-1">
+                <p className="text-xs font-semibold text-ink-muted">
+                  {draft.model.trim() ? "Modelos parecidos" : `Modelos ${draft.brand} de ${draft.yearModel || draft.yearManufacture} na tabela FIPE`}
+                </p>
+                <div className="mt-2 flex max-h-44 flex-wrap gap-2 overflow-y-auto">
+                  {suggestedModels.map((model) => {
+                    const selected = model.name.toLowerCase() === draft.model.trim().toLowerCase();
+                    return (
+                      <button
+                        key={model.name}
+                        type="button"
+                        onClick={() => set({ model: model.name, ...CLEAR_FIPE })}
+                        aria-pressed={selected}
+                        className={`rounded-full border-2 px-3 py-1.5 text-sm font-semibold ${
+                          selected ? "border-brand-green bg-brand-green text-on-green" : "border-border bg-surface-raised text-ink hover:bg-surface-sober"
+                        }`}
+                      >
+                        {model.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </Step>
         )}
 
@@ -827,7 +909,14 @@ export function VehicleListingWizard({
             </div>
             {draft.fipePrice && quickSale && (
               <div className="mt-4 flex flex-col gap-2">
-                <p className="text-center text-sm text-brand-green">Tabela FIPE desta versão: {formatBRL(draft.fipePrice)}</p>
+                <div className="rounded-brand-lg border-2 border-brand-green bg-surface-raised px-4 py-3 text-center">
+                  <p className="text-xs font-bold uppercase tracking-wide text-brand-green">Preço de referência · Tabela FIPE</p>
+                  <p className="font-display text-3xl font-bold text-ink [font-variant-numeric:tabular-nums]">{formatBRL(draft.fipePrice)}</p>
+                  <p className="text-xs text-ink-muted">
+                    {draft.brand} {draft.fipeApprox ? draft.model : draft.version || draft.model} {draft.yearModel}
+                    {draft.fipeApprox && " — valor aproximado (sem a versão exata)"}. É só uma orientação: o preço final é você quem decide.
+                  </p>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button type="button" onClick={() => set({ price: String(quickSale) })} className="rounded-brand border border-border px-3 py-2 text-left text-sm hover:bg-surface-sober">
                     <strong className="block text-ink">{formatBRL(quickSale)}</strong>
@@ -839,6 +928,16 @@ export function VehicleListingWizard({
                   </button>
                 </div>
               </div>
+            )}
+            {!draft.fipePrice && fipeLookup === "loading" && <p className="mt-4 text-center text-sm text-ink-muted">Consultando a Tabela FIPE…</p>}
+            {!draft.fipePrice && fipeLookup === "none" && (
+              <p className="mt-4 rounded-brand bg-surface-sober px-4 py-3 text-sm text-ink">
+                Não encontramos a Tabela FIPE deste carro automaticamente. Você pode conferir em{" "}
+                <a href="https://veiculos.fipe.org.br" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-blue underline">
+                  veiculos.fipe.org.br
+                </a>{" "}
+                ou voltar e escolher a versão.
+              </p>
             )}
             {ratio !== undefined && ratio < 0.8 && (
               <p className="mt-3 flex gap-2 rounded-brand bg-status-danger/10 px-3 py-2 text-sm text-status-danger">

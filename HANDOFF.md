@@ -158,6 +158,12 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
 
 **Produção** tem contas reais do Diego — a conta demo `senha1234` citada acima é só do seed local/dev.
 
+29. **Logos das marcas, modelos e FIPE no anúncio, painel geral** (pedido do Diego, modelo Webmotors):
+   - Logos: `BrandLogoStrip` (faixa rolável) na `/busca` de carros e no `/carros` (via `QuickCategories`); logos em `public/marcas-carros/` (car-logos-dataset, MIT), lista e apelidos em `lib/brand-logos.ts`. A busca por marca aceita grafias da FIPE ("GM - Chevrolet" = "Chevrolet") via `vehicleBrandVariants` (shared-types).
+   - Modelos: no `/anunciar`, marca → anos → modelo; `GET listings/fipe-models?brand&yearModel` agrupa as versões FIPE pelo nome base (`baseModelName` em `FipeService`). Com ano, tenta `/marcas/{id}/anos/{ano}-{1,3,2}/modelos` da parallelum; se não responder, mostra todos os modelos da marca. **Conferir em produção se a rota por ano existe** (não deu pra testar daqui). Campo continua livre.
+   - FIPE no preço: se a pessoa não escolheu versão, `GET listings/fipe-reference?brand&model&yearModel` (`lookupPrice`) mostra o valor como "aproximado"; sem FIPE, aponta para veiculos.fipe.org.br. É só orientação, o preço é livre.
+   - Painel geral: `/admin/painel` (`GET admin/overview`, `AdminOverviewService`): destaques, gráficos diários de 30 dias e blocos de anúncios, pessoas/parceiros, receita (MRR só de assinatura paga no Stripe + planos PF), negociação, IA e afiliados, com tendência vs. 30 dias anteriores.
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).

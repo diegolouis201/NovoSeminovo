@@ -16,6 +16,7 @@ import {
   type SpecItem,
   PARTNER_HIGHLIGHT_RANK,
   highlightLevelFromRank,
+  vehicleBrandVariants,
 } from "@novoseminovo/shared-types";
 
 const listingWithDetails = Prisma.validator<Prisma.ListingDefaultArgs>()({
@@ -97,7 +98,9 @@ export function buildListingFilterWhere(
   if (yearMin !== undefined || yearMax !== undefined) {
     vehicleDetails.yearModel = { ...(yearMin !== undefined ? { gte: yearMin } : {}), ...(yearMax !== undefined ? { lte: yearMax } : {}) };
   }
-  if (brand) vehicleDetails.brand = { name: { equals: brand, mode: "insensitive" } };
+  if (brand) {
+    vehicleDetails.brand = { OR: vehicleBrandVariants(brand).map((name) => ({ name: { equals: name, mode: "insensitive" as const } })) };
+  }
   if (model) vehicleDetails.model = { name: { equals: model, mode: "insensitive" } };
   if (transmission) vehicleDetails.transmission = transmission as Transmission;
   if (fuelType) vehicleDetails.fuelType = fuelType as FuelType;

@@ -12,6 +12,8 @@ import type {
   CreateLeadInput,
   UpdateLeadInput,
   UpdateSaleInput,
+  FipeModelSuggestion,
+  AdminOverview,
   FipePrice,
   FipeVersion,
   SubscriptionBoardCard,
@@ -957,6 +959,29 @@ export async function fetchFipeVersions(brand: string, model: string, yearModel?
   }
 }
 
+export async function fetchFipeModels(brand: string, yearModel?: number): Promise<FipeModelSuggestion[]> {
+  try {
+    const params = new URLSearchParams({ brand, ...(yearModel ? { yearModel: String(yearModel) } : {}) });
+    const res = await fetchWithTimeout(`${API_URL}/listings/fipe-models?${params.toString()}`, undefined, 15000);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as FipeModelSuggestion[];
+  } catch {
+    return [];
+  }
+}
+
+// Preço de referência pelo nome do modelo (sem versão escolhida).
+export async function fetchFipeReference(brand: string, model: string, yearModel: number): Promise<FipePrice | undefined> {
+  try {
+    const params = new URLSearchParams({ brand, model, yearModel: String(yearModel) });
+    const res = await fetchWithTimeout(`${API_URL}/listings/fipe-reference?${params.toString()}`, undefined, 10000);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return ((await res.json()) as FipePrice | null) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function fetchFipePrice(brand: string, modelCode: number, yearModel: number): Promise<FipePrice | undefined> {
   try {
     const params = new URLSearchParams({ brand, modelCode: String(modelCode), yearModel: String(yearModel) });
@@ -1689,6 +1714,16 @@ export async function fetchAdminAffiliateDetail(id: string, accessToken: string)
     const res = await fetchWithTimeout(`${API_URL}/admin/affiliates/${encodeURIComponent(id)}`, { headers: authHeaders(accessToken) });
     if (!res.ok) return undefined;
     return (await res.json()) as AdminAffiliateDetail;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function fetchAdminOverview(accessToken: string): Promise<AdminOverview | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/overview`, { headers: authHeaders(accessToken), cache: "no-store" }, 20000);
+    if (!res.ok) return undefined;
+    return (await res.json()) as AdminOverview;
   } catch {
     return undefined;
   }

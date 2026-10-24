@@ -45,6 +45,9 @@ export default async function AdminPage() {
         aqui antes de ganhar o selo de verificada.
       </p>
       <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+        <Link href="/admin/painel" className="text-sm font-semibold text-brand-blue hover:underline">
+          Painel geral (big numbers) →
+        </Link>
         <Link href="/admin/financiamentos" className="text-sm font-semibold text-brand-blue hover:underline">
           Interessados em financiamento (assistente de IA) →
         </Link>

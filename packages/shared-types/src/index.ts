@@ -393,6 +393,9 @@ export const FipeVersionSchema = z.object({ code: z.number().int(), name: z.stri
 export type FipeVersion = z.infer<typeof FipeVersionSchema>;
 export const FipePriceSchema = z.object({ fipeCode: z.string(), price: z.number(), versionName: z.string().optional() });
 export type FipePrice = z.infer<typeof FipePriceSchema>;
+// Modelo sugerido no /anunciar (nome base + quantas versões FIPE ele tem).
+export const FipeModelSuggestionSchema = z.object({ name: z.string(), versions: z.number().int() });
+export type FipeModelSuggestion = z.infer<typeof FipeModelSuggestionSchema>;
 
 export const VehicleConditionTag = z.enum(VEHICLE_CONDITION_OPTIONS.map((o) => o.value) as [string, ...string[]]);
 
@@ -1844,3 +1847,74 @@ export const AdminAffiliatePayoutInputSchema = z.object({
   note: z.string().trim().min(3, "Anote o comprovante do Pix (ex.: id da transação)").max(300),
 });
 export type AdminAffiliatePayoutInput = z.infer<typeof AdminAffiliatePayoutInputSchema>;
+
+// Mesma marca escrita de jeitos diferentes (a FIPE usa "GM - Chevrolet",
+// "VW - VolksWagen"...; a faixa de logos e quem digita usam "Chevrolet").
+// A busca por marca aceita qualquer grafia do grupo.
+const VEHICLE_BRAND_GROUPS: string[][] = [
+  ["Chevrolet", "GM - Chevrolet", "GM"],
+  ["Volkswagen", "VW - VolksWagen", "VW"],
+  ["Citroën", "Citroen"],
+  ["Caoa Chery", "Chery", "CAOA Chery/Chery"],
+  ["Kia", "Kia Motors"],
+  ["Mercedes-Benz", "Mercedes", "Mercedes Benz", "M.Benz"],
+  ["Land Rover", "LandRover", "LR"],
+];
+
+export function vehicleBrandVariants(name: string): string[] {
+  const wanted = name.trim().toLowerCase();
+  const group = VEHICLE_BRAND_GROUPS.find((names) => names.some((item) => item.toLowerCase() === wanted));
+  return group ?? [name.trim()];
+}
+
+// Painel de big numbers do admin (/admin/painel): tudo do site num lugar só.
+// "30d" = últimos 30 dias; "prev30d" = os 30 dias antes disso (pra tendência).
+export type AdminOverviewTrend = { last30d: number; prev30d: number };
+export type AdminOverviewDay = { day: string; users: number; listings: number; leads: number; messages: number };
+export type AdminOverview = {
+  generatedAt: string;
+  users: { total: number; newUsers: AdminOverviewTrend; sellers: number; referred: number };
+  listings: {
+    active: number;
+    activeVehicles: number;
+    activeProperties: number;
+    pendingReview: number;
+    paused: number;
+    rejected: number;
+    expired: number;
+    sold: AdminOverviewTrend;
+    soldValue30d: number;
+    created: AdminOverviewTrend;
+    views: number;
+    avgActivePrice: { vehicle: number; property: number };
+  };
+  partners: { total: number; verified: number; byType: { type: string; count: number }[] };
+  revenue: {
+    mrr: number;
+    payingSubscriptions: number;
+    pastDue: number;
+    listingPlans: AdminOverviewTrend;
+    listingPlansCount30d: number;
+    listingPlansTotal: number;
+  };
+  engagement: {
+    conversations: AdminOverviewTrend;
+    messages: AdminOverviewTrend;
+    favorites: number;
+    leads: AdminOverviewTrend;
+    leadsWon30d: number;
+    simulations: AdminOverviewTrend;
+    openReports: number;
+  };
+  ai: {
+    agentConversations: AdminOverviewTrend;
+    financingLeads: AdminOverviewTrend;
+    financingLeadsConverted: number;
+    architectSessions: AdminOverviewTrend;
+    architectImages30d: number;
+    storeClicks30d: number;
+    autoModerated30d: number;
+  };
+  affiliates: { active: number; pending: number; commissionsOpen: number; commissionsPaid: number };
+  daily: AdminOverviewDay[];
+};

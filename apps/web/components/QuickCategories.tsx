@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Buildings, Car, House, MapTrifold, Storefront } from "@phosphor-icons/react/dist/ssr";
+import { BrandLogoStrip } from "@/components/BrandLogoStrip";
+import { brandLogo } from "@/lib/brand-logos";
 
 // "Modelos mais buscados" da Webmotors é por carroceria (SUV, Hatch...),
 // que não existe no nosso schema — marca é o recorte real mais próximo que
@@ -14,13 +16,16 @@ const PROPERTY_TYPES: { value: string; label: string; icon: typeof House }[] = [
 
 // assetType indefinido (home geral, "/") mostra as duas famílias de chip
 // juntas; "/carros" e "/imoveis" passam o próprio tipo e só veem a sua.
+// Carros: faixa de logos (modelo Webmotors) + chips de texto só para as
+// marcas anunciadas que ainda não têm logo na faixa.
 export function QuickCategories({ brands, assetType }: { brands: string[]; assetType?: "vehicle" | "property" }) {
+  const otherBrands = assetType === "property" ? [] : brands.filter((brand) => !brandLogo(brand));
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="font-display text-2xl font-semibold text-ink">Categorias rápidas</h2>
+      {assetType !== "property" && <BrandLogoStrip title={assetType === "vehicle" ? "Busque por marca" : "Carros por marca"} />}
+      {assetType !== "vehicle" && <h2 className="font-display text-2xl font-semibold text-ink">Categorias rápidas</h2>}
       <div className="flex flex-wrap gap-2">
-        {assetType !== "property" &&
-          brands.map((brand) => (
+        {otherBrands.map((brand) => (
             <Link
               key={brand}
               href={`/busca?assetType=vehicle&brand=${encodeURIComponent(brand)}`}

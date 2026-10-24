@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type {
+  FipeModelSuggestion,
   FipePrice,
   FipeVersion,
   CreateListingInput,
@@ -20,6 +21,8 @@ import { auth } from "@/auth";
 import {
   startListingBoost,
   fetchFipeBrands,
+  fetchFipeModels,
+  fetchFipeReference,
   fetchFipePrice,
   fetchProfile,
   updateProfile,
@@ -161,6 +164,14 @@ export async function boostFormAction(listingId: string, tier: string): Promise<
 
 export async function fipeVersionsAction(brand: string, model: string, yearModel?: number): Promise<FipeVersion[]> {
   return fetchFipeVersions(brand, model, yearModel);
+}
+
+export async function fipeModelsAction(brand: string, yearModel?: number): Promise<FipeModelSuggestion[]> {
+  return fetchFipeModels(brand, yearModel);
+}
+
+export async function fipeReferenceAction(brand: string, model: string, yearModel: number): Promise<FipePrice | undefined> {
+  return fetchFipeReference(brand, model, yearModel);
 }
 
 export async function fipePriceAction(brand: string, modelCode: number, yearModel: number): Promise<FipePrice | undefined> {

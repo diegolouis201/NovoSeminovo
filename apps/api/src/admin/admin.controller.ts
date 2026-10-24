@@ -5,11 +5,21 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { AdminGuard } from "./admin.guard";
 import { AdminService } from "./admin.service";
+import { AdminOverviewService } from "./overview.service";
 
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller("admin")
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly overviewService: AdminOverviewService,
+  ) {}
+
+  // Big numbers do site inteiro (/admin/painel).
+  @Get("overview")
+  overview() {
+    return this.overviewService.overview();
+  }
 
   @Get("listings/pending")
   listPendingListings() {

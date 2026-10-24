@@ -1,5 +1,6 @@
 import { ListingCard } from "@/components/ListingCard";
 import { fetchListings, fetchPopularBrands, type SearchParams } from "@/lib/api";
+import { BrandLogoStrip } from "@/components/BrandLogoStrip";
 import { PropertyMapSearch } from "@/components/map/PropertyMapSearch";
 import { mapTiles } from "@/lib/map-tiles";
 import { getFavoriteContext } from "@/lib/favorites";
@@ -186,6 +187,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           </a>
           .
         </p>
+      )}
+
+      {assetType === "vehicle" && (
+        <div className="mt-6">
+          <BrandLogoStrip selected={searchParams.brand} />
+        </div>
       )}
 
       <div className="mt-6 flex flex-col gap-8 md:flex-row">

@@ -55,6 +55,25 @@ function normalize(text: string): string {
     .replace(/\s+/g, " ");
 }
 
+// Nome do modelo "de gente" a partir do nome FIPE da versão: "ARGO DRIVE 1.0
+// 6V Flex" → "Argo", "Grand Siena ATTRACTIV 1.4" → "Grand Siena",
+// "T-CROSS Comfort 1.0" → "T-Cross", "HB20 Sense 1.0" → "HB20".
+const TWO_WORD_PREFIXES = new Set(["grand", "new", "novo", "nova", "range", "classe", "serie", "série", "space", "santa", "cross", "land"]);
+const NOT_PART_OF_NAME = /\d|^(flex|aut|mec|turbo|tsi|gasolina|diesel)/i;
+function baseModelName(fipeName: string): string {
+  const [first = "", second] = fipeName.trim().split(/\s+/);
+  const words = second && TWO_WORD_PREFIXES.has(first.toLowerCase()) && !NOT_PART_OF_NAME.test(second) ? [first, second] : [first];
+  return words.map(prettyWord).join(" ");
+}
+
+function prettyWord(word: string): string {
+  if (/\d/.test(word)) return word.toUpperCase();
+  return word
+    .split("-")
+    .map((part) => (part.length <= 2 ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()))
+    .join("-");
+}
+
 // "R$ 96.200,00" -> 96200
 function parseFipeValue(value: string): number | undefined {
   const price = Number(value.replace(/[^\d,]/g, "").replace(",", "."));
@@ -87,6 +106,44 @@ export class FipeService {
       const name = normalize(b.nome);
       return name === wanted || name.split(" - ").includes(wanted);
     });
+  }
+
+  // Modelos da marca (agrupando as versões FIPE pelo nome base) — sugestões
+  // do campo "Modelo" no /anunciar depois de escolher marca e ano. Com ano,
+  // tenta a rota de modelos por ano da API (combustível 1 = gasolina/flex,
+  // 3 = diesel, 2 = álcool); se ela não responder, cai na lista da marca toda.
+  async listModels(brandName: string, yearModel?: number): Promise<{ name: string; versions: number }[]> {
+    try {
+      const brand = await this.findBrand(brandName);
+      if (!brand) return [];
+      let versions: FipeModel[] | undefined;
+      if (yearModel) {
+        const perFuel = await Promise.all(
+          [1, 3, 2].map((fuel) =>
+            fetchJson<FipeModel[] | FipeModelsResponse>(`${FIPE_BASE_URL}/marcas/${brand.codigo}/anos/${yearModel}-${fuel}/modelos`),
+          ),
+        );
+        if (perFuel.some((res) => res !== undefined)) {
+          versions = perFuel.flatMap((res) => (Array.isArray(res) ? res : (res?.modelos ?? [])));
+        }
+      }
+      versions ??= (await fetchJson<FipeModelsResponse>(`${FIPE_BASE_URL}/marcas/${brand.codigo}/modelos`))?.modelos ?? [];
+
+      const groups = new Map<string, { name: string; codes: Set<number> }>();
+      for (const version of versions) {
+        const name = baseModelName(version.nome);
+        if (!name) continue;
+        const group = groups.get(normalize(name)) ?? { name, codes: new Set<number>() };
+        group.codes.add(version.codigo);
+        groups.set(normalize(name), group);
+      }
+      return [...groups.values()]
+        .map((group) => ({ name: group.name, versions: group.codes.size }))
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    } catch (error) {
+      this.logger.warn(`Modelos FIPE falharam pra ${brandName} ${yearModel ?? ""}: ${error}`);
+      return [];
+    }
   }
 
   // Versões da tabela FIPE pro modelo digitado (ex.: "Argo" → "ARGO DRIVE 1.0

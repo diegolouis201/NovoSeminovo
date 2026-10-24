@@ -145,6 +145,22 @@ export class ListingsController {
     return this.fipe.listBrands();
   }
 
+  @Get("fipe-models")
+  fipeModels(@Query() query: { brand?: string; yearModel?: string }) {
+    const year = Number(query.yearModel);
+    if (!query.brand) return [];
+    return this.fipe.listModels(query.brand, Number.isInteger(year) && year > 1950 ? year : undefined);
+  }
+
+  // Preço de referência pelo nome do modelo digitado (sem versão escolhida):
+  // etapa de preço quando a pessoa pulou a lista de versões.
+  @Get("fipe-reference")
+  async fipeReference(@Query() query: { brand?: string; model?: string; yearModel?: string }) {
+    const year = Number(query.yearModel);
+    if (!query.brand || !query.model || !Number.isInteger(year)) return null;
+    return (await this.fipe.lookupPrice(query.brand, query.model, year)) ?? null;
+  }
+
   @Get("fipe-versions")
   fipeVersions(@Query() query: { brand?: string; model?: string; yearModel?: string }) {
     const year = Number(query.yearModel);
