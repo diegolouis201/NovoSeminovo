@@ -1800,9 +1800,39 @@ export const AdminAffiliateRowSchema = z.object({
   pixKey: z.string(),
   createdAt: z.string(),
   signups: z.number(),
+  clicks30d: z.number(),
+  // Quanto os indicados pagaram (base das comissões não canceladas).
+  revenue: z.number(),
   totals: AffiliateTotalsSchema,
 });
 export type AdminAffiliateRow = z.infer<typeof AdminAffiliateRowSchema>;
+
+// Gestão de um afiliado no /admin: quem entrou pelo código dele, quanto cada
+// indicado pagou, cliques por dia, comissões e histórico de pagamentos (Pix).
+export const AdminAffiliateDetailSchema = z.object({
+  affiliate: AdminAffiliateRowSchema.extend({
+    approvedAt: z.string().optional(),
+    adminNote: z.string().optional(),
+    clicksTotal: z.number(),
+  }),
+  clicksByDay: z.array(z.object({ day: z.string(), count: z.number() })),
+  referrals: z.array(
+    z.object({
+      userId: z.string(),
+      name: z.string(),
+      email: z.string(),
+      referredAt: z.string().optional(),
+      account: z.string(),
+      revenue: z.number(),
+      commission: z.number(),
+    }),
+  ),
+  commissions: z.array(
+    AffiliateCommissionViewSchema.extend({ referredName: z.string(), paidNote: z.string().optional() }),
+  ),
+  payouts: z.array(z.object({ paidAt: z.string(), note: z.string(), amount: z.number(), count: z.number() })),
+});
+export type AdminAffiliateDetail = z.infer<typeof AdminAffiliateDetailSchema>;
 
 export const AdminAffiliateActionInputSchema = z.object({
   action: z.enum(["approve", "reject", "suspend", "reactivate"]),

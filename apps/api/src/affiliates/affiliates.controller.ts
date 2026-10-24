@@ -36,6 +36,12 @@ export class AffiliatesController {
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get("admin/affiliates/:id")
+  adminDetail(@Param("id") id: string) {
+    return this.affiliates.adminDetail(id);
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Patch("admin/affiliates/:id")
   async adminAction(@Param("id") id: string, @Body() body: unknown) {
     await this.affiliates.adminAction(id, parseOrBadRequest(AdminAffiliateActionInputSchema, body));

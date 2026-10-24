@@ -1,4 +1,5 @@
 import type {
+  AdminAffiliateDetail,
   AdminAffiliateRow,
   AffiliateApplyInput,
   AffiliateDashboard,
@@ -1681,4 +1682,14 @@ export function adminAffiliateAction(id: string, action: string, note: string | 
 
 export function adminAffiliatePayout(id: string, note: string, accessToken: string): Promise<ApiResult<{ paid: number }>> {
   return sendJson(`/admin/affiliates/${encodeURIComponent(id)}/payout`, "POST", { note }, accessToken);
+}
+
+export async function fetchAdminAffiliateDetail(id: string, accessToken: string): Promise<AdminAffiliateDetail | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/affiliates/${encodeURIComponent(id)}`, { headers: authHeaders(accessToken) });
+    if (!res.ok) return undefined;
+    return (await res.json()) as AdminAffiliateDetail;
+  } catch {
+    return undefined;
+  }
 }

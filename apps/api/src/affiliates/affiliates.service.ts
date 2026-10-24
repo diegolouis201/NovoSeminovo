@@ -6,6 +6,7 @@ import {
   formatBRL,
   listingTier,
   type AdminAffiliateActionInput,
+  type AdminAffiliateDetail,
   type AdminAffiliateRow,
   type AffiliateApplyInput,
   type AffiliateCommissionView,
@@ -239,9 +240,16 @@ export class AffiliatesService {
   async adminList(): Promise<AdminAffiliateRow[]> {
     await this.releaseMatured();
     const affiliates = await this.prisma.affiliate.findMany({
-      include: { user: { select: { name: true, email: true } }, _count: { select: { referrals: true } }, commissions: { select: { status: true, amount: true } } },
+      include: {
+        user: { select: { name: true, email: true } },
+        _count: { select: { referrals: true } },
+        commissions: { select: { status: true, amount: true, baseAmount: true } },
+      },
       orderBy: { createdAt: "desc" },
     });
+    const since = new Date(Date.now() - 30 * DAY_MS).toISOString().slice(0, 10);
+    const clicks = await this.prisma.affiliateClickDay.groupBy({ by: ["affiliateId"], where: { day: { gte: since } }, _sum: { count: true } });
+    const clicksById = new Map(clicks.map((row) => [row.affiliateId, row._sum.count ?? 0]));
     return affiliates.map((affiliate) => ({
       id: affiliate.id,
       name: affiliate.user.name,
@@ -253,8 +261,96 @@ export class AffiliatesService {
       pixKey: affiliate.pixKey,
       createdAt: affiliate.createdAt.toISOString(),
       signups: affiliate._count.referrals,
+      clicks30d: clicksById.get(affiliate.id) ?? 0,
+      revenue: round(affiliate.commissions.filter((row) => row.status !== "canceled").reduce((sum, row) => sum + Number(row.baseAmount), 0)),
       totals: totalsOf(affiliate.commissions),
     }));
+  }
+
+  async adminDetail(affiliateId: string): Promise<AdminAffiliateDetail> {
+    await this.releaseMatured();
+    const affiliate = await this.prisma.affiliate.findUnique({
+      where: { id: affiliateId },
+      include: {
+        user: { select: { name: true, email: true } },
+        referrals: {
+          select: { id: true, name: true, email: true, referredAt: true, ownedPartners: { select: { legalName: true, type: true } } },
+          orderBy: { referredAt: "desc" },
+        },
+        commissions: { orderBy: { createdAt: "desc" } },
+        clicks: { orderBy: { day: "asc" } },
+      },
+    });
+    if (!affiliate) throw new NotFoundException("Afiliado não encontrado.");
+
+    const counted = affiliate.commissions.filter((row) => row.status !== "canceled");
+    const byUser = new Map<string, { revenue: number; commission: number }>();
+    for (const row of counted) {
+      const current = byUser.get(row.referredUserId) ?? { revenue: 0, commission: 0 };
+      current.revenue += Number(row.baseAmount);
+      current.commission += Number(row.amount);
+      byUser.set(row.referredUserId, current);
+    }
+    const names = new Map(affiliate.referrals.map((user) => [user.id, user.name]));
+
+    // Últimos 30 dias, com zero nos dias sem clique (o gráfico fica contínuo).
+    const clicksByDay: { day: string; count: number }[] = [];
+    const clickMap = new Map(affiliate.clicks.map((row) => [row.day, row.count]));
+    for (let offset = 29; offset >= 0; offset--) {
+      const day = new Date(Date.now() - offset * DAY_MS).toISOString().slice(0, 10);
+      clicksByDay.push({ day, count: clickMap.get(day) ?? 0 });
+    }
+
+    const payouts = new Map<string, { paidAt: string; note: string; amount: number; count: number }>();
+    for (const row of affiliate.commissions) {
+      if (row.status !== "paid" || !row.paidAt) continue;
+      const key = `${row.paidAt.toISOString()}|${row.paidNote ?? ""}`;
+      const current = payouts.get(key) ?? { paidAt: row.paidAt.toISOString(), note: row.paidNote ?? "", amount: 0, count: 0 };
+      current.amount = round(current.amount + Number(row.amount));
+      current.count += 1;
+      payouts.set(key, current);
+    }
+
+    return {
+      affiliate: {
+        id: affiliate.id,
+        name: affiliate.user.name,
+        email: affiliate.user.email,
+        code: affiliate.code,
+        status: affiliate.status as AdminAffiliateRow["status"],
+        channels: affiliate.channels,
+        audience: affiliate.audience ?? undefined,
+        pixKey: affiliate.pixKey,
+        createdAt: affiliate.createdAt.toISOString(),
+        approvedAt: affiliate.approvedAt?.toISOString(),
+        adminNote: affiliate.adminNote ?? undefined,
+        signups: affiliate.referrals.length,
+        clicks30d: clicksByDay.reduce((sum, row) => sum + row.count, 0),
+        clicksTotal: affiliate.clicks.reduce((sum, row) => sum + row.count, 0),
+        revenue: round(counted.reduce((sum, row) => sum + Number(row.baseAmount), 0)),
+        totals: totalsOf(affiliate.commissions),
+      },
+      clicksByDay,
+      referrals: affiliate.referrals.map((user) => {
+        const partner = user.ownedPartners[0];
+        const totals = byUser.get(user.id);
+        return {
+          userId: user.id,
+          name: user.name,
+          email: user.email,
+          referredAt: user.referredAt?.toISOString(),
+          account: partner ? `${PARTNER_TYPE_LABELS[partner.type] ?? "Empresa"} — ${partner.legalName}` : "Pessoa física",
+          revenue: round(totals?.revenue ?? 0),
+          commission: round(totals?.commission ?? 0),
+        };
+      }),
+      commissions: affiliate.commissions.map((row) => ({
+        ...toView(row),
+        referredName: names.get(row.referredUserId) ?? "—",
+        paidNote: row.paidNote ?? undefined,
+      })),
+      payouts: [...payouts.values()].sort((a, b) => b.paidAt.localeCompare(a.paidAt)),
+    };
   }
 
   async adminAction(affiliateId: string, input: AdminAffiliateActionInput): Promise<void> {

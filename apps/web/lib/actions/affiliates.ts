@@ -46,9 +46,12 @@ export async function adminAffiliatePayoutAction(affiliateId: string, formData: 
   if (!session?.accessToken) redirect("/entrar");
   const result = await adminAffiliatePayout(affiliateId, String(formData.get("note") ?? "").trim(), session.accessToken);
   revalidatePath("/admin/afiliados");
+  revalidatePath(`/admin/afiliados/${affiliateId}`);
+  // Volta pra tela de onde o pagamento foi registrado (lista ou detalhe do afiliado).
+  const back = formData.get("voltar") === "detalhe" ? `/admin/afiliados/${affiliateId}` : "/admin/afiliados";
   redirect(
     result.ok
-      ? `/admin/afiliados?sucesso=${encodeURIComponent(`Pagamento de R$ ${result.value.paid.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} registrado.`)}`
-      : `/admin/afiliados?error=${encodeURIComponent(result.error)}`,
+      ? `${back}?sucesso=${encodeURIComponent(`Pagamento de R$ ${result.value.paid.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} registrado.`)}`
+      : `${back}?error=${encodeURIComponent(result.error)}`,
   );
 }

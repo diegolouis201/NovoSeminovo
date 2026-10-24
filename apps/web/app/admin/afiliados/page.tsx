@@ -29,6 +29,16 @@ export default async function AdminAffiliatesPage({ searchParams }: { searchPara
   const pending = affiliates?.filter((row) => row.status === "pending") ?? [];
   const toPay = affiliates?.filter((row) => row.totals.available > 0) ?? [];
   const others = affiliates?.filter((row) => row.status !== "pending") ?? [];
+  const sum = (pick: (row: AdminAffiliateRow) => number) => (affiliates ?? []).reduce((total, row) => total + pick(row), 0);
+  const overview = [
+    { label: "Afiliados ativos", value: String((affiliates ?? []).filter((row) => row.status === "approved").length) },
+    { label: "Cliques (30 dias)", value: sum((row) => row.clicks30d).toLocaleString("pt-BR") },
+    { label: "Cadastros indicados", value: sum((row) => row.signups).toLocaleString("pt-BR") },
+    { label: "Receita gerada pelos indicados", value: formatBRL(sum((row) => row.revenue)) },
+    { label: "Comissão em análise", value: formatBRL(sum((row) => row.totals.pending)) },
+    { label: "Comissão a pagar", value: formatBRL(sum((row) => row.totals.available)) },
+    { label: "Comissão já paga", value: formatBRL(sum((row) => row.totals.paid)) },
+  ];
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-12">
@@ -47,6 +57,15 @@ export default async function AdminAffiliatesPage({ searchParams }: { searchPara
       {searchParams.error && <p className="rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">{searchParams.error}</p>}
       {searchParams.sucesso && <p className="rounded-brand bg-surface-sober px-4 py-3 text-sm text-ink">{searchParams.sucesso}</p>}
       {!affiliates && <p className="text-sm text-status-danger">Não foi possível carregar os afiliados agora.</p>}
+
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="Resumo do programa">
+        {overview.map((item) => (
+          <div key={item.label} className="rounded-brand-lg border border-border bg-surface-raised p-4">
+            <p className="text-xs text-ink-muted">{item.label}</p>
+            <p className="font-display text-xl font-bold text-ink [font-variant-numeric:tabular-nums]">{item.value}</p>
+          </div>
+        ))}
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-xl font-semibold text-ink">
@@ -119,43 +138,56 @@ export default async function AdminAffiliatesPage({ searchParams }: { searchPara
           <p className="text-sm text-ink-muted">Nenhum afiliado ainda.</p>
         ) : (
           <div className="overflow-x-auto rounded-brand-lg border border-border">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-[980px] text-left text-sm">
               <thead className="bg-surface-sober text-xs uppercase text-ink-muted">
                 <tr>
                   <th className="px-3 py-2">Afiliado</th>
                   <th className="px-3 py-2">Código</th>
                   <th className="px-3 py-2">Situação</th>
-                  <th className="px-3 py-2">Cadastros</th>
-                  <th className="px-3 py-2">Em análise</th>
-                  <th className="px-3 py-2">Pago</th>
+                  <th className="px-3 py-2 text-right">Cliques 30d</th>
+                  <th className="px-3 py-2 text-right">Cadastros</th>
+                  <th className="px-3 py-2 text-right">Receita gerada</th>
+                  <th className="px-3 py-2 text-right">Em análise</th>
+                  <th className="px-3 py-2 text-right">A pagar</th>
+                  <th className="px-3 py-2 text-right">Pago</th>
                   <th className="px-3 py-2">Ação</th>
                 </tr>
               </thead>
               <tbody>
                 {others.map((row) => (
-                  <tr key={row.id} className="border-t border-border align-top">
+                  <tr key={row.id} className="border-t border-border align-top [font-variant-numeric:tabular-nums]">
                     <td className="px-3 py-2">
-                      <span className="block font-semibold text-ink">{row.name}</span>
+                      <Link href={`/admin/afiliados/${row.id}`} className="block font-semibold text-brand-blue hover:underline">
+                        {row.name}
+                      </Link>
                       <span className="text-xs text-ink-muted">{row.email}</span>
                     </td>
                     <td className="px-3 py-2 font-semibold">{row.code}</td>
                     <td className="px-3 py-2">{STATUS_LABEL[row.status]}</td>
-                    <td className="px-3 py-2 [font-variant-numeric:tabular-nums]">{row.signups}</td>
-                    <td className="px-3 py-2 [font-variant-numeric:tabular-nums]">{formatBRL(row.totals.pending)}</td>
-                    <td className="px-3 py-2 [font-variant-numeric:tabular-nums]">{formatBRL(row.totals.paid)}</td>
+                    <td className="px-3 py-2 text-right">{row.clicks30d}</td>
+                    <td className="px-3 py-2 text-right">{row.signups}</td>
+                    <td className="px-3 py-2 text-right">{formatBRL(row.revenue)}</td>
+                    <td className="px-3 py-2 text-right">{formatBRL(row.totals.pending)}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-brand-green">{formatBRL(row.totals.available)}</td>
+                    <td className="px-3 py-2 text-right">{formatBRL(row.totals.paid)}</td>
                     <td className="px-3 py-2">
-                      <form action={adminAffiliateActionAction.bind(null, row.id)}>
-                        {row.status === "approved" && (
-                          <button type="submit" name="action" value="suspend" className="text-xs font-semibold text-status-danger hover:underline">
-                            Suspender
-                          </button>
-                        )}
-                        {(row.status === "suspended" || row.status === "rejected") && (
-                          <button type="submit" name="action" value={row.status === "rejected" ? "approve" : "reactivate"} className="text-xs font-semibold text-brand-blue hover:underline">
-                            {row.status === "rejected" ? "Aprovar" : "Reativar"}
-                          </button>
-                        )}
-                      </form>
+                      <div className="flex flex-col gap-1">
+                        <Link href={`/admin/afiliados/${row.id}`} className="text-xs font-semibold text-brand-blue hover:underline">
+                          Ver detalhes
+                        </Link>
+                        <form action={adminAffiliateActionAction.bind(null, row.id)}>
+                          {row.status === "approved" && (
+                            <button type="submit" name="action" value="suspend" className="text-xs font-semibold text-status-danger hover:underline">
+                              Suspender
+                            </button>
+                          )}
+                          {(row.status === "suspended" || row.status === "rejected") && (
+                            <button type="submit" name="action" value={row.status === "rejected" ? "approve" : "reactivate"} className="text-xs font-semibold text-brand-blue hover:underline">
+                              {row.status === "rejected" ? "Aprovar" : "Reativar"}
+                            </button>
+                          )}
+                        </form>
+                      </div>
                     </td>
                   </tr>
                 ))}
