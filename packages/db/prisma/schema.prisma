@@ -396,6 +396,10 @@ model Listing {
   externalId       String?       @map("external_id")
   externalHash     String?       @map("external_hash")
   syncPaused       Boolean       @default(false) @map("sync_paused")
+  // Moderação automática (ver AutoModerationService): quando a IA olhou o
+  // anúncio e, se deixou pra revisão humana, o porquê (aparece no /admin).
+  autoReviewedAt   DateTime?     @map("auto_reviewed_at")
+  autoReviewNote   String?       @map("auto_review_note")
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")
 
@@ -718,8 +722,10 @@ model ModerationLog {
   id        String            @id @default(cuid())
   listingId String            @map("listing_id")
   listing   Listing           @relation(fields: [listingId], references: [id])
-  adminId   String            @map("admin_id")
-  admin     User              @relation(fields: [adminId], references: [id])
+  // Vazio quando quem decidiu foi a moderação automática (automated).
+  adminId   String?           @map("admin_id")
+  admin     User?             @relation(fields: [adminId], references: [id])
+  automated Boolean           @default(false)
   action    ModerationAction
   reason    String?
   createdAt DateTime          @default(now()) @map("created_at")

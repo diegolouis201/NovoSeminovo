@@ -60,6 +60,10 @@ export default async function AdminPage() {
         <h2 className="font-display text-xl font-semibold text-ink">
           Anúncios pendentes <span className="text-base font-normal text-ink-muted">({listings.length})</span>
         </h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          A moderação automática (IA) analisa cada anúncio novo uns minutos depois do cadastro: aprova os normais, recusa os claramente
+          irregulares e deixa aqui só os duvidosos, com o motivo.
+        </p>
         {listings.length === 0 ? (
           <p className="mt-3 text-ink-muted">Nenhum anúncio esperando análise.</p>
         ) : (
@@ -139,7 +143,7 @@ function ModerationLogRow({ entry }: { entry: ModerationLogEntry }) {
       <div className="shrink-0 text-right">
         <span className={`font-bold ${colorClass}`}>{ACTION_LABEL[entry.action]}</span>
         <p className="text-xs text-ink-muted">
-          por {entry.adminName} · {new Date(entry.createdAt).toLocaleDateString("pt-BR")}
+          por {entry.automated ? "IA" : entry.adminName} · {new Date(entry.createdAt).toLocaleDateString("pt-BR")}
         </p>
       </div>
     </li>
@@ -159,6 +163,13 @@ function PendingListingCard({ listing }: { listing: PendingListing }) {
         <p className="text-xs text-ink-muted">
           {listing.ownerName} · {listing.ownerEmail}
         </p>
+        {listing.autoReviewNote ? (
+          <p className="mt-2 rounded-brand border border-border bg-surface-sober px-3 py-2 text-xs text-ink">
+            <strong>IA pediu revisão:</strong> {listing.autoReviewNote}
+          </p>
+        ) : (
+          <p className="mt-2 text-xs text-ink-muted">Aguardando a análise automática.</p>
+        )}
       </div>
       <form action={action} className="flex shrink-0 flex-col gap-2 sm:w-64">
         <input

@@ -1171,6 +1171,8 @@ export const PendingListingSchema = z.object({
   ownerName: z.string(),
   ownerEmail: z.string(),
   createdAt: z.string(),
+  // Por que a moderação automática deixou este pra uma pessoa decidir.
+  autoReviewNote: z.string().optional(),
 });
 export type PendingListing = z.infer<typeof PendingListingSchema>;
 
@@ -1230,6 +1232,7 @@ export const ModerationLogEntrySchema = z.object({
   listingId: z.string(),
   listingTitle: z.string(),
   adminName: z.string(),
+  automated: z.boolean().optional(),
   action: ModerationActionType,
   reason: z.string().optional(),
   createdAt: z.string(),

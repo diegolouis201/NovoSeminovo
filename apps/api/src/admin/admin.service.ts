@@ -42,32 +42,41 @@ export class AdminService {
       ownerName: listing.owner.name,
       ownerEmail: listing.owner.email,
       createdAt: listing.createdAt.toISOString(),
+      autoReviewNote: listing.autoReviewNote ?? undefined,
     }));
   }
 
   async moderateListing(adminId: string, listingId: string, input: ModerateListingInput): Promise<void> {
+    await this.applyModeration(listingId, input.action, input.reason, adminId);
+  }
+
+  // Aprovação/recusa de anúncio em análise — usada pelo admin e pela
+  // moderação automática (adminId vazio = decisão da IA, ver AutoModerationService).
+  async applyModeration(listingId: string, action: "approve" | "reject", reason: string | undefined, adminId?: string): Promise<void> {
     const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
     if (listing.status !== "pending_review") {
       throw new ConflictException("Este anúncio não está mais aguardando moderação.");
     }
 
-    const nextStatus = input.action === "approve" ? "active" : "rejected";
+    const nextStatus = action === "approve" ? "active" : "rejected";
 
     await this.prisma.$transaction([
       this.prisma.listing.update({
         where: { id: listingId },
         data: {
           status: nextStatus,
-          publishedAt: input.action === "approve" ? new Date() : listing.publishedAt,
+          publishedAt: action === "approve" ? new Date() : listing.publishedAt,
+          ...(adminId ? {} : { autoReviewedAt: new Date(), autoReviewNote: null }),
         },
       }),
       this.prisma.moderationLog.create({
         data: {
           listingId,
-          adminId,
-          action: input.action === "approve" ? "approved" : "rejected",
-          reason: input.reason,
+          adminId: adminId ?? null,
+          automated: !adminId,
+          action: action === "approve" ? "approved" : "rejected",
+          reason,
         },
       }),
     ]);
@@ -75,7 +84,7 @@ export class AdminService {
     await this.notifications.notify(
       listing.ownerUserId,
       nextStatus === "active" ? "listing_approved" : "listing_rejected",
-      { listingId: listing.id, listingTitle: listing.title, reason: input.reason },
+      { listingId: listing.id, listingTitle: listing.title, reason },
     );
 
     if (nextStatus === "active") {
@@ -149,7 +158,8 @@ export class AdminService {
       id: entry.id,
       listingId: entry.listingId,
       listingTitle: entry.listing.title,
-      adminName: entry.admin.name,
+      adminName: entry.admin?.name ?? "Moderação automática (IA)",
+      automated: entry.automated,
       action: entry.action,
       reason: entry.reason ?? undefined,
       createdAt: entry.createdAt.toISOString(),

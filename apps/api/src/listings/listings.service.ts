@@ -1022,6 +1022,11 @@ export class ListingsService {
         isCover: !alreadyHasCover && index === 0,
       })),
     });
+    // Foto nova num anúncio em análise: a moderação automática olha de novo
+    // (ex.: tinha ficado pra revisão humana por estar sem fotos).
+    if (listing.status === "pending_review" && listing.autoReviewedAt) {
+      await this.prisma.listing.update({ where: { id: listingId }, data: { autoReviewedAt: null, autoReviewNote: null } });
+    }
 
     const photos = await this.prisma.photo.findMany({
       where: { listingId },

@@ -5,11 +5,12 @@ import { SavedSearchesModule } from "../saved-searches/saved-searches.module";
 import { AdminController } from "./admin.controller";
 import { AdminGuard } from "./admin.guard";
 import { AdminService } from "./admin.service";
+import { AutoModerationService } from "./auto-moderation.service";
 
 @Module({
   imports: [AuthModule, NotificationsModule, SavedSearchesModule],
   controllers: [AdminController],
-  providers: [AdminService, AdminGuard],
+  providers: [AdminService, AdminGuard, AutoModerationService],
   exports: [AdminService],
 })
 export class AdminModule {}
