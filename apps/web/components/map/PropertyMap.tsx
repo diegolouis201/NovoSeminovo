@@ -8,14 +8,15 @@ import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import type { ListingSummary } from "@novoseminovo/shared-types";
 
-// Mapa da busca de imóveis (Leaflet + mapa da CARTO sobre dados do
-// OpenStreetMap — grátis, sem chave; NEXT_PUBLIC_MAP_TILE_URL troca o
-// fornecedor se o volume crescer). Marcadores com o preço, agrupados com a
+// Mapa da busca de imóveis (Leaflet + mapa do próprio OpenStreetMap — grátis,
+// sem chave; a CARTO passou a exigir chave em 10/2026 e o mapa saía com
+// "API KEY REQUIRED"). Se o volume crescer, NEXT_PUBLIC_MAP_TILE_URL troca o
+// fornecedor (ex.: MapTiler com chave) — variável NEXT_PUBLIC_, entra no build. Marcadores com o preço, agrupados com a
 // contagem quando estão perto (como no QuintoAndar). Os pontos já chegam
 // aproximados da API.
 
-const TILE_URL = process.env.NEXT_PUBLIC_MAP_TILE_URL ?? "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+const TILE_URL = process.env.NEXT_PUBLIC_MAP_TILE_URL ?? "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">colaboradores do OpenStreetMap</a>';
 // Sem anúncios com ponto, o mapa abre no Brasil inteiro (atuação nacional);
 // com resultados, enquadra os pins (fitOnLoad).
 const BRASIL: [number, number] = [-14.235, -51.9253];
@@ -120,7 +121,7 @@ export default function PropertyMap(props: {
 }) {
   return (
     <MapContainer center={BRASIL} zoom={4} scrollWheelZoom className="h-full w-full" attributionControl>
-      <TileLayer url={TILE_URL} attribution={ATTRIBUTION} subdomains="abcd" maxZoom={19} />
+      <TileLayer url={TILE_URL} attribution={ATTRIBUTION} maxZoom={19} />
       <Markers listings={props.listings} hoveredId={props.hoveredId} fitOnLoad onBoundsChange={props.onBoundsChange} />
     </MapContainer>
   );
