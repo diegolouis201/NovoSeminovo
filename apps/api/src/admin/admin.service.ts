@@ -4,6 +4,7 @@ import type {
   ModerationLogEntry,
   PendingListing,
   PendingPartner,
+  PartnerType,
   PendingReport,
   ReportStatus,
 } from "@novoseminovo/shared-types";
@@ -120,6 +121,14 @@ export class AdminService {
       partnerId: partner.id,
       partnerName: partner.legalName,
     });
+  }
+
+  // A classificação automática pelo CNPJ às vezes erra (ex.: fábrica de
+  // esquadrias entrando como corretor) — o admin corrige aqui.
+  async setPartnerType(partnerId: string, type: PartnerType): Promise<void> {
+    const partner = await this.prisma.partner.findUnique({ where: { id: partnerId } });
+    if (!partner) throw new NotFoundException(`Loja/imobiliária ${partnerId} não encontrada`);
+    await this.prisma.partner.update({ where: { id: partnerId }, data: { type } });
   }
 
   async listOpenReports(): Promise<PendingReport[]> {

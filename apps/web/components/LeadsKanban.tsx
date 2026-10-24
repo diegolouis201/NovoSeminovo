@@ -205,7 +205,17 @@ function LeadCard({
         </div>
       )}
 
-      {lead.status === "won" && lead.listingId && !saved && (
+      {lead.status === "won" && lead.listingId && lead.listingStatus === "sold" && !saved && (
+        <p className="mt-2 border-t border-border pt-2 text-xs text-ink">
+          <span className="font-bold text-brand-green">Anúncio marcado como vendido</span>
+          {lead.listingSoldPrice ? ` por ${formatBRL(lead.listingSoldPrice)}` : ""}. Ajuste o valor final e o custo em{" "}
+          <Link href="/parceiro/vendas" className="font-semibold underline">
+            Vendas
+          </Link>
+          .
+        </p>
+      )}
+      {lead.status === "won" && lead.listingId && lead.listingStatus !== "sold" && !saved && (
         <div className="mt-2 border-t border-border pt-2 text-xs">
           {!selling ? (
             <button type="button" onClick={() => setSelling(true)} className="font-bold text-brand-green hover:underline">

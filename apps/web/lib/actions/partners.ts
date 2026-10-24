@@ -173,6 +173,8 @@ export async function updateLeadAction(leadId: string, input: UpdateLeadInput): 
   const result = await updatePartnerLead(leadId, input, session.accessToken);
   revalidatePath("/parceiro/leads");
   revalidatePath("/parceiro");
+  // Lead ganho marca o anúncio como vendido (API) — vendas, estoque e busca mudam.
+  if (input.status === "won") for (const path of ["/parceiro/vendas", "/parceiro/anuncios", "/busca"]) revalidatePath(path);
   return result;
 }
 

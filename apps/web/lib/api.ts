@@ -1097,6 +1097,15 @@ export async function verifyPartner(partnerId: string, accessToken: string): Pro
   return res.ok;
 }
 
+export async function setPartnerType(partnerId: string, type: string, accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/admin/partners/${partnerId}/type`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify({ type }),
+  });
+  return res.ok;
+}
+
 export async function fetchOpenReports(accessToken: string): Promise<PendingReport[]> {
   try {
     const res = await fetchWithTimeout(`${API_URL}/admin/reports`, { headers: authHeaders(accessToken) });

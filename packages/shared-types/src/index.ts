@@ -813,6 +813,9 @@ export const PARTNER_TYPE_LABELS: Record<string, string> = {
 };
 export type PartnerType = z.infer<typeof PartnerType>;
 
+// Admin corrige o tipo de um parceiro classificado errado pelo CNPJ.
+export const SetPartnerTypeInputSchema = z.object({ type: PartnerType });
+
 // Conta PJ: o CNPJ é consultado na Receita (ver CnpjService na API) e o
 // ramo de atividade (CNAE) decide o tipo — imobiliária, construtora,
 // corretor, loja de veículos/concessionária. `type`/`legalName` só valem
@@ -1125,6 +1128,9 @@ export const LeadSummarySchema = z.object({
   id: z.string(),
   listingId: z.string().optional(),
   listingTitle: z.string().optional(),
+  // Situação do anúncio do lead — "sold" quando o lead virou venda.
+  listingStatus: z.string().optional(),
+  listingSoldPrice: z.number().optional(),
   buyerName: z.string(),
   buyerEmail: z.string(),
   // Telefone do comprador (cadastro do site) ou o digitado no lead manual —

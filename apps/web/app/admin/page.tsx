@@ -4,7 +4,7 @@ import type { ModerationLogEntry, PendingListing, PendingPartner, PendingReport 
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { fetchModerationLog, fetchOpenReports, fetchPendingListings, fetchPendingPartners } from "@/lib/api";
-import { moderateListingAction, updateReportStatusAction, verifyPartnerAction } from "@/lib/actions/admin";
+import { moderateListingAction, setPartnerTypeAction, updateReportStatusAction, verifyPartnerAction } from "@/lib/actions/admin";
 
 const PARTNER_TYPE_LABEL: Record<string, string> = {
   dealership: "Loja de veículos",
@@ -192,6 +192,7 @@ function PendingListingCard({ listing }: { listing: PendingListing }) {
 
 function PendingPartnerCard({ partner }: { partner: PendingPartner }) {
   const action = verifyPartnerAction.bind(null, partner.id);
+  const typeAction = setPartnerTypeAction.bind(null, partner.id);
 
   return (
     <li className="flex flex-col gap-3 rounded-brand border border-border bg-surface-raised p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -203,6 +204,27 @@ function PendingPartnerCard({ partner }: { partner: PendingPartner }) {
         <p className="text-xs text-ink-muted">
           {partner.ownerName} · {partner.ownerEmail}
         </p>
+        {/* Tipo veio da consulta do CNPJ — corrige aqui se veio errado. */}
+        <form action={typeAction} className="mt-2 flex items-center gap-2 text-xs">
+          <label htmlFor={`type-${partner.id}`} className="text-ink-muted">
+            Tipo:
+          </label>
+          <select
+            id={`type-${partner.id}`}
+            name="type"
+            defaultValue={partner.type}
+            className="rounded-brand border border-border bg-surface-page px-2 py-1 text-ink"
+          >
+            {Object.entries(PARTNER_TYPE_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className="font-semibold text-brand-blue hover:underline">
+            Salvar tipo
+          </button>
+        </form>
       </div>
       <form action={action}>
         <Button type="submit" variant="primary">

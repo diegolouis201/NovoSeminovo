@@ -10,6 +10,7 @@ import {
 } from "@nestjs/common";
 import {
   PARTNER_HIGHLIGHT_RANK,
+  PARTNER_LISTING_TIER,
   PARTNER_TRIAL_DAYS,
   PLAN_REQUIRED_PARTNER_TYPES,
   formatBRL,
@@ -139,7 +140,7 @@ export function planAudienceFor(partnerType: string): "vehicle" | "property" {
 }
 
 const leadInclude = {
-  listing: { select: { title: true } },
+  listing: { select: { title: true, status: true, soldPrice: true } },
   buyer: { select: { name: true, email: true, phone: true } },
 } satisfies Prisma.LeadInclude;
 
@@ -150,6 +151,8 @@ function toLeadSummary(lead: LeadRow): LeadSummary {
     id: lead.id,
     listingId: lead.listingId ?? undefined,
     listingTitle: lead.listing?.title,
+    listingStatus: lead.listing?.status,
+    listingSoldPrice: lead.listing?.soldPrice != null ? Number(lead.listing.soldPrice) : undefined,
     buyerName: lead.buyer?.name ?? lead.contactName ?? "Contato anônimo",
     buyerEmail: lead.buyer?.email ?? "—",
     buyerPhone: lead.buyer?.phone ?? lead.contactPhone ?? undefined,
@@ -638,6 +641,8 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
   // Kanban de leads (/parceiro/leads): mover de etapa, anotar, valor da proposta.
   async updateLead(userId: string, leadId: string, input: UpdateLeadInput): Promise<LeadSummary> {
     const lead = await this.leadForPartner(userId, leadId);
+    const becameWon = input.status === "won" && lead.status !== "won";
+    if (becameWon && lead.listingId) await this.sellListingFromLead(lead.partnerId, lead.listingId, input.proposalValue ?? lead.proposalValue);
     const updated = await this.prisma.lead.update({
       where: { id: leadId },
       data: {
@@ -648,6 +653,24 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
       include: leadInclude,
     });
     return toLeadSummary(updated);
+  }
+
+  // Lead "ganho" no kanban = venda: o anúncio dele sai do ar como vendido,
+  // pelo valor da proposta (ou o preço anunciado). Valor final e custo se
+  // ajustam depois em /parceiro/vendas. Anúncio que não está no ar (em
+  // análise, já vendido) fica como está.
+  private async sellListingFromLead(partnerId: string, listingId: string, proposalValue: Prisma.Decimal | number | null | undefined) {
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing || listing.partnerId !== partnerId || !["active", "paused"].includes(listing.status)) return;
+    await this.prisma.listing.update({
+      where: { id: listingId },
+      data: {
+        status: "sold",
+        soldAt: new Date(),
+        soldPrice: proposalValue != null && Number(proposalValue) > 0 ? proposalValue : listing.price,
+        tierRank: PARTNER_LISTING_TIER.rank,
+      },
+    });
   }
 
   // Lead cadastrado à mão (cliente que ligou, foi à loja, indicação…).
