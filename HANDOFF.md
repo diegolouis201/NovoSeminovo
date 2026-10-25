@@ -199,6 +199,12 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
      - opcional: `GEMINI_API_KEY` no `.env` da VPS, para imagens geradas por IA;
      - revisão jurídica do texto de consentimento (LGPD).
 
+35. **Agente Financeiro (25/10/2026)**
+   - Relatório semanal (segunda, 7h) com receita por linha, assinaturas em atraso, comissões e recompensas a pagar e gasto com IA.
+   - Só lê e relata. O relatório aparece em `/admin/operacao#financeiro` e vai por e-mail.
+   - Detalhes em `docs/agentes-ia.md`.
+   - Próximo: agente de Tráfego pago com Google Ads via Windsor, só leitura no começo. Depende do Diego ligar a conta do Google Ads no Windsor.
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).

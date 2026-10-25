@@ -182,9 +182,11 @@ describe("Marketing: fluxo completo (banco local)", { skip: !withDb && "sem DATA
     );
     assert.equal(post.status, "awaiting_approval");
     assert.ok(post.imageUrl);
-    assert.equal(await posts.publishDue(), 0, "não publica sem aprovação");
+    // Outros posts aprovados no banco local podem ser publicados junto: confere só este.
+    await posts.publishDue();
+    assert.equal((await posts.find(post.id)).status, "awaiting_approval", "não publica sem aprovação");
     await posts.decide(post.id, adminId, { action: "approve" });
-    assert.equal(await posts.publishDue(), 1);
+    await posts.publishDue();
     const published = await posts.find(post.id);
     assert.equal(published.status, "published");
     assert.equal(published.igMediaId, "midia1");

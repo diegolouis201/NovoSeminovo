@@ -1277,6 +1277,7 @@ export const NotificationType = z.enum([
   "partner_tip",
   "ops_daily_summary",
   "marketing_review",
+  "ops_finance_report",
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
@@ -2062,6 +2063,7 @@ export const OPS_AGENT_LABELS: Record<string, string> = {
   operacoes: "Operações de anúncios",
   comercial: "Comercial",
   marketing: "Marketing",
+  financeiro: "Financeiro",
   "sistema:kpi": "Rotina: foto diária dos KPIs",
 };
 export const OPS_TASK_STATUS_LABELS: Record<string, string> = {
@@ -2136,7 +2138,7 @@ export type OpsRoutineView = {
 export type OpsReportView = { id: string; agent: string; kind: string; body: string; createdAt: string };
 export type MarketingSuggestionView = { id: string; title: string; channel: string; audience?: string; body: string; link?: string; status: string; createdAt: string };
 // Agentes que o admin pode mandar rodar na hora (botão "Rodar agora").
-export const OPS_RUNNABLE_AGENTS = ["diretor", "operacoes", "comercial", "marketing"] as const;
+export const OPS_RUNNABLE_AGENTS = ["diretor", "operacoes", "comercial", "marketing", "financeiro"] as const;
 export const MarketingSuggestionStatusInputSchema = z.object({ status: z.enum(["nova", "usada", "descartada"]) });
 export type OpsGoalView = { id: string; metric: string; segment: string; period: string; target: number; agent: string; note?: string; current?: number };
 export type OpsSummary = {
@@ -2149,6 +2151,7 @@ export type OpsSummary = {
   routines: OpsRoutineView[];
   goals: OpsGoalView[];
   latestSummary?: OpsReportView;
+  latestFinanceReport?: OpsReportView;
   suggestions: MarketingSuggestionView[];
   windsorEnabled: boolean;
   agentsEnabled: boolean;

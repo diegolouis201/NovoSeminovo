@@ -40,6 +40,7 @@ const SCHEDULES: { key: string; agent: string; hourBrt: number; weekday?: number
   { key: "diretor", agent: "diretor", hourBrt: 8, usesAi: true, objective: "Resumo diário: metas, números do mês e prioridades" },
   { key: "operacoes", agent: "operacoes", hourBrt: 9, usesAi: true, objective: "Revisar anúncios com problema e avisar os donos" },
   { key: "comercial", agent: "comercial", hourBrt: 10, usesAi: true, objective: "Lembrar lojas com leads parados ou sem anúncio no período grátis" },
+  { key: "financeiro", agent: "financeiro", hourBrt: 7, weekday: 1, usesAi: true, objective: "Relatório financeiro da semana: receita, assinaturas, valores a pagar e gasto com IA" },
   { key: "marketing", agent: "marketing", hourBrt: 11, weekday: 1, usesAi: true, objective: "Sugestões de conteúdo e campanhas da semana" },
 ];
 
@@ -238,8 +239,9 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
       this.prisma.routineHeartbeat.findMany({ orderBy: { name: "asc" } }),
       this.goals.list(now),
     ]);
-    const [latestSummary, suggestions] = await Promise.all([
+    const [latestSummary, latestFinance, suggestions] = await Promise.all([
       this.prisma.opsReport.findFirst({ where: { kind: "resumo_diario" }, orderBy: { createdAt: "desc" } }),
+      this.prisma.opsReport.findFirst({ where: { kind: "relatorio_financeiro" }, orderBy: { createdAt: "desc" } }),
       this.prisma.marketingSuggestion.findMany({ where: { status: "nova" }, orderBy: { createdAt: "desc" }, take: 20 }),
     ]);
 
@@ -293,6 +295,9 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
         healthy: now.getTime() - routine.lastRunAt.getTime() <= routine.intervalMs * STALE_FACTOR && routine.failures < FAILURES_ALERT,
       })),
       goals,
+      latestFinanceReport: latestFinance
+        ? { id: latestFinance.id, agent: latestFinance.agent, kind: latestFinance.kind, body: latestFinance.body, createdAt: latestFinance.createdAt.toISOString() }
+        : undefined,
       latestSummary: latestSummary
         ? { id: latestSummary.id, agent: latestSummary.agent, kind: latestSummary.kind, body: latestSummary.body, createdAt: latestSummary.createdAt.toISOString() }
         : undefined,

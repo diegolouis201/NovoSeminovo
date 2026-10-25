@@ -303,3 +303,64 @@ describe("Fila, aprovações e teto (banco local)", { skip: !withDb && "sem DATA
     }
   });
 });
+
+describe("Agente Financeiro (banco local)", { skip: !withDb && "sem DATABASE_URL" }, () => {
+  const prisma = new PrismaService();
+  const notified: string[] = [];
+  const notifications = { notify: async (_userId: string, type: string) => void notified.push(type) } as unknown as NotificationsService;
+  const trend = (last30d: number, prev30d: number) => ({ last30d, prev30d });
+  const overview = {
+    overview: async () => ({
+      revenue: {
+        mrr: 300,
+        payingSubscriptions: 2,
+        listingPlans: trend(50, 100),
+        subscriptions: trend(100, 300),
+        financing: trend(0, 0),
+        stores: trend(10, 20),
+        total: trend(160, 420),
+        months: [],
+        financingOpenLeads: 1,
+      },
+    }),
+  } as unknown as AdminOverviewService;
+  const queue = new TaskQueueService(prisma);
+  const tools = new OpsToolsService(prisma, notifications, overview, queue, new GoalsService(prisma, overview));
+  const reportIds: string[] = [];
+
+  after(async () => {
+    await prisma.opsReport.deleteMany({ where: { id: { in: reportIds } } });
+    await prisma.$disconnect();
+  });
+
+  test("só lê e relata: não pode suspender anúncio nem lembrar parceiro", () => {
+    assert.equal(decide("financeiro", { name: "ler_financeiro", color: "green" }, "ler_financeiro").kind, "run");
+    assert.equal(decide("financeiro", { name: "suspender_anuncio", color: "yellow" }, "suspender_anuncio").kind, "blocked");
+    assert.equal(decide("financeiro", { name: "lembrar_parceiro", color: "green" }, "lembrar_parceiro").kind, "blocked");
+  });
+
+  test("números e alertas calculados pelo sistema", async () => {
+    const outcome = await tools.request("financeiro", "ler_financeiro", {});
+    assert.equal(outcome.status, "done");
+    const data = (outcome as { output: Awaited<ReturnType<OpsToolsService["financeSnapshot"]>> }).output;
+    assert.equal(data.receita.variacaoPercentual, -62);
+    assert.equal(data.receita.linhas30d.anuncios, 150);
+    assert.ok(data.alertas.some((alerta) => alerta.includes("caiu 62%")));
+    assert.ok(Array.isArray(data.assinaturas.emAtraso));
+    assert.equal(typeof data.custoIa30d.totalBrl, "number");
+  });
+
+  test("relatório fica gravado e avisa o dono", async () => {
+    const outcome = await tools.request("financeiro", "registrar_relatorio_financeiro", {
+      relatorio: "Receita dos últimos 30 dias: R$ 160,00, queda de 62% contra os 30 anteriores, puxada pelas assinaturas.",
+      alertas: ["Receita caiu 62%"],
+      acoes: ["Conferir as assinaturas canceladas"],
+    });
+    assert.equal(outcome.status, "done");
+    const id = (outcome as { output: { relatorioId: string } }).output.relatorioId;
+    reportIds.push(id);
+    const report = await prisma.opsReport.findUniqueOrThrow({ where: { id } });
+    assert.equal(report.kind, "relatorio_financeiro");
+    assert.ok(report.body.includes("Para você decidir:"));
+  });
+});

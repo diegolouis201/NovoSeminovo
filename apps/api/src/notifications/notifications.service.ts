@@ -89,6 +89,12 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: String(payload.body ?? ""),
         link: "/admin/operacao",
       };
+    case "ops_finance_report":
+      return {
+        title: `Relatório financeiro — ${payload.periodLabel}`,
+        body: String(payload.body ?? ""),
+        link: "/admin/operacao#financeiro",
+      };
     case "new_message":
       return {
         title: "Nova mensagem",

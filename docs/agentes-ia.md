@@ -63,3 +63,21 @@ O Diego pediu para rodar todas as fases de uma vez, porque o site ainda está em
   - Meta Ads e Google Ads entram quando forem conectados no Windsor.
   - WhatsApp aguarda a verificação da Meta; a Credihome aguarda as credenciais.
 - **Testes:** 20, incluindo um agente completo contra um modelo falso que tenta usar uma ferramenta proibida.
+
+## Agente Financeiro (Fase 4, 25/10/2026)
+
+- Roda às segundas, às 7h. Também pode ser disparado pelo botão "Rodar agora" em `/admin/operacao`.
+- Ferramentas (`operations/policy.ts`): `ler_painel`, `ler_metas`, `ler_financeiro`, `criar_tarefa` e `registrar_relatorio_financeiro`. Todas são verdes.
+- Não paga, não estorna e não muda preço; essas ações são vermelhas e nenhum agente tem a ferramenta.
+- `ler_financeiro` (`OpsToolsService.financeSnapshot`) traz números calculados pelo sistema:
+  - receita por linha, comparando os últimos 30 dias com os 30 anteriores;
+  - receita recorrente (MRR);
+  - assinaturas em atraso e canceladas;
+  - períodos grátis que vencem em 7 dias;
+  - comissões de afiliados disponíveis e em carência;
+  - negócios de financiamento registrados e não pagos;
+  - gasto com IA por uso (só as chamadas ao Claude).
+  - Também traz alertas prontos: queda de 30% ou mais na receita, atrasos, valores a pagar e gasto com IA acima de metade da receita.
+- O relatório vai para `ops_reports` (kind `relatorio_financeiro`). Ele aparece em verde em `/admin/operacao#financeiro` e é enviado por e-mail (notificação `ops_finance_report`).
+- O Diretor também pode chamar `ler_financeiro`.
+
