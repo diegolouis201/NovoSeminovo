@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { z } from "zod";
 import type { Prisma } from "@novoseminovo/db";
-import { OPS_AGENT_LABELS, PARTNER_TRIAL_DAYS, PLAN_REQUIRED_PARTNER_TYPES } from "@novoseminovo/shared-types";
+import { OPS_AGENT_LABELS, OPS_GOAL_METRICS, PARTNER_TRIAL_DAYS, PLAN_REQUIRED_PARTNER_TYPES } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { AdminOverviewService } from "../admin/overview.service";
@@ -119,7 +119,7 @@ export class OpsToolsService {
           diaDoMes: now.getUTCDate(),
           diasNoMes: daysInMonth,
           metas: goals.map((goal) => ({
-            indicador: goal.metric,
+            indicador: OPS_GOAL_METRICS[goal.metric] ?? goal.metric,
             recorte: goal.segment,
             meta: goal.target,
             atual: goal.current,
