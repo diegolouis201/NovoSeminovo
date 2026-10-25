@@ -164,6 +164,11 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - FIPE no preço: se a pessoa não escolheu versão, `GET listings/fipe-reference?brand&model&yearModel` (`lookupPrice`) mostra o valor como "aproximado"; sem FIPE, aponta para veiculos.fipe.org.br. É só orientação, o preço é livre.
    - Painel geral: `/admin/painel` (`GET admin/overview`, `AdminOverviewService`): destaques, gráficos diários de 30 dias e blocos de anúncios, pessoas/parceiros, receita (MRR só de assinatura paga no Stripe + planos PF), negociação, IA e afiliados, com tendência vs. 30 dias anteriores.
 
+30. **Painel geral v2: receita em 3 linhas, recorte Veículos/Imóveis e origem dos leads** (pedido do Diego):
+   - `/admin/painel?tipo=vehicle|property` (abas Geral/Veículos/Imóveis). Usuários e afiliados ficam do site todo; parceiro entra no lado pelo tipo (loja/oficina = carros; imobiliária/corretor/construtora = imóveis).
+   - Receita: **Anúncios** (planos PF + mensalidades), **Financiamento** (`FinancingDeal`: comissão − rebate) e **Links de afiliados das lojas** (Amazon/ML: lançado à mão no fim do painel, tabela `store_earnings`, um valor por loja/mês). Tabela "Receita por mês" (6 meses). Mensalidades vêm da nova tabela `subscription_payments`, gravada no webhook `invoice.paid` (só a partir desta versão).
+   - Origem: `AttributionCapture` (layout) grava o cookie `ns_origem` = última origem não-direta (utm_*, ?ref=, referrer), por 90 dias; as server actions repassam no header `x-ns-origem` (`lib/acquisition.ts`). Salvo em `User.acq*` (cadastro PF e PJ), `Lead.acq*` (chat e WhatsApp; sem cookie usa a do comprador), `AgentConversation`/`FinancingLead.acq*` (WhatsApp da Meta = "whatsapp"). Classificação em `classifyAcquisition` (shared-types). Leads manuais da loja aparecem como "Loja: …". O painel explica como marcar links com `utm_source`/`utm_campaign`.
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).

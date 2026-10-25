@@ -26,7 +26,9 @@ import {
   type PropertyRecommendation,
   type VehicleProfileInput,
   type VehicleRecommendation,
+  type Acquisition,
 } from "@novoseminovo/shared-types";
+import { leadOrigin } from "../common/acquisition";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { VehiclesService } from "../vehicles/vehicles.service";
@@ -744,7 +746,7 @@ export class ListingsService {
   // clicou não estiver logado; o painel já trata isso como "Contato anônimo").
   // Anúncio de vendedor individual não gera lead (Lead exige partnerId),
   // igual ao chat em ConversationsService.startConversation.
-  async registerWhatsappClick(listingId: string, buyerId?: string): Promise<void> {
+  async registerWhatsappClick(listingId: string, buyerId?: string, acquisition?: Acquisition): Promise<void> {
     const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
     if (!listing.partnerId) return;
@@ -755,7 +757,7 @@ export class ListingsService {
     if (existing) return;
 
     await this.prisma.lead.create({
-      data: { partnerId: listing.partnerId, listingId, buyerId, source: "whatsapp", status: "new" },
+      data: { partnerId: listing.partnerId, listingId, buyerId, source: "whatsapp", status: "new", ...(await leadOrigin(this.prisma, buyerId, acquisition)) },
     });
   }
 

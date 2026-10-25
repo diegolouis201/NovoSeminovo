@@ -147,6 +147,20 @@ export class AffiliatesService {
       where: { paymentProviderRef: params.stripeSubscriptionId },
       include: { plan: { select: { name: true } }, partner: { include: { owner: { select: { id: true, referredByAffiliateId: true } } } } },
     });
+    // Receita do mês no painel geral do admin (uma linha por fatura paga).
+    if (subscription) {
+      await this.prisma.subscriptionPayment.upsert({
+        where: { stripeInvoiceId: params.invoiceId },
+        create: {
+          stripeInvoiceId: params.invoiceId,
+          partnerId: subscription.partnerId,
+          partnerType: subscription.partner.type,
+          amount: params.amountPaid,
+          paidAt: params.paidAt,
+        },
+        update: {},
+      });
+    }
     const owner = subscription?.partner.owner;
     if (!subscription || !owner?.referredByAffiliateId) return;
     const affiliate = await this.prisma.affiliate.findUnique({ where: { id: owner.referredByAffiliateId } });

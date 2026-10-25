@@ -1867,17 +1867,133 @@ export function vehicleBrandVariants(name: string): string[] {
   return group ?? [name.trim()];
 }
 
+// De onde a pessoa veio (cadastro, leads, financiamento). O site grava no
+// cookie ACQUISITION_COOKIE a última origem que não foi "direto" (link com
+// utm_*, ?ref= de afiliado, ou o site de onde ela clicou) e repassa à API no
+// header ACQUISITION_HEADER, no formato "origem|meio|campanha".
+export const ACQUISITION_COOKIE = "ns_origem";
+export const ACQUISITION_HEADER = "x-ns-origem";
+export const ACQUISITION_MAX_AGE = 90 * 24 * 60 * 60;
+
+export const ACQUISITION_SOURCES = {
+  google: "Google (busca)",
+  google_ads: "Google Ads",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  meta_ads: "Anúncio Meta (Instagram/Facebook)",
+  tiktok: "TikTok",
+  youtube: "YouTube",
+  whatsapp: "WhatsApp",
+  afiliado: "Afiliados",
+  email: "E-mail",
+  outros_buscadores: "Outros buscadores",
+  outros_sites: "Outros sites",
+  direto: "Direto (digitou o endereço)",
+} as const;
+export type AcquisitionSource = keyof typeof ACQUISITION_SOURCES;
+export type Acquisition = { source: AcquisitionSource; medium?: string; campaign?: string };
+
+const PAID_MEDIUMS = /^(cpc|ppc|paid|paidsocial|paid_social|ads?|display|cpm)$/i;
+
+function cleanPart(value: string | null | undefined): string | undefined {
+  const text = (value ?? "").trim().toLowerCase().replace(/[|\s]+/g, "_").slice(0, 60);
+  return text || undefined;
+}
+
+// Classifica a chegada: utm_source tem prioridade, depois ?ref= de afiliado,
+// depois o site de onde veio (document.referrer). Sem nada disso = direto.
+export function classifyAcquisition(input: {
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  ref?: string | null;
+  referrer?: string | null;
+  ownHost?: string;
+}): Acquisition {
+  const medium = cleanPart(input.utmMedium);
+  const campaign = cleanPart(input.utmCampaign);
+  const utm = cleanPart(input.utmSource);
+  const paid = medium ? PAID_MEDIUMS.test(medium) : false;
+  if (utm) {
+    if (/afiliad|affiliate/.test(utm)) return { source: "afiliado", medium, campaign };
+    if (/^(ig|instagram)/.test(utm)) return { source: paid ? "meta_ads" : "instagram", medium, campaign };
+    if (/^(fb|facebook|meta)/.test(utm)) return { source: paid ? "meta_ads" : "facebook", medium, campaign };
+    if (/^google/.test(utm)) return { source: paid ? "google_ads" : "google", medium, campaign };
+    if (/tiktok/.test(utm)) return { source: "tiktok", medium, campaign };
+    if (/youtube|^yt/.test(utm)) return { source: "youtube", medium, campaign };
+    if (/whats|^wa$/.test(utm)) return { source: "whatsapp", medium, campaign };
+    if (/mail|newsletter/.test(utm)) return { source: "email", medium, campaign };
+    return { source: "outros_sites", medium: medium ?? utm, campaign };
+  }
+  if (input.ref) return { source: "afiliado", medium: "link", campaign: cleanPart(input.ref) };
+  let host = "";
+  try {
+    host = input.referrer ? new URL(input.referrer).hostname.replace(/^www\./, "") : "";
+  } catch {
+    host = "";
+  }
+  if (!host || (input.ownHost && host.endsWith(input.ownHost.replace(/^www\./, "")))) return { source: "direto" };
+  if (/(^|\.)google\./.test(host)) return { source: "google", medium: "organic" };
+  if (/instagram\.com$/.test(host)) return { source: "instagram", medium: "social" };
+  if (/(facebook\.com|fb\.me|fb\.com)$/.test(host)) return { source: "facebook", medium: "social" };
+  if (/tiktok\.com$/.test(host)) return { source: "tiktok", medium: "social" };
+  if (/(youtube\.com|youtu\.be)$/.test(host)) return { source: "youtube", medium: "social" };
+  if (/(whatsapp\.com|wa\.me)$/.test(host)) return { source: "whatsapp", medium: "social" };
+  if (/(bing\.com|yahoo\.|duckduckgo\.com|ecosia\.org)/.test(host)) return { source: "outros_buscadores", medium: "organic" };
+  return { source: "outros_sites", medium: "referral", campaign: cleanPart(host) };
+}
+
+export function serializeAcquisition(value: Acquisition): string {
+  return [value.source, value.medium ?? "", value.campaign ?? ""].join("|");
+}
+
+export function parseAcquisition(raw: string | null | undefined): Acquisition | undefined {
+  if (!raw) return undefined;
+  let text = raw;
+  try {
+    text = decodeURIComponent(raw);
+  } catch {
+    // já veio decodificado
+  }
+  const [source, medium, campaign] = text.split("|");
+  if (!source || !(source in ACQUISITION_SOURCES)) return undefined;
+  return { source: source as AcquisitionSource, medium: cleanPart(medium), campaign: cleanPart(campaign) };
+}
+
+// Receita das lojas parceiras (Amazon, Mercado Livre…): o valor vem do painel
+// de cada programa e o admin lança por mês no /admin/painel.
+export const STORE_EARNING_STORES = { amazon: "Amazon", mercadolivre: "Mercado Livre", magalu: "Magalu", leroy: "Leroy Merlin", outra: "Outra loja" } as const;
+export type StoreEarningStore = keyof typeof STORE_EARNING_STORES;
+export const StoreEarningInputSchema = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Mês no formato AAAA-MM"),
+  store: z.enum(Object.keys(STORE_EARNING_STORES) as [StoreEarningStore, ...StoreEarningStore[]]),
+  amount: z.number().min(0).max(10_000_000),
+  note: z.string().trim().max(200).optional(),
+});
+export type StoreEarningInput = z.infer<typeof StoreEarningInputSchema>;
+
 // Painel de big numbers do admin (/admin/painel): tudo do site num lugar só.
 // "30d" = últimos 30 dias; "prev30d" = os 30 dias antes disso (pra tendência).
+// scope "vehicle"/"property" recorta o que é de carro ou de imóvel; o que não
+// tem tipo (usuários, cadastros) continua sendo do site todo.
+export type AdminOverviewScope = "all" | "vehicle" | "property";
 export type AdminOverviewTrend = { last30d: number; prev30d: number };
 export type AdminOverviewDay = { day: string; users: number; listings: number; leads: number; messages: number };
+export type AdminOverviewRevenueMonth = {
+  month: string;
+  listingPlans: number;
+  subscriptions: number;
+  financing: number;
+  stores: number;
+};
+export type AdminOverviewOriginRow = { key: string; label: string; signups: number; leads: number; financingLeads: number };
+export type AdminOverviewCampaignRow = { source: string; campaign: string; signups: number; leads: number };
 export type AdminOverview = {
+  scope: AdminOverviewScope;
   generatedAt: string;
   users: { total: number; newUsers: AdminOverviewTrend; sellers: number; referred: number };
   listings: {
     active: number;
-    activeVehicles: number;
-    activeProperties: number;
     pendingReview: number;
     paused: number;
     rejected: number;
@@ -1886,7 +2002,9 @@ export type AdminOverview = {
     soldValue30d: number;
     created: AdminOverviewTrend;
     views: number;
-    avgActivePrice: { vehicle: number; property: number };
+    avgActivePrice: number;
+    activeVehicles: number;
+    activeProperties: number;
   };
   partners: { total: number; verified: number; byType: { type: string; count: number }[] };
   revenue: {
@@ -1895,7 +2013,16 @@ export type AdminOverview = {
     pastDue: number;
     listingPlans: AdminOverviewTrend;
     listingPlansCount30d: number;
-    listingPlansTotal: number;
+    subscriptions: AdminOverviewTrend;
+    financing: AdminOverviewTrend;
+    financingDeals30d: number;
+    financingRebates30d: number;
+    financingOpenLeads: number;
+    stores: AdminOverviewTrend;
+    storeClicks30d: number;
+    total: AdminOverviewTrend;
+    months: AdminOverviewRevenueMonth[];
+    storeEntries: { id: string; month: string; store: string; amount: number; note?: string }[];
   };
   engagement: {
     conversations: AdminOverviewTrend;
@@ -1912,9 +2039,10 @@ export type AdminOverview = {
     financingLeadsConverted: number;
     architectSessions: AdminOverviewTrend;
     architectImages30d: number;
-    storeClicks30d: number;
     autoModerated30d: number;
   };
   affiliates: { active: number; pending: number; commissionsOpen: number; commissionsPaid: number };
+  origins: AdminOverviewOriginRow[];
+  campaigns: AdminOverviewCampaignRow[];
   daily: AdminOverviewDay[];
 };

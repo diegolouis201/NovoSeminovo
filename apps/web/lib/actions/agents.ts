@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import type { AgentConversationView, AgentKind, FinancingLeadStatus } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
+import { acquisitionHeaders } from "@/lib/acquisition";
 import {
   fetchAgentConversation,
   fetchAgentStatus,
@@ -33,7 +34,7 @@ export async function sendAgentMessageAction(
   return sendAgentMessage(
     kind,
     { conversationId, message },
-    { accessToken: session?.accessToken, clientIp: visitorIp() },
+    { accessToken: session?.accessToken, clientIp: visitorIp(), extraHeaders: acquisitionHeaders() },
   );
 }
 

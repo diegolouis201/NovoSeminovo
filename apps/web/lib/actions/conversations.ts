@@ -3,13 +3,14 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import { acquisitionHeaders } from "@/lib/acquisition";
 import { fetchConversation, sendMessage, startConversation } from "@/lib/api";
 
 export async function startConversationAction(listingId: string): Promise<void> {
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");
 
-  const result = await startConversation(listingId, session.accessToken);
+  const result = await startConversation(listingId, session.accessToken, acquisitionHeaders());
   if (!result.ok) {
     redirect(`/anuncio/${listingId}?erroConversa=${encodeURIComponent(result.error)}`);
   }

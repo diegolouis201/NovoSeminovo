@@ -20,6 +20,7 @@ import {
   type UpdateFinancingLeadInput,
   type FinancingLeadSummary,
   type ListingSummary,
+  type Acquisition,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -151,6 +152,7 @@ export class AgentsService {
     input: { conversationId?: string; message: string },
     requester: AgentRequester | undefined,
     clientIp: string,
+    acquisition?: Acquisition,
   ): Promise<AgentReply> {
     if (!this.isEnabled()) throw new ServiceUnavailableException("Assistente de IA indisponível no momento.");
     if (LOGIN_REQUIRED.has(kind) && !requester) throw new UnauthorizedException("Entre na sua conta para usar este assistente.");
@@ -159,7 +161,7 @@ export class AgentsService {
     let conversation = input.conversationId
       ? await this.loadWebConversation(kind, input.conversationId, requester)
       : await this.prisma.agentConversation.create({
-          data: { kind, channel: "web", userId: requester?.id },
+          data: { kind, channel: "web", userId: requester?.id, acqSource: acquisition?.source, acqCampaign: acquisition?.campaign },
         });
 
     // Conversa começada sem login: quem logar depois e continuar passa a ser
@@ -324,7 +326,14 @@ export class AgentsService {
     }
 
     const lead = await this.prisma.financingLead.create({
-      data: { ...data, conversationId: conversation.id, channel: conversation.channel },
+      data: {
+        ...data,
+        conversationId: conversation.id,
+        channel: conversation.channel,
+        // Pelo WhatsApp da Meta a origem é o próprio WhatsApp; pelo site, a do visitante.
+        acqSource: conversation.channel === "whatsapp" ? "whatsapp" : conversation.acqSource,
+        acqCampaign: conversation.acqCampaign,
+      },
       select: { id: true },
     });
 

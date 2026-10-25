@@ -14,6 +14,8 @@ import type {
   UpdateSaleInput,
   FipeModelSuggestion,
   AdminOverview,
+  AdminOverviewScope,
+  StoreEarningInput,
   FipePrice,
   FipeVersion,
   SubscriptionBoardCard,
@@ -621,11 +623,11 @@ export function updatePartnerSale(listingId: string, input: UpdateSaleInput, acc
 // Chat — igual favoritos/anúncios, exige a API no ar.
 export type StartConversationResult = { ok: true; conversationId: string } | { ok: false; error: string };
 
-export async function startConversation(listingId: string, accessToken: string): Promise<StartConversationResult> {
+export async function startConversation(listingId: string, accessToken: string, extraHeaders: Record<string, string> = {}): Promise<StartConversationResult> {
   try {
     const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/conversations`, {
       method: "POST",
-      headers: authHeaders(accessToken),
+      headers: { ...authHeaders(accessToken), ...extraHeaders },
     });
     const body = await res.json();
     if (!res.ok) return { ok: false, error: body.message ?? "Não foi possível iniciar a conversa." };
@@ -698,11 +700,11 @@ export async function lookupCnpj(cnpj: string): Promise<ApiResult<CnpjLookup>> {
   }
 }
 
-export async function signupCompany(input: RegisterCompanyInput): Promise<ApiResult<{ partnerType: string }>> {
+export async function signupCompany(input: RegisterCompanyInput, extraHeaders: Record<string, string> = {}): Promise<ApiResult<{ partnerType: string }>> {
   try {
     const res = await fetchWithTimeout(
       `${API_URL}/partners/signup`,
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) },
+      { method: "POST", headers: { "Content-Type": "application/json", ...extraHeaders }, body: JSON.stringify(input) },
       20000,
     );
     const data = await res.json().catch(() => ({}));
@@ -1213,11 +1215,11 @@ export async function createReview(
 // Fogo-e-esquece: só alimenta o funil de leads do parceiro (ver
 // ListingsService.registerWhatsappClick) — nunca deve travar a abertura do
 // WhatsApp no navegador da pessoa, por isso engole qualquer erro.
-export async function registerWhatsappClick(listingId: string, accessToken?: string): Promise<void> {
+export async function registerWhatsappClick(listingId: string, accessToken?: string, extraHeaders: Record<string, string> = {}): Promise<void> {
   try {
     await fetchWithTimeout(`${API_URL}/listings/${listingId}/whatsapp-clicks`, {
       method: "POST",
-      headers: accessToken ? authHeaders(accessToken) : undefined,
+      headers: { ...(accessToken ? authHeaders(accessToken) : {}), ...extraHeaders },
     });
   } catch {
     // ignorado de propósito
@@ -1506,10 +1508,10 @@ export type SendAgentMessageResult = { ok: true; reply: AgentReply } | { ok: fal
 export async function sendAgentMessage(
   kind: AgentKind,
   input: { conversationId?: string; message: string },
-  options: { accessToken?: string; clientIp?: string },
+  options: { accessToken?: string; clientIp?: string; extraHeaders?: Record<string, string> },
 ): Promise<SendAgentMessageResult> {
   try {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const headers: Record<string, string> = { "Content-Type": "application/json", ...options.extraHeaders };
     if (options.accessToken) headers.Authorization = `Bearer ${options.accessToken}`;
     if (options.clientIp) headers["x-client-ip"] = options.clientIp;
     // Uma resposta do agente pode envolver várias chamadas ao modelo
@@ -1719,12 +1721,25 @@ export async function fetchAdminAffiliateDetail(id: string, accessToken: string)
   }
 }
 
-export async function fetchAdminOverview(accessToken: string): Promise<AdminOverview | undefined> {
+export async function fetchAdminOverview(scope: AdminOverviewScope, accessToken: string): Promise<AdminOverview | undefined> {
   try {
-    const res = await fetchWithTimeout(`${API_URL}/admin/overview`, { headers: authHeaders(accessToken), cache: "no-store" }, 20000);
+    const query = scope === "all" ? "" : `?tipo=${scope}`;
+    const res = await fetchWithTimeout(`${API_URL}/admin/overview${query}`, { headers: authHeaders(accessToken), cache: "no-store" }, 20000);
     if (!res.ok) return undefined;
     return (await res.json()) as AdminOverview;
   } catch {
     return undefined;
+  }
+}
+
+export function saveStoreEarning(input: StoreEarningInput, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson("/admin/store-earnings", "POST", input, accessToken);
+}
+
+export async function deleteStoreEarning(id: string, accessToken: string): Promise<void> {
+  try {
+    await fetchWithTimeout(`${API_URL}/admin/store-earnings/${encodeURIComponent(id)}`, { method: "DELETE", headers: authHeaders(accessToken) });
+  } catch {
+    // a tela recarrega e mostra o que ficou
   }
 }

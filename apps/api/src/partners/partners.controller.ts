@@ -7,12 +7,15 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import type { Request } from "express";
+import { acquisitionFrom } from "../common/acquisition";
 import { memoryStorage } from "multer";
 import {
   AddPartnerMemberInputSchema,
@@ -68,10 +71,10 @@ export class PartnersController {
   // Cadastro de conta PJ (/cadastro, "Empresa"): confere o CNPJ antes de
   // criar o usuário, pra não sobrar conta pela metade se o CNPJ não servir.
   @Post("partners/signup")
-  async signup(@Body() body: unknown) {
+  async signup(@Body() body: unknown, @Req() request: Request) {
     const input = parseOrBadRequest(RegisterCompanyInputSchema, body);
     const company = await this.partnersService.resolveCompany({ document: input.cnpj, type: input.partnerType, legalName: input.legalName });
-    const user = await this.auth.register(input);
+    const user = await this.auth.register(input, acquisitionFrom(request));
     try {
       await this.partnersService.createPartnerRow(user.id, company);
     } catch (error) {

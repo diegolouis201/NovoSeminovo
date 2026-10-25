@@ -1,5 +1,10 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from "@nestjs/common";
-import { ModerateListingInputSchema, SetPartnerTypeInputSchema, UpdateReportStatusInputSchema } from "@novoseminovo/shared-types";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  ModerateListingInputSchema,
+  SetPartnerTypeInputSchema,
+  StoreEarningInputSchema,
+  UpdateReportStatusInputSchema,
+} from "@novoseminovo/shared-types";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
@@ -17,8 +22,19 @@ export class AdminController {
 
   // Big numbers do site inteiro (/admin/painel).
   @Get("overview")
-  overview() {
-    return this.overviewService.overview();
+  overview(@Query("tipo") tipo?: string) {
+    return this.overviewService.overview(tipo === "vehicle" || tipo === "property" ? tipo : "all");
+  }
+
+  // Comissão mensal das lojas parceiras (Amazon, Mercado Livre…), lançada à mão.
+  @Post("store-earnings")
+  saveStoreEarning(@Body() body: unknown) {
+    return this.overviewService.saveStoreEarning(parseOrBadRequest(StoreEarningInputSchema, body));
+  }
+
+  @Delete("store-earnings/:id")
+  deleteStoreEarning(@Param("id") id: string) {
+    return this.overviewService.deleteStoreEarning(id);
   }
 
   @Get("listings/pending")

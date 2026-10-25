@@ -4,7 +4,9 @@ import type {
   ConversationDetail,
   ConversationSummary,
   Message as MessageDto,
+  Acquisition,
 } from "@novoseminovo/shared-types";
+import { leadOrigin } from "../common/acquisition";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { ConversationsGateway } from "./conversations.gateway";
@@ -52,7 +54,7 @@ export class ConversationsService {
     }
   }
 
-  async startConversation(buyerId: string, listingId: string): Promise<ConversationSummary> {
+  async startConversation(buyerId: string, listingId: string, acquisition?: Acquisition): Promise<ConversationSummary> {
     const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
     if (listing.ownerUserId === buyerId) {
@@ -60,7 +62,7 @@ export class ConversationsService {
     }
 
     if (listing.partnerId) {
-      await this.upsertLead(listing.partnerId, listingId, buyerId);
+      await this.upsertLead(listing.partnerId, listingId, buyerId, acquisition);
     }
 
     const existing = await this.prisma.conversation.findFirst({
@@ -83,11 +85,12 @@ export class ConversationsService {
   // o lead de chat da mesma pessoa: são canais diferentes, cada um com seu
   // próprio card no Kanban. Sem unique constraint em (listingId, buyerId,
   // source): busca antes de criar, como o resto da base já faz.
-  private async upsertLead(partnerId: string, listingId: string, buyerId: string) {
+  private async upsertLead(partnerId: string, listingId: string, buyerId: string, acquisition?: Acquisition) {
     const existing = await this.prisma.lead.findFirst({ where: { listingId, buyerId, source: "chat" } });
     if (existing) return;
+    const origin = await leadOrigin(this.prisma, buyerId, acquisition);
     await this.prisma.lead.create({
-      data: { partnerId, listingId, buyerId, source: "chat", status: "new" },
+      data: { partnerId, listingId, buyerId, source: "chat", status: "new", ...origin },
     });
   }
 

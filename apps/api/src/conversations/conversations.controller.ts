@@ -1,7 +1,9 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
+import type { Request } from "express";
 import { SendMessageInputSchema } from "@novoseminovo/shared-types";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { acquisitionFrom } from "../common/acquisition";
 import { parseOrBadRequest } from "../common/parse";
 import { ConversationsService } from "./conversations.service";
 
@@ -11,8 +13,8 @@ export class ConversationsController {
   constructor(private readonly conversationsService: ConversationsService) {}
 
   @Post("listings/:id/conversations")
-  start(@CurrentUser() user: { id: string }, @Param("id") listingId: string) {
-    return this.conversationsService.startConversation(user.id, listingId);
+  start(@CurrentUser() user: { id: string }, @Param("id") listingId: string, @Req() request: Request) {
+    return this.conversationsService.startConversation(user.id, listingId, acquisitionFrom(request));
   }
 
   @Get("me/conversations")

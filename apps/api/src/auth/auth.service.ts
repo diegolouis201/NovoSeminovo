@@ -2,7 +2,7 @@ import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/co
 import { JwtService } from "@nestjs/jwt";
 import { compare, hash } from "bcryptjs";
 import { Prisma } from "@novoseminovo/db";
-import type { AuthUser, LoginInput, LoginResponse, RegisterInput } from "@novoseminovo/shared-types";
+import type { Acquisition, AuthUser, LoginInput, LoginResponse, RegisterInput } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { normalizeAffiliateCode } from "../affiliates/affiliates.service";
 
@@ -15,10 +15,12 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(input: RegisterInput): Promise<AuthUser> {
+  async register(input: RegisterInput, acquisition?: Acquisition): Promise<AuthUser> {
     const passwordHash = await hash(input.password, SALT_ROUNDS);
     const cpf = input.cpf.replace(/\D/g, "");
     const affiliateId = await this.referringAffiliate(input.referralCode, cpf);
+    // Indicado por afiliado conta como origem "afiliado", mesmo que o cookie diga outra coisa.
+    const origin = affiliateId ? { source: "afiliado", medium: acquisition?.medium ?? "link", campaign: acquisition?.campaign } : acquisition;
     try {
       const user = await this.prisma.user.create({
         data: {
@@ -29,6 +31,9 @@ export class AuthService {
           passwordHash,
           role: "buyer",
           ...(affiliateId ? { referredByAffiliateId: affiliateId, referredAt: new Date() } : {}),
+          acqSource: origin?.source,
+          acqMedium: origin?.medium,
+          acqCampaign: origin?.campaign,
         },
       });
       return { id: user.id, name: user.name, email: user.email, role: user.role };

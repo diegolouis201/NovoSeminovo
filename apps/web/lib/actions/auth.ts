@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import type { PartnerType } from "@novoseminovo/shared-types";
 import { signIn } from "@/auth";
+import { acquisitionHeaders } from "@/lib/acquisition";
 import { signupCompany } from "@/lib/api";
 import { REFERRAL_COOKIE, cleanReferralCode } from "@/lib/referral";
 
@@ -34,12 +35,15 @@ export async function registerAction(_prev: RegisterState, formData: FormData): 
   const isCompany = field("accountType") === "pj";
 
   if (isCompany) {
-    const result = await signupCompany({ ...account, cnpj: field("cnpj"), partnerType: (field("partnerType") || undefined) as PartnerType | undefined, legalName: field("legalName") || undefined });
+    const result = await signupCompany(
+      { ...account, cnpj: field("cnpj"), partnerType: (field("partnerType") || undefined) as PartnerType | undefined, legalName: field("legalName") || undefined },
+      acquisitionHeaders(),
+    );
     if (!result.ok) return { error: result.error };
   } else {
     const res = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...acquisitionHeaders() },
       body: JSON.stringify(account),
     }).catch(() => undefined);
     if (!res) return { error: "Não foi possível falar com o servidor. Tente novamente." };
