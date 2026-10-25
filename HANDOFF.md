@@ -180,6 +180,12 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - O e-mail de notificação agora escapa HTML e respeita quebras de linha (texto de agente ou de usuário nunca vira HTML).
    - Detalhes em `docs/agentes-ia.md`.
 
+33. **E-mail ligado em produção (25/10/2026)** pelo Resend.
+   - Domínio novoseminovo.com.br verificado: DKIM `resend._domainkey` e CNAMEs `rsend` e `send` no DNS da Locaweb.
+   - Remetente: `avisos@novoseminovo.com.br`. `RESEND_API_KEY` e `EMAIL_FROM` estão no `.env` da VPS.
+   - A conta admin de produção passou a ser **diego.louis@novoseminovo.com.br** (antes `admin@`, que não tem caixa).
+   - O Diego decidiu manter a chave do Resend, que apareceu em print; trocar quando possível.
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).
