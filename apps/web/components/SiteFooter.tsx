@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { InstagramLogo, YoutubeLogo } from "@phosphor-icons/react/dist/ssr";
 import { Logo } from "@/components/Logo";
+import { NewsletterForm } from "@/components/NewsletterForm";
 import { COMPANY, CORBAN } from "@/lib/company";
 
 const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
@@ -82,6 +83,12 @@ export function SiteFooter() {
             </ul>
           </nav>
         ))}
+      </div>
+
+      <div className="mx-auto max-w-6xl px-4 pb-8">
+        <div className="max-w-2xl">
+          <NewsletterForm />
+        </div>
       </div>
 
       <div className="border-t border-border">

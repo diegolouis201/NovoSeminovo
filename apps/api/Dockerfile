@@ -41,6 +41,8 @@ RUN apt-get update -y && apt-get install -y openssl fontconfig fonts-dejavu-core
 RUN corepack enable
 WORKDIR /app
 COPY --from=build /app /app
+# Fonte da marca (Fredoka, licença OFL) para as artes do Instagram (MarketingArtService).
+RUN mkdir -p /usr/share/fonts/truetype/fredoka && cp /app/apps/api/assets/fonts/*.ttf /usr/share/fonts/truetype/fredoka/ && fc-cache -f
 WORKDIR /app/apps/api
 EXPOSE 4000
 CMD ["node", "dist/main.js"]

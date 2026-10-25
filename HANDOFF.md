@@ -186,6 +186,19 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - A conta admin de produção passou a ser **diego.louis@novoseminovo.com.br** (antes `admin@`, que não tem caixa).
    - O Diego decidiu manter a chave do Resend, que apareceu em print; trocar quando possível.
 
+34. **Marketing de ponta a ponta em `/admin/marketing` (25/10/2026)**
+   - Abas da tela: Posts do Instagram, Campanhas de e-mail, Sequências automáticas, Contatos e Resultados.
+   - O agente de Marketing cria rascunhos: arte 1080×1350 com legenda e hashtags, campanhas e sequências. O dono aprova, agenda, pede alteração (vira tarefa para o agente) ou rejeita.
+   - A publicação usa a API oficial da Meta. O envio usa o Resend, com teto diário, descadastro em um clique, cliques rastreados e webhook de entrega.
+   - Contatos são captados no cadastro (caixa de opt-in, desmarcada por padrão), na loja nova, no pedido de financiamento e no formulário de novidades do rodapé. Cada contato guarda a origem e nunca é duplicado.
+   - Nas sugestões em `/admin/operacao` há o botão "Transformar em post".
+   - Detalhes e o que configurar: `docs/marketing.md`.
+   - **Falta configurar:**
+     - token da Meta com `instagram_content_publish` (`INSTAGRAM_ACCESS_TOKEN` e `INSTAGRAM_ACCOUNT_ID`);
+     - webhook do Resend (`RESEND_WEBHOOK_SECRET`);
+     - opcional: `GEMINI_API_KEY` no `.env` da VPS, para imagens geradas por IA;
+     - revisão jurídica do texto de consentimento (LGPD).
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).

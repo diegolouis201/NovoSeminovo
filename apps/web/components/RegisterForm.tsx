@@ -86,6 +86,11 @@ export function RegisterForm({ initialError, returnTo }: { initialError?: string
       <FormField label="Senha" name="password" type="password" />
       {/* Programa de afiliados: vem preenchido quando a pessoa chegou pelo link ?ref=. */}
       <FormField key={referral ?? "sem-indicacao"} label="Código de indicação" name="referralCode" required={false} defaultValue={referral} placeholder="Ex.: MARIA27" />
+      {/* LGPD: desmarcada por padrão; quem marca entra na lista de novidades (pode sair a qualquer momento). */}
+      <label className="flex items-start gap-2 text-sm text-ink">
+        <input type="checkbox" name="marketingOptIn" value="1" className="mt-1" />
+        <span>Quero receber novidades e dicas do NovoSeminovo por e-mail. Dá para sair quando quiser, com um clique.</span>
+      </label>
       <Submit />
     </form>
   );

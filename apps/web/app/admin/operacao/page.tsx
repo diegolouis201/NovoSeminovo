@@ -15,6 +15,7 @@ import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { opsDecisionAction, opsDeleteGoalAction, opsRunAgentAction, opsSaveGoalAction, opsSuggestionAction, opsTaskActionForm } from "@/lib/actions/operations";
 import { fetchOpsSummary } from "@/lib/api";
+import { mktSuggestionToPostAction } from "@/lib/actions/marketing";
 
 export const dynamic = "force-dynamic";
 
@@ -490,7 +491,13 @@ function MarketingSuggestions({ data }: { data: OpsSummary }) {
         <h2 className="font-display text-lg font-semibold text-ink">
           Sugestões do Marketing <span className="text-base font-normal text-ink-muted">({data.suggestions.length})</span>
         </h2>
-        <p className="text-xs text-ink-muted">Nada é publicado sozinho. Copie o texto, publique no canal e marque como usada — o link já vem rastreado para aparecer no painel geral.</p>
+        <p className="text-xs text-ink-muted">
+          Nada é publicado sozinho. Para o Instagram, use “Transformar em post”: o agente monta a arte e a legenda e o post aparece em{" "}
+          <Link href="/admin/marketing" className="font-semibold text-brand-blue hover:underline">
+            Marketing
+          </Link>{" "}
+          para você aprovar e publicar. Para outros canais, copie o texto e marque como usada — o link já vem rastreado.
+        </p>
       </div>
       {data.suggestions.length === 0 ? (
         <p className="text-sm text-ink-muted">Nenhuma sugestão nova. O Marketing roda às segundas; use “Rodar agora” para pedir antes.</p>
@@ -505,7 +512,10 @@ function MarketingSuggestions({ data }: { data: OpsSummary }) {
               <p className="font-semibold text-ink">{suggestion.title}</p>
               <p className="whitespace-pre-line text-ink">{suggestion.body}</p>
               {suggestion.link && <p className="break-all rounded-brand bg-surface-sober px-2 py-1 font-mono text-xs text-ink">{suggestion.link}</p>}
-              <form action={opsSuggestionAction.bind(null, suggestion.id)} className="flex gap-4">
+              <form action={opsSuggestionAction.bind(null, suggestion.id)} className="flex flex-wrap gap-4">
+                <button type="submit" formAction={mktSuggestionToPostAction.bind(null, suggestion.id)} className="text-xs font-semibold text-brand-blue hover:underline">
+                  Transformar em post
+                </button>
                 <button type="submit" name="status" value="usada" className="text-xs font-semibold text-brand-green hover:underline">
                   Usei
                 </button>

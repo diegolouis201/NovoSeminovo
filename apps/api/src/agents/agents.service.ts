@@ -23,6 +23,7 @@ import {
   type Acquisition,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import { ContactsService } from "../marketing/contacts.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { ListingsService } from "../listings/listings.service";
 import { PartnersService } from "../partners/partners.service";
@@ -76,6 +77,7 @@ export class AgentsService {
     private readonly partners: PartnersService,
     private readonly admin: AdminService,
     private readonly rebates: RebatesService,
+    private readonly contacts: ContactsService,
   ) {}
 
   isEnabled(): boolean {
@@ -336,6 +338,18 @@ export class AgentsService {
         acqCampaign: conversation.acqCampaign,
       },
       select: { id: true },
+    });
+
+    // Quem pediu financiamento pediu contato sobre comprar: entra na jornada de compra.
+    await this.contacts.capture({
+      email: input.email,
+      phone: input.phone,
+      name: input.name,
+      interest: input.assetType === "property" ? "comprar_imovel" : "comprar_carro",
+      source: conversation.channel === "whatsapp" ? "whatsapp" : (conversation.acqSource ?? "direto"),
+      sourceDetail: "financiamento",
+      consent: "legitimate_interest",
+      consentText: "Pedido de simulação de financiamento pelo assistente.",
     });
 
     const admins = await this.prisma.user.findMany({ where: { role: "admin", status: "active" }, select: { id: true } });

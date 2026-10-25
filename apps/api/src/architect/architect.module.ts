@@ -8,5 +8,6 @@ import { GeminiImageService } from "./gemini-image.service";
   imports: [AuthModule],
   controllers: [ArchitectController],
   providers: [ArchitectService, GeminiImageService],
+  exports: [GeminiImageService],
 })
 export class ArchitectModule {}

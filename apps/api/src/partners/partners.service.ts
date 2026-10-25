@@ -34,6 +34,7 @@ import type {
 } from "@novoseminovo/shared-types";
 import type { Prisma } from "@novoseminovo/db";
 import { PrismaService } from "../prisma/prisma.service";
+import { ContactsService } from "../marketing/contacts.service";
 import { PaymentsService } from "../payments/payments.service";
 import { listingInclude, toListingSummary } from "../listings/listings.mapper";
 import { AiService } from "../listings/ai.service";
@@ -186,6 +187,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
     private readonly ai: AiService,
     private readonly notifications: NotificationsService,
     private readonly cnpj: CnpjService,
+    private readonly contacts: ContactsService,
   ) {}
 
   // Fim do período grátis não tem evento nenhum — confere a cada 6 horas (e
@@ -330,6 +332,21 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
       }),
       this.prisma.user.update({ where: { id: ownerUserId }, data: { role: "partner_owner" } }),
     ]);
+    // Loja/imobiliária é cliente: recebe a jornada de parceiros (pode se descadastrar).
+    const owner = await this.prisma.user.findUnique({ where: { id: ownerUserId }, select: { email: true, phone: true, name: true, acqSource: true } });
+    if (owner) {
+      await this.contacts.capture({
+        email: owner.email,
+        phone: owner.phone,
+        name: owner.name,
+        userId: ownerUserId,
+        interest: "loja",
+        source: owner.acqSource ?? "direto",
+        sourceDetail: `parceiro:${company.type}`,
+        consent: "legitimate_interest",
+        consentText: "Cadastro de loja/imobiliária/corretor no site (cliente).",
+      });
+    }
   }
 
   // ---------- Destaques (anúncios de loja) ----------

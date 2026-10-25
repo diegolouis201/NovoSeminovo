@@ -19,6 +19,7 @@ import { AgentsModule } from "./agents/agents.module";
 import { IntegrationsModule } from "./integrations/integrations.module";
 import { ArchitectModule } from "./architect/architect.module";
 import { OperationsModule } from "./operations/operations.module";
+import { MarketingModule } from "./marketing/marketing.module";
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { OperationsModule } from "./operations/operations.module";
     IntegrationsModule,
     ArchitectModule,
     OperationsModule,
+    MarketingModule,
     AffiliatesModule,
   ],
 })

@@ -59,6 +59,12 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: `${payload.agentLabel} pediu: ${payload.summary}`,
         link: "/admin/operacao",
       };
+    case "marketing_review":
+      return {
+        title: `Marketing esperando sua aprovação: ${payload.title}`,
+        body: String(payload.body ?? "Veja a prévia e aprove, peça alteração ou rejeite."),
+        link: "/admin/marketing",
+      };
     case "ops_alert":
       return {
         title: `Alerta da operação: ${payload.title}`,

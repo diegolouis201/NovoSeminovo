@@ -42,4 +42,37 @@ export class EmailService {
       this.logger.warn(`Falha ao enviar e-mail pra ${to}: ${error}`);
     }
   }
+
+  // E-mail de marketing: devolve o id do Resend (para casar com o webhook) e
+  // lança erro em vez de engolir, para o envio ficar registrado como falha.
+  async sendMarketing(message: {
+    to: string;
+    subject: string;
+    html: string;
+    text: string;
+    headers?: Record<string, string>;
+    replyTo?: string;
+  }): Promise<{ id: string }> {
+    if (!this.isEnabled()) throw new Error("E-mail não configurado (RESEND_API_KEY)");
+    const from = process.env.EMAIL_FROM ?? "NovoSeminovo <onboarding@resend.dev>";
+    const apiUrl = process.env.RESEND_API_URL ?? "https://api.resend.com";
+    const res = await fetch(`${apiUrl}/emails`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
+      signal: AbortSignal.timeout(20_000),
+      body: JSON.stringify({
+        from,
+        to: message.to,
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+        headers: message.headers,
+        reply_to: message.replyTo,
+        tags: [{ name: "categoria", value: "marketing" }],
+      }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
+    if (!res.ok || !body.id) throw new Error(`Resend ${res.status}: ${body.message ?? "sem id na resposta"}`);
+    return { id: body.id };
+  }
 }

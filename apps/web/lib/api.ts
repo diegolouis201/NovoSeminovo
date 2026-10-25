@@ -17,6 +17,10 @@ import type {
   AdminOverviewScope,
   OpsGoalInput,
   OpsSummary,
+  MarketingSummary,
+  MarketingPostInput,
+  MarketingDecisionInput,
+  EmailCampaignInput,
   StoreEarningInput,
   FipePrice,
   FipeVersion,
@@ -1783,4 +1787,37 @@ export function opsRunAgent(agent: string, accessToken: string): Promise<ApiResu
 
 export function opsSetSuggestionStatus(id: string, status: "nova" | "usada" | "descartada", accessToken: string): Promise<ApiResult<{ ok: true }>> {
   return sendJson(`/admin/operations/suggestions/${encodeURIComponent(id)}`, "PATCH", { status }, accessToken);
+}
+
+// ---------- Marketing (/admin/marketing) ----------
+export async function fetchMarketingSummary(accessToken: string): Promise<MarketingSummary | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/marketing`, { headers: authHeaders(accessToken), cache: "no-store" }, 20000);
+    if (!res.ok) return undefined;
+    return (await res.json()) as MarketingSummary;
+  } catch {
+    return undefined;
+  }
+}
+
+export function mktSavePost(id: string | undefined, input: MarketingPostInput, accessToken: string): Promise<ApiResult<{ id: string }>> {
+  return id ? sendJson(`/admin/marketing/posts/${encodeURIComponent(id)}`, "PATCH", input, accessToken) : sendJson("/admin/marketing/posts", "POST", input, accessToken);
+}
+
+export function mktDecide(kind: "posts" | "campaigns" | "sequences", id: string, input: MarketingDecisionInput, accessToken: string): Promise<ApiResult<{ status: string }>> {
+  return sendJson(`/admin/marketing/${kind}/${encodeURIComponent(id)}/decision`, "POST", input, accessToken);
+}
+
+export function mktSaveCampaign(id: string | undefined, input: EmailCampaignInput, accessToken: string): Promise<ApiResult<{ id: string }>> {
+  return id
+    ? sendJson(`/admin/marketing/campaigns/${encodeURIComponent(id)}`, "PATCH", input, accessToken)
+    : sendJson("/admin/marketing/campaigns", "POST", input, accessToken);
+}
+
+export function mktSuggestionToPost(id: string, accessToken: string): Promise<ApiResult<{ taskId: string }>> {
+  return sendJson(`/admin/marketing/suggestions/${encodeURIComponent(id)}/post`, "POST", {}, accessToken);
+}
+
+export function mktRefreshMetrics(accessToken: string): Promise<ApiResult<{ updated: number }>> {
+  return sendJson("/admin/marketing/posts/metrics", "POST", {}, accessToken);
 }

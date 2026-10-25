@@ -4,6 +4,7 @@ import { compare, hash } from "bcryptjs";
 import { Prisma } from "@novoseminovo/db";
 import type { Acquisition, AuthUser, LoginInput, LoginResponse, RegisterInput } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import { ContactsService } from "../marketing/contacts.service";
 import { normalizeAffiliateCode } from "../affiliates/affiliates.service";
 
 const SALT_ROUNDS = 10;
@@ -13,6 +14,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly contacts: ContactsService,
   ) {}
 
   async register(input: RegisterInput, acquisition?: Acquisition): Promise<AuthUser> {
@@ -35,6 +37,17 @@ export class AuthService {
           acqMedium: origin?.medium,
           acqCampaign: origin?.campaign,
         },
+      });
+      // Contato de marketing: só recebe e-mails de novidades se marcou a caixa.
+      await this.contacts.capture({
+        email: user.email,
+        phone: user.phone,
+        name: user.name,
+        userId: user.id,
+        source: origin?.source ?? "direto",
+        sourceDetail: "cadastro",
+        consent: input.marketingOptIn ? "opt_in" : "none",
+        consentText: input.marketingOptIn ? "Cadastro no site: caixa \"quero receber novidades por e-mail\" marcada." : undefined,
       });
       return { id: user.id, name: user.name, email: user.email, role: user.role };
     } catch (error) {

@@ -31,6 +31,7 @@ export async function registerAction(_prev: RegisterState, formData: FormData): 
     phone: field("phone") || undefined,
     cpf: field("cpf"),
     referralCode,
+    marketingOptIn: formData.get("marketingOptIn") === "1",
   };
   const isCompany = field("accountType") === "pj";
 

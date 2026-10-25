@@ -31,6 +31,20 @@ export class GeminiImageService {
   }
 
   async renovate(photo: Buffer, mimeType: string, instructions: string): Promise<{ image: Buffer; mimeType: string }> {
+    return this.request(
+      [{ text: `${BASE_PROMPT} ${instructions}` }, { inline_data: { mime_type: mimeType, data: photo.toString("base64") } }],
+      undefined,
+      "Não consegui gerar essa imagem. Tente descrever a reforma de outro jeito.",
+    );
+  }
+
+  // Imagem nova só a partir de texto (fundo das artes de marketing).
+  // aspectRatio: "4:5" para o feed do Instagram, "1:1", "9:16"...
+  async generate(prompt: string, aspectRatio: string): Promise<{ image: Buffer; mimeType: string }> {
+    return this.request([{ text: prompt }], aspectRatio, "Não consegui gerar a imagem de fundo.");
+  }
+
+  private async request(parts: GeminiPart[], aspectRatio: string | undefined, noImageMessage: string): Promise<{ image: Buffer; mimeType: string }> {
     const key = process.env.GEMINI_API_KEY;
     if (!key) throw new ServiceUnavailableException("Geração de imagens não configurada.");
     const model = process.env.GEMINI_IMAGE_MODEL || DEFAULT_MODEL;
@@ -39,13 +53,8 @@ export class GeminiImageService {
       headers: { "Content-Type": "application/json", "x-goog-api-key": key },
       signal: AbortSignal.timeout(TIMEOUT_MS),
       body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: `${BASE_PROMPT} ${instructions}` }, { inline_data: { mime_type: mimeType, data: photo.toString("base64") } }],
-          },
-        ],
-        generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+        contents: [{ role: "user", parts }],
+        generationConfig: { responseModalities: ["TEXT", "IMAGE"], ...(aspectRatio ? { imageConfig: { aspectRatio } } : {}) },
       }),
     }).catch((error: Error) => {
       throw new ServiceUnavailableException(`Gerador de imagens fora do ar: ${error.message}`);
@@ -65,13 +74,13 @@ export class GeminiImageService {
           : "O gerador de imagens recusou o pedido agora. Tente de novo em instantes.",
       );
     }
-    const parts = body.candidates?.[0]?.content?.parts ?? [];
-    for (const part of parts) {
+    const responseParts = body.candidates?.[0]?.content?.parts ?? [];
+    for (const part of responseParts) {
       const data = part.inlineData?.data ?? part.inline_data?.data;
       if (data) return { image: Buffer.from(data, "base64"), mimeType: part.inlineData?.mimeType ?? part.inline_data?.mime_type ?? "image/png" };
     }
     const reason = body.promptFeedback?.blockReason ?? body.candidates?.[0]?.finishReason ?? "sem imagem na resposta";
     this.logger.warn(`Gemini não devolveu imagem: ${reason}`);
-    throw new ServiceUnavailableException("Não consegui gerar essa imagem. Tente descrever a reforma de outro jeito.");
+    throw new ServiceUnavailableException(noImageMessage);
   }
 }

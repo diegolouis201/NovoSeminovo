@@ -1,0 +1,4 @@
+Fredoka (SemiBold e Bold) — Copyright 2016 The Fredoka Project Authors.
+Licença SIL Open Font License 1.1 (https://openfontlicense.org): uso, inclusão e
+redistribuição livres, inclusive comercial. Baixada do Google Fonts.
+Usada nas artes dos posts do Instagram (src/marketing/art.service.ts).

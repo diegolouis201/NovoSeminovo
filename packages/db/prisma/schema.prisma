@@ -1298,3 +1298,181 @@ model MarketingSuggestion {
   @@index([status, createdAt])
   @@map("marketing_suggestions")
 }
+
+// ---------------------------------------------------------------------------
+// Marketing operacional (posts do Instagram, e-mail, contatos, sequências).
+// Nada sai sem aprovação: aprovar grava contentHash e publicar/enviar confere
+// que o conteúdo não mudou depois disso. Ver docs/marketing.md.
+// ---------------------------------------------------------------------------
+
+// Post do Instagram. status: awaiting_approval → approved (ou scheduled) →
+// publishing → published | failed; e também changes_requested e rejected.
+model MarketingPost {
+  id           String    @id @default(cuid())
+  title        String
+  caption      String
+  hashtags     String[]
+  extraText    String?   @map("extra_text")
+  artSource    String    @map("art_source")
+  artPrompt    String?   @map("art_prompt")
+  artHeadline  String    @map("art_headline")
+  artSubline   String?   @map("art_subline")
+  listingId    String?   @map("listing_id")
+  imageUrl     String?   @map("image_url")
+  status       String    @default("awaiting_approval")
+  feedback     String?
+  revision     Int       @default(1)
+  contentHash  String?   @map("content_hash")
+  approvedById String?   @map("approved_by_id")
+  approvedAt   DateTime? @map("approved_at")
+  scheduledFor DateTime? @map("scheduled_for")
+  publishedAt  DateTime? @map("published_at")
+  igMediaId    String?   @map("ig_media_id")
+  igPermalink  String?   @map("ig_permalink")
+  error        String?
+  metrics      Json?
+  metricsAt    DateTime? @map("metrics_at")
+  suggestionId String?   @map("suggestion_id")
+  taskId       String?   @map("task_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, scheduledFor])
+  @@map("marketing_posts")
+}
+
+// Contato de marketing (lead). Um por e-mail; telefone também evita duplicar.
+// consent: opt_in (pediu para receber), legitimate_interest (é cliente/loja
+// ou pediu contato sobre o assunto), none (só registro, não recebe marketing).
+model MarketingContact {
+  id               String               @id @default(cuid())
+  email            String?              @unique
+  phone            String?
+  name             String?
+  userId           String?              @unique @map("user_id")
+  interest         String               @default("geral")
+  source           String
+  sourceDetail     String?              @map("source_detail")
+  consent          String               @default("none")
+  consentAt        DateTime?            @map("consent_at")
+  consentText      String?              @map("consent_text")
+  status           String               @default("active")
+  unsubscribedAt   DateTime?            @map("unsubscribed_at")
+  stage            String               @default("novo")
+  unsubscribeToken String               @unique @default(cuid()) @map("unsubscribe_token")
+  lastEmailAt      DateTime?            @map("last_email_at")
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+  sends            EmailSend[]
+  enrollments      SequenceEnrollment[]
+
+  @@index([phone])
+  @@index([interest, consent, status])
+  @@map("marketing_contacts")
+}
+
+// Campanha de e-mail para um segmento (interesses/origens). Só vai para quem
+// tem consentimento e não se descadastrou.
+model EmailCampaign {
+  id           String      @id @default(cuid())
+  name         String
+  subject      String
+  preheader    String?
+  body         String
+  ctaLabel     String?     @map("cta_label")
+  ctaUrl       String?     @map("cta_url")
+  segment      Json
+  status       String      @default("awaiting_approval")
+  feedback     String?
+  contentHash  String?     @map("content_hash")
+  approvedById String?     @map("approved_by_id")
+  approvedAt   DateTime?   @map("approved_at")
+  scheduledFor DateTime?   @map("scheduled_for")
+  sentAt       DateTime?   @map("sent_at")
+  taskId       String?     @map("task_id")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  sends        EmailSend[]
+
+  @@index([status])
+  @@map("email_campaigns")
+}
+
+// Um e-mail para um contato (de campanha ou de sequência).
+// status: queued → sent → delivered | bounced | complained | failed
+model EmailSend {
+  id           String           @id @default(cuid())
+  contactId    String           @map("contact_id")
+  contact      MarketingContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  campaignId   String?          @map("campaign_id")
+  campaign     EmailCampaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  enrollmentId String?          @map("enrollment_id")
+  stepIndex    Int?             @map("step_index")
+  subject      String
+  status       String           @default("queued")
+  providerId   String?          @map("provider_id")
+  error        String?
+  clicks       Int              @default(0)
+  sentAt       DateTime?        @map("sent_at")
+  deliveredAt  DateTime?        @map("delivered_at")
+  firstClickAt DateTime?        @map("first_click_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  events       EmailEvent[]
+
+  @@unique([campaignId, contactId])
+  @@unique([enrollmentId, stepIndex])
+  @@index([status, createdAt])
+  @@index([providerId])
+  @@map("email_sends")
+}
+
+model EmailEvent {
+  id        String    @id @default(cuid())
+  sendId    String    @map("send_id")
+  send      EmailSend @relation(fields: [sendId], references: [id], onDelete: Cascade)
+  type      String
+  data      Json?
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([sendId])
+  @@map("email_events")
+}
+
+// Sequência automática (jornada) por interesse. Passos em JSON:
+// [{ delayDays, subject, preheader?, body, ctaLabel?, ctaUrl? }].
+model EmailSequence {
+  id           String               @id @default(cuid())
+  key          String               @unique
+  name         String
+  interests    String[]
+  steps        Json
+  status       String               @default("awaiting_approval")
+  feedback     String?
+  contentHash  String?              @map("content_hash")
+  approvedById String?              @map("approved_by_id")
+  approvedAt   DateTime?            @map("approved_at")
+  taskId       String?              @map("task_id")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+  enrollments  SequenceEnrollment[]
+
+  @@map("email_sequences")
+}
+
+model SequenceEnrollment {
+  id         String           @id @default(cuid())
+  sequenceId String           @map("sequence_id")
+  sequence   EmailSequence    @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  contactId  String           @map("contact_id")
+  contact    MarketingContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  nextStep   Int              @default(0) @map("next_step")
+  nextAt     DateTime         @map("next_at")
+  status     String           @default("active")
+  stopReason String?          @map("stop_reason")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  @@unique([sequenceId, contactId])
+  @@index([status, nextAt])
+  @@map("sequence_enrollments")
+}
