@@ -218,9 +218,10 @@ function Operations({ data }: { data: OpsSummary }) {
           <h2 className="font-display text-lg font-semibold text-ink">Tarefas</h2>
           <p className="text-xs text-ink-muted">As 50 mais recentes, com o último registro de cada uma.</p>
         </div>
-        <div className="overflow-x-auto rounded-brand-lg border border-border">
+        {/* Rolagem própria (cerca de 6 tarefas visíveis) com cabeçalho fixo. */}
+        <div className="max-h-[560px] overflow-auto rounded-brand-lg border border-border">
           <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="bg-surface-sober text-xs uppercase text-ink-muted">
+            <thead className="sticky top-0 z-10 bg-surface-sober text-xs uppercase text-ink-muted">
               <tr>
                 <th className="px-3 py-2">Tarefa</th>
                 <th className="px-3 py-2">Situação</th>
@@ -240,7 +241,9 @@ function Operations({ data }: { data: OpsSummary }) {
               {data.tasks.map((task) => (
                 <tr key={task.id} className="border-t border-border align-top">
                   <td className="px-3 py-2">
-                    <span className="font-semibold text-ink">{task.objective}</span>
+                    <span className="line-clamp-3 font-semibold text-ink" title={task.objective}>
+                      {task.objective}
+                    </span>
                     <span className="block text-xs text-ink-muted">
                       {OPS_AGENT_LABELS[task.agent] ?? task.agent} · {SEGMENT_LABELS[task.segment] ?? task.segment} · por {task.createdBy}
                     </span>
