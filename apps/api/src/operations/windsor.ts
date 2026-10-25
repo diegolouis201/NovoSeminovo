@@ -13,19 +13,20 @@ export function windsorEnabled(): boolean {
 export async function windsorRows(connector: string, fields: string[], datePreset: string): Promise<Record<string, unknown>[]> {
   const key = process.env.WINDSOR_API_KEY;
   if (!key) throw new Error("Windsor.ai não configurado (WINDSOR_API_KEY)");
-  const url = `${BASE_URL}/${encodeURIComponent(connector)}?fields=${encodeURIComponent(fields.join(","))}&date_preset=${encodeURIComponent(datePreset)}`;
-  const hit = cache.get(url);
+  const query = `${BASE_URL}/${encodeURIComponent(connector)}?fields=${encodeURIComponent(fields.join(","))}&date_preset=${encodeURIComponent(datePreset)}`;
+  const hit = cache.get(query);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.rows;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000);
   try {
-    // A chave vai no cabeçalho, não na URL: assim ela não aparece em log de acesso.
-    const res = await fetch(url, { headers: { "X-Api-Key": key }, signal: controller.signal });
-    if (!res.ok) throw new Error(`Windsor.ai respondeu ${res.status}`);
+    // A API do Windsor só aceita a chave como parâmetro api_key (no cabeçalho
+    // responde 400). A URL com a chave nunca vai para log nem para mensagem de erro.
+    const res = await fetch(`${query}&api_key=${encodeURIComponent(key)}`, { signal: controller.signal });
+    if (!res.ok) throw new Error(`Windsor.ai respondeu ${res.status} (${connector})`);
     const body = (await res.json()) as { data?: Record<string, unknown>[] } | Record<string, unknown>[];
     const rows = Array.isArray(body) ? body : (body.data ?? []);
-    cache.set(url, { at: Date.now(), rows });
+    cache.set(query, { at: Date.now(), rows });
     return rows;
   } finally {
     clearTimeout(timeout);
