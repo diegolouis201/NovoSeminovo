@@ -5,6 +5,7 @@ import {
   OPS_FEATURE_LABELS,
   OPS_GOAL_METRICS,
   OPS_ROUTINE_LABELS,
+  OPS_RUNNABLE_AGENTS,
   OPS_TASK_STATUS_LABELS,
   formatBRL,
   type OpsApprovalView,
@@ -12,7 +13,7 @@ import {
 } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { opsDecisionAction, opsDeleteGoalAction, opsSaveGoalAction, opsTaskActionForm } from "@/lib/actions/operations";
+import { opsDecisionAction, opsDeleteGoalAction, opsRunAgentAction, opsSaveGoalAction, opsSuggestionAction, opsTaskActionForm } from "@/lib/actions/operations";
 import { fetchOpsSummary } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -90,6 +91,8 @@ function Operations({ data }: { data: OpsSummary }) {
           </div>
         ))}
       </section>
+
+      <AgentsPanel data={data} />
 
       <section id="aprovacoes" className="flex scroll-mt-24 flex-col gap-3">
         <h2 className="font-display text-lg font-semibold text-ink">
@@ -212,7 +215,7 @@ function Operations({ data }: { data: OpsSummary }) {
       <section id="tarefas" className="flex scroll-mt-24 flex-col gap-3">
         <div>
           <h2 className="font-display text-lg font-semibold text-ink">Tarefas</h2>
-          <p className="text-xs text-ink-muted">As 50 mais recentes. Nesta fase só roda a foto diária dos KPIs (6h); os agentes entram na Fase 2.</p>
+          <p className="text-xs text-ink-muted">As 50 mais recentes, com o último registro de cada uma.</p>
         </div>
         <div className="overflow-x-auto rounded-brand-lg border border-border">
           <table className="w-full min-w-[760px] text-left text-sm">
@@ -268,6 +271,8 @@ function Operations({ data }: { data: OpsSummary }) {
         </div>
       </section>
 
+      <MarketingSuggestions data={data} />
+
       <Goals data={data} />
     </>
   );
@@ -309,7 +314,7 @@ function Goals({ data }: { data: OpsSummary }) {
       <div>
         <h2 className="font-display text-lg font-semibold text-ink">Metas</h2>
         <p className="text-xs text-ink-muted">
-          O valor atual é calculado pelo sistema a partir dos dados do site — nenhum agente informa o próprio resultado. O Diretor (Fase 2) usa estas metas no resumo diário.
+          O valor atual é calculado pelo sistema a partir dos dados do site — nenhum agente informa o próprio resultado. O Diretor usa estas metas no resumo diário.
         </p>
       </div>
       {data.goals.length > 0 && (
@@ -409,6 +414,109 @@ function Goals({ data }: { data: OpsSummary }) {
           Salvar meta
         </Button>
       </form>
+    </section>
+  );
+}
+
+const AGENT_SCHEDULE: Record<string, string> = {
+  diretor: "todo dia às 8h",
+  operacoes: "todo dia às 9h",
+  comercial: "todo dia às 10h",
+  marketing: "segundas às 11h",
+};
+
+const AGENT_JOB: Record<string, string> = {
+  diretor: "Lê metas e números, aponta o que está em risco, distribui tarefas e manda o resumo do dia por e-mail.",
+  operacoes: "Acha anúncios com problema e manda dicas aos donos; pede sua aprovação para suspender casos suspeitos.",
+  comercial: "Lembra lojas com clientes esperando resposta e lojas no período grátis que ainda não anunciaram.",
+  marketing: "Sugere posts e campanhas com link rastreado, a partir das origens, do Google Analytics e do Instagram.",
+};
+
+function AgentsPanel({ data }: { data: OpsSummary }) {
+  return (
+    <section id="agentes" className="flex scroll-mt-24 flex-col gap-3">
+      <div>
+        <h2 className="font-display text-lg font-semibold text-ink">Agentes</h2>
+        {!data.agentsEnabled && (
+          <p className="mt-1 rounded-brand bg-status-danger/10 px-3 py-2 text-sm text-status-danger">A IA dos agentes está desligada no servidor (sem chave da Anthropic ou OPS_AGENTS_DISABLED=1).</p>
+        )}
+        {!data.windsorEnabled && (
+          <p className="mt-1 rounded-brand bg-surface-sober px-3 py-2 text-sm text-ink">
+            Google Analytics e Instagram ainda não estão ligados (falta a chave do Windsor.ai no servidor). O Diretor e o Marketing trabalham só com os dados do site até lá.
+          </p>
+        )}
+      </div>
+      {data.latestSummary && (
+        <article className="rounded-brand-lg border-2 border-brand-blue bg-surface-raised p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-brand-blue">Resumo do Diretor · {dateTime(data.latestSummary.createdAt)}</p>
+          <p className="mt-2 whitespace-pre-line text-sm text-ink">{data.latestSummary.body}</p>
+        </article>
+      )}
+      <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {OPS_RUNNABLE_AGENTS.map((agent) => (
+          <li key={agent} className="flex flex-col gap-2 rounded-brand-lg border border-border bg-surface-raised p-4">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="font-semibold text-ink">{OPS_AGENT_LABELS[agent]}</p>
+              <p className="text-xs text-ink-muted">{AGENT_SCHEDULE[agent]}</p>
+            </div>
+            <p className="text-sm text-ink-muted">{AGENT_JOB[agent]}</p>
+            <form action={opsRunAgentAction.bind(null, agent)}>
+              <button type="submit" disabled={!data.agentsEnabled} className="text-sm font-semibold text-brand-blue hover:underline disabled:text-ink-muted disabled:no-underline">
+                Rodar agora →
+              </button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+const CHANNEL_LABELS: Record<string, string> = {
+  instagram: "Instagram",
+  facebook: "Facebook",
+  tiktok: "TikTok",
+  whatsapp: "WhatsApp",
+  google: "Google",
+  youtube: "YouTube",
+  email: "E-mail",
+  blog: "Blog",
+};
+
+function MarketingSuggestions({ data }: { data: OpsSummary }) {
+  return (
+    <section id="marketing" className="flex scroll-mt-24 flex-col gap-3">
+      <div>
+        <h2 className="font-display text-lg font-semibold text-ink">
+          Sugestões do Marketing <span className="text-base font-normal text-ink-muted">({data.suggestions.length})</span>
+        </h2>
+        <p className="text-xs text-ink-muted">Nada é publicado sozinho. Copie o texto, publique no canal e marque como usada — o link já vem rastreado para aparecer no painel geral.</p>
+      </div>
+      {data.suggestions.length === 0 ? (
+        <p className="text-sm text-ink-muted">Nenhuma sugestão nova. O Marketing roda às segundas; use “Rodar agora” para pedir antes.</p>
+      ) : (
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {data.suggestions.map((suggestion) => (
+            <li key={suggestion.id} className="flex flex-col gap-2 rounded-brand-lg border border-border bg-surface-raised p-4 text-sm">
+              <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">
+                {CHANNEL_LABELS[suggestion.channel] ?? suggestion.channel}
+                {suggestion.audience ? ` · ${suggestion.audience}` : ""}
+              </p>
+              <p className="font-semibold text-ink">{suggestion.title}</p>
+              <p className="whitespace-pre-line text-ink">{suggestion.body}</p>
+              {suggestion.link && <p className="break-all rounded-brand bg-surface-sober px-2 py-1 font-mono text-xs text-ink">{suggestion.link}</p>}
+              <form action={opsSuggestionAction.bind(null, suggestion.id)} className="flex gap-4">
+                <button type="submit" name="status" value="usada" className="text-xs font-semibold text-brand-green hover:underline">
+                  Usei
+                </button>
+                <button type="submit" name="status" value="descartada" className="text-xs font-semibold text-status-danger hover:underline">
+                  Descartar
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

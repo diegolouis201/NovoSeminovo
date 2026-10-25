@@ -1271,6 +1271,9 @@ export const NotificationType = z.enum([
   "listing_suspended",
   "ops_approval_requested",
   "ops_alert",
+  "listing_tip",
+  "partner_tip",
+  "ops_daily_summary",
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
@@ -2126,6 +2129,11 @@ export type OpsRoutineView = {
   failures: number;
   healthy: boolean;
 };
+export type OpsReportView = { id: string; agent: string; kind: string; body: string; createdAt: string };
+export type MarketingSuggestionView = { id: string; title: string; channel: string; audience?: string; body: string; link?: string; status: string; createdAt: string };
+// Agentes que o admin pode mandar rodar na hora (botão "Rodar agora").
+export const OPS_RUNNABLE_AGENTS = ["diretor", "operacoes", "comercial", "marketing"] as const;
+export const MarketingSuggestionStatusInputSchema = z.object({ status: z.enum(["nova", "usada", "descartada"]) });
 export type OpsGoalView = { id: string; metric: string; segment: string; period: string; target: number; agent: string; note?: string; current?: number };
 export type OpsSummary = {
   generatedAt: string;
@@ -2136,6 +2144,10 @@ export type OpsSummary = {
   tasks: OpsTaskView[];
   routines: OpsRoutineView[];
   goals: OpsGoalView[];
+  latestSummary?: OpsReportView;
+  suggestions: MarketingSuggestionView[];
+  windsorEnabled: boolean;
+  agentsEnabled: boolean;
 };
 
 export const OpsDecisionInputSchema = z.object({ note: z.string().trim().max(500).optional() });

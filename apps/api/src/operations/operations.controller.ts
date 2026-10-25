@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from "@nestjs/common";
-import { OpsDecisionInputSchema, OpsGoalInputSchema } from "@novoseminovo/shared-types";
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { MarketingSuggestionStatusInputSchema, OPS_RUNNABLE_AGENTS, OpsDecisionInputSchema, OpsGoalInputSchema } from "@novoseminovo/shared-types";
 import { AdminGuard } from "../admin/admin.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
+import { GoalsService } from "./goals.service";
 import { OperationsService } from "./operations.service";
 import { TaskQueueService } from "./task-queue.service";
 import { OpsToolsService } from "./tools.service";
@@ -16,6 +17,7 @@ export class OperationsController {
     private readonly operations: OperationsService,
     private readonly tools: OpsToolsService,
     private readonly queue: TaskQueueService,
+    private readonly goals: GoalsService,
   ) {}
 
   @Get()
@@ -47,11 +49,26 @@ export class OperationsController {
 
   @Post("goals")
   saveGoal(@Body() body: unknown) {
-    return this.operations.saveGoal(parseOrBadRequest(OpsGoalInputSchema, body));
+    return this.goals.save(parseOrBadRequest(OpsGoalInputSchema, body));
   }
 
   @Delete("goals/:id")
   deleteGoal(@Param("id") id: string) {
-    return this.operations.deleteGoal(id);
+    return this.goals.remove(id);
+  }
+
+  @Post("agents/:agent/run")
+  async runNow(@CurrentUser() user: { id: string }, @Param("agent") agent: string) {
+    if (!(OPS_RUNNABLE_AGENTS as readonly string[]).includes(agent)) throw new BadRequestException("Agente desconhecido");
+    try {
+      return await this.operations.runNow(agent, user.id);
+    } catch (error) {
+      throw new BadRequestException(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  @Patch("suggestions/:id")
+  setSuggestionStatus(@Param("id") id: string, @Body() body: unknown) {
+    return this.operations.setSuggestionStatus(id, parseOrBadRequest(MarketingSuggestionStatusInputSchema, body).status);
   }
 }

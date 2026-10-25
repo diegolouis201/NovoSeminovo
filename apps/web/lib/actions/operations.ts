@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { opsDecideApproval, opsDeleteGoal, opsSaveGoal, opsTaskAction } from "@/lib/api";
+import { opsDecideApproval, opsDeleteGoal, opsRunAgent, opsSaveGoal, opsSetSuggestionStatus, opsTaskAction } from "@/lib/api";
 
 const PAGE = "/admin/operacao";
 
@@ -55,4 +55,15 @@ export async function opsSaveGoalAction(formData: FormData): Promise<void> {
 export async function opsDeleteGoalAction(id: string): Promise<void> {
   await opsDeleteGoal(id, await token());
   back({ ok: true }, "Meta apagada.", "metas");
+}
+
+export async function opsRunAgentAction(agent: string): Promise<void> {
+  const result = await opsRunAgent(agent, await token());
+  back(result, "Agente na fila: ele roda em até 1 minuto. Recarregue a página para ver o resultado.", "agentes");
+}
+
+export async function opsSuggestionAction(id: string, formData: FormData): Promise<void> {
+  const status = formData.get("status") === "usada" ? "usada" : "descartada";
+  const result = await opsSetSuggestionStatus(id, status, await token());
+  back(result, status === "usada" ? "Sugestão marcada como usada." : "Sugestão descartada.", "marketing");
 }

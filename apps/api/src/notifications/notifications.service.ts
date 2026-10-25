@@ -65,6 +65,24 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: String(payload.body ?? ""),
         link: "/admin/operacao",
       };
+    case "listing_tip":
+      return {
+        title: "Uma dica para o seu anúncio vender mais",
+        body: `Sobre "${payload.listingTitle}": ${payload.message}`,
+        link: `/anuncio/${payload.listingId}`,
+      };
+    case "partner_tip":
+      return {
+        title: String(payload.title ?? "Uma dica para a sua loja"),
+        body: String(payload.message ?? ""),
+        link: String(payload.link ?? "/parceiro"),
+      };
+    case "ops_daily_summary":
+      return {
+        title: `Resumo do dia — ${payload.dayLabel}`,
+        body: String(payload.body ?? ""),
+        link: "/admin/operacao",
+      };
     case "new_message":
       return {
         title: "Nova mensagem",

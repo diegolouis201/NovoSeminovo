@@ -1266,3 +1266,35 @@ model RoutineHeartbeat {
 
   @@map("routine_heartbeats")
 }
+
+// Relatório escrito por um agente (ex.: resumo diário do Diretor).
+model OpsReport {
+  id        String   @id @default(cuid())
+  agent     String
+  kind      String
+  body      String
+  data      Json?
+  taskId    String?  @map("task_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([kind, createdAt])
+  @@map("ops_reports")
+}
+
+// Sugestão de post/campanha do agente de Marketing. Nada é publicado sozinho:
+// o admin marca como usada ou descarta.
+model MarketingSuggestion {
+  id        String   @id @default(cuid())
+  title     String
+  channel   String
+  audience  String?
+  body      String
+  link      String?
+  status    String   @default("nova")
+  taskId    String?  @map("task_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@map("marketing_suggestions")
+}

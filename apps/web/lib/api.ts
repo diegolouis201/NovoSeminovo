@@ -1776,3 +1776,11 @@ export async function opsDeleteGoal(id: string, accessToken: string): Promise<vo
     // a tela recarrega e mostra o que ficou
   }
 }
+
+export function opsRunAgent(agent: string, accessToken: string): Promise<ApiResult<{ taskId: string }>> {
+  return sendJson(`/admin/operations/agents/${encodeURIComponent(agent)}/run`, "POST", {}, accessToken);
+}
+
+export function opsSetSuggestionStatus(id: string, status: "nova" | "usada" | "descartada", accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/admin/operations/suggestions/${encodeURIComponent(id)}`, "PATCH", { status }, accessToken);
+}

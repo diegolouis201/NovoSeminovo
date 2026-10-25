@@ -174,6 +174,12 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - Ainda nenhum agente novo age: tarefa de agente sem handler fica "Bloqueada".
    - Testes: `pnpm --filter @novoseminovo/api test` (16 testes; política, fila concorrente, aprovação adulterada ou vencida, teto de custo).
 
+32. **Agentes de IA — Fases 2, 3 e 4**: Diretor (8h), Operações (9h), Comercial (10h) e Marketing (segunda, 11h) rodando pela fila.
+   - Resumo do Diretor por e-mail e no topo de `/admin/operacao`; sugestões de marketing na mesma tela; botão "Rodar agora".
+   - Integração Windsor.ai (GA4 e Instagram) via `WINDSOR_API_KEY`.
+   - O e-mail de notificação agora escapa HTML e respeita quebras de linha (texto de agente ou de usuário nunca vira HTML).
+   - Detalhes em `docs/agentes-ia.md`.
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).

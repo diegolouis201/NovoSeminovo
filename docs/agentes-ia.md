@@ -42,3 +42,24 @@ Variáveis (todas opcionais):
 3. Texto de terceiros (anúncio, mensagem) entra no prompt via `untrusted()`.
 4. Agendamento em `SCHEDULES` (ex.: Diretor às 8h).
 5. Teste na `operations.spec.ts` cobrindo o que ele não pode fazer.
+
+## Fases 2 a 4 (no ar)
+
+O Diego pediu para rodar todas as fases de uma vez, porque o site ainda está em beta.
+
+| Agente | Quando | Ferramentas |
+| --- | --- | --- |
+| Diretor | 8h todo dia | ler_painel, ler_metas, ler_trafego_site, ler_instagram, criar_tarefa, registrar_resumo_diario (vai por e-mail e para o topo de /admin/operacao) |
+| Operações | 9h todo dia | listar_anuncios_com_problema, avisar_dono_anuncio (1 por anúncio a cada 7 dias), suspender_anuncio [amarela] |
+| Comercial | 10h todo dia | listar_leads_parados, listar_lojas_em_teste_sem_anuncio, lembrar_parceiro (1 por loja e assunto a cada 7 dias) |
+| Marketing | segunda 11h | ler_painel, ler_trafego_site, ler_instagram, registrar_sugestao_marketing (link sempre do site e com utm) |
+
+- **Onde estão:** prompts em `operations/agents.service.ts`; ferramentas em `operations/tools.service.ts`; agenda em `SCHEDULES` (`operations.service.ts`).
+- **Rodar na hora:** botão "Rodar agora" na tela.
+- **Teto de avisos:** `OPS_MAX_MESSAGES_PER_DAY` (padrão 30 por dia, somando os avisos a donos de anúncio e os lembretes a parceiros).
+- **Ação amarela pendente no fim da rodada:** a tarefa fica "Esperando aprovação". Depois da decisão ela é concluída; não roda de novo.
+- **Integração (Fase 4):** Windsor.ai, só leitura (`operations/windsor.ts`, `WINDSOR_API_KEY`).
+  - Já ligados na conta: GA4 (Novoseminovo) e Instagram (@novoseminovooficial).
+  - Meta Ads e Google Ads entram quando forem conectados no Windsor.
+  - WhatsApp aguarda a verificação da Meta; a Credihome aguarda as credenciais.
+- **Testes:** 20, incluindo um agente completo contra um modelo falso que tenta usar uma ferramenta proibida.

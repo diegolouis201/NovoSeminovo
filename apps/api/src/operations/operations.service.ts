@@ -4,8 +4,6 @@ import {
   OPS_ROUTINE_LABELS,
   type AdminOverviewScope,
   type OpsApprovalView,
-  type OpsGoalInput,
-  type OpsGoalView,
   type OpsSummary,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
@@ -15,6 +13,8 @@ import { aiContext, setAiUsageSink, usdToBrlRate } from "./ai-usage";
 import { setRoutineSink, trackRoutine } from "./routine-health";
 import { TaskQueueService } from "./task-queue.service";
 import { OpsToolsService } from "./tools.service";
+import { GoalsService } from "./goals.service";
+import { windsorEnabled } from "./windsor";
 import { AGENT_FEATURE_PREFIX, UsageService, brtDay, brtDayStart, brtHour, dailyBudgetBrl } from "./usage.service";
 
 const TICK_MS = 30 * 1000;
@@ -33,9 +33,23 @@ type TaskHandler = {
 
 // Rotinas agendadas: entram na fila uma vez por dia (dedupeKey com a data),
 // a partir do horário de Brasília indicado.
-const SCHEDULES: { key: string; agent: string; hourBrt: number; objective: string }[] = [
+// weekday (0 = domingo) limita a um dia da semana. Os agentes com IA só
+// entram na fila se a IA estiver ligada (aiAgentsEnabled).
+const SCHEDULES: { key: string; agent: string; hourBrt: number; weekday?: number; usesAi?: boolean; objective: string }[] = [
   { key: "kpi-snapshot", agent: "sistema:kpi", hourBrt: 6, objective: "Guardar a foto diária dos KPIs (geral, carros e imóveis)" },
+  { key: "diretor", agent: "diretor", hourBrt: 8, usesAi: true, objective: "Resumo diário: metas, números do mês e prioridades" },
+  { key: "operacoes", agent: "operacoes", hourBrt: 9, usesAi: true, objective: "Revisar anúncios com problema e avisar os donos" },
+  { key: "comercial", agent: "comercial", hourBrt: 10, usesAi: true, objective: "Lembrar lojas com leads parados ou sem anúncio no período grátis" },
+  { key: "marketing", agent: "marketing", hourBrt: 11, weekday: 1, usesAi: true, objective: "Sugestões de conteúdo e campanhas da semana" },
 ];
+
+function brtWeekday(now: Date): number {
+  return new Date(now.getTime() - 3 * 60 * 60 * 1000).getUTCDay();
+}
+
+export function aiAgentsEnabled(): boolean {
+  return Boolean(process.env.ANTHROPIC_API_KEY) && process.env.OPS_AGENTS_DISABLED !== "1";
+}
 
 const SCOPES: AdminOverviewScope[] = ["all", "vehicle", "property"];
 
@@ -57,6 +71,7 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
     private readonly queue: TaskQueueService,
     private readonly tools: OpsToolsService,
     private readonly usage: UsageService,
+    private readonly goals: GoalsService,
   ) {
     this.handlers.set("sistema:kpi", { usesAi: false, run: () => this.snapshotKpis() });
   }
@@ -103,6 +118,8 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
   async schedule(now = new Date()): Promise<void> {
     for (const item of SCHEDULES) {
       if (brtHour(now) < item.hourBrt) continue;
+      if (item.weekday !== undefined && brtWeekday(now) !== item.weekday) continue;
+      if (item.usesAi && !aiAgentsEnabled()) continue;
       await this.queue.enqueue({ agent: item.agent, createdBy: "agendador", objective: item.objective, dedupeKey: `${item.key}:${brtDay(now)}` });
     }
   }
@@ -121,7 +138,13 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
     }
     try {
       const result = await aiContext.run({ feature: `${AGENT_FEATURE_PREFIX}${task.agent}`, taskId: task.id }, () => handler.run(task));
-      await this.queue.complete(task.id, result);
+      const pendingApprovals = await this.prisma.agentApproval.count({ where: { taskId: task.id, status: "pending" } });
+      if (pendingApprovals) {
+        await this.prisma.agentTask.update({ where: { id: task.id }, data: { result } });
+        await this.queue.setStatus(task.id, "awaiting_approval", `Terminou a análise; ${pendingApprovals} pedido(s) esperando sua aprovação.`);
+      } else {
+        await this.queue.complete(task.id, result);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const outcome = await this.queue.fail(task.id, message);
@@ -213,7 +236,11 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
       this.prisma.agentApproval.findMany({ where: { status: { not: "pending" } }, orderBy: { createdAt: "desc" }, take: 10 }),
       this.prisma.agentTask.findMany({ orderBy: { createdAt: "desc" }, take: 50, include: { events: { orderBy: { createdAt: "desc" }, take: 1 } } }),
       this.prisma.routineHeartbeat.findMany({ orderBy: { name: "asc" } }),
-      this.prisma.agentGoal.findMany({ where: { period: { gte: monthKey(new Date(now.getTime() - 40 * 24 * 60 * 60 * 1000)) } }, orderBy: [{ period: "desc" }, { metric: "asc" }] }),
+      this.goals.list(now),
+    ]);
+    const [latestSummary, suggestions] = await Promise.all([
+      this.prisma.opsReport.findFirst({ where: { kind: "resumo_diario" }, orderBy: { createdAt: "desc" } }),
+      this.prisma.marketingSuggestion.findMany({ where: { status: "nova" }, orderBy: { createdAt: "desc" }, take: 20 }),
     ]);
 
     const approvalView = (row: (typeof pending)[number]): OpsApprovalView => ({
@@ -265,70 +292,35 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
         failures: routine.failures,
         healthy: now.getTime() - routine.lastRunAt.getTime() <= routine.intervalMs * STALE_FACTOR && routine.failures < FAILURES_ALERT,
       })),
-      goals: await Promise.all(goals.map((goal) => this.goalView(goal, now))),
+      goals,
+      latestSummary: latestSummary
+        ? { id: latestSummary.id, agent: latestSummary.agent, kind: latestSummary.kind, body: latestSummary.body, createdAt: latestSummary.createdAt.toISOString() }
+        : undefined,
+      suggestions: suggestions.map((row) => ({
+        id: row.id,
+        title: row.title,
+        channel: row.channel,
+        audience: row.audience ?? undefined,
+        body: row.body,
+        link: row.link ?? undefined,
+        status: row.status,
+        createdAt: row.createdAt.toISOString(),
+      })),
+      windsorEnabled: windsorEnabled(),
+      agentsEnabled: aiAgentsEnabled(),
     };
   }
 
-  async saveGoal(input: OpsGoalInput): Promise<{ ok: true }> {
-    await this.prisma.agentGoal.upsert({
-      where: { metric_segment_period: { metric: input.metric, segment: input.segment, period: input.period } },
-      create: { ...input, note: input.note || null },
-      update: { target: input.target, agent: input.agent, note: input.note || null },
-    });
-    return { ok: true };
+  // Botão "Rodar agora" da tela: entra na fila com prioridade.
+  async runNow(agent: string, adminId: string): Promise<{ taskId: string }> {
+    if (!aiAgentsEnabled()) throw new Error("A IA dos agentes está desligada no servidor.");
+    const { task } = await this.queue.enqueue({ agent, createdBy: `admin:${adminId}`, objective: "Rodada pedida pelo admin", priority: 1 });
+    return { taskId: task.id };
   }
 
-  async deleteGoal(id: string): Promise<{ ok: true }> {
-    await this.prisma.agentGoal.deleteMany({ where: { id } });
+  async setSuggestionStatus(id: string, status: string): Promise<{ ok: true }> {
+    await this.prisma.marketingSuggestion.updateMany({ where: { id }, data: { status } });
     return { ok: true };
-  }
-
-  // Valor atual do indicador no mês da meta — calculado pelo sistema, nunca
-  // informado pelo agente.
-  private async goalView(goal: { id: string; metric: string; segment: string; period: string; target: Prisma.Decimal; agent: string; note: string | null }, now: Date): Promise<OpsGoalView> {
-    const start = new Date(`${goal.period}-01T03:00:00Z`);
-    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1, 3));
-    const range = { gte: start, lt: end };
-    const type = goal.segment === "vehicle" || goal.segment === "property" ? goal.segment : undefined;
-    let current: number | undefined;
-    if (start <= now) {
-      switch (goal.metric) {
-        case "leads":
-          current = await this.prisma.lead.count({ where: { createdAt: range, ...(type ? { listing: { type } } : {}) } });
-          break;
-        case "cadastros":
-          current = await this.prisma.user.count({ where: { createdAt: range } });
-          break;
-        case "anuncios_ativos":
-          current = await this.prisma.listing.count({ where: { status: "active", ...(type ? { type } : {}) } });
-          break;
-        case "anuncios_vendidos":
-          current = await this.prisma.listing.count({ where: { status: "sold", soldAt: range, ...(type ? { type } : {}) } });
-          break;
-        case "financiamentos":
-          current = await this.prisma.financingLead.count({ where: { createdAt: range, ...(type ? { assetType: type } : {}) } });
-          break;
-        case "receita_total": {
-          const data = await this.overview.overview((type ?? "all") as AdminOverviewScope);
-          const month = data.revenue.months.find((row) => row.month === goal.period);
-          current = month ? month.listingPlans + month.subscriptions + month.financing + month.stores : 0;
-          break;
-        }
-      }
-    }
-    return {
-      id: goal.id,
-      metric: goal.metric,
-      segment: goal.segment,
-      period: goal.period,
-      target: Number(goal.target),
-      agent: goal.agent,
-      note: goal.note ?? undefined,
-      current,
-    };
   }
 }
 
-function monthKey(date: Date): string {
-  return date.toISOString().slice(0, 7);
-}

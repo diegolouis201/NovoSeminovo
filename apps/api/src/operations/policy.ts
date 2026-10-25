@@ -14,6 +14,8 @@ export type OpsTool<Input = unknown> = {
   color: ToolColor;
   description: string;
   input: z.ZodType<Input>;
+  // JSON Schema mandado ao modelo (o zod confere de novo o que ele devolver).
+  schema: { type: "object"; properties: Record<string, unknown>; required?: string[] };
   // Texto curto do pedido de aprovação ("Suspender o anúncio X — motivo Y").
   summarize?: (input: Input) => string;
   impact?: (input: Input) => string | undefined;
@@ -23,10 +25,10 @@ export type OpsTool<Input = unknown> = {
 // Ferramentas que cada agente pode chamar. Agente fora da lista ou ferramenta
 // fora da lista dele = bloqueado, mesmo que a ferramenta exista.
 export const AGENT_TOOL_ALLOWLIST: Record<string, readonly string[]> = {
-  diretor: ["ler_painel", "criar_tarefa"],
-  operacoes: ["ler_painel", "criar_tarefa", "suspender_anuncio"],
-  comercial: ["ler_painel", "criar_tarefa"],
-  marketing: ["ler_painel", "criar_tarefa"],
+  diretor: ["ler_painel", "ler_metas", "ler_trafego_site", "ler_instagram", "criar_tarefa", "registrar_resumo_diario"],
+  operacoes: ["ler_painel", "listar_anuncios_com_problema", "avisar_dono_anuncio", "suspender_anuncio", "criar_tarefa"],
+  comercial: ["ler_painel", "ler_metas", "listar_leads_parados", "listar_lojas_em_teste_sem_anuncio", "lembrar_parceiro", "criar_tarefa"],
+  marketing: ["ler_painel", "ler_metas", "ler_trafego_site", "ler_instagram", "registrar_sugestao_marketing"],
 };
 
 export const APPROVAL_TTL_MS = 72 * 60 * 60 * 1000;
