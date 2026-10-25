@@ -15,6 +15,8 @@ import type {
   FipeModelSuggestion,
   AdminOverview,
   AdminOverviewScope,
+  OpsGoalInput,
+  OpsSummary,
   StoreEarningInput,
   FipePrice,
   FipeVersion,
@@ -1739,6 +1741,37 @@ export function saveStoreEarning(input: StoreEarningInput, accessToken: string):
 export async function deleteStoreEarning(id: string, accessToken: string): Promise<void> {
   try {
     await fetchWithTimeout(`${API_URL}/admin/store-earnings/${encodeURIComponent(id)}`, { method: "DELETE", headers: authHeaders(accessToken) });
+  } catch {
+    // a tela recarrega e mostra o que ficou
+  }
+}
+
+// Operação com agentes de IA (/admin/operacao).
+export async function fetchOpsSummary(accessToken: string): Promise<OpsSummary | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/operations`, { headers: authHeaders(accessToken), cache: "no-store" }, 20000);
+    if (!res.ok) return undefined;
+    return (await res.json()) as OpsSummary;
+  } catch {
+    return undefined;
+  }
+}
+
+export function opsDecideApproval(id: string, decision: "approve" | "reject", note: string | undefined, accessToken: string): Promise<ApiResult<{ status: string }>> {
+  return sendJson(`/admin/operations/approvals/${encodeURIComponent(id)}/${decision}`, "POST", { note: note || undefined }, accessToken);
+}
+
+export function opsTaskAction(id: string, action: "cancel" | "retry", accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/admin/operations/tasks/${encodeURIComponent(id)}/${action}`, "POST", {}, accessToken);
+}
+
+export function opsSaveGoal(input: OpsGoalInput, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson("/admin/operations/goals", "POST", input, accessToken);
+}
+
+export async function opsDeleteGoal(id: string, accessToken: string): Promise<void> {
+  try {
+    await fetchWithTimeout(`${API_URL}/admin/operations/goals/${encodeURIComponent(id)}`, { method: "DELETE", headers: authHeaders(accessToken) });
   } catch {
     // a tela recarrega e mostra o que ficou
   }

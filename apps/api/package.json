@@ -7,7 +7,8 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "rm -rf dist-test && tsc -p tsconfig.spec.json && node --test \"dist-test/**/*.spec.js\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.65.0",

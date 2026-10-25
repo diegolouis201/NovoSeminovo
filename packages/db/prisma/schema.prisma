@@ -1123,3 +1123,146 @@ model StoreEarning {
   @@unique([month, store])
   @@map("store_earnings")
 }
+
+// ---------------------------------------------------------------------------
+// Operação com agentes de IA (Fase 1 — núcleo). Ver docs/agentes-ia.md.
+// ---------------------------------------------------------------------------
+
+// Tarefa de um agente. status: pending → running → completed, com as saídas
+// awaiting_approval, blocked, failed e cancelled. dedupeKey impede que a mesma
+// rotina (ex.: "kpi-snapshot:2026-10-25") seja enfileirada duas vezes.
+model AgentTask {
+  id           String           @id @default(cuid())
+  agent        String
+  createdBy    String           @map("created_by")
+  objective    String
+  segment      String           @default("all")
+  input        Json?
+  priority     Int              @default(5)
+  status       String           @default("pending")
+  result       Json?
+  error        String?
+  attempts     Int              @default(0)
+  maxAttempts  Int              @default(3) @map("max_attempts")
+  runAfter     DateTime         @default(now()) @map("run_after")
+  lockedAt     DateTime?        @map("locked_at")
+  deadline     DateTime?
+  dedupeKey    String?          @unique @map("dedupe_key")
+  costLimitBrl Decimal?         @map("cost_limit_brl") @db.Decimal(10, 2)
+  parentId     String?          @map("parent_id")
+  completedAt  DateTime?        @map("completed_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  events       AgentTaskEvent[]
+  approvals    AgentApproval[]
+
+  @@index([status, runAfter])
+  @@index([agent, createdAt])
+  @@map("agent_tasks")
+}
+
+// Histórico da tarefa: só se acrescenta, nunca se edita.
+model AgentTaskEvent {
+  id        String    @id @default(cuid())
+  taskId    String    @map("task_id")
+  task      AgentTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  type      String
+  message   String
+  data      Json?
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([taskId, createdAt])
+  @@map("agent_task_events")
+}
+
+// Pedido de aprovação de uma ação amarela. paramsHash = assinatura da ação
+// exata: se os parâmetros mudarem depois, a aprovação não vale.
+model AgentApproval {
+  id           String     @id @default(cuid())
+  taskId       String?    @map("task_id")
+  task         AgentTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  agent        String
+  tool         String
+  params       Json
+  paramsHash   String     @map("params_hash")
+  summary      String
+  impact       String?
+  reason       String?
+  costBrl      Decimal?   @map("cost_brl") @db.Decimal(10, 2)
+  // pending → approved → executed | failed; ou rejected / expired
+  status       String     @default("pending")
+  expiresAt    DateTime   @map("expires_at")
+  decidedById  String?    @map("decided_by_id")
+  decidedAt    DateTime?  @map("decided_at")
+  decisionNote String?    @map("decision_note")
+  executedAt   DateTime?  @map("executed_at")
+  result       Json?
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@index([status, createdAt])
+  @@map("agent_approvals")
+}
+
+// Cada chamada aos modelos Claude (de qualquer uso de IA do site): tokens e custo.
+model AgentRun {
+  id               String   @id @default(cuid())
+  feature          String
+  taskId           String?  @map("task_id")
+  model            String
+  inputTokens      Int      @map("input_tokens")
+  outputTokens     Int      @map("output_tokens")
+  cacheReadTokens  Int      @default(0) @map("cache_read_tokens")
+  cacheWriteTokens Int      @default(0) @map("cache_write_tokens")
+  costUsd          Decimal  @map("cost_usd") @db.Decimal(12, 6)
+  costBrl          Decimal  @map("cost_brl") @db.Decimal(12, 4)
+  durationMs       Int?     @map("duration_ms")
+  error            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([feature, createdAt])
+  @@map("agent_runs")
+}
+
+// Meta de um indicador num período ("2026-11"), por segmento.
+model AgentGoal {
+  id        String   @id @default(cuid())
+  metric    String
+  segment   String   @default("all")
+  period    String
+  target    Decimal  @db.Decimal(14, 2)
+  agent     String
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([metric, segment, period])
+  @@map("agent_goals")
+}
+
+// Foto diária dos números do painel geral, por recorte (all / vehicle / property).
+model KpiSnapshot {
+  id        String   @id @default(cuid())
+  day       String
+  scope     String
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([day, scope])
+  @@map("kpi_snapshots")
+}
+
+// Batimento de cada rotina automática da API: o monitor avisa o admin quando
+// uma delas para de rodar ou começa a falhar.
+model RoutineHeartbeat {
+  name        String    @id
+  intervalMs  Int       @map("interval_ms")
+  lastRunAt   DateTime  @map("last_run_at")
+  lastOkAt    DateTime? @map("last_ok_at")
+  lastError   String?   @map("last_error")
+  failures    Int       @default(0)
+  lastAlertAt DateTime? @map("last_alert_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("routine_heartbeats")
+}

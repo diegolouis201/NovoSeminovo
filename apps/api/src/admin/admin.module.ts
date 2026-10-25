@@ -12,6 +12,6 @@ import { AutoModerationService } from "./auto-moderation.service";
   imports: [AuthModule, NotificationsModule, SavedSearchesModule],
   controllers: [AdminController],
   providers: [AdminService, AdminGuard, AutoModerationService, AdminOverviewService],
-  exports: [AdminService],
+  exports: [AdminService, AdminOverviewService],
 })
 export class AdminModule {}

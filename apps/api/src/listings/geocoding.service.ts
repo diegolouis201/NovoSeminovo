@@ -1,5 +1,6 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { trackRoutine } from "../operations/routine-health";
 
 // Coordenada dos imóveis pro mapa da busca, pelo Nominatim (OpenStreetMap,
 // grátis, sem chave). Regras de uso deles: no máximo 1 consulta por segundo
@@ -29,7 +30,7 @@ export class GeocodingService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     if (process.env.GEOCODING_DISABLED === "1") return;
-    this.timer = setInterval(() => this.kick(), SWEEP_INTERVAL_MS);
+    this.timer = setInterval(() => void trackRoutine("geocodificacao", SWEEP_INTERVAL_MS, () => (this.running ? undefined : this.sweep())), SWEEP_INTERVAL_MS);
     setTimeout(() => this.kick(), 30_000);
   }
 

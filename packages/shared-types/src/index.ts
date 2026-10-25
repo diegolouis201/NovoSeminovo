@@ -1268,6 +1268,9 @@ export const NotificationType = z.enum([
   "partner_offline",
   "affiliate_approved",
   "affiliate_commission",
+  "listing_suspended",
+  "ops_approval_requested",
+  "ops_alert",
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
@@ -2046,3 +2049,102 @@ export type AdminOverview = {
   campaigns: AdminOverviewCampaignRow[];
   daily: AdminOverviewDay[];
 };
+
+// Operação com agentes de IA (Fase 1): tela /admin/operacao.
+export const OPS_AGENT_LABELS: Record<string, string> = {
+  diretor: "Diretor",
+  operacoes: "Operações de anúncios",
+  comercial: "Comercial",
+  marketing: "Marketing",
+  "sistema:kpi": "Rotina: foto diária dos KPIs",
+};
+export const OPS_TASK_STATUS_LABELS: Record<string, string> = {
+  pending: "Na fila",
+  running: "Rodando",
+  awaiting_approval: "Esperando aprovação",
+  blocked: "Bloqueada",
+  completed: "Concluída",
+  failed: "Falhou",
+  cancelled: "Cancelada",
+};
+export const OPS_ROUTINE_LABELS: Record<string, string> = {
+  moderacao: "Moderação automática",
+  geocodificacao: "Localização no mapa",
+  integracoes: "Importação de estoque de parceiros",
+  "periodo-gratis": "Aviso de fim do período grátis",
+  "fila-agentes": "Fila de tarefas dos agentes",
+};
+export const OPS_FEATURE_LABELS: Record<string, string> = {
+  assistentes: "Assistentes (chat e WhatsApp)",
+  moderacao: "Moderação automática",
+  arquiteto: "Arquiteto",
+  "cadastro-ia": "Cadastro com IA",
+};
+// Indicadores que podem virar meta (calculados pelo painel geral).
+export const OPS_GOAL_METRICS: Record<string, string> = {
+  receita_total: "Receita do mês (R$)",
+  leads: "Leads no mês",
+  cadastros: "Novos cadastros no mês",
+  anuncios_ativos: "Anúncios ativos",
+  anuncios_vendidos: "Anúncios vendidos no mês",
+  financiamentos: "Pedidos de financiamento no mês",
+};
+
+export type OpsApprovalView = {
+  id: string;
+  agent: string;
+  tool: string;
+  summary: string;
+  impact?: string;
+  reason?: string;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+  decidedAt?: string;
+  decisionNote?: string;
+  taskId?: string;
+};
+export type OpsTaskView = {
+  id: string;
+  agent: string;
+  objective: string;
+  segment: string;
+  status: string;
+  attempts: number;
+  error?: string;
+  createdBy: string;
+  createdAt: string;
+  completedAt?: string;
+  lastEvent?: string;
+};
+export type OpsRoutineView = {
+  name: string;
+  intervalMs: number;
+  lastRunAt: string;
+  lastOkAt?: string;
+  lastError?: string;
+  failures: number;
+  healthy: boolean;
+};
+export type OpsGoalView = { id: string; metric: string; segment: string; period: string; target: number; agent: string; note?: string; current?: number };
+export type OpsSummary = {
+  generatedAt: string;
+  budget: { dailyBrl: number; spentTodayBrl: number; usdToBrl: number };
+  cost: { todayBrl: number; last30dBrl: number; byFeature: { feature: string; calls: number; brl: number }[] };
+  approvals: OpsApprovalView[];
+  recentApprovals: OpsApprovalView[];
+  tasks: OpsTaskView[];
+  routines: OpsRoutineView[];
+  goals: OpsGoalView[];
+};
+
+export const OpsDecisionInputSchema = z.object({ note: z.string().trim().max(500).optional() });
+export const OpsGoalInputSchema = z.object({
+  metric: z.string().refine((value) => value in OPS_GOAL_METRICS, "Indicador inválido"),
+  segment: z.enum(["all", "vehicle", "property"]),
+  period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Mês no formato AAAA-MM"),
+  target: z.number().min(0).max(1_000_000_000),
+  agent: z.string().refine((value) => value in OPS_AGENT_LABELS, "Agente inválido"),
+  note: z.string().trim().max(200).optional(),
+});
+export type OpsGoalInput = z.infer<typeof OpsGoalInputSchema>;

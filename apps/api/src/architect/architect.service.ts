@@ -15,6 +15,7 @@ import { getPhotoStorage, readPhotoBytes } from "../common/storage";
 import { runAgentTurn, visibleMessages, type AgentDefinition, type AgentTool } from "../agents/agent-engine";
 import { GeminiImageService } from "./gemini-image.service";
 import { storeSearchUrl } from "./affiliate";
+import { trackedAnthropic } from "../operations/ai-usage";
 
 // Arquiteto NovoSeminovo: o comprador logado conversa com a IA sobre como
 // reformar o imóvel do anúncio; a IA olha as fotos (Claude), gera a imagem
@@ -103,7 +104,7 @@ export class ArchitectService {
   private getClient(): Anthropic {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new ServiceUnavailableException("O Arquiteto NovoSeminovo está fora do ar no momento.");
-    this.client ??= new Anthropic({ apiKey });
+    this.client ??= trackedAnthropic("arquiteto", apiKey);
     return this.client;
   }
 

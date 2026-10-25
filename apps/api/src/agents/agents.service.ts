@@ -32,6 +32,7 @@ import { runAgentTurn, visibleMessages, type AgentDefinition } from "./agent-eng
 import { buildBuyerAgent, type FinancingLeadInput } from "./buyer-agent";
 import { buildPartnerAgent } from "./partner-agent";
 import { buildAdminAgent } from "./admin-agent";
+import { trackedAnthropic } from "../operations/ai-usage";
 
 // Mensagens por pessoa (usuário logado, IP ou telefone do WhatsApp) numa
 // janela de 10 minutos — cada mensagem custa uma chamada (ou várias) à API
@@ -85,7 +86,7 @@ export class AgentsService {
     if (!this.client) {
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada");
-      this.client = new Anthropic({ apiKey });
+      this.client = trackedAnthropic("assistentes", apiKey);
     }
     return this.client;
   }

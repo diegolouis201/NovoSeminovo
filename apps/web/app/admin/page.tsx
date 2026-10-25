@@ -45,6 +45,9 @@ export default async function AdminPage() {
         aqui antes de ganhar o selo de verificada.
       </p>
       <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+        <Link href="/admin/operacao" className="text-sm font-semibold text-brand-blue hover:underline">
+          Operação com IA (aprovações e rotinas) →
+        </Link>
         <Link href="/admin/painel" className="text-sm font-semibold text-brand-blue hover:underline">
           Painel geral (big numbers) →
         </Link>

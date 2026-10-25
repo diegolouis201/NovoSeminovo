@@ -8,6 +8,7 @@ import type {
   PropertyProfileInput,
   VehicleProfileInput,
 } from "@novoseminovo/shared-types";
+import { trackedAnthropic } from "../operations/ai-usage";
 
 const MODEL = "claude-sonnet-5-5";
 // Leitura de documento (CRLV) e análise visual de fotos exigem um modelo com
@@ -327,7 +328,7 @@ export class AiService {
     if (!this.client) {
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada");
-      this.client = new Anthropic({ apiKey });
+      this.client = trackedAnthropic("cadastro-ia", apiKey);
     }
     return this.client;
   }

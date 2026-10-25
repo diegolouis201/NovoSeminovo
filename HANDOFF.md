@@ -169,6 +169,11 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - Receita: **Anúncios** (planos PF + mensalidades), **Financiamento** (`FinancingDeal`: comissão − rebate) e **Links de afiliados das lojas** (Amazon/ML: lançado à mão no fim do painel, tabela `store_earnings`, um valor por loja/mês). Tabela "Receita por mês" (6 meses). Mensalidades vêm da nova tabela `subscription_payments`, gravada no webhook `invoice.paid` (só a partir desta versão).
    - Origem: `AttributionCapture` (layout) grava o cookie `ns_origem` = última origem não-direta (utm_*, ?ref=, referrer), por 90 dias; as server actions repassam no header `x-ns-origem` (`lib/acquisition.ts`). Salvo em `User.acq*` (cadastro PF e PJ), `Lead.acq*` (chat e WhatsApp; sem cookie usa a do comprador), `AgentConversation`/`FinancingLead.acq*` (WhatsApp da Meta = "whatsapp"). Classificação em `classifyAcquisition` (shared-types). Leads manuais da loja aparecem como "Loja: …". O painel explica como marcar links com `utm_source`/`utm_campaign`.
 
+31. **Agentes de IA — Fase 1 (núcleo operacional)**, aprovada pelo Diego. O plano completo e o "como entra um agente" estão em `docs/agentes-ia.md`.
+   - Construído: registro de custo de toda chamada de IA (`agent_runs`); fila de tarefas no PostgreSQL; regras de cor e aprovações com assinatura da ação; monitor das rotinas com alerta por notificação e e-mail; foto diária dos KPIs às 6h; metas; tela `/admin/operacao`.
+   - Ainda nenhum agente novo age: tarefa de agente sem handler fica "Bloqueada".
+   - Testes: `pnpm --filter @novoseminovo/api test` (16 testes; política, fila concorrente, aprovação adulterada ou vencida, teto de custo).
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).

@@ -18,6 +18,7 @@ import { ProfileModule } from "./profile/profile.module";
 import { AgentsModule } from "./agents/agents.module";
 import { IntegrationsModule } from "./integrations/integrations.module";
 import { ArchitectModule } from "./architect/architect.module";
+import { OperationsModule } from "./operations/operations.module";
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { ArchitectModule } from "./architect/architect.module";
     AgentsModule,
     IntegrationsModule,
     ArchitectModule,
+    OperationsModule,
     AffiliatesModule,
   ],
 })

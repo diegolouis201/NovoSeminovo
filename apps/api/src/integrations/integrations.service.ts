@@ -31,6 +31,7 @@ import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA, listingLimitFor } from "../part
 import { SafeFetchError, assertPublicHttpUrl, safeFetch } from "../common/safe-fetch";
 import { FeedFormatError, parseNovoSeminovoJson, parseVrsync, type ParsedFeedItem } from "./feed-parsers";
 import { parseVehicleCatalog } from "./vehicle-catalog-parser";
+import { trackRoutine } from "../operations/routine-health";
 
 export type IntegrationPartner = { id: string; ownerUserId: string; verified: boolean; type: string };
 
@@ -107,7 +108,7 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
     if (process.env.INTEGRATION_SYNC_DISABLED === "1") return;
     // Confere a cada 5 minutos quais feeds já passaram do intervalo — sem
     // dependência de agendador externo; a API roda numa instância só.
-    this.timer = setInterval(() => void this.tick(), 5 * 60 * 1000);
+    this.timer = setInterval(() => void trackRoutine("integracoes", 5 * 60 * 1000, () => this.tick()), 5 * 60 * 1000);
     this.timer.unref();
   }
 

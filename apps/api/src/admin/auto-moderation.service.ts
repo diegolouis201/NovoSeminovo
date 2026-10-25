@@ -7,6 +7,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { readPhotoBytes } from "../common/storage";
 import { AGENT_MODEL } from "../agents/agent-engine";
 import { AdminService } from "./admin.service";
+import { trackedAnthropic } from "../operations/ai-usage";
+import { trackRoutine } from "../operations/routine-health";
 
 // Moderação automática: a IA olha cada anúncio novo (texto + fotos) e
 // aprova o que está normal, recusa o que é claramente irregular (com um
@@ -104,7 +106,7 @@ export class AutoModerationService implements OnModuleInit, OnModuleDestroy {
     void this.prisma.listing
       .updateMany({ where: { status: "pending_review", autoReviewNote: FAILED_NOTE }, data: { autoReviewedAt: null, autoReviewNote: null } })
       .catch((error: Error) => this.logger.warn(`Não reabri a fila da moderação: ${error.message}`));
-    this.timer = setInterval(() => void this.sweep(), SWEEP_MS);
+    this.timer = setInterval(() => void trackRoutine("moderacao", SWEEP_MS, () => this.sweep()), SWEEP_MS);
     this.timer.unref();
   }
 
@@ -163,7 +165,7 @@ export class AutoModerationService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async decide(listing: ListingRow): Promise<Decision> {
-    this.client ??= new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    this.client ??= trackedAnthropic("moderacao", process.env.ANTHROPIC_API_KEY);
     const images: Anthropic.ImageBlockParam[] = [];
     // Foto que não abre (link do CRM fora do ar, arquivo corrompido) é
     // pulada; nenhuma abrindo = uma pessoa confere.

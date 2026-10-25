@@ -40,6 +40,7 @@ import { AiService } from "../listings/ai.service";
 import { getPhotoStorage } from "../common/storage";
 import { NotificationsService } from "../notifications/notifications.service";
 import { CnpjService } from "./cnpj.service";
+import { trackRoutine } from "../operations/routine-health";
 
 // Quantas vagas de anúncio um plano "ocupa": tudo que não é um estado final
 // (vendido/recusado/expirado) conta contra o limite, porque senão dava pra
@@ -192,7 +193,13 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
   onModuleInit(): void {
     void this.ensurePlanCatalog().catch((error) => this.logger.error(`Falha ao conferir o catálogo de planos: ${error}`));
     if (process.env.TRIAL_SWEEP_DISABLED === "1") return;
-    const run = () => void this.trialSweep().catch((error) => this.logger.error(`Falha na checagem do período grátis: ${error}`));
+    const run = () =>
+      void trackRoutine("periodo-gratis", 6 * 60 * 60 * 1000, () =>
+        this.trialSweep().catch((error) => {
+          this.logger.error(`Falha na checagem do período grátis: ${error}`);
+          throw error;
+        }),
+      );
     setTimeout(run, 60 * 1000).unref();
     this.timer = setInterval(run, 6 * 60 * 60 * 1000);
     this.timer.unref();

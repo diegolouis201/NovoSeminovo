@@ -47,6 +47,24 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
           : `Seu anúncio "${payload.listingTitle}" foi recusado na moderação.`,
         link: `/anuncio/${payload.listingId}`,
       };
+    case "listing_suspended":
+      return {
+        title: "Anúncio suspenso",
+        body: `Seu anúncio "${payload.listingTitle}" foi suspenso: ${payload.reason}. Ajuste o anúncio ou fale com a gente pela página de contato.`,
+        link: `/anuncio/${payload.listingId}`,
+      };
+    case "ops_approval_requested":
+      return {
+        title: "Ação de agente esperando sua aprovação",
+        body: `${payload.agentLabel} pediu: ${payload.summary}`,
+        link: "/admin/operacao",
+      };
+    case "ops_alert":
+      return {
+        title: `Alerta da operação: ${payload.title}`,
+        body: String(payload.body ?? ""),
+        link: "/admin/operacao",
+      };
     case "new_message":
       return {
         title: "Nova mensagem",
