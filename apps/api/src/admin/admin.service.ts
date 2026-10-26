@@ -9,6 +9,8 @@ import type {
   ReportStatus,
 } from "@novoseminovo/shared-types";
 import { formatBRL } from "@novoseminovo/shared-types";
+import type { AdminListingActionInput, AdminListingRow, AdminListingsPage } from "@novoseminovo/shared-types";
+import type { Prisma } from "@novoseminovo/db";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { SavedSearchesService } from "../saved-searches/saved-searches.service";
@@ -45,6 +47,104 @@ export class AdminService {
       createdAt: listing.createdAt.toISOString(),
       autoReviewNote: listing.autoReviewNote ?? undefined,
     }));
+  }
+
+  // Todos os anúncios de todos os usuários (/admin/anuncios), por tipo de bem,
+  // vendedor (PF = sem loja, PJ = de loja/imobiliária/corretor), situação e busca.
+  async listAllListings(filters: {
+    assetType: "vehicle" | "property";
+    sellerType?: "pf" | "pj";
+    status?: string;
+    search?: string;
+    page: number;
+  }): Promise<AdminListingsPage> {
+    const pageSize = 30;
+    const search = filters.search?.trim();
+    const where: Prisma.ListingWhereInput = {
+      type: filters.assetType,
+      ...(filters.sellerType === "pf" ? { partnerId: null } : filters.sellerType === "pj" ? { partnerId: { not: null } } : {}),
+      ...(filters.status ? { status: filters.status as Prisma.ListingWhereInput["status"] } : {}),
+      ...(search
+        ? {
+            OR: [
+              { id: search },
+              { title: { contains: search, mode: "insensitive" } },
+              { city: { contains: search, mode: "insensitive" } },
+              { owner: { name: { contains: search, mode: "insensitive" } } },
+              { owner: { email: { contains: search, mode: "insensitive" } } },
+              { partner: { legalName: { contains: search, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
+    };
+    const [rows, total, grouped] = await Promise.all([
+      this.prisma.listing.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (filters.page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          owner: { select: { name: true, email: true } },
+          partner: { select: { legalName: true } },
+          photos: { orderBy: [{ isCover: "desc" }, { position: "asc" }], take: 1, select: { url: true } },
+          _count: { select: { photos: true, conversations: true } },
+        },
+      }),
+      this.prisma.listing.count({ where }),
+      this.prisma.listing.groupBy({ by: ["type", "status", "partnerId"], _count: { _all: true } }),
+    ]);
+    const counts = new Map<string, AdminListingsPage["counts"][number]>();
+    for (const row of grouped) {
+      const sellerType = row.partnerId ? "pj" : "pf";
+      const key = `${row.type}|${sellerType}|${row.status}`;
+      const current = counts.get(key) ?? { assetType: row.type, sellerType, status: row.status, count: 0 };
+      current.count += row._count._all;
+      counts.set(key, current);
+    }
+    const now = Date.now();
+    const items: AdminListingRow[] = rows.map((listing) => ({
+      id: listing.id,
+      assetType: listing.type,
+      title: listing.title,
+      priceLabel: formatBRL(Number(listing.price)),
+      location: location(listing),
+      status: listing.status,
+      photoUrl: listing.photos[0]?.url,
+      photos: listing._count.photos,
+      views: listing.viewsCount,
+      leads: listing._count.conversations,
+      ownerName: listing.owner.name,
+      ownerEmail: listing.owner.email,
+      sellerType: listing.partnerId ? "pj" : "pf",
+      partnerName: listing.partner?.legalName,
+      highlighted: Boolean(listing.highlightedUntil && listing.highlightedUntil.getTime() > now),
+      createdAt: listing.createdAt.toISOString(),
+      publishedAt: listing.publishedAt?.toISOString(),
+    }));
+    return { items, total, page: filters.page, pageSize, counts: [...counts.values()] };
+  }
+
+  // Suspender (sai do ar, dono avisado com o motivo) ou reativar um anúncio. Fica no histórico de moderação.
+  async listingAction(adminId: string, listingId: string, input: AdminListingActionInput): Promise<{ status: string }> {
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing) throw new NotFoundException("Anúncio não encontrado");
+    if (input.action === "suspend") {
+      if (listing.status !== "active") throw new ConflictException("Só dá para suspender anúncio que está no ar.");
+      if (!input.reason) throw new ConflictException("Informe o motivo: ele vai para o dono do anúncio.");
+      await this.prisma.$transaction([
+        this.prisma.listing.update({ where: { id: listingId }, data: { status: "paused" } }),
+        this.prisma.moderationLog.create({ data: { listingId, adminId, action: "suspended", reason: input.reason } }),
+      ]);
+      await this.notifications.notify(listing.ownerUserId, "listing_suspended", { listingId, listingTitle: listing.title, reason: input.reason });
+      return { status: "paused" };
+    }
+    if (!["paused", "rejected", "expired"].includes(listing.status)) throw new ConflictException("Este anúncio não está pausado, recusado ou expirado.");
+    await this.prisma.$transaction([
+      this.prisma.listing.update({ where: { id: listingId }, data: { status: "active", publishedAt: listing.publishedAt ?? new Date() } }),
+      this.prisma.moderationLog.create({ data: { listingId, adminId, action: "reactivated", reason: input.reason } }),
+    ]);
+    await this.notifications.notify(listing.ownerUserId, "listing_approved", { listingId, listingTitle: listing.title });
+    return { status: "active" };
   }
 
   async moderateListing(adminId: string, listingId: string, input: ModerateListingInput): Promise<void> {

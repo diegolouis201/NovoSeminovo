@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
+  AdminListingActionInputSchema,
   ModerateListingInputSchema,
   SetPartnerTypeInputSchema,
   StoreEarningInputSchema,
@@ -35,6 +36,23 @@ export class AdminController {
   @Delete("store-earnings/:id")
   deleteStoreEarning(@Param("id") id: string) {
     return this.overviewService.deleteStoreEarning(id);
+  }
+
+  @Get("listings")
+  listAllListings(@Query() query: Record<string, string | undefined>) {
+    const page = Math.max(1, Number(query.pagina) || 1);
+    return this.adminService.listAllListings({
+      assetType: query.tipo === "property" ? "property" : "vehicle",
+      sellerType: query.vendedor === "pf" || query.vendedor === "pj" ? query.vendedor : undefined,
+      status: ["draft", "pending_review", "active", "paused", "sold", "rejected", "expired"].includes(query.situacao ?? "") ? query.situacao : undefined,
+      search: query.busca?.slice(0, 100),
+      page,
+    });
+  }
+
+  @Patch("listings/:id/action")
+  listingAction(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
+    return this.adminService.listingAction(user.id, id, parseOrBadRequest(AdminListingActionInputSchema, body));
   }
 
   @Get("listings/pending")

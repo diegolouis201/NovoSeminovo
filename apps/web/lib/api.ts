@@ -18,6 +18,8 @@ import type {
   OpsGoalInput,
   OpsSummary,
   MarketingSummary,
+  AdminListingsPage,
+  AdminListingActionInput,
   MarketingPostInput,
   MarketingDecisionInput,
   EmailCampaignInput,
@@ -1820,4 +1822,20 @@ export function mktSuggestionToPost(id: string, accessToken: string): Promise<Ap
 
 export function mktRefreshMetrics(accessToken: string): Promise<ApiResult<{ updated: number }>> {
   return sendJson("/admin/marketing/posts/metrics", "POST", {}, accessToken);
+}
+
+// ---------- Todos os anúncios (/admin/anuncios) ----------
+export async function fetchAdminListings(params: Record<string, string | undefined>, accessToken: string): Promise<AdminListingsPage | undefined> {
+  const query = new URLSearchParams(Object.entries(params).filter((entry): entry is [string, string] => Boolean(entry[1])));
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/listings?${query}`, { headers: authHeaders(accessToken), cache: "no-store" }, 20000);
+    if (!res.ok) return undefined;
+    return (await res.json()) as AdminListingsPage;
+  } catch {
+    return undefined;
+  }
+}
+
+export function adminListingAction(id: string, input: AdminListingActionInput, accessToken: string): Promise<ApiResult<{ status: string }>> {
+  return sendJson(`/admin/listings/${encodeURIComponent(id)}/action`, "PATCH", input, accessToken);
 }
