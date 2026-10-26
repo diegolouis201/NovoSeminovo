@@ -377,7 +377,8 @@ function LeadCard({
           </label>
           {lead.notes && (
             <p className="rounded-sober bg-surface-sober px-2 py-1.5 text-ink-muted">
-              <span className="font-semibold text-ink">Do assistente:</span> {lead.notes}
+              <span className="font-semibold text-ink">{lead.origin === "simulator" ? "Do simulador:" : "Do assistente:"}</span>{" "}
+              {lead.notes}
             </p>
           )}
           <p className="text-ink-muted">
@@ -385,7 +386,11 @@ function LeadCard({
               lead.downPaymentLabel && `Entrada ${lead.downPaymentLabel}`,
               lead.monthlyIncomeLabel && `Renda ${lead.monthlyIncomeLabel}`,
               lead.email,
-              lead.channel === "whatsapp" ? "Veio pelo WhatsApp" : "Veio pelo chat do site",
+              lead.origin === "whatsapp"
+                ? "Veio pelo WhatsApp"
+                : lead.origin === "simulator"
+                  ? "Veio pelo simulador de crédito"
+                  : "Veio pelo chat do site",
             ]
               .filter(Boolean)
               .join(" · ")}

@@ -443,6 +443,7 @@ export class AgentsService {
       return {
         id: lead.id,
         channel: lead.channel,
+        origin: lead.channel === "whatsapp" ? "whatsapp" : lead.conversationId ? "chat" : "simulator",
         name: lead.name,
         phone: lead.phone,
         email: lead.email ?? undefined,

@@ -1623,6 +1623,9 @@ export type FinancingLeadStatus = z.infer<typeof FinancingLeadStatus>;
 export const FinancingLeadSummarySchema = z.object({
   id: z.string(),
   channel: z.enum(["web", "whatsapp"]),
+  // De onde veio o pedido: chat do assistente no site, WhatsApp ou o
+  // simulador de crédito do anúncio (que não tem conversa).
+  origin: z.enum(["chat", "whatsapp", "simulator"]),
   name: z.string(),
   phone: z.string(),
   email: z.string().optional(),

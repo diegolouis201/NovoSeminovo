@@ -41,10 +41,10 @@ function firstError(result: { success: boolean; error?: { issues: Array<{ messag
   return result.success ? undefined : result.error?.issues[0]?.message;
 }
 
-type Step = "closed" | "simulate" | "results" | "proposal" | "done";
+type Step = "simulate" | "results" | "proposal" | "done";
 
 export function CredihomeSimulator({ listingId, price }: { listingId: string; price: number }) {
-  const [step, setStep] = useState<Step>("closed");
+  const [step, setStep] = useState<Step>("simulate");
   const [error, setError] = useState<string | undefined>();
   const [unavailable, setUnavailable] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -52,37 +52,26 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
   const [simInput, setSimInput] = useState<CredihomeSimulateInput | undefined>();
   const [outcome, setOutcome] = useState<"sent" | "already_sent" | "saved" | undefined>();
 
-  if (step === "closed") {
-    return (
-      <button
-        type="button"
-        onClick={() => setStep("simulate")}
-        className="flex w-full max-w-sm items-center justify-center gap-2 rounded-brand border border-brand-blue px-4 py-3 text-sm font-bold text-brand-blue transition-colors hover:bg-brand-blue hover:text-on-blue"
-      >
-        <Bank size={18} weight="bold" />
-        Simular crédito com um banco de verdade
-      </button>
-    );
-  }
-
   const header = (
     <div className="flex items-start justify-between gap-2">
       <div>
-        <p className="flex items-center gap-2 text-sm font-bold text-ink">
-          <Bank size={18} weight="bold" className="text-brand-blue" /> Simule seu crédito
+        <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-brand-blue">
+          <Bank size={16} weight="bold" /> Simule seu financiamento
         </p>
-        <p className="text-xs text-ink-muted">Parcelas dos bancos parceiros, com a Credihome.</p>
+        <p className="mt-1 text-xs text-ink-muted">Parcelas dos bancos parceiros, com a Credihome.</p>
       </div>
-      <button
-        type="button"
-        onClick={() => {
-          setStep("closed");
-          setError(undefined);
-        }}
-        className="text-xs font-semibold text-ink-muted hover:underline"
-      >
-        Fechar
-      </button>
+      {step !== "simulate" && step !== "done" && (
+        <button
+          type="button"
+          onClick={() => {
+            setStep("simulate");
+            setError(undefined);
+          }}
+          className="shrink-0 text-xs font-semibold text-ink-muted hover:underline"
+        >
+          Recomeçar
+        </button>
+      )}
     </div>
   );
 
@@ -250,7 +239,7 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
               }}
               className="flex-1 rounded-brand bg-brand-green px-3 py-2 text-sm font-bold text-on-green"
             >
-              Quero proposta do banco
+              Quero esse financiamento
             </button>
           </div>
         </div>
@@ -337,7 +326,7 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
               disabled={pending}
               className="flex-1 rounded-brand bg-brand-green px-3 py-2 text-sm font-bold text-on-green disabled:opacity-50"
             >
-              {pending ? "Enviando…" : "Pedir proposta"}
+              {pending ? "Enviando…" : "Enviar para análise"}
             </button>
           </div>
         </form>

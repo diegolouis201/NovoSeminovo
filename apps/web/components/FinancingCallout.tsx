@@ -77,11 +77,10 @@ export function FinancingCallout({
         <Row k="Taxa de referência" v={shown.rateLabel} />
       </div>
       {/* Deixar claro de onde vem a conta: taxa fixa de referência do site,
-          não oferta de banco (a simulação com os bancos é o CredihomeSimulator). */}
+          não oferta de banco. Imóvel usa o CredihomeSimulator no lugar deste bloco. */}
       <p className="text-[11px] leading-snug text-ink-muted">
         Cálculo aproximado feito pelo NovoSeminovo com uma taxa de referência fixa (tabela Price, sem seguros
         {assetType === "property" ? ", TR" : ""} e tarifas). Não é oferta de banco: a taxa real depende da análise de crédito.
-        {assetType === "property" && " Para ver as taxas dos bancos, use \"Simular crédito com um banco de verdade\" abaixo."}
       </p>
 
       {open ? (

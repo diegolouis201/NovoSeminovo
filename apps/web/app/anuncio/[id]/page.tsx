@@ -287,7 +287,14 @@ export default async function ListingDetailPage({
             )}
           </div>
 
-          {listing.financingEnabled && (
+          {/* Imóvel: um bloco só de financiamento — parcelas dos bancos pela
+              Credihome e, se o cliente quiser, o pedido de proposta. Veículo:
+              calculadora local (ainda sem parceiro de crédito). */}
+          {listing.financingEnabled && listing.assetType === "property" && (
+            <CredihomeSimulator listingId={listing.id} price={listing.financing.priceValue} />
+          )}
+
+          {listing.financingEnabled && listing.assetType === "vehicle" && (
           <FinancingCallout
             listingId={listing.id}
             assetType={listing.assetType}
@@ -310,11 +317,6 @@ export default async function ListingDetailPage({
               <span className="text-xs opacity-90">Veja como este imóvel ficaria reformado, com lista de compras</span>
             </Link>
           )}
-
-          {/* Crédito imobiliário de verdade (bancos reais, via Credihome) —
-              diferente do FinancingCallout acima, que é só uma calculadora
-              local. Não existe parceria equivalente pra veículo ainda. */}
-          {listing.assetType === "property" && <CredihomeSimulator listingId={listing.id} price={listing.financing.priceValue} />}
 
           <ConsorcioCallout assetType={listing.assetType} />
         </aside>
