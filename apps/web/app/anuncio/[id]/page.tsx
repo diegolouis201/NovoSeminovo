@@ -301,6 +301,18 @@ export default async function ListingDetailPage({
             )}
           </div>
 
+          {listing.assetType === "property" && (
+            <Link
+              href={`/anuncio/${listing.id}/arquiteto`}
+              className="flex w-full max-w-sm flex-col items-center gap-0.5 rounded-brand bg-brand-purple px-4 py-3 text-center text-on-purple transition-opacity hover:opacity-90"
+            >
+              <span className="flex items-center gap-2 text-sm font-bold">
+                <PaintBrushHousehold size={20} weight="fill" /> Arquiteto NovoSeminovo
+              </span>
+              <span className="text-xs opacity-90">Veja como este imóvel ficaria reformado, com lista de compras</span>
+            </Link>
+          )}
+
           {/* Imóvel: um bloco só de financiamento — parcelas dos bancos pela
               Credihome e, se o cliente quiser, o pedido de proposta. Veículo:
               calculadora local (ainda sem parceiro de crédito). */}
@@ -320,17 +332,7 @@ export default async function ListingDetailPage({
           />
           )}
 
-          {listing.assetType === "property" && (
-            <Link
-              href={`/anuncio/${listing.id}/arquiteto`}
-              className="flex w-full max-w-sm flex-col items-center gap-0.5 rounded-brand bg-brand-purple px-4 py-3 text-center text-on-purple transition-opacity hover:opacity-90"
-            >
-              <span className="flex items-center gap-2 text-sm font-bold">
-                <PaintBrushHousehold size={20} weight="fill" /> Arquiteto NovoSeminovo
-              </span>
-              <span className="text-xs opacity-90">Veja como este imóvel ficaria reformado, com lista de compras</span>
-            </Link>
-          )}
+
 
           <ConsorcioCallout assetType={listing.assetType} />
         </aside>

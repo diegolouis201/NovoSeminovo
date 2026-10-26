@@ -14,6 +14,19 @@ const PARTNER_TYPE_LABEL: Record<string, string> = {
   workshop: "Oficina mecânica",
 };
 
+// Atalhos do admin em cartões (texto, sem números).
+const ADMIN_AREAS = [
+  { href: "/admin/operacao", title: "Operação com IA", hint: "Aprovações e rotinas" },
+  { href: "/admin/anuncios", title: "Todos os anúncios", hint: "Veículos e imóveis, PF e PJ" },
+  { href: "/admin/leads", title: "Todos os leads", hint: "Funil das lojas e imobiliárias" },
+  { href: "/admin/financiamentos", title: "Financiamentos", hint: "Interessados e Credihome" },
+  { href: "/admin/recompensas", title: "Cashback", hint: "Pagar clientes que financiaram" },
+  { href: "/admin/marketing", title: "Marketing", hint: "Instagram, e-mails e contatos" },
+  { href: "/admin/painel", title: "Painel geral", hint: "Big numbers do site" },
+  { href: "/admin/assinaturas", title: "Assinaturas", hint: "Planos dos parceiros" },
+  { href: "/admin/afiliados", title: "Afiliados", hint: "Programa de afiliados" },
+];
+
 export default async function AdminPage() {
   const session = await auth();
   if (!session?.user) redirect("/entrar");
@@ -44,35 +57,18 @@ export default async function AdminPage() {
         Todo anúncio novo espera aqui antes de aparecer na busca; toda loja/imobiliária nova espera
         aqui antes de ganhar o selo de verificada.
       </p>
-      <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
-        <Link href="/admin/operacao" className="text-sm font-semibold text-brand-blue hover:underline">
-          Operação com IA (aprovações e rotinas) →
-        </Link>
-        <Link href="/admin/anuncios" className="text-sm font-semibold text-brand-blue hover:underline">
-          Todos os anúncios (veículos e imóveis, PF e PJ) →
-        </Link>
-        <Link href="/admin/leads" className="text-sm font-semibold text-brand-blue hover:underline">
-          Todos os leads (funil das lojas e imobiliárias) →
-        </Link>
-        <Link href="/admin/marketing" className="text-sm font-semibold text-brand-blue hover:underline">
-          Marketing (Instagram, e-mails e contatos) →
-        </Link>
-        <Link href="/admin/painel" className="text-sm font-semibold text-brand-blue hover:underline">
-          Painel geral (big numbers) →
-        </Link>
-        <Link href="/admin/financiamentos" className="text-sm font-semibold text-brand-blue hover:underline">
-          Interessados em financiamento (assistente de IA) →
-        </Link>
-        <Link href="/admin/recompensas" className="text-sm font-semibold text-brand-blue hover:underline">
-          Cashback no financiamento (pagar clientes) →
-        </Link>
-        <Link href="/admin/assinaturas" className="text-sm font-semibold text-brand-blue hover:underline">
-          Assinaturas dos parceiros →
-        </Link>
-        <Link href="/admin/afiliados" className="text-sm font-semibold text-brand-blue hover:underline">
-          Programa de afiliados →
-        </Link>
-      </div>
+      <nav aria-label="Áreas do admin" className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {ADMIN_AREAS.map((area) => (
+          <Link
+            key={area.href}
+            href={area.href}
+            className="flex flex-col justify-center rounded-brand border border-border bg-surface-raised px-4 py-3 text-center shadow-card transition-colors hover:border-brand-blue hover:bg-brand-blue/5"
+          >
+            <span className="text-sm font-bold text-ink">{area.title}</span>
+            <span className="mt-0.5 text-xs text-ink-muted">{area.hint}</span>
+          </Link>
+        ))}
+      </nav>
 
       <section className="mt-8">
         <h2 className="font-display text-xl font-semibold text-ink">

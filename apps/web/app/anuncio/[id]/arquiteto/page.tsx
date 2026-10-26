@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { ChatCircleDots } from "@phosphor-icons/react/dist/ssr";
 import { ArchitectStudio } from "@/components/architect/ArchitectStudio";
+import { startConversationAction } from "@/lib/actions/conversations";
 import { PUBLIC_API_URL, openArchitectSession } from "@/lib/api";
 
 export const metadata: Metadata = {
@@ -40,6 +42,29 @@ export default async function ArchitectPage({ params }: { params: { id: string }
         Veja o potencial deste imóvel: converse sobre suas ideias de reforma, veja como os ambientes poderiam ficar e leve uma lista de compras com
         estimativa de custo. {view.listing.location} · {view.listing.priceLabel}
       </p>
+      {/* Quem se empolgou com a reforma já fala com o anunciante daqui. */}
+      <div className="mt-4 flex flex-col gap-3 rounded-brand border border-brand-green bg-brand-green/10 p-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
+        <div>
+          <p className="font-semibold text-ink">Gostou do potencial deste imóvel?</p>
+          <p className="text-sm text-ink-muted">Fale com o anunciante para tirar dúvidas ou agendar uma visita.</p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <form action={startConversationAction.bind(null, view.listing.id)}>
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 rounded-brand bg-brand-green px-4 py-2.5 text-sm font-bold text-on-green hover:opacity-90"
+            >
+              <ChatCircleDots size={18} weight="bold" /> Mandar mensagem ao anunciante
+            </button>
+          </form>
+          <Link
+            href={`/anuncio/${view.listing.id}`}
+            className="inline-flex items-center rounded-brand border border-border bg-surface-raised px-4 py-2.5 text-sm font-bold text-ink hover:bg-surface-sober"
+          >
+            Ver anúncio e WhatsApp
+          </Link>
+        </div>
+      </div>
       <div className="mt-6">
         <ArchitectStudio initial={view} apiBase={PUBLIC_API_URL} />
       </div>
