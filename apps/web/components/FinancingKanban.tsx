@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { WhatsappLogo } from "@phosphor-icons/react";
 import type { FinancingLeadStatus, FinancingLeadSummary } from "@novoseminovo/shared-types";
-import { moveFinancingLeadAction, saveFinancingLeadDetailsAction } from "@/lib/actions/agents";
+import {
+  moveFinancingLeadAction,
+  refreshCredihomeAction,
+  saveFinancingLeadDetailsAction,
+  sendToCredihomeAction,
+} from "@/lib/actions/agents";
 
 export type KanbanColumn = { status: FinancingLeadStatus; label: string; tone: string };
 
@@ -28,6 +33,153 @@ function whatsappLink(lead: FinancingLeadSummary): string {
 function daysIn(lead: FinancingLeadSummary): number {
   const since = new Date(lead.statusChangedAt ?? lead.createdAt).getTime();
   return Math.max(0, Math.floor((Date.now() - since) / 86_400_000));
+}
+
+const inputClass = "rounded-brand border border-border bg-surface-page px-2 py-1.5 text-sm text-ink";
+
+// Imóvel: enviar à Credihome (CPF e nascimento pedidos ao cliente na
+// conversa, não ficam guardados aqui) e acompanhar a fase lá.
+function CredihomeBox({ lead }: { lead: FinancingLeadSummary }) {
+  const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | undefined>();
+  const [pending, startTransition] = useTransition();
+
+  if (lead.credihome) {
+    const credihome = lead.credihome;
+    return (
+      <div className="mt-2 rounded-sober bg-surface-sober px-2 py-1.5 text-xs">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-ink-muted">Credihome</span>
+          <span className="font-semibold text-ink">{credihome.phaseLabel}</span>
+        </div>
+        <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-ink-muted">
+          <span>
+            {credihome.syncedAt
+              ? `Atualizado ${new Date(credihome.syncedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}`
+              : `Enviado ${new Date(credihome.sentAt).toLocaleDateString("pt-BR")}`}
+          </span>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                const result = await refreshCredihomeAction(lead.id);
+                setMessage(result.ok ? undefined : { tone: "error", text: result.error });
+              })
+            }
+            className="font-semibold text-brand-blue hover:underline disabled:opacity-50"
+          >
+            {pending ? "Atualizando…" : "Atualizar"}
+          </button>
+        </div>
+        {message && <p className={message.tone === "error" ? "mt-1 text-status-danger" : "mt-1 text-brand-green"}>{message.text}</p>}
+      </div>
+    );
+  }
+
+  if (!open) {
+    return (
+      <div className="mt-2">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="w-full rounded-brand border border-brand-blue px-2 py-1.5 text-xs font-bold text-brand-blue hover:bg-surface-sober"
+        >
+          Enviar para Credihome
+        </button>
+        {message && <p className="mt-1 text-xs text-brand-green">{message.text}</p>}
+      </div>
+    );
+  }
+
+  const suggestedMortgage =
+    lead.assetValue !== undefined ? Math.max(0, lead.assetValue - (lead.downPayment ?? 0)) : undefined;
+
+  return (
+    <form
+      action={(formData) =>
+        startTransition(async () => {
+          const result = await sendToCredihomeAction(lead.id, formData);
+          if (!result.ok) setMessage({ tone: "error", text: result.error });
+          else {
+            setOpen(false);
+            setMessage({
+              tone: "ok",
+              text: result.alreadyExisted ? "Esse cliente já tinha um pedido na Credihome — ligamos ao existente." : "Enviado à Credihome.",
+            });
+          }
+        })
+      }
+      className="mt-3 flex flex-col gap-2 border-t border-border pt-3 text-xs"
+    >
+      <p className="font-bold text-ink">Enviar para Credihome</p>
+      <p className="text-ink-muted">Peça ao cliente o CPF e a data de nascimento. Eles vão direto para a Credihome e não ficam salvos aqui.</p>
+      <div className="flex gap-2">
+        <label className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="font-semibold text-ink">CPF</span>
+          <input name="cpf" required inputMode="numeric" autoComplete="off" placeholder="000.000.000-00" className={inputClass} />
+        </label>
+        <label className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="font-semibold text-ink">Nascimento</span>
+          <input name="dateOfBirth" type="date" required className={inputClass} />
+        </label>
+      </div>
+      <label className="flex flex-col gap-1">
+        <span className="font-semibold text-ink">E-mail do cliente</span>
+        <input name="email" type="email" required defaultValue={lead.email ?? ""} className={inputClass} />
+      </label>
+      <div className="flex gap-2">
+        <label className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="font-semibold text-ink">Valor do imóvel</span>
+          <input
+            name="realtyPrice"
+            required
+            inputMode="decimal"
+            defaultValue={lead.assetValue?.toLocaleString("pt-BR") ?? ""}
+            className={inputClass}
+          />
+        </label>
+        <label className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="font-semibold text-ink">A financiar</span>
+          <input
+            name="mortgageValue"
+            required
+            inputMode="decimal"
+            defaultValue={(lead.negotiatedValue ?? suggestedMortgage)?.toLocaleString("pt-BR") ?? ""}
+            className={inputClass}
+          />
+        </label>
+      </div>
+      <label className="flex items-center gap-2 text-ink">
+        <input name="useFgts" type="checkbox" />
+        Vai usar FGTS
+      </label>
+      <label className="flex items-start gap-2 text-ink">
+        <input name="consent" type="checkbox" required className="mt-0.5" />
+        <span>O cliente autorizou enviar nome, CPF, nascimento, telefone e e-mail à Credihome para simulação e análise de crédito.</span>
+      </label>
+      {message?.tone === "error" && <p className="text-status-danger">{message.text}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setMessage(undefined);
+          }}
+          className="rounded-brand border border-border px-3 py-2 text-sm font-semibold text-ink"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          disabled={pending}
+          className="flex-1 rounded-brand bg-brand-blue px-3 py-2 text-sm font-bold text-on-blue disabled:opacity-50"
+        >
+          {pending ? "Enviando…" : "Enviar"}
+        </button>
+      </div>
+    </form>
+  );
 }
 
 function LeadCard({
@@ -134,6 +286,8 @@ function LeadCard({
           </div>
         )}
       </dl>
+
+      {lead.assetType === "property" && (lead.credihome || lead.status !== "lost") && <CredihomeBox lead={lead} />}
 
       <div className="mt-3 flex items-center gap-2">
         <a

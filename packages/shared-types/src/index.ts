@@ -1666,9 +1666,58 @@ export const FinancingLeadSummarySchema = z.object({
   netCommission: z.number().optional(),
   netCommissionLabel: z.string().optional(),
   statusChangedAt: z.string().optional(),
+  // Lead enviado à Credihome: fase da jornada lá (atualizada a cada 6 horas
+  // ou pelo botão "Atualizar").
+  credihome: z
+    .object({
+      leadId: z.string(),
+      phase: z.string().optional(),
+      phaseLabel: z.string(),
+      sentAt: z.string(),
+      syncedAt: z.string().optional(),
+    })
+    .optional(),
   createdAt: z.string(),
 });
 export type FinancingLeadSummary = z.infer<typeof FinancingLeadSummarySchema>;
+
+// Fases da jornada na Credihome (GET /leads/{id}/journey), na ordem.
+export const CREDIHOME_PHASE_LABELS: Record<string, string> = {
+  lead: "Recebido pela Credihome",
+  documentos: "Documentos",
+  analise_credito: "Análise de crédito",
+  analise_juridica: "Análise jurídica",
+  confirmacao_valores: "Confirmação de valores",
+  emissao: "Emissão do contrato",
+  assinatura: "Assinatura",
+  registro: "Registro em cartório",
+  liberacao_valores: "Liberação dos valores",
+  finalizado: "Finalizado",
+};
+
+// Envio de um lead de imóvel à Credihome pelo admin. CPF e nascimento são
+// pedidos ao cliente na conversa e não ficam guardados no NovoSeminovo.
+export const SendToCredihomeInputSchema = z
+  .object({
+    cpf: z.string().refine((value) => isValidCpf(value), "CPF inválido"),
+    dateOfBirth: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Data de nascimento inválida")
+      .refine((value) => {
+        const age = (Date.now() - new Date(`${value}T12:00:00Z`).getTime()) / (365.25 * 86_400_000);
+        return age >= 18 && age <= 100;
+      }, "O comprador precisa ter 18 anos ou mais"),
+    email: z.string().trim().email("E-mail inválido"),
+    realtyPrice: z.number().positive("Informe o valor do imóvel"),
+    mortgageValue: z.number().positive("Informe o valor a financiar"),
+    useFgts: z.boolean(),
+    consent: z.literal(true, { errorMap: () => ({ message: "Confirme que o cliente autorizou o envio dos dados" }) }),
+  })
+  .refine((input) => input.mortgageValue <= input.realtyPrice, {
+    message: "O valor a financiar não pode passar do valor do imóvel",
+    path: ["mortgageValue"],
+  });
+export type SendToCredihomeInput = z.infer<typeof SendToCredihomeInputSchema>;
 
 // ---------- Integração com CRMs ----------
 

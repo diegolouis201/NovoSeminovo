@@ -12,6 +12,7 @@ import {
 import Anthropic from "@anthropic-ai/sdk";
 import { Prisma, type AgentConversation } from "@novoseminovo/db";
 import {
+  CREDIHOME_PHASE_LABELS,
   formatBRL,
   type AgentConversationView,
   type AgentKind,
@@ -468,6 +469,16 @@ export class AgentsService {
         netCommission,
         netCommissionLabel: netCommission === undefined ? undefined : formatBRL(netCommission),
         statusChangedAt: lead.statusChangedAt?.toISOString(),
+        credihome:
+          lead.credihomeLeadId && lead.credihomeSentAt
+            ? {
+                leadId: lead.credihomeLeadId,
+                phase: lead.credihomePhase ?? undefined,
+                phaseLabel: (lead.credihomePhase && CREDIHOME_PHASE_LABELS[lead.credihomePhase]) ?? lead.credihomePhase ?? "Enviado",
+                sentAt: lead.credihomeSentAt.toISOString(),
+                syncedAt: lead.credihomeSyncedAt?.toISOString(),
+              }
+            : undefined,
         createdAt: lead.createdAt.toISOString(),
       };
     });

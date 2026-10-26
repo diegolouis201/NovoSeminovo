@@ -8,7 +8,9 @@ import { acquisitionHeaders } from "@/lib/acquisition";
 import {
   fetchAgentConversation,
   fetchAgentStatus,
+  refreshFinancingLeadCredihome,
   sendAgentMessage,
+  sendFinancingLeadToCredihome,
   updateFinancingLead,
   type SendAgentMessageResult,
 } from "@/lib/api";
@@ -96,6 +98,41 @@ export async function saveFinancingLeadDetailsAction(
     },
     session.accessToken,
   );
+  revalidatePath("/admin/financiamentos");
+  return result;
+}
+
+export async function sendToCredihomeAction(
+  id: string,
+  formData: FormData,
+): Promise<{ ok: true; alreadyExisted: boolean } | { ok: false; error: string }> {
+  const session = await auth();
+  if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
+  const realtyPrice = moneyField(formData, "realtyPrice");
+  const mortgageValue = moneyField(formData, "mortgageValue");
+  if (!realtyPrice || !mortgageValue) return { ok: false, error: "Preencha o valor do imóvel e o valor a financiar." };
+  if (formData.get("consent") !== "on") return { ok: false, error: "Confirme que o cliente autorizou o envio dos dados." };
+  const result = await sendFinancingLeadToCredihome(
+    id,
+    {
+      cpf: String(formData.get("cpf") ?? ""),
+      dateOfBirth: String(formData.get("dateOfBirth") ?? ""),
+      email: String(formData.get("email") ?? "").trim(),
+      realtyPrice,
+      mortgageValue,
+      useFgts: formData.get("useFgts") === "on",
+      consent: true,
+    },
+    session.accessToken,
+  );
+  revalidatePath("/admin/financiamentos");
+  return result;
+}
+
+export async function refreshCredihomeAction(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await auth();
+  if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
+  const result = await refreshFinancingLeadCredihome(id, session.accessToken);
   revalidatePath("/admin/financiamentos");
   return result;
 }

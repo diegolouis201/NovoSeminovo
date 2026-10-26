@@ -913,6 +913,15 @@ model FinancingLead {
   // e no repasse ao anunciante (ver RebatesService).
   financingDealId String?             @unique @map("financing_deal_id")
   financingDeal   FinancingDeal?      @relation(fields: [financingDealId], references: [id])
+  // Envio à Credihome (só imóvel; ver apps/api/src/agents/credihome.ts). O
+  // CPF e a data de nascimento vão direto pra Credihome e não são guardados
+  // aqui — só o id do lead lá, a fase da jornada e quando o admin confirmou
+  // a autorização do cliente.
+  credihomeLeadId    String?   @unique @map("credihome_lead_id")
+  credihomePhase     String?   @map("credihome_phase")
+  credihomeSentAt    DateTime? @map("credihome_sent_at")
+  credihomeSyncedAt  DateTime? @map("credihome_synced_at")
+  credihomeConsentAt DateTime? @map("credihome_consent_at")
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
 

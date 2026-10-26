@@ -223,6 +223,15 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - Detalhes em `docs/agentes-ia.md`.
    - Tráfego pago adiado até haver conta de anúncios ligada no Windsor.
 
+38. **Integração Credihome (26/10/2026)**
+   - Só imóvel: a Credihome não faz crédito de veículo.
+   - Em `/admin/financiamentos`, cada card de imóvel tem "Enviar para Credihome". O admin pede ao cliente o CPF e a data de nascimento e marca a autorização (LGPD).
+   - CPF e nascimento vão direto à Credihome e não são guardados; o banco guarda só o id do lead lá, a fase e a data da autorização.
+   - A fase da jornada (documentos, análise de crédito… finalizado) atualiza a cada 6 horas ou pelo botão "Atualizar".
+   - Código: `apps/api/src/agents/credihome.ts` (cliente da API, token em memória) e `credihome.service.ts`; teste com servidor falso em `credihome.spec.ts`.
+   - Env no `.env` da VPS: `CREDIHOME_LOGIN`, `CREDIHOME_PASSWORD` (já salvos), `CREDIHOME_PARTNER_ID=54717` (é o `relatedId` do token do login), `CREDIHOME_API_URL` (padrão produção).
+   - O usuário do NovoSeminovo só existe em **produção** (staging deu 401). Nunca enviar lead de teste: cada envio vira um cliente real para a Credihome.
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).

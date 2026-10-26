@@ -64,6 +64,11 @@ services:
       EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-diego.louis@novoseminovo.com.br}
       RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
       MARKETING_LINK_SECRET: ${MARKETING_LINK_SECRET:-}
+      # Credihome (financiamento imobiliário, /admin/financiamentos)
+      CREDIHOME_LOGIN: ${CREDIHOME_LOGIN:-}
+      CREDIHOME_PASSWORD: ${CREDIHOME_PASSWORD:-}
+      CREDIHOME_PARTNER_ID: ${CREDIHOME_PARTNER_ID:-}
+      CREDIHOME_API_URL: ${CREDIHOME_API_URL:-https://api-partner.credihome.com.br/v1/production}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_PUBLIC_URL_BASE: ${S3_PUBLIC_URL_BASE:-}
       S3_ENDPOINT: ${S3_ENDPOINT:-}

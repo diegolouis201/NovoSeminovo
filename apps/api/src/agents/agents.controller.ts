@@ -4,6 +4,7 @@ import {
   AgentKind,
   AgentMessageInputSchema,
   FinancingLeadStatus,
+  SendToCredihomeInputSchema,
   UpdateFinancingLeadInputSchema,
 } from "@novoseminovo/shared-types";
 import { AdminGuard } from "../admin/admin.guard";
@@ -13,6 +14,7 @@ import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { acquisitionFrom } from "../common/acquisition";
 import { parseOrBadRequest } from "../common/parse";
 import { AgentsService, type AgentRequester } from "./agents.service";
+import { CredihomeService } from "./credihome.service";
 
 // Agentes liberados pelo chat do site até agora — os outros entram aqui
 // conforme forem construídos (ver AgentsService.buildAgent).
@@ -36,7 +38,10 @@ function clientIp(request: Request): string {
 
 @Controller()
 export class AgentsController {
-  constructor(private readonly agentsService: AgentsService) {}
+  constructor(
+    private readonly agentsService: AgentsService,
+    private readonly credihome: CredihomeService,
+  ) {}
 
   @Get("agents/status")
   status() {
@@ -79,5 +84,17 @@ export class AgentsController {
   @Patch("admin/financing-leads/:id")
   updateFinancingLead(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
     return this.agentsService.updateFinancingLead(user.id, id, parseOrBadRequest(UpdateFinancingLeadInputSchema, body));
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post("admin/financing-leads/:id/credihome")
+  sendToCredihome(@Param("id") id: string, @Body() body: unknown) {
+    return this.credihome.send(id, parseOrBadRequest(SendToCredihomeInputSchema, body));
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post("admin/financing-leads/:id/credihome/refresh")
+  refreshCredihome(@Param("id") id: string) {
+    return this.credihome.refresh(id);
   }
 }

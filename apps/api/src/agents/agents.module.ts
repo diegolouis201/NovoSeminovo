@@ -8,13 +8,14 @@ import { AdminModule } from "../admin/admin.module";
 import { RebatesModule } from "../rebates/rebates.module";
 import { AgentsController } from "./agents.controller";
 import { AgentsService } from "./agents.service";
+import { CredihomeService } from "./credihome.service";
 import { WhatsAppController } from "./whatsapp.controller";
 import { WhatsAppService } from "./whatsapp.service";
 
 @Module({
   imports: [AuthModule, ListingsModule, NotificationsModule, PartnersModule, AdminModule, RebatesModule, ContactsModule],
   controllers: [AgentsController, WhatsAppController],
-  providers: [AgentsService, WhatsAppService],
+  providers: [AgentsService, WhatsAppService, CredihomeService],
   exports: [AgentsService],
 })
 export class AgentsModule {}

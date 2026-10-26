@@ -41,6 +41,7 @@ import type {
   FinancingLeadStatus,
   FinancingLeadSummary,
   UpdateFinancingLeadInput,
+  SendToCredihomeInput,
   ConversationDetail,
   ConversationSummary,
   CreateListingInput,
@@ -1589,6 +1590,43 @@ export async function updateFinancingLead(
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { message?: string };
       return { ok: false, error: data.message ?? "Não foi possível salvar agora." };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor agora." };
+  }
+}
+
+// Credihome: o envio pode levar alguns segundos (login + simulação lá).
+export async function sendFinancingLeadToCredihome(
+  id: string,
+  input: SendToCredihomeInput,
+  accessToken: string,
+): Promise<{ ok: true; alreadyExisted: boolean } | { ok: false; error: string }> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/admin/financing-leads/${id}/credihome`,
+      { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders(accessToken) }, body: JSON.stringify(input) },
+      60_000,
+    );
+    const data = (await res.json().catch(() => ({}))) as { message?: string; alreadyExisted?: boolean };
+    if (!res.ok) return { ok: false, error: data.message ?? "Não foi possível enviar à Credihome agora." };
+    return { ok: true, alreadyExisted: Boolean(data.alreadyExisted) };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor agora." };
+  }
+}
+
+export async function refreshFinancingLeadCredihome(id: string, accessToken: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/admin/financing-leads/${id}/credihome/refresh`,
+      { method: "POST", headers: authHeaders(accessToken) },
+      60_000,
+    );
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      return { ok: false, error: data.message ?? "Não foi possível atualizar agora." };
     }
     return { ok: true };
   } catch {
