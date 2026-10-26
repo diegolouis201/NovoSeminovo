@@ -1,6 +1,8 @@
 import { AffiliatesModule } from "./affiliates/affiliates.module";
 import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ListingsModule } from "./listings/listings.module";
 import { AuthModule } from "./auth/auth.module";
@@ -24,6 +26,12 @@ import { MarketingModule } from "./marketing/marketing.module";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // Limite global por IP (ver auth.controller.ts pro limite mais
+    // apertado de login/registro, que sobrescreve este default via
+    // @Throttle) — sem isto, nada impedia tentar senha ou criar conta
+    // infinitamente. WebhooksController usa @SkipThrottle() porque quem
+    // chama lá é o Stripe/WhatsApp/Resend, não uma pessoa num navegador.
+    ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 120 }]),
     PrismaModule,
     ListingsModule,
     AuthModule,
@@ -45,5 +53,6 @@ import { MarketingModule } from "./marketing/marketing.module";
     MarketingModule,
     AffiliatesModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

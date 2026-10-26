@@ -17,6 +17,7 @@ services:
     depends_on:
       - postgres
     environment:
+      NODE_ENV: production
       PORT: 4000
       DATABASE_URL: postgresql://novoseminovo:${POSTGRES_PASSWORD}@postgres:5432/novoseminovo?schema=public
       JWT_SECRET: ${JWT_SECRET}

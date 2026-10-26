@@ -1,8 +1,25 @@
 {$DOMAIN} {
+	# HSTS, nosniff, anti-clickjacking e política de referrer — Caddy já
+	# emite HTTPS automático e redireciona HTTP→HTTPS sozinho, isso aqui é
+	# o que falta pro resto do checklist básico de cabeçalhos de segurança.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
 	reverse_proxy web:3000
 }
 
 api.{$DOMAIN} {
+	# Mesmo motivo do bloco acima — a API também serve página HTML direto
+	# (ex.: confirmação de descadastro de e-mail em MarketingPublicController).
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
 	# WebSocket do chat (Socket.IO, ver ConversationsGateway) passa por aqui
 	# sem configuração extra — o Caddy detecta o cabeçalho Upgrade sozinho.
 	reverse_proxy api:4000

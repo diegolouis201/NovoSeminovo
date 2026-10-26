@@ -1,3 +1,11 @@
+// Precisa ser o primeiro import do arquivo: imports são resolvidos em
+// ordem, e AppModule puxa (estaticamente) módulos como AuthModule que leem
+// JWT_SECRET assim que são carregados — se o ConfigModule.forRoot() só
+// aparecesse depois no grafo de módulos, process.env.JWT_SECRET ainda
+// estaria vazio nesse momento em dev local (sem .env real, como em
+// produção via docker-compose, onde a variável já vem do ambiente do
+// container antes do Node nem iniciar).
+import "dotenv/config";
 import "reflect-metadata";
 import { mkdirSync } from "node:fs";
 import { NestFactory } from "@nestjs/core";

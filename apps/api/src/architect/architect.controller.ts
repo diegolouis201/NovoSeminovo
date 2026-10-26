@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Res, UseGuards } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
 import { z } from "zod";
 import { ArchitectMessageInputSchema } from "@novoseminovo/shared-types";
@@ -28,6 +29,10 @@ export class ArchitectController {
     return this.architect.getSession(user.id, id);
   }
 
+  // Cada mensagem pode gerar imagem via IA (custo real em R$, ver
+  // ARCHITECT_DAILY_IMAGES) — o limite diário de negócio já existe no
+  // service, mas nada impedia uma rajada curta; isso aqui é só pra isso.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @UseGuards(JwtAuthGuard)
   @Post("architect/sessions/:id/messages")
   message(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {

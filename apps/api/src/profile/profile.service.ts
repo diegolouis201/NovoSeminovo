@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Profile, SendEmailVerificationResult, UpdateProfileInput } from "@novoseminovo/shared-types";
 import { renderNotificationEmail } from "../email/email-template";
@@ -5,9 +6,13 @@ import { EmailService } from "../email/email.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const CODE_TTL_MINUTES = 15;
+// Espaço de busca de 10^6 é pequeno — sem limite de tentativas, dá pra
+// força-bruta dentro da validade do código. 5 erradas invalida o código,
+// forçando pedir um novo (e um novo e-mail de verdade ser entregue).
+const MAX_VERIFICATION_ATTEMPTS = 5;
 
 function generateCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(randomInt(100000, 1000000));
 }
 
 @Injectable()
@@ -75,6 +80,7 @@ export class ProfileService {
       data: {
         emailVerificationCode: code,
         emailVerificationExpiresAt: new Date(Date.now() + CODE_TTL_MINUTES * 60 * 1000),
+        emailVerificationAttempts: 0,
       },
     });
 
@@ -99,13 +105,29 @@ export class ProfileService {
     ) {
       throw new BadRequestException("Código expirado. Peça um novo código.");
     }
+    if (user.emailVerificationAttempts >= MAX_VERIFICATION_ATTEMPTS) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { emailVerificationCode: null, emailVerificationExpiresAt: null },
+      });
+      throw new BadRequestException("Muitas tentativas erradas. Peça um novo código.");
+    }
     if (user.emailVerificationCode !== code) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { emailVerificationAttempts: { increment: 1 } },
+      });
       throw new BadRequestException("Código incorreto.");
     }
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { emailVerifiedAt: new Date(), emailVerificationCode: null, emailVerificationExpiresAt: null },
+      data: {
+        emailVerifiedAt: new Date(),
+        emailVerificationCode: null,
+        emailVerificationExpiresAt: null,
+        emailVerificationAttempts: 0,
+      },
     });
 
     return this.getProfile(userId);

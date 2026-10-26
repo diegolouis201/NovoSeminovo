@@ -1,8 +1,44 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { Logger } from "@nestjs/common";
 import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+
+// Nunca derivar a extensão do nome de arquivo que a pessoa mandou — esse
+// nome é escolhido por quem faz o upload, e o Express serve /uploads por
+// extensão (ver main.ts), não pelo Content-Type validado no fileFilter.
+// Sem isto, um JPEG "de mentira" com nome "x.svg" (mimetype forjado só pra
+// passar no filtro) seria salvo como .svg e servido como image/svg+xml —
+// SVG pode conter <script>, então isso seria XSS armazenado no domínio da
+// API. A extensão sempre sai do mimetype já aprovado pelo controller, nunca
+// do nome original.
+const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
+
+function extensionForContentType(contentType: string): string {
+  const extension = EXTENSION_BY_CONTENT_TYPE[contentType];
+  if (!extension) {
+    throw new Error(`Tipo de arquivo não suportado para upload: "${contentType}".`);
+  }
+  return extension;
+}
+
+// Defesa extra contra path traversal: mesmo com nome de arquivo sempre
+// gerado por randomUUID() (nunca reaproveitando entrada externa) nos
+// pontos de chamada atuais, read()/remove() confirmam que o caminho
+// resolvido continua dentro do diretório de uploads antes de tocar o disco
+// — qualquer futuro refactor que aceite uma URL "quase confiável" não reabre
+// path traversal sozinho.
+function resolveWithinUploadsDir(filename: string): string {
+  const resolved = resolve(UPLOADS_DIR, filename);
+  if (resolved !== UPLOADS_DIR && !resolved.startsWith(UPLOADS_DIR + sep)) {
+    throw new Error(`Caminho de foto fora do diretório de uploads: "${filename}".`);
+  }
+  return resolved;
+}
 
 export interface PhotoStorage {
   // Grava o arquivo e devolve a URL pública pra salvar em Photo.url — local
@@ -23,8 +59,8 @@ export const UPLOADS_DIR = join(process.cwd(), "uploads");
 export const UPLOADS_URL_PREFIX = "/uploads";
 
 class LocalDiskStorage implements PhotoStorage {
-  async save(buffer: Buffer, originalName: string, _contentType: string): Promise<string> {
-    const filename = `${randomUUID()}${extname(originalName).toLowerCase()}`;
+  async save(buffer: Buffer, _originalName: string, contentType: string): Promise<string> {
+    const filename = `${randomUUID()}${extensionForContentType(contentType)}`;
     await mkdir(UPLOADS_DIR, { recursive: true });
     await writeFile(join(UPLOADS_DIR, filename), buffer);
     return `${UPLOADS_URL_PREFIX}/${filename}`;
@@ -35,13 +71,13 @@ class LocalDiskStorage implements PhotoStorage {
     const filename = url.slice(`${UPLOADS_URL_PREFIX}/`.length);
     // Arquivo pode já ter sumido do disco (ex.: redeploy sem volume
     // persistente); nunca falha a remoção do registro por isso.
-    await unlink(join(UPLOADS_DIR, filename)).catch(() => {});
+    await unlink(resolveWithinUploadsDir(filename)).catch(() => {});
   }
 
   async read(url: string): Promise<Buffer> {
     if (!url.startsWith(UPLOADS_URL_PREFIX)) throw new Error(`URL de foto fora do diretório de uploads: ${url}`);
     const filename = url.slice(`${UPLOADS_URL_PREFIX}/`.length);
-    return readFile(join(UPLOADS_DIR, filename));
+    return readFile(resolveWithinUploadsDir(filename));
   }
 }
 
@@ -72,8 +108,8 @@ class S3PhotoStorage implements PhotoStorage {
     });
   }
 
-  async save(buffer: Buffer, originalName: string, contentType: string): Promise<string> {
-    const key = `${randomUUID()}${extname(originalName).toLowerCase()}`;
+  async save(buffer: Buffer, _originalName: string, contentType: string): Promise<string> {
+    const key = `${randomUUID()}${extensionForContentType(contentType)}`;
     await this.client.send(
       new PutObjectCommand({
         Bucket: this.bucket,

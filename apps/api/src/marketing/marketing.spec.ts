@@ -21,6 +21,12 @@ import { MarketingPostsService, fullCaption, normalizeHashtags } from "./posts.s
 // PostgreSQL local (DATABASE_URL) e servidores falsos da Meta e do Resend.
 // Rodar: pnpm --filter @novoseminovo/api test
 
+// links.ts não aceita mais um segredo hardcoded de fallback (ver
+// require-strong-secret.ts) — os testes de assinatura de link (ambas as
+// suítes abaixo) precisam de um, já que nada mais neste processo de teste
+// carrega .env.
+process.env.MARKETING_LINK_SECRET ??= "chave-de-teste-para-assinatura-de-links-em-marketing-spec";
+
 describe("Marketing: regras", () => {
   test("e-mail e telefone normalizados para não duplicar contato", () => {
     assert.equal(normalizeEmail("  Maria@Exemplo.COM "), "maria@exemplo.com");

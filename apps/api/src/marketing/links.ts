@@ -24,7 +24,14 @@ export function contentHash(content: unknown): string {
 }
 
 function linkSecret(): string {
-  return process.env.MARKETING_LINK_SECRET || process.env.JWT_SECRET || "dev-only-secret-troque-em-producao";
+  // Sem fallback hardcoded (ver require-strong-secret.ts) — MARKETING_LINK_SECRET
+  // é opcional, mas cai pro JWT_SECRET (que o boot da API já garante forte),
+  // nunca pra um valor conhecido no código-fonte.
+  const secret = process.env.MARKETING_LINK_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("MARKETING_LINK_SECRET ou JWT_SECRET precisa estar configurado pra assinar links de marketing.");
+  }
+  return secret;
 }
 
 export function signLink(value: string): string {

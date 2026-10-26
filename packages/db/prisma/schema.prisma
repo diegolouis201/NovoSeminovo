@@ -202,6 +202,11 @@ model User {
   emailVerifiedAt            DateTime? @map("email_verified_at")
   emailVerificationCode      String?   @map("email_verification_code")
   emailVerificationExpiresAt DateTime? @map("email_verification_expires_at")
+  // Zerado a cada código novo enviado; ProfileService.verifyEmail invalida
+  // o código depois de EMAIL_VERIFICATION_MAX_ATTEMPTS erradas — sem isso,
+  // o espaço de busca de 6 dígitos (10^6) é viável de força-bruta dentro
+  // dos 15 minutos de validade do código.
+  emailVerificationAttempts  Int       @default(0) @map("email_verification_attempts")
 
   ownedPartners            Partner[]             @relation("PartnerOwner")
   partnerMemberships       PartnerMember[]

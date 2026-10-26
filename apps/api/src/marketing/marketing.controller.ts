@@ -16,6 +16,7 @@ import {
   UseGuards,
   type RawBodyRequest,
 } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import {
   EmailCampaignInputSchema,
@@ -197,6 +198,9 @@ export class MarketingPublicController {
     return res.redirect(302, target);
   }
 
+  // O limite global por IP (ver app.module.ts) não pode derrubar evento do
+  // Resend numa rajada de entregas/bounces.
+  @SkipThrottle()
   @Post("webhooks/resend")
   @HttpCode(200)
   async resendWebhook(@Req() req: RawBodyRequest<Request>) {

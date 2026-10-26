@@ -1,4 +1,5 @@
 import { BadRequestException, Controller, Headers, Logger, Post, RawBodyRequest, Req } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
 import type { Request } from "express";
 import { PartnersService } from "../partners/partners.service";
 import { PaymentsService } from "../payments/payments.service";
@@ -10,6 +11,9 @@ import { AffiliatesService } from "../affiliates/affiliates.service";
 // coisa do corpo. Precisa do corpo cru (ver main.ts, NestFactory.create com
 // rawBody: true) porque a verificação é um HMAC sobre os bytes exatos que o
 // Stripe enviou — o corpo já reserializado pelo parser JSON não bate.
+// @SkipThrottle: o limite global por IP (ver app.module.ts) não pode
+// derrubar confirmação de pagamento numa rajada de eventos do Stripe.
+@SkipThrottle()
 @Controller("webhooks")
 export class WebhooksController {
   private readonly logger = new Logger(WebhooksController.name);

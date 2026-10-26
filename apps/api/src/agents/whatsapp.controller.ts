@@ -1,10 +1,14 @@
 import { Controller, ForbiddenException, Get, Headers, HttpCode, Post, Query, RawBodyRequest, Req, Res, ServiceUnavailableException } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import { WhatsAppService } from "./whatsapp.service";
 
 // Webhook do WhatsApp Cloud API. Sem guard de login — quem garante que é a
 // Meta é a assinatura X-Hub-Signature-256 (ver WhatsAppService), checada
-// sobre o corpo cru (main.ts liga rawBody).
+// sobre o corpo cru (main.ts liga rawBody). @SkipThrottle: a Meta é quem
+// chama aqui, não uma pessoa — o limite global por IP (ver app.module.ts)
+// não deve derrubar notificação de mensagem nova.
+@SkipThrottle()
 @Controller("webhooks/whatsapp")
 export class WhatsAppController {
   constructor(private readonly whatsapp: WhatsAppService) {}

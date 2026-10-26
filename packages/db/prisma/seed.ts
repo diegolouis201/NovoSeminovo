@@ -12,7 +12,24 @@ function hashPlate(plate: string) {
 // produção. É a senha que os testes manuais deste projeto sempre usaram.
 const DEMO_PASSWORD_HASH = hashSync("senha1234", 10);
 
+// Roda com `pnpm db:seed`, manual — nada no deploy chama isto sozinho. Mas
+// nada impedia alguém de apontar sem querer pro DATABASE_URL de produção
+// (ex.: colar o .env errado) e resetar a senha da conta admin pra
+// "senha1234", que está no código-fonte. Trava explícita: ou NODE_ENV não é
+// "production", ou quem está rodando confirma de propósito com
+// ALLOW_PROD_SEED=1.
+function assertNotProduction() {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_PROD_SEED !== "1") {
+    throw new Error(
+      "Seed bloqueado: NODE_ENV=production. Isto resetaria a senha de contas demo (inclusive admin) pra \"senha1234\". " +
+        "Se é mesmo isso que você quer, rode de novo com ALLOW_PROD_SEED=1.",
+    );
+  }
+}
+
 async function main() {
+  assertNotProduction();
+
   const buyer = await prisma.user.upsert({
     where: { email: "comprador@novoseminovo.com.br" },
     update: { passwordHash: DEMO_PASSWORD_HASH },
