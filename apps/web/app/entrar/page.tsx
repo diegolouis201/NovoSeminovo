@@ -11,7 +11,7 @@ function safeReturnPath(value: string | undefined): string {
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/conta";
 }
 
-export default async function LoginPage({ searchParams }: { searchParams: { error?: string; voltar?: string } }) {
+export default async function LoginPage({ searchParams }: { searchParams: { error?: string; voltar?: string; senha?: string } }) {
   const session = await auth();
   const returnTo = safeReturnPath(searchParams.voltar);
   if (session?.user) redirect(returnTo);
@@ -36,6 +36,10 @@ export default async function LoginPage({ searchParams }: { searchParams: { erro
     <main className="mx-auto flex max-w-sm flex-col gap-6 px-4 py-16">
       <h1 className="font-display text-2xl font-semibold text-ink">Entrar</h1>
 
+      {searchParams.senha === "nova" && (
+        <p className="rounded-brand bg-brand-green/10 px-4 py-3 text-sm text-ink">Senha trocada. Entre com a nova senha.</p>
+      )}
+
       {searchParams.error && (
         <p className="rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">
           E-mail ou senha inválidos.
@@ -48,6 +52,10 @@ export default async function LoginPage({ searchParams }: { searchParams: { erro
         <FormField label="Senha" name="password" type="password" />
         <Button type="submit">Entrar</Button>
       </form>
+
+      <Link href="/esqueci-senha" className="-mt-3 text-sm font-semibold text-brand-blue">
+        Esqueci minha senha
+      </Link>
 
       <p className="text-sm text-ink-muted">
         Ainda não tem conta?{" "}

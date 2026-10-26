@@ -245,6 +245,12 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - Admin: `/admin/leads` com todos os leads (quando chegou, comprador, anúncio, para qual loja, origem, etapa e dias na etapa), funil por etapa, % atendidos, aviso de leads em "Novo" há mais de 24h, filtros de período/tipo/origem/busca. API `GET admin/leads` (`admin/leads.service.ts`).
    - Teste: `admin/leads.spec.ts`.
 
+40. **Esqueci minha senha (26/10/2026)**
+   - `/entrar` → "Esqueci minha senha" (`/esqueci-senha`) → e-mail com link de uso único, válido por 1 hora → `/redefinir-senha?token=…`.
+   - API: `POST auth/forgot-password` (resposta igual existindo a conta ou não; 3 por minuto) e `POST auth/reset-password` (`auth/password-reset.service.ts`). No banco fica só o sha256 do token.
+   - Trocar a senha grava `passwordChangedAt`; o `JwtAuthGuard` derruba sessões emitidas antes (outros aparelhos). Abrir o link também conta como e-mail verificado.
+   - Teste: `auth/password-reset.spec.ts`.
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).

@@ -3,6 +3,8 @@ import { JwtModule } from "@nestjs/jwt";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { ContactsModule } from "../marketing/contacts.module";
+import { EmailModule } from "../email/email.module";
+import { PasswordResetService } from "./password-reset.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "./optional-jwt-auth.guard";
 import { requireStrongSecret } from "./require-strong-secret";
@@ -20,9 +22,10 @@ import { requireStrongSecret } from "./require-strong-secret";
       signOptions: { expiresIn: "30d" },
     }),
     ContactsModule,
+    EmailModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, OptionalJwtAuthGuard],
+  providers: [AuthService, PasswordResetService, JwtAuthGuard, OptionalJwtAuthGuard],
   exports: [JwtAuthGuard, OptionalJwtAuthGuard, AuthService],
 })
 export class AuthModule {}

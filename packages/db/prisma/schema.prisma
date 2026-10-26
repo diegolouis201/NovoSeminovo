@@ -208,6 +208,11 @@ model User {
   // o espaço de busca de 6 dígitos (10^6) é viável de força-bruta dentro
   // dos 15 minutos de validade do código.
   emailVerificationAttempts  Int       @default(0) @map("email_verification_attempts")
+  // "Esqueci minha senha": só o hash (sha256) do token do link fica no banco.
+  passwordResetTokenHash String?   @unique @map("password_reset_token_hash")
+  passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
+  // Sessões (JWT de 30 dias) emitidas antes disto deixam de valer.
+  passwordChangedAt      DateTime? @map("password_changed_at")
 
   ownedPartners            Partner[]             @relation("PartnerOwner")
   partnerMemberships       PartnerMember[]

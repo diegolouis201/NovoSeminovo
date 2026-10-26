@@ -8,7 +8,14 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-export function renderNotificationEmail(params: { userName: string; title: string; body: string; link?: string; code?: string }): string {
+export function renderNotificationEmail(params: {
+  userName: string;
+  title: string;
+  body: string;
+  link?: string;
+  linkLabel?: string;
+  code?: string;
+}): string {
   const userName = escapeHtml(params.userName);
   const title = escapeHtml(params.title);
   const body = escapeHtml(params.body).replace(/\n/g, "<br>");
@@ -29,7 +36,7 @@ export function renderNotificationEmail(params: { userName: string; title: strin
       }
       ${
         absoluteLink
-          ? `<a href="${absoluteLink}" style="display: inline-block; padding: 10px 20px; background: #76b82a; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 700;">Ver no NovoSeminovo</a>`
+          ? `<a href="${absoluteLink}" style="display: inline-block; padding: 10px 20px; background: #76b82a; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 700;">${escapeHtml(params.linkLabel ?? "Ver no NovoSeminovo")}</a>`
           : ""
       }
       <p style="margin-top: 32px; font-size: 12px; color: #999;">Você recebeu este e-mail porque tem uma conta no NovoSeminovo.</p>

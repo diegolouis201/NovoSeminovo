@@ -590,6 +590,31 @@ async function sendJson<T>(path: string, method: "POST" | "PATCH", body: unknown
   }
 }
 
+// "Esqueci minha senha" (sem login). O pedido espera o e-mail sair — 20s.
+export async function requestPasswordReset(email: string): Promise<ApiResult<{ ok: true }>> {
+  return publicPost("/auth/forgot-password", { email });
+}
+
+export async function resetPassword(token: string, password: string): Promise<ApiResult<{ ok: true }>> {
+  return publicPost("/auth/reset-password", { token, password });
+}
+
+async function publicPost<T>(path: string, body: unknown): Promise<ApiResult<T>> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}${path}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+      20000,
+    );
+    const data = (await res.json().catch(() => ({}))) as { message?: string | string[] };
+    if (res.status === 429) return { ok: false, error: "Muitas tentativas. Espere um minuto e tente de novo." };
+    if (!res.ok) return { ok: false, error: (Array.isArray(data.message) ? data.message[0] : data.message) ?? "Não foi possível concluir agora." };
+    return { ok: true, value: data as T };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor agora." };
+  }
+}
+
 export function createPartnerLead(input: CreateLeadInput, accessToken: string): Promise<ApiResult<LeadSummary>> {
   return sendJson("/partners/mine/leads", "POST", input, accessToken);
 }

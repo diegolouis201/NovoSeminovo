@@ -45,6 +45,15 @@ export const LoginInputSchema = z.object({
 });
 export type LoginInput = z.infer<typeof LoginInputSchema>;
 
+export const ForgotPasswordInputSchema = z.object({ email: EmailSchema });
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordInputSchema>;
+
+export const ResetPasswordInputSchema = z.object({
+  token: z.string().min(20).max(200),
+  password: z.string().min(8, "Mínimo de 8 caracteres").max(200),
+});
+export type ResetPasswordInput = z.infer<typeof ResetPasswordInputSchema>;
+
 export const AuthUserSchema = z.object({
   id: z.string(),
   name: z.string(),
