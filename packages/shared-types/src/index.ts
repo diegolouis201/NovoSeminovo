@@ -1695,18 +1695,20 @@ export const CREDIHOME_PHASE_LABELS: Record<string, string> = {
   finalizado: "Finalizado",
 };
 
+const BirthDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Data de nascimento inválida")
+  .refine((value) => {
+    const age = (Date.now() - new Date(`${value}T12:00:00Z`).getTime()) / (365.25 * 86_400_000);
+    return age >= 18 && age <= 100;
+  }, "O comprador precisa ter 18 anos ou mais");
+
 // Envio de um lead de imóvel à Credihome pelo admin. CPF e nascimento são
 // pedidos ao cliente na conversa e não ficam guardados no NovoSeminovo.
 export const SendToCredihomeInputSchema = z
   .object({
     cpf: z.string().refine((value) => isValidCpf(value), "CPF inválido"),
-    dateOfBirth: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, "Data de nascimento inválida")
-      .refine((value) => {
-        const age = (Date.now() - new Date(`${value}T12:00:00Z`).getTime()) / (365.25 * 86_400_000);
-        return age >= 18 && age <= 100;
-      }, "O comprador precisa ter 18 anos ou mais"),
+    dateOfBirth: BirthDateSchema,
     email: z.string().trim().email("E-mail inválido"),
     realtyPrice: z.number().positive("Informe o valor do imóvel"),
     mortgageValue: z.number().positive("Informe o valor a financiar"),
@@ -1718,6 +1720,67 @@ export const SendToCredihomeInputSchema = z
     path: ["mortgageValue"],
   });
 export type SendToCredihomeInput = z.infer<typeof SendToCredihomeInputSchema>;
+
+// Simulador na página do imóvel (mesmas perguntas do simulador da
+// Credihome). 1º passo: parcelas por banco, sem dado pessoal além do
+// nascimento (a idade muda o seguro). 2º passo: pedido de proposta.
+export const CREDIHOME_PURCHASE_WINDOWS = {
+  ate_3_meses: "Em até 3 meses",
+  "3_a_6_meses": "De 3 a 6 meses",
+  "6_a_12_meses": "De 6 a 12 meses",
+  mais_de_12_meses: "Daqui a mais de 1 ano",
+  pesquisando: "Só estou pesquisando",
+} as const;
+export const CredihomePurchaseWindow = z.enum(
+  Object.keys(CREDIHOME_PURCHASE_WINDOWS) as [keyof typeof CREDIHOME_PURCHASE_WINDOWS, ...Array<keyof typeof CREDIHOME_PURCHASE_WINDOWS>],
+);
+
+const CredihomeSimulationFields = z.object({
+  realtyPrice: z.number().positive("Informe o valor do imóvel").max(100_000_000),
+  mortgageValue: z.number().positive("Informe o valor do financiamento"),
+  dateOfBirth: BirthDateSchema,
+  months: z.number().int().min(60, "Prazo mínimo de 60 meses").max(420, "Prazo máximo de 420 meses"),
+  purchaseWindow: CredihomePurchaseWindow,
+});
+const financingNotAboveRealty = <T extends { realtyPrice: number; mortgageValue: number }>(input: T) =>
+  input.mortgageValue <= input.realtyPrice;
+
+export const CredihomeSimulateInputSchema = CredihomeSimulationFields.refine(financingNotAboveRealty, {
+  message: "O valor do financiamento não pode passar do valor do imóvel",
+  path: ["mortgageValue"],
+});
+export type CredihomeSimulateInput = z.infer<typeof CredihomeSimulateInputSchema>;
+
+export const CredihomeSimulationViewSchema = z.object({
+  results: z.array(
+    z.object({
+      bank: z.string(),
+      firstPayment: z.number(),
+      annualRate: z.number().optional(),
+      minimumIncome: z.number().optional(),
+      table: z.string().optional(),
+    }),
+  ),
+  maxFinancing: z.number().optional(),
+  warnings: z.array(z.string()),
+});
+export type CredihomeSimulationView = z.infer<typeof CredihomeSimulationViewSchema>;
+
+export const CredihomeProposalInputSchema = CredihomeSimulationFields.extend({
+  name: z.string().trim().min(3, "Informe seu nome completo").max(120),
+  cpf: z.string().refine((value) => isValidCpf(value), "CPF inválido"),
+  phone: z
+    .string()
+    .transform((value) => value.replace(/\D/g, ""))
+    .refine((value) => value.length === 10 || value.length === 11, "Celular com DDD"),
+  email: z.string().trim().email("E-mail inválido"),
+  useFgts: z.boolean(),
+  consent: z.literal(true, { errorMap: () => ({ message: "Autorize o envio dos dados para receber a proposta" }) }),
+}).refine(financingNotAboveRealty, {
+  message: "O valor do financiamento não pode passar do valor do imóvel",
+  path: ["mortgageValue"],
+});
+export type CredihomeProposalInput = z.input<typeof CredihomeProposalInputSchema>;
 
 // ---------- Integração com CRMs ----------
 

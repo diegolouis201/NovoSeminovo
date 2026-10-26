@@ -105,6 +105,7 @@ export type CredihomeLeadRequest = {
   useFgts: boolean;
   realtyPrice: number;
   mortgageValue: number;
+  months?: number;
   sourceUrl?: string;
 };
 
@@ -126,6 +127,7 @@ export async function createCredihomeLead(input: CredihomeLeadRequest): Promise<
     realtyPrice: input.realtyPrice,
     mortgageValue: input.mortgageValue,
     downPayment: Math.round((input.realtyPrice - input.mortgageValue) * 100) / 100,
+    ...(input.months ? { duration: input.months } : {}),
     source: "novoseminovo",
     userRequestedContact: true,
     mailingAllowed: false,
@@ -154,4 +156,50 @@ export async function fetchCredihomePhase(leadId: string): Promise<{ phase: stri
     return { phase: body.phase, updatedAt: typeof body.updatedAt === "string" ? body.updatedAt : undefined };
   }
   throw new CredihomeError(errorMessage(body) ?? `Não foi possível ler a fase na Credihome (HTTP ${status}).`, status);
+}
+
+export type CredihomeSimulation = {
+  results: Array<{ bank: string; firstPayment: number; annualRate?: number; minimumIncome?: number; table?: string }>;
+  maxFinancing?: number;
+  warnings: string[];
+};
+
+const num = (value: unknown): number | undefined => (typeof value === "number" && Number.isFinite(value) ? value : undefined);
+
+// POST /simulador: parcelas de cada banco, sem criar lead.
+export async function simulateCredihome(input: {
+  realtyPrice: number;
+  mortgageValue: number;
+  months: number;
+  dateOfBirth: string; // AAAA-MM-DD
+}): Promise<CredihomeSimulation> {
+  const [year, month, day] = input.dateOfBirth.split("-");
+  const { status, body } = await authed("/simulador", "POST", {
+    valorImovel: Math.round(input.realtyPrice),
+    valorFinanciado: Math.round(input.mortgageValue),
+    prazo: input.months,
+    produto: "mortgage",
+    dataNascimento: `${day}/${month}/${year}`,
+    calcularOutrosOperadores: true,
+    exibirNomesOperadores: true,
+    esconderParcelas: true,
+  });
+  if (status < 200 || status >= 300) {
+    throw new CredihomeError(errorMessage(body) ?? `A simulação falhou (HTTP ${status}).`, status);
+  }
+  const rows = Array.isArray(body.resultados) ? (body.resultados as Array<Record<string, unknown>>) : [];
+  const results = rows
+    .map((row) => ({
+      bank: typeof row.operador === "string" ? row.operador : "Banco",
+      firstPayment: num(row.prestacaoFinal) ?? num(row.prestacao) ?? 0,
+      annualRate: num(row.taxaJurosAnual),
+      minimumIncome: num(row.rendaMinima),
+      table: typeof row.tabela === "string" ? row.tabela : undefined,
+    }))
+    .filter((row) => row.firstPayment > 0)
+    .sort((a, b) => a.firstPayment - b.firstPayment);
+  const warnings = Array.isArray(body.errorMessage)
+    ? (body.errorMessage as unknown[]).filter((text): text is string => typeof text === "string" && text.trim() !== "")
+    : [];
+  return { results, maxFinancing: num(body.financiamentoMaximo), warnings };
 }

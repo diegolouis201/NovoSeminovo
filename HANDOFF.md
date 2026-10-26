@@ -231,6 +231,10 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - Código: `apps/api/src/agents/credihome.ts` (cliente da API, token em memória) e `credihome.service.ts`; teste com servidor falso em `credihome.spec.ts`.
    - Env no `.env` da VPS: `CREDIHOME_LOGIN`, `CREDIHOME_PASSWORD` (já salvos), `CREDIHOME_PARTNER_ID=54717` (é o `relatedId` do token do login), `CREDIHOME_API_URL` (padrão produção).
    - O usuário do NovoSeminovo só existe em **produção** (staging deu 401). Nunca enviar lead de teste: cada envio vira um cliente real para a Credihome.
+   - **Simulador na página do imóvel** (`components/CredihomeSimulator.tsx`, substituiu o link para simular.credihome.com.br). 1º passo: valor do imóvel, valor a financiar, nascimento, prazo e quando pretende comprar → parcelas por banco (`POST /simulador`, não cria lead, sem CPF). 2º passo, "Quero proposta do banco": nome, CPF, celular, e-mail, FGTS e autorização → card no quadro + envio automático à Credihome (`POST /simulations` com `duration`). Se a Credihome falhar, o card fica salvo e o admin reenvia pelo quadro; o aviso ao admin diz qual dos dois aconteceu. Se o simulador cair, a tela oferece o link antigo da Credihome.
+   - Limites por visitante (IP repassado pelo site): 20 simulações e 3 pedidos de proposta a cada 10 minutos. Mesmo celular no mesmo anúncio em 7 dias não gera outro card.
+   - `credihomeLeadId` não é único: o mesmo cliente em dois anúncios na mesma semana cai no mesmo lead lá.
+   - Política de privacidade atualizada (seção 4) citando a Credihome.
 
 ## Pendências e dívidas conhecidas (não esquecer)
 

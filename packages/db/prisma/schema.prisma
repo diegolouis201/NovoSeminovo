@@ -917,7 +917,9 @@ model FinancingLead {
   // CPF e a data de nascimento vão direto pra Credihome e não são guardados
   // aqui — só o id do lead lá, a fase da jornada e quando o admin confirmou
   // a autorização do cliente.
-  credihomeLeadId    String?   @unique @map("credihome_lead_id")
+  // Não é único: o mesmo cliente pedindo em dois anúncios na mesma semana
+  // cai no mesmo lead da Credihome (ela devolve o existente).
+  credihomeLeadId    String?   @map("credihome_lead_id")
   credihomePhase     String?   @map("credihome_phase")
   credihomeSentAt    DateTime? @map("credihome_sent_at")
   credihomeSyncedAt  DateTime? @map("credihome_synced_at")
@@ -926,6 +928,7 @@ model FinancingLead {
   updatedAt       DateTime            @updatedAt @map("updated_at")
 
   @@index([status])
+  @@index([credihomeLeadId])
   @@map("financing_leads")
 }
 

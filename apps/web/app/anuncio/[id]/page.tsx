@@ -3,11 +3,12 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { listingTier } from "@novoseminovo/shared-types";
 import { cache } from "react";
-import { Bank, IdentificationCard, PaintBrushHousehold } from "@phosphor-icons/react/dist/ssr";
+import { IdentificationCard, PaintBrushHousehold } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { ConsorcioCallout } from "@/components/ConsorcioCallout";
+import { CredihomeSimulator } from "@/components/CredihomeSimulator";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
 import { PhotoCarousel } from "@/components/PhotoCarousel";
@@ -16,11 +17,6 @@ import { confirmListingBoost, fetchListing, resolveMediaUrl } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
 import { startConversationAction } from "@/lib/actions/conversations";
 
-// Parceria com a Loft/CrediHome pra crédito imobiliário de verdade (bancos
-// reais, proposta de verdade) — diferente do FinancingCallout abaixo, que é
-// só uma calculadora local sem integração bancária nenhuma. Só faz sentido
-// pra imóvel: não existe parceria equivalente pra veículo ainda.
-const CREDIHOME_SIMULATOR_URL = "https://simular.credihome.com.br/novoseminovo";
 
 // A prévia (generateMetadata) e a página pedem o mesmo anúncio na mesma
 // requisição — cache() faz uma chamada só à API. Sem isso cada visita
@@ -315,17 +311,10 @@ export default async function ListingDetailPage({
             </Link>
           )}
 
-          {listing.assetType === "property" && (
-            <a
-              href={CREDIHOME_SIMULATOR_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex w-full max-w-sm items-center justify-center gap-2 rounded-brand border border-brand-blue px-4 py-3 text-sm font-bold text-brand-blue transition-colors hover:bg-brand-blue hover:text-on-blue"
-            >
-              <Bank size={18} weight="bold" />
-              Simular crédito com um banco de verdade
-            </a>
-          )}
+          {/* Crédito imobiliário de verdade (bancos reais, via Credihome) —
+              diferente do FinancingCallout acima, que é só uma calculadora
+              local. Não existe parceria equivalente pra veículo ainda. */}
+          {listing.assetType === "property" && <CredihomeSimulator listingId={listing.id} price={listing.financing.priceValue} />}
 
           <ConsorcioCallout assetType={listing.assetType} />
         </aside>

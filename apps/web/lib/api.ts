@@ -42,6 +42,9 @@ import type {
   FinancingLeadSummary,
   UpdateFinancingLeadInput,
   SendToCredihomeInput,
+  CredihomeProposalInput,
+  CredihomeSimulateInput,
+  CredihomeSimulationView,
   ConversationDetail,
   ConversationSummary,
   CreateListingInput,
@@ -1594,6 +1597,64 @@ export async function updateFinancingLead(
     return { ok: true };
   } catch {
     return { ok: false, error: "Não foi possível falar com o servidor agora." };
+  }
+}
+
+// Simulador de crédito na página do imóvel (público). O IP do visitante vai
+// no x-client-ip pro limite por pessoa na API.
+export async function simulateCredihome(
+  listingId: string,
+  input: CredihomeSimulateInput,
+  clientIp?: string,
+): Promise<{ ok: true; simulation: CredihomeSimulationView } | { ok: false; error: string; unavailable?: boolean }> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listings/${listingId}/credihome/simulate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(clientIp ? { "x-client-ip": clientIp } : {}) },
+        body: JSON.stringify(input),
+      },
+      45_000,
+    );
+    const data = (await res.json().catch(() => ({}))) as { message?: string | string[] } & Partial<CredihomeSimulationView>;
+    if (!res.ok) {
+      const message = Array.isArray(data.message) ? data.message[0] : data.message;
+      return { ok: false, error: message ?? "Não foi possível simular agora.", unavailable: res.status === 503 };
+    }
+    return { ok: true, simulation: data as CredihomeSimulationView };
+  } catch {
+    return { ok: false, error: "O simulador dos bancos não respondeu agora.", unavailable: true };
+  }
+}
+
+export async function requestCredihomeProposal(
+  listingId: string,
+  input: CredihomeProposalInput,
+  options: { clientIp?: string; extraHeaders?: Record<string, string> },
+): Promise<{ ok: true; outcome: "sent" | "already_sent" | "saved" } | { ok: false; error: string }> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listings/${listingId}/credihome/proposal`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...options.extraHeaders,
+          ...(options.clientIp ? { "x-client-ip": options.clientIp } : {}),
+        },
+        body: JSON.stringify(input),
+      },
+      60_000,
+    );
+    const data = (await res.json().catch(() => ({}))) as { message?: string | string[]; outcome?: "sent" | "already_sent" | "saved" };
+    if (!res.ok) {
+      const message = Array.isArray(data.message) ? data.message[0] : data.message;
+      return { ok: false, error: message ?? "Não foi possível enviar seu pedido agora." };
+    }
+    return { ok: true, outcome: data.outcome ?? "saved" };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor agora. Tente de novo em instantes." };
   }
 }
 

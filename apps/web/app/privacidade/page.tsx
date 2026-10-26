@@ -100,6 +100,13 @@ export default function PrivacyPage() {
           responsável por esses dados nesse atendimento.
         </li>
         <li>
+          <strong>Credihome (Loft), plataforma de crédito imobiliário:</strong> se você pedir uma proposta no simulador
+          de crédito de um imóvel e autorizar, enviamos nome, CPF, data de nascimento, celular, e-mail e os valores da
+          simulação à Credihome, que compara os bancos, faz a análise de crédito e entra em contato com você. O CPF e a
+          data de nascimento não ficam guardados no {COMPANY.brand}. Na simulação sem pedido de proposta, só os valores e
+          a data de nascimento são enviados, sem dados de contato.
+        </li>
+        <li>
           <strong>Anunciantes:</strong> quando você conversa sobre um anúncio ou clica para chamar no WhatsApp, o
           anunciante recebe o seu contato e a mensagem.
         </li>

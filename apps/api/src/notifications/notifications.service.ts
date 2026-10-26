@@ -136,7 +136,11 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         title: "Novo interessado em financiamento",
         body: `${payload.name} (${payload.phone}) pediu contato sobre financiamento${
           payload.listingTitle ? ` de "${payload.listingTitle}"` : ""
-        } pelo assistente de IA (${payload.channel === "whatsapp" ? "WhatsApp" : "site"}).`,
+        }${
+          payload.channel === "simulador"
+            ? " pelo simulador de crédito do anúncio"
+            : ` pelo assistente de IA (${payload.channel === "whatsapp" ? "WhatsApp" : "site"})`
+        }.${payload.credihome ? ` ${payload.credihome}` : ""}`,
         link: `/admin/financiamentos?tipo=${payload.assetType === "vehicle" ? "veicular" : "imobiliario"}`,
       };
     case "partner_trial_ending":

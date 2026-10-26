@@ -3,6 +3,8 @@ import type { Request } from "express";
 import {
   AgentKind,
   AgentMessageInputSchema,
+  CredihomeProposalInputSchema,
+  CredihomeSimulateInputSchema,
   FinancingLeadStatus,
   SendToCredihomeInputSchema,
   UpdateFinancingLeadInputSchema,
@@ -96,5 +98,21 @@ export class AgentsController {
   @Post("admin/financing-leads/:id/credihome/refresh")
   refreshCredihome(@Param("id") id: string) {
     return this.credihome.refresh(id);
+  }
+
+  // Simulador de crédito na página do imóvel (público).
+  @Post("listings/:id/credihome/simulate")
+  simulateCredihome(@Param("id") id: string, @Body() body: unknown, @Req() request: Request) {
+    return this.credihome.simulate(id, parseOrBadRequest(CredihomeSimulateInputSchema, body), clientIp(request));
+  }
+
+  @Post("listings/:id/credihome/proposal")
+  requestCredihomeProposal(@Param("id") id: string, @Body() body: unknown, @Req() request: Request) {
+    return this.credihome.requestProposal(
+      id,
+      parseOrBadRequest(CredihomeProposalInputSchema, body),
+      clientIp(request),
+      acquisitionFrom(request),
+    );
   }
 }
