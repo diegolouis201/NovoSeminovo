@@ -51,6 +51,9 @@ export default async function AdminPage() {
         <Link href="/admin/anuncios" className="text-sm font-semibold text-brand-blue hover:underline">
           Todos os anúncios (veículos e imóveis, PF e PJ) →
         </Link>
+        <Link href="/admin/leads" className="text-sm font-semibold text-brand-blue hover:underline">
+          Todos os leads (funil das lojas e imobiliárias) →
+        </Link>
         <Link href="/admin/marketing" className="text-sm font-semibold text-brand-blue hover:underline">
           Marketing (Instagram, e-mails e contatos) →
         </Link>

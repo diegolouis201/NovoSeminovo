@@ -371,6 +371,8 @@ export function toListingDetail(
   // Dono/admin vê todas as fotos (e quantas o plano esconde); o público vê
   // só as que o plano libera.
   fullView = false,
+  // Telefone do vendedor só para quem entrou na conta (ver sellerPhone).
+  viewerLoggedIn = false,
 ): ListingDetail {
   const benefits = listingBenefits(listing);
   const visiblePhotos = fullView ? listing.photos : listing.photos.slice(0, benefits.photos);
@@ -388,7 +390,8 @@ export function toListingDetail(
     ownerUserId: listing.ownerUserId,
     status: listing.status,
     // O vendedor pode esconder o WhatsApp no cadastro — aí só o chat fica.
-    sellerPhone: listing.showPhone ? listing.owner.phone ?? undefined : undefined,
+    sellerPhone: listing.showPhone && viewerLoggedIn ? listing.owner.phone ?? undefined : undefined,
+    sellerHasWhatsapp: Boolean(listing.showPhone && listing.owner.phone),
     reviewStatus,
     photos: visiblePhotos.map((photo) => ({ id: photo.id, url: photo.url })),
     vehicleId: listing.type === "vehicle" ? listing.vehicleDetails?.vehicleId ?? undefined : undefined,

@@ -8,11 +8,12 @@ import { AdminService } from "./admin.service";
 import { AdminOverviewService } from "./overview.service";
 import { AutoModerationService } from "./auto-moderation.service";
 import { AdminAccountsService } from "./accounts.service";
+import { AdminLeadsService } from "./leads.service";
 
 @Module({
   imports: [AuthModule, NotificationsModule, SavedSearchesModule],
   controllers: [AdminController],
-  providers: [AdminService, AdminGuard, AutoModerationService, AdminOverviewService, AdminAccountsService],
+  providers: [AdminService, AdminGuard, AutoModerationService, AdminOverviewService, AdminAccountsService, AdminLeadsService],
   exports: [AdminService, AdminOverviewService],
 })
 export class AdminModule {}

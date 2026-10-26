@@ -11,6 +11,7 @@ import {
 import type { Server, Socket } from "socket.io";
 import type { RealtimeMessage } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import { canAccessConversation } from "./access";
 
 // Só cobre o lado de "receber ao vivo" — enviar continua sendo o POST
 // /conversations/:id/messages de sempre (ConversationsService chama
@@ -56,7 +57,7 @@ export class ConversationsGateway implements OnGatewayConnection {
 
     const conversation = await this.prisma.conversation.findUnique({ where: { id: conversationId } });
     if (!conversation) return;
-    if (conversation.buyerId !== userId && conversation.sellerUserId !== userId) return;
+    if (!(await canAccessConversation(this.prisma, conversation, userId))) return;
 
     await client.join(conversationId);
   }

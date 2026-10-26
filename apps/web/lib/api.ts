@@ -19,6 +19,7 @@ import type {
   OpsSummary,
   MarketingSummary,
   AdminListingsPage,
+  AdminLeadsPage,
   AdminUserProfile,
   AdminDeleteInput,
   AdminListingActionInput,
@@ -595,6 +596,10 @@ export function createPartnerLead(input: CreateLeadInput, accessToken: string): 
 
 export function updatePartnerLead(leadId: string, input: UpdateLeadInput, accessToken: string): Promise<ApiResult<LeadSummary>> {
   return sendJson(`/leads/${leadId}`, "PATCH", input, accessToken);
+}
+
+export function openLeadConversation(leadId: string, accessToken: string): Promise<ApiResult<{ id: string }>> {
+  return sendJson(`/leads/${leadId}/conversation`, "POST", {}, accessToken);
 }
 
 export function startListingBoost(listingId: string, tier: string, accessToken: string): Promise<ApiResult<StartBoostResult>> {
@@ -1932,6 +1937,17 @@ export async function fetchAdminListings(params: Record<string, string | undefin
     const res = await fetchWithTimeout(`${API_URL}/admin/listings?${query}`, { headers: authHeaders(accessToken), cache: "no-store" }, 20000);
     if (!res.ok) return undefined;
     return (await res.json()) as AdminListingsPage;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function fetchAdminLeads(params: Record<string, string | undefined>, accessToken: string): Promise<AdminLeadsPage | undefined> {
+  const query = new URLSearchParams(Object.entries(params).filter((entry): entry is [string, string] => Boolean(entry[1])));
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/leads?${query}`, { headers: authHeaders(accessToken), cache: "no-store" }, 20000);
+    if (!res.ok) return undefined;
+    return (await res.json()) as AdminLeadsPage;
   } catch {
     return undefined;
   }

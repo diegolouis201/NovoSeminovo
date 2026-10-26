@@ -14,6 +14,7 @@ import { AdminGuard } from "./admin.guard";
 import { AdminService } from "./admin.service";
 import { AdminOverviewService } from "./overview.service";
 import { AdminAccountsService } from "./accounts.service";
+import { AdminLeadsService } from "./leads.service";
 
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller("admin")
@@ -22,7 +23,22 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly overviewService: AdminOverviewService,
     private readonly accounts: AdminAccountsService,
+    private readonly leads: AdminLeadsService,
   ) {}
+
+  // Todos os leads do site com o funil (/admin/leads).
+  @Get("leads")
+  listLeads(@Query() query: Record<string, string | undefined>) {
+    const days = Number(query.periodo);
+    return this.leads.list({
+      days: [7, 30, 90].includes(days) ? days : undefined,
+      status: query.etapa,
+      source: query.origem,
+      assetType: query.tipo === "vehicle" || query.tipo === "property" ? query.tipo : undefined,
+      search: query.busca?.slice(0, 100),
+      page: Math.max(1, Number(query.pagina) || 1),
+    });
+  }
 
   // Big numbers do site inteiro (/admin/painel).
   @Get("overview")

@@ -236,6 +236,13 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - `credihomeLeadId` não é único: o mesmo cliente em dois anúncios na mesma semana cai no mesmo lead lá.
    - Política de privacidade atualizada (seção 4) citando a Credihome.
 
+39. **Leads identificados e acompanhados (26/10/2026)**
+   - O WhatsApp do vendedor só vai para quem entrou na conta: `ListingDetail.sellerPhone` vem vazio sem login (`sellerHasWhatsapp` diz se existe), o botão vira "Entrar para chamar no WhatsApp" e `POST listings/:id/whatsapp-clicks` exige login. Não nascem mais leads "Contato anônimo" (os antigos continuam no banco).
+   - Card do lead da loja (`LeadsKanban`): botões WhatsApp, E-mail e Chat. O Chat abre a conversa com o comprador pela plataforma (`POST leads/:id/conversation`, cria se não existir). Usar qualquer canal num card "Novo" move para "Em contato".
+   - Dono e equipe da loja/imobiliária podem ler e responder as conversas dos anúncios dela (`conversations/access.ts`, usado no service e no WebSocket).
+   - Admin: `/admin/leads` com todos os leads (quando chegou, comprador, anúncio, para qual loja, origem, etapa e dias na etapa), funil por etapa, % atendidos, aviso de leads em "Novo" há mais de 24h, filtros de período/tipo/origem/busca. API `GET admin/leads` (`admin/leads.service.ts`).
+   - Teste: `admin/leads.spec.ts`.
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).

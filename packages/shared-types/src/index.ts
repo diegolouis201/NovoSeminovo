@@ -251,8 +251,12 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
   // importa quando quem está olhando é o próprio dono.
   status: ListingStatus,
   // Presente só quando o dono cadastrou telefone (RegisterInputSchema.phone é
-  // opcional) — o site só mostra "Chamar no WhatsApp" quando isto vem preenchido.
+  // opcional) E quem está vendo entrou na conta — o contato do vendedor só
+  // sai para comprador identificado (cada clique vira lead com nome).
   sellerPhone: z.string().optional(),
+  // O vendedor atende por WhatsApp (mesmo sem login, pra mostrar "Entrar
+  // para chamar no WhatsApp" sem revelar o número).
+  sellerHasWhatsapp: z.boolean(),
   // "not_eligible": visitante anônimo, dono do próprio anúncio, ou nunca
   // conversou sobre ele. "can_review": já conversou e ainda não avaliou.
   // "already_reviewed": já avaliou — a API recusa uma segunda vez.
@@ -1143,6 +1147,10 @@ export const LeadSummarySchema = z.object({
   // Telefone do comprador (cadastro do site) ou o digitado no lead manual —
   // vira o botão de WhatsApp do card.
   buyerPhone: z.string().optional(),
+  // Comprador com conta no site: dá pra continuar pelo chat da plataforma.
+  // conversationId presente = já existe conversa com ele sobre o anúncio.
+  canChat: z.boolean(),
+  conversationId: z.string().optional(),
   source: LeadSource,
   status: LeadStatus,
   notes: z.string().optional(),
@@ -1227,6 +1235,57 @@ export type AdminListingsPage = {
   // Contagem por tipo de bem, vendedor (PF/PJ) e situação, para as abas e filtros.
   counts: { assetType: "vehicle" | "property"; sellerType: "pf" | "pj"; status: string; count: number }[];
 };
+// Painel de leads do admin (/admin/leads): todo contato gerado no site, para
+// qual loja/imobiliária foi e em que etapa do funil está.
+export const LEAD_STATUS_LABELS: Record<z.infer<typeof LeadStatus>, string> = {
+  new: "Novo",
+  contacted: "Em contato",
+  visit_scheduled: "Visita",
+  negotiating: "Proposta",
+  won: "Vendido",
+  lost: "Perdido",
+};
+export const LEAD_SOURCE_LABELS: Record<z.infer<typeof LeadSource>, string> = {
+  chat: "Chat do site",
+  whatsapp: "WhatsApp",
+  phone: "Telefone",
+  walk_in: "Foi à loja",
+  referral: "Indicação",
+  social: "Redes sociais",
+  other: "Outro",
+};
+export type AdminLeadRow = {
+  id: string;
+  createdAt: string;
+  statusChangedAt: string;
+  daysInStage: number;
+  status: z.infer<typeof LeadStatus>;
+  source: z.infer<typeof LeadSource>;
+  buyerName: string;
+  buyerEmail?: string;
+  buyerPhone?: string;
+  buyerUserId?: string;
+  listingId?: string;
+  listingTitle?: string;
+  assetType?: "vehicle" | "property";
+  partnerName: string;
+  partnerOwnerUserId: string;
+  proposalValue?: number;
+  // Já existe conversa no chat do site entre o comprador e a loja.
+  hasConversation: boolean;
+  acqSource?: string;
+};
+export type AdminLeadsPage = {
+  items: AdminLeadRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  // Funil no período/filtros escolhidos (sem o filtro de etapa).
+  funnel: Record<z.infer<typeof LeadStatus>, number>;
+  // Leads em "Novo" há mais de 24h — ninguém atendeu ainda.
+  waitingOver24h: number;
+};
+
 export const AdminListingActionInputSchema = z.object({
   action: z.enum(["suspend", "reactivate"]),
   reason: z.string().trim().max(500).optional(),

@@ -10,6 +10,7 @@ import { leadOrigin } from "../common/acquisition";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { ConversationsGateway } from "./conversations.gateway";
+import { canAccessConversation, isPartnerTeam } from "./access";
 
 const conversationWithParties = {
   listing: { select: { id: true, title: true, ownerUserId: true } },
@@ -48,10 +49,32 @@ export class ConversationsService {
     private readonly gateway: ConversationsGateway,
   ) {}
 
-  private assertParticipant(conversation: { buyerId: string; sellerUserId: string | null }, userId: string) {
-    if (conversation.buyerId !== userId && conversation.sellerUserId !== userId) {
+  private async assertParticipant(conversation: { buyerId: string; sellerUserId: string | null; listingId: string }, userId: string) {
+    if (!(await canAccessConversation(this.prisma, conversation, userId))) {
       throw new ForbiddenException("Você não participa desta conversa.");
     }
+  }
+
+  // Botão "Conversar pelo chat" no card do lead (/parceiro/leads): abre a
+  // conversa com o comprador desse lead, criando se ainda não existir.
+  async openForLead(userId: string, leadId: string): Promise<{ id: string }> {
+    const lead = await this.prisma.lead.findUnique({
+      where: { id: leadId },
+      include: { listing: { select: { id: true, ownerUserId: true } } },
+    });
+    if (!lead) throw new NotFoundException("Lead não encontrado");
+    if (!(await isPartnerTeam(this.prisma, lead.partnerId, userId))) {
+      throw new ForbiddenException("Este lead não pertence à sua loja/imobiliária.");
+    }
+    if (!lead.buyerId || !lead.listing) {
+      throw new BadRequestException("Este contato não tem conta no site — fale por WhatsApp ou telefone.");
+    }
+    const existing = await this.prisma.conversation.findFirst({ where: { listingId: lead.listing.id, buyerId: lead.buyerId }, select: { id: true } });
+    if (existing) return existing;
+    return this.prisma.conversation.create({
+      data: { listingId: lead.listing.id, buyerId: lead.buyerId, sellerUserId: lead.listing.ownerUserId },
+      select: { id: true },
+    });
   }
 
   async startConversation(buyerId: string, listingId: string, acquisition?: Acquisition): Promise<ConversationSummary> {
@@ -116,7 +139,7 @@ export class ConversationsService {
       },
     });
     if (!conversation) throw new NotFoundException(`Conversa ${conversationId} não encontrada`);
-    this.assertParticipant(conversation, userId);
+    await this.assertParticipant(conversation, userId);
 
     const messages: MessageDto[] = conversation.messages.map((message) => ({
       id: message.id,
@@ -135,7 +158,7 @@ export class ConversationsService {
       include: conversationWithParties,
     });
     if (!conversation) throw new NotFoundException(`Conversa ${conversationId} não encontrada`);
-    this.assertParticipant(conversation, userId);
+    await this.assertParticipant(conversation, userId);
 
     const [message] = await this.prisma.$transaction([
       this.prisma.message.create({

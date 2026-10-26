@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import {
   addPartnerMember,
   createPartnerLead,
+  openLeadConversation,
   updateListingStatus,
   updatePartnerLead,
   updatePartnerSale,
@@ -176,6 +177,15 @@ export async function updateLeadAction(leadId: string, input: UpdateLeadInput): 
   // Lead ganho marca o anúncio como vendido (API) — vendas, estoque e busca mudam.
   if (input.status === "won") for (const path of ["/parceiro/vendas", "/parceiro/anuncios", "/busca"]) revalidatePath(path);
   return result;
+}
+
+// "Chat" no card do lead: abre (ou cria) a conversa com o comprador.
+export async function openLeadChatAction(leadId: string): Promise<{ ok: false; error: string } | never> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+  const result = await openLeadConversation(leadId, session.accessToken);
+  if (!result.ok) return { ok: false, error: result.error };
+  redirect(`/conta/mensagens/${result.value.id}`);
 }
 
 // Lead ganho → registra a venda do anúncio (valor e custo) de uma vez.

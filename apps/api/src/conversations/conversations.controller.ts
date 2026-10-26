@@ -17,6 +17,11 @@ export class ConversationsController {
     return this.conversationsService.startConversation(user.id, listingId, acquisitionFrom(request));
   }
 
+  @Post("leads/:id/conversation")
+  openForLead(@CurrentUser() user: { id: string }, @Param("id") leadId: string) {
+    return this.conversationsService.openForLead(user.id, leadId);
+  }
+
   @Get("me/conversations")
   listMine(@CurrentUser() user: { id: string }) {
     return this.conversationsService.listMine(user.id);

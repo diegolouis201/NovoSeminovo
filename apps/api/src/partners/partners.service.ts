@@ -34,6 +34,7 @@ import type {
 } from "@novoseminovo/shared-types";
 import type { Prisma } from "@novoseminovo/db";
 import { PrismaService } from "../prisma/prisma.service";
+import { conversationsForLeads } from "../conversations/access";
 import { ContactsService } from "../marketing/contacts.service";
 import { PaymentsService } from "../payments/payments.service";
 import { listingInclude, toListingSummary } from "../listings/listings.mapper";
@@ -148,7 +149,7 @@ const leadInclude = {
 
 type LeadRow = Prisma.LeadGetPayload<{ include: typeof leadInclude }>;
 
-function toLeadSummary(lead: LeadRow): LeadSummary {
+function toLeadSummary(lead: LeadRow, conversationId?: string): LeadSummary {
   return {
     id: lead.id,
     listingId: lead.listingId ?? undefined,
@@ -158,6 +159,8 @@ function toLeadSummary(lead: LeadRow): LeadSummary {
     buyerName: lead.buyer?.name ?? lead.contactName ?? "Contato anônimo",
     buyerEmail: lead.buyer?.email ?? "—",
     buyerPhone: lead.buyer?.phone ?? lead.contactPhone ?? undefined,
+    canChat: Boolean(lead.buyerId && lead.listingId),
+    conversationId,
     source: lead.source,
     status: lead.status,
     notes: lead.notes ?? undefined,
@@ -645,7 +648,8 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
       include: leadInclude,
       orderBy: { createdAt: "desc" },
     });
-    return leads.map(toLeadSummary);
+    const conversations = await conversationsForLeads(this.prisma, leads);
+    return leads.map((lead) => toLeadSummary(lead, conversations.get(`${lead.listingId}:${lead.buyerId}`)));
   }
 
   private async leadForPartner(userId: string, leadId: string) {
@@ -676,7 +680,8 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
       },
       include: leadInclude,
     });
-    return toLeadSummary(updated);
+    const conversations = await conversationsForLeads(this.prisma, [updated]);
+    return toLeadSummary(updated, conversations.get(`${updated.listingId}:${updated.buyerId}`));
   }
 
   // Lead "ganho" no kanban = venda: o anúncio dele sai do ar como vendido,

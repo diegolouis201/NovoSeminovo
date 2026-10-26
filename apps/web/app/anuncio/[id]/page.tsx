@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { listingTier } from "@novoseminovo/shared-types";
 import { cache } from "react";
-import { IdentificationCard, PaintBrushHousehold } from "@phosphor-icons/react/dist/ssr";
+import { IdentificationCard, PaintBrushHousehold, WhatsappLogo } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
@@ -257,14 +257,26 @@ export default async function ListingDetailPage({
               </form>
             ) : (
               <Link
-                href="/entrar"
+                href={`/entrar?voltar=${encodeURIComponent(`/anuncio/${listing.id}`)}`}
                 className="rounded-brand bg-brand-green px-4 py-3 text-center text-sm font-bold text-on-green hover:opacity-90"
               >
                 Entrar para conversar
               </Link>
             )}
-            {!isOwnListing && listing.sellerPhone && (
-              <WhatsAppButton listingId={listing.id} phone={listing.sellerPhone} listingTitle={listing.title} />
+            {/* O número do vendedor só vem para quem entrou na conta: todo
+                contato vira lead identificado (ver ListingDetail.sellerPhone). */}
+            {!isOwnListing && listing.sellerHasWhatsapp && (
+              listing.sellerPhone ? (
+                <WhatsAppButton listingId={listing.id} phone={listing.sellerPhone} listingTitle={listing.title} />
+              ) : (
+                <Link
+                  href={`/entrar?voltar=${encodeURIComponent(`/anuncio/${listing.id}`)}`}
+                  className="inline-flex items-center justify-center gap-2 rounded-brand border border-border px-4 py-3 text-sm font-bold text-ink hover:opacity-90"
+                >
+                  <WhatsappLogo size={20} weight="fill" className="text-brand-green" />
+                  Entrar para chamar no WhatsApp
+                </Link>
+              )
             )}
             {listing.reviewStatus === "can_review" && (
               <Link

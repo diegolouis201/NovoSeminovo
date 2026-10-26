@@ -247,10 +247,10 @@ export class ListingsController {
     return this.listingsService.confirmBoost(id, user.id, sessionId);
   }
 
-  @UseGuards(OptionalJwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Post(":id/whatsapp-clicks")
-  registerWhatsappClick(@CurrentUser() user: { id: string } | undefined, @Param("id") id: string, @Req() request: Request) {
-    return this.listingsService.registerWhatsappClick(id, user?.id, acquisitionFrom(request));
+  registerWhatsappClick(@CurrentUser() user: { id: string }, @Param("id") id: string, @Req() request: Request) {
+    return this.listingsService.registerWhatsappClick(id, user.id, acquisitionFrom(request));
   }
 
   @UseGuards(JwtAuthGuard)

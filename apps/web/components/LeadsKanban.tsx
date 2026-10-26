@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import {
   ChatCircle,
+  EnvelopeSimple,
   InstagramLogo,
   Phone,
   Plus,
@@ -14,7 +15,7 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 import { formatBRL, type CreateLeadInput, type LeadSource, type LeadStatus, type LeadSummary } from "@novoseminovo/shared-types";
-import { createLeadAction, registerSaleFromLeadAction, updateLeadAction } from "@/lib/actions/partners";
+import { createLeadAction, openLeadChatAction, registerSaleFromLeadAction, updateLeadAction } from "@/lib/actions/partners";
 
 // Kanban de leads do parceiro (/parceiro/leads), no mesmo jeito do funil de
 // financiamento do admin: arrasta o card (ou escolhe no seletor, no celular),
@@ -77,6 +78,8 @@ function daysIn(lead: LeadSummary): number {
   return Math.max(0, Math.floor((Date.now() - new Date(lead.statusChangedAt).getTime()) / 86_400_000));
 }
 
+const channelClass = "inline-flex items-center gap-1 rounded-brand px-2 py-1 text-xs font-bold";
+
 const fieldClass = "rounded-brand border border-border bg-surface-page px-2 py-1.5 text-sm text-ink";
 
 function LeadCard({
@@ -104,6 +107,13 @@ function LeadCard({
   const source = SOURCE[lead.source];
   const days = daysIn(lead);
   const whatsapp = whatsappLink(lead, storeName);
+  const email = lead.buyerEmail.includes("@") ? lead.buyerEmail : undefined;
+
+  // Falou com o cliente por algum canal: card novo vai pra "Em contato"
+  // sozinho — o funil (do parceiro e do admin) mostra quem já foi atendido.
+  function markContacted() {
+    if (lead.status === "new") save({ status: "contacted" });
+  }
 
   function save(input: Parameters<typeof updateLeadAction>[1], after?: () => void) {
     start(async () => {
@@ -151,18 +161,59 @@ function LeadCard({
       )}
       {lead.notes && !editing && <p className="mt-1.5 whitespace-pre-line rounded-brand bg-surface-sober px-2 py-1 text-xs text-ink">{lead.notes}</p>}
 
+      {(whatsapp || email || lead.canChat) && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {whatsapp && (
+            <a
+              href={whatsapp}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={markContacted}
+              aria-label={`Chamar ${lead.buyerName} no WhatsApp`}
+              className={`${channelClass} bg-brand-green text-on-green`}
+            >
+              <WhatsappLogo size={15} weight="fill" /> WhatsApp
+            </a>
+          )}
+          {email && (
+            <a
+              href={`mailto:${email}?subject=${encodeURIComponent(lead.listingTitle ? `Sobre o ${lead.listingTitle}` : storeName)}`}
+              onClick={markContacted}
+              aria-label={`Mandar e-mail para ${lead.buyerName}`}
+              className={`${channelClass} border border-border text-ink hover:bg-surface-sober`}
+            >
+              <EnvelopeSimple size={15} weight="bold" /> E-mail
+            </a>
+          )}
+          {lead.canChat &&
+            (lead.conversationId ? (
+              <Link
+                href={`/conta/mensagens/${lead.conversationId}`}
+                onClick={markContacted}
+                className={`${channelClass} border border-brand-blue text-brand-blue hover:bg-surface-sober`}
+              >
+                <ChatCircle size={15} weight="bold" /> Chat
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => {
+                  markContacted();
+                  start(async () => {
+                    const result = await openLeadChatAction(lead.id);
+                    if (result && !result.ok) setError(result.error);
+                  });
+                }}
+                className={`${channelClass} border border-brand-blue text-brand-blue hover:bg-surface-sober disabled:opacity-50`}
+              >
+                <ChatCircle size={15} weight="bold" /> Chat
+              </button>
+            ))}
+        </div>
+      )}
+
       <div className="mt-2 flex items-center gap-1.5">
-        {whatsapp && (
-          <a
-            href={whatsapp}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Chamar ${lead.buyerName} no WhatsApp`}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-brand bg-brand-green text-on-green"
-          >
-            <WhatsappLogo size={18} weight="fill" />
-          </a>
-        )}
         <select
           value={lead.status}
           onChange={(event) => save({ status: event.target.value as LeadStatus })}

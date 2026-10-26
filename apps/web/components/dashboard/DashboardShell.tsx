@@ -109,7 +109,7 @@ export async function DashboardShell({ children }: { children: ReactNode }) {
     ];
   }
   if (session.user.role === "admin") {
-    items = [...items, { href: "/admin/anuncios", label: "Todos os anúncios", icon: "globe" }, { href: "/admin", label: "Administração", icon: "shield" }];
+    items = [...items, { href: "/admin/anuncios", label: "Todos os anúncios", icon: "globe" }, { href: "/admin/leads", label: "Todos os leads", icon: "chart" }, { href: "/admin", label: "Administração", icon: "shield" }];
   }
 
   const accountLabel =

@@ -20,6 +20,7 @@ const LISTINGS: ListingDetail[] = [
     ownerUserId: "mock-owner",
     status: "active",
     reviewStatus: "not_eligible",
+    sellerHasWhatsapp: true,
     photos: [],
     sellerPhone: "31999998888",
     description:
@@ -55,6 +56,7 @@ const LISTINGS: ListingDetail[] = [
     ownerUserId: "mock-owner",
     status: "active",
     reviewStatus: "not_eligible",
+    sellerHasWhatsapp: false,
     photos: [],
     partnerSlug: "imobiliaria-savassi",
     partnerVerified: true,
@@ -90,6 +92,7 @@ const LISTINGS: ListingDetail[] = [
     ownerUserId: "mock-owner",
     status: "active",
     reviewStatus: "not_eligible",
+    sellerHasWhatsapp: false,
     photos: [],
     description: "Civic Touring turbo, top de linha, teto solar, interior em couro.",
     specs: [
@@ -120,6 +123,7 @@ const LISTINGS: ListingDetail[] = [
     ownerUserId: "mock-owner",
     status: "active",
     reviewStatus: "not_eligible",
+    sellerHasWhatsapp: false,
     photos: [],
     description: "Casa térrea com quintal, área gourmet e 2 vagas cobertas.",
     specs: [
