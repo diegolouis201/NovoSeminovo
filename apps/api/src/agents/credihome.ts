@@ -164,6 +164,8 @@ export type CredihomeSimulation = {
   warnings: string[];
 };
 
+const MAX_BANKS = 4;
+
 const num = (value: unknown): number | undefined => (typeof value === "number" && Number.isFinite(value) ? value : undefined);
 
 // POST /simulador: parcelas de cada banco, sem criar lead.
@@ -197,7 +199,12 @@ export async function simulateCredihome(input: {
       table: typeof row.tabela === "string" ? row.tabela : undefined,
     }))
     .filter((row) => row.firstPayment > 0)
-    .sort((a, b) => a.firstPayment - b.firstPayment);
+    .sort((a, b) => a.firstPayment - b.firstPayment)
+    // Um resultado por banco (a menor parcela dele) e no máximo 4 — a
+    // Credihome devolve várias linhas por banco (SAC, PRICE, repetidas), e a
+    // ideia é só mostrar que comparamos vários bancos.
+    .filter((row, index, all) => all.findIndex((other) => other.bank.toLowerCase() === row.bank.toLowerCase()) === index)
+    .slice(0, MAX_BANKS);
   const warnings = Array.isArray(body.errorMessage)
     ? (body.errorMessage as unknown[]).filter((text): text is string => typeof text === "string" && text.trim() !== "")
     : [];

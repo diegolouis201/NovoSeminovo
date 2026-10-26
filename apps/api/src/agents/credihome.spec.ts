@@ -83,6 +83,10 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
               resultados: [
                 { operador: "Banco B", prestacaoFinal: 4100.5, taxaJurosAnual: 11.5, rendaMinima: 13700, tabela: "SAC" },
                 { operador: "Banco A", prestacaoFinal: 3900.25, taxaJurosAnual: 10.9, rendaMinima: 13000, tabela: "SAC" },
+                { operador: "Banco A", prestacaoFinal: 4300, taxaJurosAnual: 11.2, rendaMinima: 14000, tabela: "PRICE" },
+                { operador: "Banco C", prestacaoFinal: 4200, taxaJurosAnual: 11.9, rendaMinima: 14000, tabela: "SAC" },
+                { operador: "Banco D", prestacaoFinal: 4400, taxaJurosAnual: 12.1, rendaMinima: 14500, tabela: "SAC" },
+                { operador: "Banco E", prestacaoFinal: 4500, taxaJurosAnual: 12.4, rendaMinima: 15000, tabela: "SAC" },
               ],
             }),
           );
@@ -208,7 +212,8 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
 
   test("simulador do anúncio: parcelas por banco, da menor para a maior", async () => {
     const result = await service.simulate(listings.property, CredihomeSimulateInputSchema.parse(simulation), "ip-sim");
-    assert.deepEqual(result.results.map((row) => row.bank), ["Banco A", "Banco B"]);
+    // Um por banco (a menor parcela), no máximo 4.
+    assert.deepEqual(result.results.map((row) => row.bank), ["Banco A", "Banco B", "Banco C", "Banco D"]);
     assert.equal(result.results[0].firstPayment, 3900.25);
     assert.equal(result.maxFinancing, 400000);
     const sent = calls.filter((call) => call.path === "/simulador").at(-1);
