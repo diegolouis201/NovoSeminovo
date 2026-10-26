@@ -69,13 +69,20 @@ export function FinancingCallout({
 
   return (
     <div className="flex w-full max-w-sm flex-col gap-3 rounded-sober bg-surface-sober p-6 text-ink">
-      <p className="text-xs font-bold uppercase tracking-wide text-brand-blue">Simulação de financiamento</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-brand-blue">Estimativa de financiamento</p>
       <p className="text-2xl font-extrabold [font-variant-numeric:tabular-nums]">{shown.installmentLabel}</p>
       <div className="flex flex-col gap-1 border-y border-border py-3 text-sm">
         <Row k="Valor do bem" v={price} />
         <Row k="Entrada estimada" v={shown.downPaymentLabel} />
-        <Row k="Taxa estimada" v={shown.rateLabel} />
+        <Row k="Taxa de referência" v={shown.rateLabel} />
       </div>
+      {/* Deixar claro de onde vem a conta: taxa fixa de referência do site,
+          não oferta de banco (a simulação com os bancos é o CredihomeSimulator). */}
+      <p className="text-[11px] leading-snug text-ink-muted">
+        Cálculo aproximado feito pelo NovoSeminovo com uma taxa de referência fixa (tabela Price, sem seguros
+        {assetType === "property" ? ", TR" : ""} e tarifas). Não é oferta de banco: a taxa real depende da análise de crédito.
+        {assetType === "property" && " Para ver as taxas dos bancos, use \"Simular crédito com um banco de verdade\" abaixo."}
+      </p>
 
       {open ? (
         <div className="flex flex-col gap-3">
@@ -114,7 +121,7 @@ export function FinancingCallout({
         </div>
       ) : (
         <Button variant="secondary" sober type="button" onClick={() => setOpen(true)}>
-          Simular financiamento
+          Ajustar entrada e parcelas
         </Button>
       )}
     </div>

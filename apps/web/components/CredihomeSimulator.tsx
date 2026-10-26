@@ -230,7 +230,10 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
               {warning}
             </p>
           ))}
-          <p className="text-[11px] text-ink-muted">Valores estimados pelos bancos; a taxa final depende da análise de crédito.</p>
+          <p className="text-[11px] text-ink-muted">
+            Taxas e parcelas informadas agora pelos bancos, por meio da Credihome. Incluem seguros obrigatórios e podem
+            mudar na análise de crédito.
+          </p>
           <div className="flex gap-2">
             <button
               type="button"
