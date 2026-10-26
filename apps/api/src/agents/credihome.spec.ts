@@ -71,7 +71,7 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
           const user = body?.user as { cpf: string };
           if (user.cpf === "39053344705") {
             res.statusCode = 400;
-            return res.end(JSON.stringify({ message: "Telefone inválido" }));
+            return res.end(JSON.stringify({ errors: [{ field: "user.phone", message: "Telefone inválido" }], cpf: "39053344705" }));
           }
           if (user.cpf === "11144477735") {
             res.statusCode = 409;
@@ -281,7 +281,8 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
     assert.equal(result.outcome, "saved");
     const lead = await prisma.financingLead.findFirstOrThrow({ where: { listingId: listings.property, phone: "31966665555" } });
     assert.equal(lead.credihomeLeadId, null);
-    assert.match(lead.adminNotes ?? "", /Não foi à Credihome.*Telefone inválido/);
+    assert.match(lead.adminNotes ?? "", /Não foi à Credihome.*Telefone inválido · campo user\.phone/);
+    assert.ok(!(lead.adminNotes ?? "").includes("39053344705"));
     assert.match(String(notified.at(-1)?.credihome), /Telefone inválido/);
   });
 });

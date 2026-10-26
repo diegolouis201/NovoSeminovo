@@ -60,7 +60,14 @@ async function send(path: string, init: { method: "GET" | "POST"; body?: unknown
   }).catch((error: Error) => {
     throw new CredihomeError(`Credihome fora do ar: ${error.message}`);
   });
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const rawText = await res.text().catch(() => "");
+  let body: Record<string, unknown>;
+  try {
+    const parsed: unknown = rawText ? JSON.parse(rawText) : {};
+    body = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : { raw: parsed };
+  } catch {
+    body = { raw: rawText.slice(0, 400) };
+  }
   return { status: res.status, body };
 }
 
@@ -91,9 +98,25 @@ async function authed(path: string, method: "GET" | "POST", body?: unknown): Pro
   return result;
 }
 
+// A Credihome nem sempre responde no formato da documentação
+// ({message, description}): erros de validação vêm em outros campos ou
+// como texto. Sem achar a mensagem, devolve o corpo inteiro — com números
+// longos (CPF, telefone) mascarados, porque isso vai para o card e o log.
 function errorMessage(body: Record<string, unknown>): string | undefined {
-  const text = body.description ?? body.message;
-  return typeof text === "string" && text.trim() ? text.trim().slice(0, 300) : undefined;
+  const parts: string[] = [];
+  const collect = (value: unknown) => {
+    if (typeof value === "string" && value.trim()) parts.push(value.trim());
+    else if (Array.isArray(value)) value.forEach(collect);
+    else if (value && typeof value === "object") {
+      const item = value as Record<string, unknown>;
+      collect(item.message ?? item.msg ?? item.description ?? item.error);
+      if (typeof item.field === "string" || typeof item.path === "string") parts.push(`campo ${String(item.field ?? item.path)}`);
+    }
+  };
+  for (const key of ["description", "message", "error", "errors", "erro", "erros", "detail", "details", "raw"]) collect(body[key]);
+  const text = parts.length ? [...new Set(parts)].join(" · ") : Object.keys(body).length ? JSON.stringify(body) : "";
+  const masked = text.replace(/\d{8,}/g, (digits) => `${"*".repeat(digits.length - 2)}${digits.slice(-2)}`);
+  return masked.trim() ? masked.trim().slice(0, 400) : undefined;
 }
 
 export type CredihomeLeadRequest = {
