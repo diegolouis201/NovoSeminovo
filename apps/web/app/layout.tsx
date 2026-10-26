@@ -10,6 +10,7 @@ import { AttributionCapture } from "@/components/AttributionCapture";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { VerticalProvider } from "@/components/ActiveVertical";
 
 // Placeholder tipográfico até a Valken Regular (fonte institucional original)
 // chegar como arquivo — ver README do design system (Etapa 4). Arquivos
@@ -60,8 +61,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="pt-BR" className={`${display.variable} ${sans.variable}`}>
       <body className="flex min-h-screen flex-col font-sans">
-        <SiteHeader />
-        <div className="flex-1">{children}</div>
+        <VerticalProvider>
+          <SiteHeader />
+          <div className="flex-1">{children}</div>
+        </VerticalProvider>
         <SiteFooter />
         <Analytics />
         {/* Link de afiliado (?ref=) e origem da visita — useSearchParams pede Suspense no layout. */}

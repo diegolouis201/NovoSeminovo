@@ -87,7 +87,8 @@ export class ProfileService {
     const html = renderNotificationEmail({
       userName: user.name,
       title: "Confirme seu e-mail",
-      body: `Seu código de verificação é <strong style="font-size: 20px; letter-spacing: 2px;">${code}</strong>. Ele vale por ${CODE_TTL_MINUTES} minutos.`,
+      body: `Digite este código em "Meus dados" no site. Ele vale por ${CODE_TTL_MINUTES} minutos.`,
+      code,
     });
     await this.email.send(user.email, "Confirme seu e-mail — NovoSeminovo", html);
 

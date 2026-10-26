@@ -9,6 +9,7 @@ import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { ConsorcioCallout } from "@/components/ConsorcioCallout";
 import { CredihomeSimulator } from "@/components/CredihomeSimulator";
+import { MarkVertical } from "@/components/ActiveVertical";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
 import { PhotoCarousel } from "@/components/PhotoCarousel";
@@ -89,6 +90,7 @@ export default async function ListingDetailPage({
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
+      <MarkVertical value={listing.assetType} />
       {isOwnListing && listing.status === "pending_review" && (
         <p
           className={`mb-6 rounded-brand px-4 py-3 text-sm font-semibold ${

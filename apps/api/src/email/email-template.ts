@@ -8,7 +8,7 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-export function renderNotificationEmail(params: { userName: string; title: string; body: string; link?: string }): string {
+export function renderNotificationEmail(params: { userName: string; title: string; body: string; link?: string; code?: string }): string {
   const userName = escapeHtml(params.userName);
   const title = escapeHtml(params.title);
   const body = escapeHtml(params.body).replace(/\n/g, "<br>");
@@ -22,6 +22,11 @@ export function renderNotificationEmail(params: { userName: string; title: strin
       <p style="margin: 0 0 20px; color: #666;">Olá, ${userName}</p>
       <h1 style="font-size: 18px; margin: 0 0 8px;">${title}</h1>
       <p style="font-size: 14px; line-height: 1.5; color: #333; margin: 0 0 20px;">${body}</p>
+      ${
+        params.code
+          ? `<p style="font-size: 28px; font-weight: 700; letter-spacing: 6px; margin: 0 0 20px; color: #1a1a1a;">${escapeHtml(params.code)}</p>`
+          : ""
+      }
       ${
         absoluteLink
           ? `<a href="${absoluteLink}" style="display: inline-block; padding: 10px 20px; background: #76b82a; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 700;">Ver no NovoSeminovo</a>`

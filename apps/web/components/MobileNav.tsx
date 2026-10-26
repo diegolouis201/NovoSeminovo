@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Bell, Car, House, List, X } from "@phosphor-icons/react/dist/ssr";
+import { Bell, List, X } from "@phosphor-icons/react/dist/ssr";
+import { VerticalNav } from "@/components/VerticalNav";
 
 // Menu de celular do cabeçalho (ver SiteHeader.tsx): em telas largas os links
 // cabem numa linha só, mas em celular (Carros + Imóveis + Anunciar + sino +
@@ -35,20 +36,7 @@ export function MobileNav({
 
       {open && (
         <div className="absolute inset-x-0 top-full z-20 flex flex-col gap-1 border-b border-border bg-surface-raised px-4 py-3 shadow-sm">
-          <Link
-            href="/carros"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2 rounded-brand px-3 py-2.5 text-sm font-semibold text-ink hover:bg-surface-sober"
-          >
-            <Car size={18} weight="bold" /> Carros
-          </Link>
-          <Link
-            href="/imoveis"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2 rounded-brand px-3 py-2.5 text-sm font-semibold text-ink hover:bg-surface-sober"
-          >
-            <House size={18} weight="bold" /> Imóveis
-          </Link>
+          <VerticalNav variant="mobile" onNavigate={() => setOpen(false)} />
           {userFirstName ? (
             <>
               <Link

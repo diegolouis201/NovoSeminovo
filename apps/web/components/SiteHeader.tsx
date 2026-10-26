@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Bell, Car, House } from "@phosphor-icons/react/dist/ssr";
+import { Bell } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { fetchUnreadNotificationsCount } from "@/lib/api";
 import { Logo } from "@/components/Logo";
 import { MobileNav } from "@/components/MobileNav";
+import { VerticalNav } from "@/components/VerticalNav";
 
 export async function SiteHeader() {
   const session = await auth();
@@ -17,18 +18,7 @@ export async function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-1 rounded-full bg-surface-sober p-1 md:flex">
-          <Link
-            href="/carros"
-            className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-raised"
-          >
-            <Car size={18} weight="bold" /> Carros
-          </Link>
-          <Link
-            href="/imoveis"
-            className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-raised"
-          >
-            <House size={18} weight="bold" /> Imóveis
-          </Link>
+          <VerticalNav variant="desktop" />
         </nav>
 
         <div className="hidden items-center gap-3 text-sm font-semibold md:flex">

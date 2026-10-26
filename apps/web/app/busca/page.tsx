@@ -7,6 +7,7 @@ import { getFavoriteContext } from "@/lib/favorites";
 import { saveSearchAction } from "@/lib/actions/saved-searches";
 import { VEHICLE_BODY_TYPE_OPTIONS, VEHICLE_CONDITION_OPTIONS, VEHICLE_FEATURE_OPTIONS } from "@novoseminovo/shared-types";
 import { FUEL_OPTIONS, PROPERTY_TYPE_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
+import { MarkVertical } from "@/components/ActiveVertical";
 
 type SearchPageProps = {
   searchParams: {
@@ -123,6 +124,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     };
     return (
       <main className="mx-auto max-w-[1600px] px-4 py-6">
+        <MarkVertical value="property" />
         <h1 className="font-display text-2xl font-semibold text-ink">
           {typeLabel} {purpose === "rent" ? "para alugar" : purpose === "sale" ? "à venda" : ""}
           {searchParams.neighborhood ? ` no ${searchParams.neighborhood}` : ""}
@@ -170,6 +172,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
+      <MarkVertical value={assetType} />
       <h1 className="font-display text-2xl font-semibold text-ink">
         {searchParams.brand
           ? `${searchParams.brand} — Carros`
