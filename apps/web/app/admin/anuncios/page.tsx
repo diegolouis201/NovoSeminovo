@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ADMIN_LISTING_STATUS_LABELS, type AdminListingRow, type AdminListingsPage } from "@novoseminovo/shared-types";
+import { ADMIN_LISTING_STATUS_LABELS, type AdminListingsPage } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
-import { adminListingActionForm } from "@/lib/actions/admin-listings";
-import { fetchAdminListings, resolveMediaUrl } from "@/lib/api";
+import { AdminListingsTable } from "@/components/admin/AdminListingsTable";
+import { fetchAdminListings } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -20,16 +20,7 @@ const SELLER_TABS = [
 ] as const;
 const STATUS_ORDER = ["active", "pending_review", "paused", "sold", "rejected", "expired", "draft"];
 
-function dateLabel(iso: string | undefined): string {
-  return iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "2-digit" }) : "—";
-}
 
-function statusTone(status: string): string {
-  if (status === "active") return "bg-brand-green text-on-green";
-  if (status === "pending_review") return "bg-brand-orange text-on-orange";
-  if (status === "rejected") return "bg-status-danger text-white";
-  return "bg-surface-sober text-ink";
-}
 
 export default async function AdminListingsPageView({ searchParams }: { searchParams: Params }) {
   const session = await auth();
@@ -135,7 +126,7 @@ export default async function AdminListingsPageView({ searchParams }: { searchPa
             </form>
           </div>
 
-          <ListingsTable rows={data.items} returnQuery={currentQuery} />
+          <AdminListingsTable rows={data.items} returnTo={`/admin/anuncios?${currentQuery}`} />
 
           <Pagination data={data} href={href} />
         </>
@@ -152,108 +143,6 @@ function total(data: AdminListingsPage, filter: { assetType: string; sellerType?
   return data.counts
     .filter((row) => row.assetType === filter.assetType && (!filter.sellerType || row.sellerType === filter.sellerType) && (!filter.status || row.status === filter.status))
     .reduce((sum, row) => sum + row.count, 0);
-}
-
-function ListingsTable({ rows, returnQuery }: { rows: AdminListingRow[]; returnQuery: string }) {
-  if (!rows.length) return <p className="rounded-brand-lg border border-border bg-surface-raised p-6 text-center text-sm text-ink-muted">Nenhum anúncio com esses filtros.</p>;
-  return (
-    <div className="overflow-x-auto rounded-brand-lg border border-border">
-      <table className="w-full min-w-[980px] text-left text-sm">
-        <thead className="bg-surface-sober text-xs uppercase text-ink-muted">
-          <tr>
-            <th className="px-3 py-2">Anúncio</th>
-            <th className="px-3 py-2">Vendedor</th>
-            <th className="px-3 py-2">Situação</th>
-            <th className="px-3 py-2 text-right">Visitas</th>
-            <th className="px-3 py-2 text-right">Conversas</th>
-            <th className="px-3 py-2">Criado</th>
-            <th className="px-3 py-2">Ação</th>
-          </tr>
-        </thead>
-        <tbody className="[font-variant-numeric:tabular-nums]">
-          {rows.map((row) => (
-            <tr key={row.id} className="border-t border-border align-top">
-              <td className="px-3 py-3">
-                <div className="flex gap-3">
-                  {row.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={resolveMediaUrl(row.photoUrl)} alt="" className="h-14 w-20 shrink-0 rounded-brand object-cover" />
-                  ) : (
-                    <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-brand bg-surface-sober text-xs text-ink-muted">sem foto</div>
-                  )}
-                  <div className="min-w-0">
-                    <Link href={`/anuncio/${row.id}`} target="_blank" className="line-clamp-2 font-semibold text-ink hover:text-brand-blue hover:underline">
-                      {row.title}
-                    </Link>
-                    <p className="text-xs text-ink">
-                      {row.priceLabel} · {row.location}
-                    </p>
-                    <p className="text-xs text-ink-muted">
-                      {row.photos} foto(s){row.highlighted ? " · em destaque" : ""}
-                    </p>
-                  </div>
-                </div>
-              </td>
-              <td className="px-3 py-3">
-                <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold ${row.sellerType === "pj" ? "bg-brand-blue/10 text-brand-blue" : "bg-surface-sober text-ink"}`}>
-                  {row.sellerType === "pj" ? "PJ" : "PF"}
-                </span>
-                {row.partnerName && <p className="mt-1 font-semibold text-ink">{row.partnerName}</p>}
-                <p className="text-ink">{row.ownerName}</p>
-                <p className="break-all text-xs text-ink-muted">{row.ownerEmail}</p>
-              </td>
-              <td className="px-3 py-3">
-                <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${statusTone(row.status)}`}>{ADMIN_LISTING_STATUS_LABELS[row.status] ?? row.status}</span>
-              </td>
-              <td className="px-3 py-3 text-right text-ink">{row.views.toLocaleString("pt-BR")}</td>
-              <td className="px-3 py-3 text-right text-ink">{row.leads}</td>
-              <td className="px-3 py-3 text-ink-muted">
-                {dateLabel(row.createdAt)}
-                {row.publishedAt && <span className="block text-xs">no ar {dateLabel(row.publishedAt)}</span>}
-              </td>
-              <td className="w-56 px-3 py-3">
-                <RowAction row={row} returnQuery={returnQuery} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function RowAction({ row, returnQuery }: { row: AdminListingRow; returnQuery: string }) {
-  const action = adminListingActionForm.bind(null, row.id, returnQuery);
-  if (row.status === "pending_review") {
-    return (
-      <Link href="/admin" className="text-xs font-semibold text-brand-blue hover:underline">
-        Aprovar ou recusar na Moderação →
-      </Link>
-    );
-  }
-  if (row.status === "active") {
-    return (
-      <details>
-        <summary className="cursor-pointer text-xs font-semibold text-status-danger">Suspender</summary>
-        <form action={action} className="mt-2 flex flex-col gap-2">
-          <textarea name="reason" required rows={2} placeholder="Motivo (vai para o dono)" className="rounded-brand border border-border bg-surface-page px-2 py-1 text-xs text-ink" />
-          <button type="submit" name="action" value="suspend" className="rounded-brand bg-status-danger px-3 py-1.5 text-xs font-bold text-white hover:opacity-90">
-            Confirmar suspensão
-          </button>
-        </form>
-      </details>
-    );
-  }
-  if (["paused", "rejected", "expired"].includes(row.status)) {
-    return (
-      <form action={action}>
-        <button type="submit" name="action" value="reactivate" className="text-xs font-semibold text-brand-green hover:underline">
-          Colocar de volta no ar
-        </button>
-      </form>
-    );
-  }
-  return <span className="text-xs text-ink-muted">—</span>;
 }
 
 function Pagination({ data, href }: { data: AdminListingsPage; href: (changes: { pagina: string }) => string }) {

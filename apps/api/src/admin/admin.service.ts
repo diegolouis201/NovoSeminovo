@@ -56,12 +56,14 @@ export class AdminService {
     sellerType?: "pf" | "pj";
     status?: string;
     search?: string;
+    ownerUserId?: string;
     page: number;
   }): Promise<AdminListingsPage> {
     const pageSize = 30;
     const search = filters.search?.trim();
     const where: Prisma.ListingWhereInput = {
       type: filters.assetType,
+      ...(filters.ownerUserId ? { ownerUserId: filters.ownerUserId } : {}),
       ...(filters.sellerType === "pf" ? { partnerId: null } : filters.sellerType === "pj" ? { partnerId: { not: null } } : {}),
       ...(filters.status ? { status: filters.status as Prisma.ListingWhereInput["status"] } : {}),
       ...(search
@@ -91,7 +93,11 @@ export class AdminService {
         },
       }),
       this.prisma.listing.count({ where }),
-      this.prisma.listing.groupBy({ by: ["type", "status", "partnerId"], _count: { _all: true } }),
+      this.prisma.listing.groupBy({
+        by: ["type", "status", "partnerId"],
+        where: filters.ownerUserId ? { ownerUserId: filters.ownerUserId } : {},
+        _count: { _all: true },
+      }),
     ]);
     const counts = new Map<string, AdminListingsPage["counts"][number]>();
     for (const row of grouped) {
@@ -113,6 +119,7 @@ export class AdminService {
       photos: listing._count.photos,
       views: listing.viewsCount,
       leads: listing._count.conversations,
+      ownerUserId: listing.ownerUserId,
       ownerName: listing.owner.name,
       ownerEmail: listing.owner.email,
       sellerType: listing.partnerId ? "pj" : "pf",

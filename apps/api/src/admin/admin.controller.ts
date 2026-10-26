@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
+  AdminDeleteInputSchema,
   AdminListingActionInputSchema,
   ModerateListingInputSchema,
   SetPartnerTypeInputSchema,
@@ -12,6 +13,7 @@ import { parseOrBadRequest } from "../common/parse";
 import { AdminGuard } from "./admin.guard";
 import { AdminService } from "./admin.service";
 import { AdminOverviewService } from "./overview.service";
+import { AdminAccountsService } from "./accounts.service";
 
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller("admin")
@@ -19,6 +21,7 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly overviewService: AdminOverviewService,
+    private readonly accounts: AdminAccountsService,
   ) {}
 
   // Big numbers do site inteiro (/admin/painel).
@@ -46,8 +49,25 @@ export class AdminController {
       sellerType: query.vendedor === "pf" || query.vendedor === "pj" ? query.vendedor : undefined,
       status: ["draft", "pending_review", "active", "paused", "sold", "rejected", "expired"].includes(query.situacao ?? "") ? query.situacao : undefined,
       search: query.busca?.slice(0, 100),
+      ownerUserId: query.dono?.slice(0, 40) || undefined,
       page,
     });
+  }
+
+  // Exclusões pedem a senha do admin logado e um motivo (ver AdminAccountsService).
+  @Post("listings/:id/delete")
+  deleteListing(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
+    return this.accounts.deleteListing(user.id, id, parseOrBadRequest(AdminDeleteInputSchema, body));
+  }
+
+  @Get("users/:id")
+  userProfile(@Param("id") id: string) {
+    return this.accounts.profile(id);
+  }
+
+  @Post("users/:id/delete")
+  deleteAccount(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
+    return this.accounts.deleteAccount(user.id, id, parseOrBadRequest(AdminDeleteInputSchema, body));
   }
 
   @Patch("listings/:id/action")

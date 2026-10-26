@@ -1210,6 +1210,7 @@ export type AdminListingRow = {
   photos: number;
   views: number;
   leads: number;
+  ownerUserId: string;
   ownerName: string;
   ownerEmail: string;
   sellerType: "pf" | "pj";
@@ -1231,6 +1232,49 @@ export const AdminListingActionInputSchema = z.object({
   reason: z.string().trim().max(500).optional(),
 });
 export type AdminListingActionInput = z.infer<typeof AdminListingActionInputSchema>;
+
+// Exclusões pelo admin: sempre com a senha do próprio admin e um motivo.
+export const AdminDeleteInputSchema = z.object({
+  password: z.string().min(1, "Digite a sua senha").max(200),
+  reason: z.string().trim().min(5, "Explique o motivo (mínimo 5 letras)").max(500),
+});
+export type AdminDeleteInput = z.infer<typeof AdminDeleteInputSchema>;
+
+// Página de uma pessoa ou loja no admin (/admin/usuarios/[id]).
+export type AdminUserProfile = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  cpfMasked?: string;
+  role: string;
+  status: string;
+  createdAt: string;
+  emailVerified: boolean;
+  acqSource?: string;
+  deleted: boolean;
+  partner?: {
+    id: string;
+    legalName: string;
+    type: string;
+    document: string;
+    slug: string;
+    verified: boolean;
+    createdAt: string;
+    subscription?: { plan: string; status: string; currentPeriodEnd: string };
+  };
+  stats: {
+    listingsByStatus: { assetType: "vehicle" | "property"; status: string; count: number }[];
+    views: number;
+    conversations: number;
+    partnerLeads: number;
+    favoritesGiven: number;
+  };
+  marketingConsent?: string;
+  affiliateStatus?: string;
+  canDelete: boolean;
+  deleteBlockedReason?: string;
+};
 
 export const ModerateListingInputSchema = z.object({
   action: z.enum(["approve", "reject"]),
@@ -1321,6 +1365,7 @@ export const NotificationType = z.enum([
   "ops_daily_summary",
   "marketing_review",
   "ops_finance_report",
+  "listing_removed",
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 

@@ -89,6 +89,12 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: String(payload.body ?? ""),
         link: "/admin/operacao",
       };
+    case "listing_removed":
+      return {
+        title: "Seu anúncio foi removido",
+        body: `O anúncio "${payload.listingTitle}" foi removido pela equipe do NovoSeminovo. Motivo: ${payload.reason}`,
+        link: "/conta/anuncios",
+      };
     case "ops_finance_report":
       return {
         title: `Relatório financeiro — ${payload.periodLabel}`,

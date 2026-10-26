@@ -19,6 +19,8 @@ import type {
   OpsSummary,
   MarketingSummary,
   AdminListingsPage,
+  AdminUserProfile,
+  AdminDeleteInput,
   AdminListingActionInput,
   MarketingPostInput,
   MarketingDecisionInput,
@@ -1838,4 +1840,26 @@ export async function fetchAdminListings(params: Record<string, string | undefin
 
 export function adminListingAction(id: string, input: AdminListingActionInput, accessToken: string): Promise<ApiResult<{ status: string }>> {
   return sendJson(`/admin/listings/${encodeURIComponent(id)}/action`, "PATCH", input, accessToken);
+}
+
+export async function fetchAdminUser(id: string, accessToken: string): Promise<AdminUserProfile | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/users/${encodeURIComponent(id)}`, { headers: authHeaders(accessToken), cache: "no-store" }, 20000);
+    if (!res.ok) return undefined;
+    return (await res.json()) as AdminUserProfile;
+  } catch {
+    return undefined;
+  }
+}
+
+export function adminDeleteListing(id: string, input: AdminDeleteInput, accessToken: string): Promise<ApiResult<{ deleted: true }>> {
+  return sendJson(`/admin/listings/${encodeURIComponent(id)}/delete`, "POST", input, accessToken);
+}
+
+export function adminDeleteAccount(
+  id: string,
+  input: AdminDeleteInput,
+  accessToken: string,
+): Promise<ApiResult<{ deleted: true; listingsDeleted: number; listingsKept: number }>> {
+  return sendJson(`/admin/users/${encodeURIComponent(id)}/delete`, "POST", input, accessToken);
 }
