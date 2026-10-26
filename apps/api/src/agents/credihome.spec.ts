@@ -179,6 +179,7 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
     assert.deepEqual(result, { credihomeLeadId: "lead-existente", alreadyExisted: true });
     const saved = await prisma.financingLead.findUniqueOrThrow({ where: { id: lead.id } });
     assert.equal(saved.credihomePhase, "analise_credito");
+    assert.match(saved.adminNotes ?? "", /já tinha pedido na Credihome/);
   });
 
   test("token reaproveitado entre chamadas; veículo é recusado", async () => {

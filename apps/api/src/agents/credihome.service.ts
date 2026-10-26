@@ -161,9 +161,10 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
       .catch((error) => this.logger.error(`Falha ao registrar contato do simulador: ${error}`));
 
     let outcome: ProposalOutcome = "saved";
+    let alreadyExisted = false;
     if (credihomeEnabled()) {
       try {
-        await this.send(lead.id, { ...input, consent: true }, input.months);
+        alreadyExisted = (await this.send(lead.id, { ...input, consent: true }, input.months)).alreadyExisted;
         outcome = "sent";
       } catch (error) {
         this.logger.error(`Pedido do simulador não foi à Credihome (lead ${lead.id}): ${error instanceof Error ? error.message : error}`);
@@ -179,7 +180,12 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
           listingTitle: listing.title,
           channel: "simulador",
           assetType: "property",
-          credihome: outcome === "sent" ? "Já foi enviado à Credihome." : "Não foi à Credihome — envie pelo quadro.",
+          credihome:
+            outcome !== "sent"
+              ? "Não foi à Credihome — envie pelo quadro."
+              : alreadyExisted
+                ? "O cliente já tinha pedido na Credihome nesta semana: ligamos ao pedido existente. Confira os valores no painel da Credihome."
+                : "Já foi enviado à Credihome.",
         })
         .catch((error) => this.logger.error(`Falha ao notificar admin sobre pedido do simulador: ${error}`));
     }
@@ -246,6 +252,18 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
         ...(lead.negotiatedValue === null ? { negotiatedValue: input.mortgageValue } : {}),
         ...(lead.email ? {} : { email: input.email }),
         ...(lead.bank ? {} : { bank: "Credihome" }),
+        // A Credihome não cria lead novo pro mesmo CPF/e-mail em 7 dias:
+        // devolve o antigo, com os valores (e nascimento) do pedido anterior.
+        ...(result.alreadyExisted
+          ? {
+              adminNotes: [
+                lead.adminNotes,
+                `Cliente já tinha pedido na Credihome nos últimos 7 dias: ligado ao pedido existente. Lá podem estar os valores do pedido anterior — confira e ajuste no painel da Credihome (aqui: imóvel ${formatBRL(input.realtyPrice)}, financiar ${formatBRL(input.mortgageValue)}).`,
+              ]
+                .filter(Boolean)
+                .join("\n"),
+            }
+          : {}),
       },
     });
     // Fase real (o lead pode já existir lá e estar mais adiante).
