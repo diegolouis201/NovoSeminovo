@@ -205,6 +205,17 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - Detalhes em `docs/agentes-ia.md`.
    - Próximo: agente de Tráfego pago com Google Ads via Windsor, só leitura no começo. Depende do Diego ligar a conta do Google Ads no Windsor.
 
+36. **Painel de anúncios do admin (26/10/2026)** — no ar e testado pelo Diego.
+   - `/admin/anuncios`: todos os anúncios de todos os usuários. Abas Veículos/Imóveis, filtro PF/PJ e por situação, e busca.
+   - Ações por anúncio: suspender (com motivo), reativar e excluir.
+   - `/admin/usuarios/[id]`: dados da pessoa ou loja, assinatura, números e anúncios.
+   - Excluir anúncio ou conta pede a senha do admin e um motivo (`AdminAccountsService`).
+   - Registros financeiros são guardados: anúncio pago ou com financiamento só pode ser suspenso.
+   - Conta excluída é anonimizada (LGPD).
+   - Loja com assinatura ativa, ou pessoa com comissão disponível, não pode ser excluída.
+   - O `JwtAuthGuard` derruba conta suspensa ou excluída mesmo com o token válido (cache de 1 minuto).
+   - Junto foi a rodada de segurança de outra sessão: `JWT_SECRET` obrigatória com 32 ou mais caracteres, rate limit, upload seguro e cabeçalhos no Caddy.
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).
