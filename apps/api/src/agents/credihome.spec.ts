@@ -155,6 +155,7 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
     assert.ok(sent?.auth?.startsWith("Bearer "));
     assert.equal(sent?.body?.partnerId, 54717);
     assert.equal(sent?.body?.type, "mortgage");
+    assert.equal(sent?.body?.source, "api");
     assert.equal(sent?.body?.downPayment, 150000);
     assert.deepEqual(sent?.body?.user, {
       name: "Comprador Teste",

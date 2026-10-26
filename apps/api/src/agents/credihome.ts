@@ -151,7 +151,9 @@ export async function createCredihomeLead(input: CredihomeLeadRequest): Promise<
     mortgageValue: input.mortgageValue,
     downPayment: Math.round((input.realtyPrice - input.mortgageValue) * 100) / 100,
     ...(input.months ? { duration: input.months } : {}),
-    source: "novoseminovo",
+    // Valores aceitos: partner_portal, dashboard, CanalDireto, whitelabel, api,
+    // facebook, whatsapp. A página de origem vai em utm.source_url.
+    source: "api",
     userRequestedContact: true,
     mailingAllowed: false,
     ...(input.sourceUrl ? { utm: { source_url: input.sourceUrl } } : {}),
