@@ -235,6 +235,8 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - Limites por visitante (IP repassado pelo site): 20 simulações e 3 pedidos de proposta a cada 10 minutos. Mesmo celular no mesmo anúncio em 7 dias não gera outro card.
    - `credihomeLeadId` não é único: o mesmo cliente em dois anúncios na mesma semana cai no mesmo lead lá.
    - Política de privacidade atualizada (seção 4) citando a Credihome.
+   - `source` do `POST /simulations` tem que ser um destes: partner_portal, dashboard, CanalDireto, whitelabel, api, facebook, whatsapp (usamos "api"; qualquer outro dá 400). Testado em produção em 26/10/2026: lead do Ronaldo chegou no painel da Credihome com os valores certos.
+   - Quando a Credihome recusa, a resposta inteira dela (números mascarados) vai para o card e para o aviso ao admin.
 
 39. **Leads identificados e acompanhados (26/10/2026)**
    - O WhatsApp do vendedor só vai para quem entrou na conta: `ListingDetail.sellerPhone` vem vazio sem login (`sellerHasWhatsapp` diz se existe), o botão vira "Entrar para chamar no WhatsApp" e `POST listings/:id/whatsapp-clicks` exige login. Não nascem mais leads "Contato anônimo" (os antigos continuam no banco).
