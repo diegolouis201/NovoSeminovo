@@ -108,7 +108,9 @@ export async function DashboardShell({ children }: { children: ReactNode }) {
       { label: "Em análise", value: String(count("pending_review")), href: "/conta/anuncios" },
     ];
   }
-  if (session.user.role === "admin") items = [...items, { href: "/admin", label: "Administração", icon: "shield" }];
+  if (session.user.role === "admin") {
+    items = [...items, { href: "/admin/anuncios", label: "Todos os anúncios", icon: "globe" }, { href: "/admin", label: "Administração", icon: "shield" }];
+  }
 
   const accountLabel =
     session.user.role === "admin" ? "Administrador" : partner ? ACCOUNT_LABEL[partner.type] ?? "Parceiro" : "Particular";

@@ -1189,6 +1189,49 @@ export const PendingListingSchema = z.object({
 });
 export type PendingListing = z.infer<typeof PendingListingSchema>;
 
+// Painel /admin/anuncios: todos os anúncios de todos os usuários.
+export const ADMIN_LISTING_STATUS_LABELS: Record<string, string> = {
+  draft: "Rascunho",
+  pending_review: "Em análise",
+  active: "No ar",
+  paused: "Pausado",
+  sold: "Vendido",
+  rejected: "Recusado",
+  expired: "Expirado",
+};
+export type AdminListingRow = {
+  id: string;
+  assetType: "vehicle" | "property";
+  title: string;
+  priceLabel: string;
+  location: string;
+  status: string;
+  photoUrl?: string;
+  photos: number;
+  views: number;
+  leads: number;
+  ownerName: string;
+  ownerEmail: string;
+  sellerType: "pf" | "pj";
+  partnerName?: string;
+  highlighted: boolean;
+  createdAt: string;
+  publishedAt?: string;
+};
+export type AdminListingsPage = {
+  items: AdminListingRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  // Contagem por tipo de bem, vendedor (PF/PJ) e situação, para as abas e filtros.
+  counts: { assetType: "vehicle" | "property"; sellerType: "pf" | "pj"; status: string; count: number }[];
+};
+export const AdminListingActionInputSchema = z.object({
+  action: z.enum(["suspend", "reactivate"]),
+  reason: z.string().trim().max(500).optional(),
+});
+export type AdminListingActionInput = z.infer<typeof AdminListingActionInputSchema>;
+
 export const ModerateListingInputSchema = z.object({
   action: z.enum(["approve", "reject"]),
   reason: z.string().optional(),
@@ -1237,7 +1280,7 @@ export type UpdateReportStatusInput = z.infer<typeof UpdateReportStatusInputSche
 // ModerationLog já existia no schema desde a Etapa 2 — AdminService.moderateListing
 // sempre gravou uma linha a cada aprovação/recusão, mas nada lia de volta
 // (grava e esquece). Isso vira o histórico no fim de /admin.
-export const ModerationActionType = z.enum(["approved", "rejected", "suspended"]);
+export const ModerationActionType = z.enum(["approved", "rejected", "suspended", "reactivated"]);
 export type ModerationActionType = z.infer<typeof ModerationActionType>;
 
 export const ModerationLogEntrySchema = z.object({

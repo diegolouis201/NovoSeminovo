@@ -48,6 +48,9 @@ export default async function AdminPage() {
         <Link href="/admin/operacao" className="text-sm font-semibold text-brand-blue hover:underline">
           Operação com IA (aprovações e rotinas) →
         </Link>
+        <Link href="/admin/anuncios" className="text-sm font-semibold text-brand-blue hover:underline">
+          Todos os anúncios (veículos e imóveis, PF e PJ) →
+        </Link>
         <Link href="/admin/marketing" className="text-sm font-semibold text-brand-blue hover:underline">
           Marketing (Instagram, e-mails e contatos) →
         </Link>
@@ -139,6 +142,7 @@ const ACTION_LABEL: Record<ModerationLogEntry["action"], string> = {
   approved: "Aprovado",
   rejected: "Recusado",
   suspended: "Suspenso",
+  reactivated: "Reativado",
 };
 
 function ModerationLogRow({ entry }: { entry: ModerationLogEntry }) {

@@ -154,6 +154,7 @@ enum ModerationAction {
   approved
   rejected
   suspended
+  reactivated
 }
 
 enum VehicleEventType {
