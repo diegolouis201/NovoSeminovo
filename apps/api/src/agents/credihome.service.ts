@@ -162,12 +162,21 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
 
     let outcome: ProposalOutcome = "saved";
     let alreadyExisted = false;
+    let failure: string | undefined;
     if (credihomeEnabled()) {
       try {
         alreadyExisted = (await this.send(lead.id, { ...input, consent: true }, input.months)).alreadyExisted;
         outcome = "sent";
       } catch (error) {
-        this.logger.error(`Pedido do simulador não foi à Credihome (lead ${lead.id}): ${error instanceof Error ? error.message : error}`);
+        failure = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Pedido do simulador não foi à Credihome (lead ${lead.id}): ${failure}`);
+        // O motivo fica no card (o log some quando o servidor reinicia).
+        await this.prisma.financingLead
+          .update({
+            where: { id: lead.id },
+            data: { adminNotes: `Não foi à Credihome em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}: ${failure.slice(0, 300)}` },
+          })
+          .catch(() => undefined);
       }
     }
 
@@ -182,7 +191,7 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
           assetType: "property",
           credihome:
             outcome !== "sent"
-              ? "Não foi à Credihome — envie pelo quadro."
+              ? `Não foi à Credihome${failure ? ` (${failure.slice(0, 200)})` : ""} — envie pelo quadro.`
               : alreadyExisted
                 ? "O cliente já tinha pedido na Credihome nesta semana: ligamos ao pedido existente. Confira os valores no painel da Credihome."
                 : "Já foi enviado à Credihome.",

@@ -69,6 +69,10 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
         }
         if (path === "/simulations") {
           const user = body?.user as { cpf: string };
+          if (user.cpf === "39053344705") {
+            res.statusCode = 400;
+            return res.end(JSON.stringify({ message: "Telefone inválido" }));
+          }
           if (user.cpf === "11144477735") {
             res.statusCode = 409;
             return res.end(JSON.stringify({ leadId: "lead-existente", name: "leadAlreadyExists", message: "Cliente já cadastrado" }));
@@ -261,5 +265,23 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
     await service.requestProposal(listings.property, proposal, "ip-limite");
     await service.requestProposal(listings.property, proposal, "ip-limite");
     await assert.rejects(service.requestProposal(listings.property, proposal, "ip-limite"), /Muitas simulações/);
+  });
+
+  test("Credihome recusou: card fica salvo com o motivo e o aviso diz o porquê", async () => {
+    const proposal = CredihomeProposalInputSchema.parse({
+      ...simulation,
+      name: "Recusado Teste",
+      cpf: "390.533.447-05",
+      phone: "31966665555",
+      email: "recusado@teste.local",
+      useFgts: false,
+      consent: true,
+    });
+    const result = await service.requestProposal(listings.property, proposal, "ip-recusa");
+    assert.equal(result.outcome, "saved");
+    const lead = await prisma.financingLead.findFirstOrThrow({ where: { listingId: listings.property, phone: "31966665555" } });
+    assert.equal(lead.credihomeLeadId, null);
+    assert.match(lead.adminNotes ?? "", /Não foi à Credihome.*Telefone inválido/);
+    assert.match(String(notified.at(-1)?.credihome), /Telefone inválido/);
   });
 });
