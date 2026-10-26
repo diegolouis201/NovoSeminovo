@@ -399,7 +399,7 @@ export class OpsToolsService {
       name: "ler_financeiro",
       color: "green",
       description:
-        "Saúde financeira: receita dos últimos 30 dias contra os 30 anteriores e os últimos meses por linha (anúncios, financiamento, afiliados/lojas); assinaturas pagantes, em atraso e canceladas; lojas com período grátis vencendo; comissões de afiliados e recompensas de financiamento a pagar; gasto com IA. Traz também alertas calculados pelo sistema.",
+        "Saúde financeira: receita dos últimos 30 dias contra os 30 anteriores e os últimos meses por linha (anúncios, financiamento, afiliados/lojas); assinaturas pagantes, em atraso e canceladas; lojas com período grátis vencendo; comissões de afiliados e cashback de financiamento a pagar aos clientes; gasto com IA. Traz também alertas calculados pelo sistema.",
       input: z.object({}),
       schema: { type: "object", properties: {} },
       run: async () => this.financeSnapshot(),
@@ -649,9 +649,9 @@ export class OpsToolsService {
         pagas30d: money(paid30d._sum.amount),
       },
       financiamento: {
-        negociosRegistradosNaoPagos: deals._count._all,
-        comissaoAReceber: money(deals._sum.commissionAmount),
-        recompensasAPagar: money(deals._sum.rebateAmount),
+        negociosComCashbackNaoPago: deals._count._all,
+        comissaoAReceberOuRecebidaNaoRepassada: money(deals._sum.commissionAmount),
+        cashbackAPagarAosClientes: money(deals._sum.rebateAmount),
         leadsEmAberto: revenue.financingOpenLeads,
       },
       custoIa30d: {

@@ -53,10 +53,10 @@ import type {
   CreateReviewInput,
   CreateSavedSearchInput,
   CrlvExtractResult,
-  EligibleListing,
   FeaturedPartner,
   FinancingDeal,
-  FinancingDealStatus,
+  CashbackStage,
+  MyCashbackSummary,
   FinancingSimulationResult,
   LeadStatus,
   LeadSummary,
@@ -66,7 +66,6 @@ import type {
   ModerateListingInput,
   ModerationLogEntry,
   MyListingSummary,
-  MyRebatesSummary,
   Notification,
   Partner,
   PartnerMember,
@@ -79,8 +78,6 @@ import type {
   Plan,
   PriceSuggestion,
   Profile,
-  RebateTier,
-  RegisterFinancingDealInput,
   ReportStatus,
   UpdateProfileInput,
   SavedSearch,
@@ -1438,66 +1435,20 @@ export async function verifyEmailCode(code: string, accessToken: string): Promis
   }
 }
 
-// Programa de recompensa por financiamento — ver RebatesService na API.
-export async function fetchMyRebates(accessToken: string): Promise<MyRebatesSummary | undefined> {
+// Cashback no financiamento — ver RebatesService na API.
+export async function fetchMyCashback(accessToken: string): Promise<MyCashbackSummary | undefined> {
   try {
-    const res = await fetchWithTimeout(`${API_URL}/me/rebates`, { headers: authHeaders(accessToken) });
+    const res = await fetchWithTimeout(`${API_URL}/me/cashback`, { headers: authHeaders(accessToken) });
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-    return (await res.json()) as MyRebatesSummary;
+    return (await res.json()) as MyCashbackSummary;
   } catch {
     return undefined;
   }
 }
 
-// Sem token — página pública de apresentação do programa (ver /recompensas).
-export async function fetchPublicRebateTiers(): Promise<RebateTier[]> {
+export async function fetchFinancingDeals(stage: CashbackStage | undefined, accessToken: string): Promise<FinancingDeal[]> {
   try {
-    const res = await fetchWithTimeout(`${API_URL}/rebate-tiers`);
-    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-    return (await res.json()) as RebateTier[];
-  } catch {
-    return [];
-  }
-}
-
-export async function fetchRebateTiers(accessToken: string): Promise<RebateTier[]> {
-  try {
-    const res = await fetchWithTimeout(`${API_URL}/admin/rebate-tiers`, { headers: authHeaders(accessToken) });
-    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-    return (await res.json()) as RebateTier[];
-  } catch {
-    return [];
-  }
-}
-
-export async function updateRebateTier(
-  tierId: string,
-  input: { tierName?: string; minVolume?: number; rebatePercent?: number },
-  accessToken: string,
-): Promise<boolean> {
-  const res = await fetchWithTimeout(`${API_URL}/admin/rebate-tiers/${tierId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
-    body: JSON.stringify(input),
-  });
-  return res.ok;
-}
-
-export async function fetchEligibleListings(accessToken: string): Promise<EligibleListing[]> {
-  try {
-    const res = await fetchWithTimeout(`${API_URL}/admin/financing-deals/eligible-listings`, {
-      headers: authHeaders(accessToken),
-    });
-    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-    return (await res.json()) as EligibleListing[];
-  } catch {
-    return [];
-  }
-}
-
-export async function fetchFinancingDeals(status: FinancingDealStatus | undefined, accessToken: string): Promise<FinancingDeal[]> {
-  try {
-    const query = status ? `?status=${status}` : "";
+    const query = stage ? `?etapa=${stage}` : "";
     const res = await fetchWithTimeout(`${API_URL}/admin/financing-deals${query}`, { headers: authHeaders(accessToken) });
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return (await res.json()) as FinancingDeal[];
@@ -1506,33 +1457,12 @@ export async function fetchFinancingDeals(status: FinancingDealStatus | undefine
   }
 }
 
-export type RegisterFinancingDealResult = { ok: true; deal: FinancingDeal } | { ok: false; error: string };
-
-export async function registerFinancingDeal(
-  input: RegisterFinancingDealInput,
-  accessToken: string,
-): Promise<RegisterFinancingDealResult> {
-  try {
-    const res = await fetchWithTimeout(`${API_URL}/admin/financing-deals`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
-      body: JSON.stringify(input),
-    });
-    const body = await res.json();
-    if (!res.ok) return { ok: false, error: body.message ?? "Não foi possível registrar o negócio." };
-    return { ok: true, deal: body as FinancingDeal };
-  } catch {
-    return { ok: false, error: "Não foi possível falar com o servidor. Tente novamente." };
-  }
+export async function markFinancingCommissionReceived(dealId: string, accessToken: string): Promise<ApiResult<FinancingDeal>> {
+  return sendJson(`/admin/financing-deals/${dealId}/commission-received`, "PATCH", {}, accessToken);
 }
 
-export async function markFinancingDealPaid(dealId: string, note: string | undefined, accessToken: string): Promise<boolean> {
-  const res = await fetchWithTimeout(`${API_URL}/admin/financing-deals/${dealId}/pay`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
-    body: JSON.stringify({ note }),
-  });
-  return res.ok;
+export async function markFinancingDealPaid(dealId: string, note: string | undefined, accessToken: string): Promise<ApiResult<FinancingDeal>> {
+  return sendJson(`/admin/financing-deals/${dealId}/pay`, "PATCH", { note }, accessToken);
 }
 
 // ---------- Agentes de IA ----------

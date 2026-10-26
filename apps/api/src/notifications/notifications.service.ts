@@ -131,6 +131,24 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: `"${payload.listingTitle}" acabou de ser aprovado e bate com uma busca salva sua.`,
         link: `/anuncio/${payload.listingId}`,
       };
+    case "cashback_registered":
+      return {
+        title: "Seu cashback do financiamento foi registrado",
+        body: `Parabéns pelo financiamento! Você tem ${payload.amountLabel} de cashback (valor bruto). Ele é pago depois que o banco paga a comissão ao NovoSeminovo — você recebe o valor líquido, por Pix no seu CPF.`,
+        link: "/conta/recompensas",
+      };
+    case "cashback_released":
+      return {
+        title: "Seu cashback foi liberado",
+        body: `O banco pagou a comissão do seu financiamento: seu cashback de ${payload.amountLabel} (valor bruto) vai ser pago por Pix no seu CPF. Confira se o CPF está certo em "Meus dados".`,
+        link: "/conta/recompensas",
+      };
+    case "cashback_paid":
+      return {
+        title: "Cashback pago",
+        body: `Pagamos o seu cashback do financiamento (${payload.amountLabel} bruto; o valor que caiu é o líquido, depois dos descontos e tributos).`,
+        link: "/conta/recompensas",
+      };
     case "financing_lead_created":
       return {
         title: "Novo interessado em financiamento",

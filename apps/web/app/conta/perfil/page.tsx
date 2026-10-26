@@ -32,8 +32,8 @@ export default async function ProfilePage({
       </Link>
       <h1 className="mt-2 font-display text-2xl font-semibold text-ink">Meus dados</h1>
       <p className="text-sm text-ink-muted">
-        Confirme seus dados — o CPF é usado só pra viabilizar o pagamento de eventuais recompensas (ver "Minhas
-        recompensas") e nunca é exibido publicamente.
+        Confirme seus dados — o CPF é usado só pra viabilizar o pagamento do cashback do financiamento (Pix, ver "Meu
+        cashback") e nunca é exibido publicamente.
       </p>
 
       {searchParams.error && (

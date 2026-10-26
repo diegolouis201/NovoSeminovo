@@ -78,7 +78,7 @@ export default function PrivacyPage() {
           autorização na conversa</strong>, encaminhar seu pedido a um especialista em financiamento.
         </li>
         <li>Moderar anúncios e prevenir fraudes (legítimo interesse).</li>
-        <li>Calcular e pagar recompensas do programa de financiamento a quem anunciou (execução de contrato).</li>
+        <li>Calcular e pagar o cashback do financiamento a quem contratou, por Pix no CPF (execução de contrato).</li>
         <li>Cumprir obrigações legais e fiscais.</li>
       </ul>
 

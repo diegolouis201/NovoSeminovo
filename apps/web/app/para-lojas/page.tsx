@@ -14,13 +14,13 @@ import {
   WhatsappLogo,
 } from "@phosphor-icons/react/dist/ssr";
 import { PageHero, Section } from "@/components/marketing/PageHero";
-import { fetchPlans, fetchPublicRebateTiers } from "@/lib/api";
+import { fetchPlans } from "@/lib/api";
 import { COMPANY } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "Para lojas, imobiliárias e corretores",
   description:
-    "Anuncie seu estoque no NovoSeminovo: vitrine com a sua marca, leads organizados, assistente de IA, posts prontos pro Instagram e recompensa por financiamento.",
+    "Anuncie seu estoque no NovoSeminovo: vitrine com a sua marca, leads organizados, assistente de IA, posts prontos pro Instagram e cashback no financiamento para os seus clientes.",
   alternates: { canonical: "/para-lojas" },
 };
 
@@ -70,33 +70,19 @@ const FEATURES = [
   },
 ];
 
-const TYPE_LABEL: Record<string, string> = {
-  dealership: "Lojas de veículos",
-  real_estate_agency: "Imobiliárias",
-  broker: "Corretores autônomos",
-};
-
 export default async function ForPartnersPage() {
-  const [vehiclePlans, propertyPlans, tiers] = await Promise.all([
-    fetchPlans("vehicle"),
-    fetchPlans("property"),
-    fetchPublicRebateTiers(),
-  ]);
+  const [vehiclePlans, propertyPlans] = await Promise.all([fetchPlans("vehicle"), fetchPlans("property")]);
   const planGroups = [
     { title: "Lojas de veículos", plans: vehiclePlans, enterpriseText: "Mais de 100 anúncios, várias lojas ou condições especiais." },
     { title: "Imobiliárias, construtoras e corretores", plans: propertyPlans, enterpriseText: "Mais de 50 anúncios, lançamentos ou condições especiais." },
   ].filter((group) => group.plans.length > 0);
-  const tiersByType = Object.entries(TYPE_LABEL).map(([type, label]) => ({
-    label,
-    tiers: tiers.filter((tier) => tier.partnerType === type).sort((a, b) => a.tierOrder - b.tierOrder),
-  }));
   const talkToSales = `${COMPANY.whatsappLink}?text=${encodeURIComponent("Olá! Tenho uma loja/imobiliária e quero anunciar no NovoSeminovo.")}`;
 
   return (
     <main className="pb-16">
       <PageHero eyebrow="Para lojas, imobiliárias e corretores" title="Seu estoque na frente de quem está pronto pra comprar">
         Comece com 3 meses grátis, sem limite de anúncios, e ganhe um painel completo pra vender mais: leads
-        organizados, assistente de IA, posts prontos e recompensa quando o seu cliente financia.
+        organizados, assistente de IA, posts prontos — e o seu cliente ainda ganha cashback quando financia pelo site.
       </PageHero>
 
       <div className="mx-auto mt-6 flex max-w-3xl flex-wrap justify-center gap-3 px-4">
@@ -212,37 +198,15 @@ export default async function ForPartnersPage() {
         </Section>
       )}
 
-      {tiers.length > 0 && (
-        <Section title="Recompensa por financiamento">
-          <p className="mt-2 max-w-3xl text-sm text-ink-muted">
-            Quando o comprador de um anúncio seu financia pelo nosso correspondente bancário parceiro, uma parte da
-            comissão volta pra você. Quanto mais volume financiado vem dos seus anúncios, maior o seu nível.
-          </p>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {tiersByType
-              .filter((group) => group.tiers.length > 0)
-              .map((group) => (
-                <div key={group.label} className="rounded-brand border border-border bg-surface-raised p-5">
-                  <h3 className="text-base font-bold text-ink">{group.label}</h3>
-                  <ul className="mt-3 space-y-2 text-sm">
-                    {group.tiers.map((tier) => (
-                      <li key={tier.id} className="flex items-baseline justify-between gap-3">
-                        <span className="text-ink">
-                          <strong>{tier.tierName}</strong>
-                          <span className="block text-xs text-ink-muted">a partir de {tier.minVolumeLabel} financiados</span>
-                        </span>
-                        <span className="text-lg font-extrabold text-brand-green">{tier.rebatePercentLabel}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-          </div>
-          <Link href="/recompensas" className="mt-4 inline-block text-sm font-semibold text-brand-blue hover:underline">
-            Entenda o programa de recompensa →
-          </Link>
-        </Section>
-      )}
+      <Section title="Cashback no financiamento para o seu cliente">
+        <p className="mt-2 max-w-3xl text-sm text-ink-muted">
+          Quem compra um carro ou imóvel do seu estoque e financia pelo NovoSeminovo recebe de volta 20% da nossa comissão,
+          por Pix. É um argumento a mais para fechar a venda — e não custa nada para a sua loja.
+        </p>
+        <Link href="/recompensas" className="mt-4 inline-block text-sm font-semibold text-brand-blue hover:underline">
+          Como funciona o cashback →
+        </Link>
+      </Section>
 
       <Section>
         <div className="mt-4 flex flex-col items-center gap-3 rounded-brand-lg bg-brand-blue px-6 py-8 text-center text-on-blue">

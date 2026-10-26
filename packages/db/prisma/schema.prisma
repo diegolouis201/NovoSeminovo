@@ -232,6 +232,8 @@ model User {
   vehiclesOwned            Vehicle[]             @relation("VehicleCurrentOwner")
   vehicleEvents            VehicleEvent[]
   financingDealsRegistered FinancingDeal[]       @relation("FinancingDealRegisteredBy")
+  cashbackDeals            FinancingDeal[]       @relation("FinancingDealBuyer")
+  financingLeadsAsBuyer    FinancingLead[]       @relation("FinancingLeadBuyer")
   agentConversations       AgentConversation[]
 
   // Programa de afiliados: a conta de afiliado desta pessoa (se ela se
@@ -777,9 +779,9 @@ model Notification {
 // bancário volta pra quem anunciou — PF ganha uma fatia fixa; corretor/
 // imobiliária e lojista evoluem de nível conforme o volume financiado
 // acumulado em negócios vindos da plataforma (ver PartnerRebateTier, editável
-// pelo admin sem precisar mexer em código). Ainda não há integração em tempo
-// real com nenhum parceiro financeiro — por isso o negócio fechado é
-// registrado manualmente pelo admin (ver RebatesService).
+// pelo admin sem precisar mexer em código). DESATIVADO em 26/10/2026: o
+// programa virou cashback para quem contrata (ver FinancingDeal). A tabela
+// fica só como histórico.
 model PartnerRebateTier {
   id            String      @id @default(cuid())
   partnerType   PartnerType @map("partner_type")
@@ -794,10 +796,26 @@ model PartnerRebateTier {
   @@map("partner_rebate_tiers")
 }
 
+// Financiamento fechado → cashback de quem contratou (CASHBACK_PERCENT da
+// comissão bruta, ver shared-types). Nasce quando o lead vai para
+// "Concluído"; só vira "a pagar" depois que a comissão é recebida
+// (commissionReceivedAt). Os campos rebate* guardam o cashback (nome antigo
+// do programa, que pagava o anunciante até 26/10/2026).
 model FinancingDeal {
   id                 String              @id @default(cuid())
-  listingId          String              @map("listing_id")
-  listing            Listing             @relation(fields: [listingId], references: [id])
+  listingId          String?             @map("listing_id")
+  listing            Listing?            @relation(fields: [listingId], references: [id])
+  // Quem contratou o financiamento e recebe o cashback. buyerUserId liga à
+  // conta do site (pode ficar vazio até a pessoa se cadastrar com o mesmo
+  // e-mail/telefone); nome/e-mail/telefone são o retrato do lead.
+  buyerUserId        String?             @map("buyer_user_id")
+  buyerUser          User?               @relation("FinancingDealBuyer", fields: [buyerUserId], references: [id])
+  buyerName          String              @default("") @map("buyer_name")
+  buyerEmail         String?             @map("buyer_email")
+  buyerPhone         String?             @map("buyer_phone")
+  // Data em que o banco/Credihome pagou a comissão ao NovoSeminovo — só
+  // depois disso o cashback pode ser pago.
+  commissionReceivedAt DateTime?         @map("commission_received_at")
   // Nome livre (não um enum fechado) porque o programa não é exclusivo da
   // Credihome — qualquer parceiro de financiamento futuro usa o mesmo fluxo.
   financingProvider  String              @map("financing_provider")
@@ -820,6 +838,7 @@ model FinancingDeal {
   financingLead      FinancingLead?
 
   @@index([status])
+  @@index([buyerUserId])
   @@map("financing_deals")
 }
 
@@ -916,6 +935,9 @@ model FinancingLead {
   // Negócio registrado automaticamente quando o lead é concluído (ver
   // AgentsService.updateFinancingLead) — é o que entra no fechamento mensal
   // e no repasse ao anunciante (ver RebatesService).
+  // Conta de quem pediu (chat logado ou simulador logado) — recebe o cashback.
+  buyerUserId     String?             @map("buyer_user_id")
+  buyerUser       User?               @relation("FinancingLeadBuyer", fields: [buyerUserId], references: [id])
   financingDealId String?             @unique @map("financing_deal_id")
   financingDeal   FinancingDeal?      @relation(fields: [financingDealId], references: [id])
   // Envio à Credihome (só imóvel; ver apps/api/src/agents/credihome.ts). O

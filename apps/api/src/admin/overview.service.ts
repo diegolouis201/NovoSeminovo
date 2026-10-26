@@ -64,6 +64,8 @@ export class AdminOverviewService {
 
     const type = scope === "all" ? undefined : scope;
     const listingWhere: Prisma.ListingWhereInput = type ? { type } : {};
+    // Financiamento sem anúncio (pedido direto pelo assistente) só entra no total geral.
+    const dealListing: Prisma.FinancingDealWhereInput = type ? { listing: { type } } : {};
     const partnerTypes = type ? PARTNER_TYPES[type] : undefined;
     const partnerWhere: Prisma.PartnerWhereInput = partnerTypes ? { type: { in: partnerTypes } } : {};
     // Lead sem anúncio (cadastrado à mão) cai no lado do tipo da loja.
@@ -84,9 +86,9 @@ export class AdminOverviewService {
         (await db.subscriptionPayment.aggregate({ where: { paidAt: range, ...(partnerTypes ? { partnerType: { in: partnerTypes } } : {}) }, _sum: { amount: true } }))._sum
           .amount,
       );
-    // Receita de financiamento = comissão do banco menos o rebate repassado ao parceiro.
+    // Receita de financiamento = comissão do banco menos o cashback devolvido a quem contratou.
     const financingIn = async (range: Range) => {
-      const result = await db.financingDeal.aggregate({ where: { createdAt: range, listing: listingWhere }, _sum: { commissionAmount: true, rebateAmount: true } });
+      const result = await db.financingDeal.aggregate({ where: { createdAt: range, ...dealListing }, _sum: { commissionAmount: true, rebateAmount: true } });
       return money(result._sum.commissionAmount) - money(result._sum.rebateAmount);
     };
     const storesIn = async (range: Range) => {
@@ -181,8 +183,8 @@ export class AdminOverviewService {
       db.listingBoostPurchase.count({ where: { status: "paid", paidAt: last30, listing: listingWhere } }),
       trend(subscriptionsIn),
       trend(financingIn),
-      db.financingDeal.count({ where: { createdAt: last30, listing: listingWhere } }),
-      db.financingDeal.aggregate({ where: { createdAt: last30, listing: listingWhere }, _sum: { rebateAmount: true } }),
+      db.financingDeal.count({ where: { createdAt: last30, ...dealListing } }),
+      db.financingDeal.aggregate({ where: { createdAt: last30, ...dealListing }, _sum: { rebateAmount: true } }),
       db.financingLead.count({ where: { status: { notIn: ["converted", "lost"] }, ...financingLeadWhere } }),
       trend(storesIn),
       hasStores ? db.affiliateClick.count({ where: { createdAt: last30 } }) : Promise.resolve(0),
@@ -213,7 +215,7 @@ export class AdminOverviewService {
         select: { paidAt: true, amount: true },
       }),
       db.financingDeal.findMany({
-        where: { createdAt: { gte: monthsStart }, listing: listingWhere },
+        where: { createdAt: { gte: monthsStart }, ...dealListing },
         select: { createdAt: true, commissionAmount: true, rebateAmount: true },
       }),
       db.storeEarning.findMany({ orderBy: [{ month: "desc" }, { store: "asc" }], take: 36 }),

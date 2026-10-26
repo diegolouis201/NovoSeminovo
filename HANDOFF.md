@@ -251,6 +251,13 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - Trocar a senha grava `passwordChangedAt`; o `JwtAuthGuard` derruba sessões emitidas antes (outros aparelhos). Abrir o link também conta como e-mail verificado.
    - Teste: `auth/password-reset.spec.ts`.
 
+41. **Cashback no financiamento substitui o repasse ao anunciante (26/10/2026)**
+   - Quem contrata o financiamento (carro ou imóvel) recebe 20% da comissão BRUTA (`CASHBACK_PERCENT`, `CASHBACK_DISCLAIMER` em shared-types), em valor líquido, por Pix no CPF, só depois que o banco/Credihome paga a comissão. O repasse ao anunciante acabou (níveis `PartnerRebateTier` desativados, ficam só como histórico).
+   - Fluxo: lead em "Concluído" (com valor negociado) → `RebatesService.registerCashback` cria o `FinancingDeal` com o comprador (`buyerUserId` pela conta do pedido, conversa, e-mail ou celular; `buyerName/Email/Phone` como retrato). Etapas: aguardando comissão → "Comissão recebida" (`commissionReceivedAt`) → pago. `markPaid` recusa antes da comissão. Avisos ao cliente: cashback_registered / _released / _paid.
+   - `FinancingDeal.listingId` agora é opcional (financiamento sem anúncio também gera cashback). Campos `rebate*` guardam o cashback. Negócios antigos ganham o nome do cliente pelo lead ao subir a API (`backfillBuyers`).
+   - Telas: `/admin/recompensas` (Cashback: liberar e pagar, CPF para o Pix), `/admin/financiamentos` (cashback previsto e etapas), planilha mensal (`tipo=detalhado|pagar`), `/conta/recompensas` (Meu cashback), `/recompensas` (página pública), simulador do anúncio, FAQ, termos (seção 6), privacidade, como funciona, quem somos, para lojas, rodapé e menus. Assistentes de IA atualizados.
+   - Teste: `rebates/cashback.spec.ts`.
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).

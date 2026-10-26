@@ -64,7 +64,7 @@ export default async function AdminPage() {
           Interessados em financiamento (assistente de IA) →
         </Link>
         <Link href="/admin/recompensas" className="text-sm font-semibold text-brand-blue hover:underline">
-          Programa de recompensa por financiamento →
+          Cashback no financiamento (pagar clientes) →
         </Link>
         <Link href="/admin/assinaturas" className="text-sm font-semibold text-brand-blue hover:underline">
           Assinaturas dos parceiros →

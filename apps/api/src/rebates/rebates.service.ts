@@ -1,417 +1,279 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma, type PartnerType } from "@novoseminovo/db";
+import { BadRequestException, Injectable, Logger, NotFoundException, type OnModuleInit } from "@nestjs/common";
+import { Prisma } from "@novoseminovo/db";
 import {
+  CASHBACK_PERCENT,
   formatBRL,
-  type EligibleListing,
+  type CashbackStage,
   type FinancingDeal,
-  type FinancingDealStatus,
-  type MyRebatesSummary,
-  type RebateReceiverType,
-  type RebateTier,
-  type RegisterFinancingDealInput,
-  type UpdateRebateTierInput,
+  type MyCashbackSummary,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
-// PF recebe uma fatia fixa — por decisão de negócio (ver conversa com o
-// Diego), diferente de corretor/imobiliária/lojista, que evoluem de nível.
-// Não é editável no admin porque não há progressão nenhuma aqui.
-const INDIVIDUAL_REBATE_PERCENT = 20;
+// Cashback no financiamento: quem contrata (carro ou imóvel) recebe
+// CASHBACK_PERCENT da comissão bruta do NovoSeminovo, só depois que o
+// banco/Credihome paga essa comissão. O negócio nasce quando o lead do
+// quadro de financiamentos vai para "Concluído" (ver
+// AgentsService.updateFinancingLead). Até 26/10/2026 este programa pagava
+// o anunciante — os campos rebate* do banco guardam o cashback agora.
 
-type EligiblePartnerType = "dealership" | "real_estate_agency" | "broker";
-const ELIGIBLE_PARTNER_TYPES: EligiblePartnerType[] = ["dealership", "real_estate_agency", "broker"];
+const dealInclude = Prisma.validator<Prisma.FinancingDealInclude>()({
+  listing: { select: { title: true } },
+  buyerUser: { select: { cpf: true } },
+});
+type DealRow = Prisma.FinancingDealGetPayload<{ include: typeof dealInclude }>;
 
-function isEligiblePartnerType(type: string): type is EligiblePartnerType {
-  return (ELIGIBLE_PARTNER_TYPES as string[]).includes(type);
+export function cashbackStage(deal: { status: string; commissionReceivedAt: Date | null }): CashbackStage {
+  if (deal.status === "paid") return "paid";
+  return deal.commissionReceivedAt ? "to_pay" : "awaiting_commission";
 }
 
-// Pontos de partida sugeridos — ver RebatesController.updateTier: o admin
-// pode reajustar nome/volume mínimo/percentual de cada nível sem precisar de
-// deploy nenhum, então os números abaixo só importam na primeira vez que o
-// programa roda (ver ensureDefaultTiers).
-const DEFAULT_TIERS: Array<{ tierOrder: number; tierName: string; minVolume: number; rebatePercent: number }> = [
-  { tierOrder: 1, tierName: "Bronze", minVolume: 0, rebatePercent: 20 },
-  { tierOrder: 2, tierName: "Prata", minVolume: 500_000, rebatePercent: 25 },
-  { tierOrder: 3, tierName: "Ouro", minVolume: 1_500_000, rebatePercent: 30 },
-];
-
-const PARTNER_TYPE_LABEL: Record<string, string> = {
-  dealership: "Loja de veículos",
-  real_estate_agency: "Imobiliária",
-  broker: "Corretor(a) autônomo(a)",
-};
-
-const dealWithListing = Prisma.validator<Prisma.FinancingDealDefaultArgs>()({
-  include: {
-    listing: {
-      select: {
-        title: true,
-        ownerUserId: true,
-        owner: { select: { name: true } },
-        partnerId: true,
-        partner: { select: { legalName: true, type: true } },
-      },
-    },
-  },
-});
-type DealWithListing = Prisma.FinancingDealGetPayload<typeof dealWithListing>;
-const dealInclude = dealWithListing.include;
-
-function toFinancingDeal(deal: DealWithListing): FinancingDeal {
-  const receiverType: RebateReceiverType = deal.listing.partner
-    ? (deal.listing.partner.type as RebateReceiverType)
-    : "individual";
-  const receiverLabel = deal.listing.partner
-    ? `${deal.listing.partner.legalName} (${PARTNER_TYPE_LABEL[deal.listing.partner.type] ?? deal.listing.partner.type})`
-    : `${deal.listing.owner.name} (pessoa física)`;
-
+function toFinancingDeal(deal: DealRow, forAdmin: boolean): FinancingDeal {
+  const cashbackAmount = Number(deal.rebateAmount);
   return {
     id: deal.id,
-    listingId: deal.listingId,
-    listingTitle: deal.listing.title,
-    receiverLabel,
-    receiverType,
+    listingId: deal.listingId ?? undefined,
+    listingTitle: deal.listing?.title,
+    buyerName: deal.buyerName,
+    buyerEmail: deal.buyerEmail ?? undefined,
+    buyerPhone: deal.buyerPhone ?? undefined,
+    buyerLinked: Boolean(deal.buyerUserId),
+    buyerCpf: forAdmin ? deal.buyerUser?.cpf ?? undefined : undefined,
     financingProvider: deal.financingProvider,
-    externalRef: deal.externalRef ?? undefined,
     assetValueLabel: formatBRL(Number(deal.assetValue)),
     financedAmountLabel: formatBRL(Number(deal.financedAmount)),
     commissionRateLabel: `${Number(deal.commissionRate)}%`,
     commissionAmountLabel: formatBRL(Number(deal.commissionAmount)),
-    rebatePercentLabel: `${Number(deal.rebatePercent)}%`,
-    rebateAmountLabel: formatBRL(Number(deal.rebateAmount)),
+    cashbackPercentLabel: `${Number(deal.rebatePercent)}%`,
+    cashbackAmount,
+    cashbackAmountLabel: formatBRL(cashbackAmount),
     status: deal.status,
+    stage: cashbackStage(deal),
+    commissionReceivedAt: deal.commissionReceivedAt?.toISOString(),
     paidAt: deal.paidAt?.toISOString(),
     paidNote: deal.paidNote ?? undefined,
     createdAt: deal.createdAt.toISOString(),
   };
 }
 
-function toRebateTier(tier: {
-  id: string;
-  partnerType: PartnerType;
-  tierOrder: number;
-  tierName: string;
-  minVolume: Prisma.Decimal;
-  rebatePercent: Prisma.Decimal;
-}): RebateTier {
-  return {
-    id: tier.id,
-    partnerType: tier.partnerType,
-    tierOrder: tier.tierOrder,
-    tierName: tier.tierName,
-    minVolume: Number(tier.minVolume),
-    minVolumeLabel: formatBRL(Number(tier.minVolume)),
-    rebatePercent: Number(tier.rebatePercent),
-    rebatePercentLabel: `${Number(tier.rebatePercent)}%`,
-  };
-}
+export type RegisterCashbackInput = {
+  leadId: string;
+  listingId?: string;
+  financingProvider: string;
+  assetValue: number;
+  financedAmount: number;
+  commissionRate: number;
+};
 
 @Injectable()
-export class RebatesService {
-  constructor(private readonly prisma: PrismaService) {}
+export class RebatesService implements OnModuleInit {
+  private readonly logger = new Logger(RebatesService.name);
 
-  // Garante que toda categoria elegível (lojista, imobiliária, corretor)
-  // tenha ao menos os níveis padrão — idempotente, mesmo padrão de
-  // PaymentsService.ensureStripeCatalog: sem isso, a primeira vez que o
-  // programa roda em produção não teria nenhum nível cadastrado.
-  private async ensureDefaultTiers(): Promise<void> {
-    for (const partnerType of ELIGIBLE_PARTNER_TYPES) {
-      const existing = await this.prisma.partnerRebateTier.count({ where: { partnerType } });
-      if (existing > 0) continue;
-      await this.prisma.partnerRebateTier.createMany({
-        data: DEFAULT_TIERS.map((tier) => ({ partnerType, ...tier })),
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
+
+  onModuleInit(): void {
+    void this.backfillBuyers().catch((error) => this.logger.error(`Falha ao completar clientes do cashback: ${error}`));
+  }
+
+  // Negócios registrados antes do cashback (26/10/2026) não guardavam quem
+  // contratou: completa com os dados do lead de financiamento ligado a eles.
+  async backfillBuyers(): Promise<number> {
+    const deals = await this.prisma.financingDeal.findMany({
+      where: { buyerName: "", financingLead: { isNot: null } },
+      select: { id: true, financingLead: { select: { id: true, name: true, email: true, phone: true, buyerUserId: true, conversationId: true } } },
+      take: 500,
+    });
+    for (const deal of deals) {
+      const lead = deal.financingLead!;
+      await this.prisma.financingDeal.update({
+        where: { id: deal.id },
+        data: { buyerName: lead.name, buyerEmail: lead.email, buyerPhone: lead.phone, buyerUserId: (await this.resolveBuyer(lead)) ?? null },
       });
     }
+    return deals.length;
   }
 
-  async listTiers(): Promise<RebateTier[]> {
-    await this.ensureDefaultTiers();
-    const tiers = await this.prisma.partnerRebateTier.findMany({
-      orderBy: [{ partnerType: "asc" }, { tierOrder: "asc" }],
-    });
-    return tiers.map(toRebateTier);
-  }
-
-  async updateTier(tierId: string, input: UpdateRebateTierInput): Promise<RebateTier> {
-    const tier = await this.prisma.partnerRebateTier.update({
-      where: { id: tierId },
-      data: {
-        tierName: input.tierName,
-        minVolume: input.minVolume,
-        rebatePercent: input.rebatePercent,
-      },
-    });
-    return toRebateTier(tier);
-  }
-
-  // Volume financiado acumulado (histórico, todo negócio registrado — pago ou
-  // não) pra um parceiro: define o nível atual dele. O rebate já é devido
-  // assim que o financiamento fecha, então conta mesmo antes de ser pago.
-  private async cumulativeVolume(partnerId: string): Promise<number> {
-    const result = await this.prisma.financingDeal.aggregate({
-      _sum: { financedAmount: true },
-      where: { listing: { partnerId } },
-    });
-    return Number(result._sum.financedAmount ?? 0);
-  }
-
-  private async currentTierFor(partnerType: EligiblePartnerType, volume: number) {
-    await this.ensureDefaultTiers();
-    const tiers = await this.prisma.partnerRebateTier.findMany({
-      where: { partnerType },
-      orderBy: { tierOrder: "asc" },
-    });
-
-    let current = tiers[0];
-    let next: (typeof tiers)[number] | undefined;
-    for (const tier of tiers) {
-      if (volume >= Number(tier.minVolume)) {
-        current = tier;
-      } else {
-        next = tier;
-        break;
-      }
+  // Conta do site de quem contratou: a do próprio pedido (chat ou simulador
+  // logado); senão, uma conta com o mesmo e-mail ou celular.
+  private async resolveBuyer(lead: { buyerUserId: string | null; conversationId: string | null; email: string | null; phone: string }) {
+    if (lead.buyerUserId) return lead.buyerUserId;
+    if (lead.conversationId) {
+      const conversation = await this.prisma.agentConversation.findUnique({ where: { id: lead.conversationId }, select: { userId: true } });
+      if (conversation?.userId) return conversation.userId;
     }
-    return { current, next };
+    if (lead.email) {
+      const byEmail = await this.prisma.user.findUnique({ where: { email: lead.email.toLowerCase() }, select: { id: true } });
+      if (byEmail) return byEmail.id;
+    }
+    const digits = lead.phone.replace(/\D/g, "");
+    const local = digits.startsWith("55") && digits.length > 11 ? digits.slice(2) : digits;
+    if (local.length >= 10) {
+      const byPhone = await this.prisma.user.findFirst({ where: { phone: { in: [local, `55${local}`] } }, select: { id: true } });
+      if (byPhone) return byPhone.id;
+    }
+    return undefined;
   }
 
-  private async resolveReceiver(listingId: string) {
-    const listing = await this.prisma.listing.findUnique({
-      where: { id: listingId },
-      select: { id: true, partnerId: true, partner: { select: { type: true } } },
-    });
-    if (!listing) throw new NotFoundException("Anúncio não encontrado.");
-    return listing;
-  }
-
-  // Anúncios marcados como "vendido" — candidatos a registrar negócio
-  // fechado (ver formulário em /admin/recompensas). Sem isso o admin
-  // precisava digitar o id/link do anúncio à mão.
-  async listEligibleListings(): Promise<EligibleListing[]> {
-    const listings = await this.prisma.listing.findMany({
-      where: { status: "sold" },
-      select: {
-        id: true,
-        title: true,
-        price: true,
-        owner: { select: { name: true } },
-        partner: { select: { legalName: true, type: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
-
-    return listings.map((listing) => ({
-      id: listing.id,
-      title: listing.title,
-      priceLabel: formatBRL(Number(listing.price)),
-      receiverLabel: listing.partner
-        ? `${listing.partner.legalName} (${PARTNER_TYPE_LABEL[listing.partner.type] ?? listing.partner.type})`
-        : `${listing.owner.name} (pessoa física)`,
-    }));
-  }
-
-  async registerDeal(adminUserId: string, input: RegisterFinancingDealInput): Promise<FinancingDeal> {
-    const listing = await this.resolveReceiver(input.listingId);
-
+  // Financiamento fechado (lead em "Concluído"): registra o cashback de quem
+  // contratou. Percentual e valor são um retrato do momento do registro.
+  async registerCashback(adminUserId: string, input: RegisterCashbackInput): Promise<{ id: string }> {
     if (input.financedAmount > input.assetValue) {
       throw new BadRequestException("O valor financiado não pode ser maior que o valor do bem.");
     }
+    const lead = await this.prisma.financingLead.findUnique({ where: { id: input.leadId } });
+    if (!lead) throw new NotFoundException("Lead não encontrado.");
+    const buyerUserId = await this.resolveBuyer(lead);
 
-    const commissionRate = input.commissionRate ?? 1;
-    const commissionAmount = (input.financedAmount * commissionRate) / 100;
-
-    let rebatePercent = INDIVIDUAL_REBATE_PERCENT;
-    if (listing.partnerId && listing.partner && isEligiblePartnerType(listing.partner.type)) {
-      const volumeBefore = await this.cumulativeVolume(listing.partnerId);
-      const { current } = await this.currentTierFor(listing.partner.type, volumeBefore);
-      rebatePercent = Number(current?.rebatePercent ?? INDIVIDUAL_REBATE_PERCENT);
-    }
-    const rebateAmount = (commissionAmount * rebatePercent) / 100;
-
+    const commissionAmount = Math.round(input.financedAmount * input.commissionRate) / 100;
+    const cashbackAmount = Math.round(commissionAmount * CASHBACK_PERCENT) / 100;
     const deal = await this.prisma.financingDeal.create({
       data: {
-        listingId: listing.id,
+        listingId: input.listingId,
+        buyerUserId,
+        buyerName: lead.name,
+        buyerEmail: lead.email,
+        buyerPhone: lead.phone,
         financingProvider: input.financingProvider,
-        externalRef: input.externalRef,
+        externalRef: `lead:${lead.id}`,
         assetValue: input.assetValue,
         financedAmount: input.financedAmount,
-        commissionRate,
+        commissionRate: input.commissionRate,
         commissionAmount,
-        rebatePercent,
-        rebateAmount,
+        rebatePercent: CASHBACK_PERCENT,
+        rebateAmount: cashbackAmount,
         registeredByUserId: adminUserId,
       },
-      include: dealInclude,
+      select: { id: true },
     });
-
-    return toFinancingDeal(deal);
-  }
-
-  // Percentual que o anunciante receberia se o financiamento fechasse hoje —
-  // usado no quadro de financiamentos pra mostrar o repasse previsto antes
-  // de existir negócio registrado. Mesma regra de registerDeal.
-  async previewRebate(listingId: string): Promise<{ percent: number; receiverLabel: string } | undefined> {
-    const listing = await this.prisma.listing.findUnique({
-      where: { id: listingId },
-      select: { partnerId: true, owner: { select: { name: true } }, partner: { select: { legalName: true, type: true } } },
-    });
-    if (!listing) return undefined;
-    let percent = INDIVIDUAL_REBATE_PERCENT;
-    if (listing.partnerId && listing.partner && isEligiblePartnerType(listing.partner.type)) {
-      const { current } = await this.currentTierFor(listing.partner.type, await this.cumulativeVolume(listing.partnerId));
-      percent = Number(current?.rebatePercent ?? INDIVIDUAL_REBATE_PERCENT);
+    if (buyerUserId && !lead.buyerUserId) {
+      await this.prisma.financingLead.update({ where: { id: lead.id }, data: { buyerUserId } });
     }
-    return {
-      percent,
-      receiverLabel: listing.partner ? listing.partner.legalName : `${listing.owner.name} (pessoa física)`,
-    };
+    await this.notifyBuyer(buyerUserId, "cashback_registered", { amountLabel: formatBRL(cashbackAmount) });
+    return deal;
   }
 
-  // Lead que saiu de "Concluído" antes do pagamento: o negócio registrado
-  // automaticamente some junto (senão entraria no fechamento um repasse de
-  // financiamento que não aconteceu). Pago não pode ser desfeito.
+  // Lead que saiu de "Concluído" antes do pagamento: o cashback registrado
+  // some junto. Pago não pode ser desfeito.
   async deleteUnpaidDeal(dealId: string): Promise<void> {
     const deal = await this.prisma.financingDeal.findUnique({ where: { id: dealId } });
     if (!deal) return;
     if (deal.status === "paid") {
-      throw new BadRequestException("O repasse deste negócio já foi pago — ele não pode sair de Concluído.");
+      throw new BadRequestException("O cashback deste financiamento já foi pago — ele não pode sair de Concluído.");
     }
     await this.prisma.financingDeal.delete({ where: { id: dealId } });
   }
 
-  // Fechamento mensal: todo negócio registrado no mês (pelo quadro ou à mão
-  // em /admin/recompensas), com quem recebe e os dados pra fazer o Pix.
+  // Banco/Credihome pagou a comissão: o cashback fica liberado para pagar.
+  async markCommissionReceived(dealId: string): Promise<FinancingDeal> {
+    const deal = await this.prisma.financingDeal.findUnique({ where: { id: dealId } });
+    if (!deal) throw new NotFoundException("Negócio não encontrado.");
+    if (deal.commissionReceivedAt) throw new BadRequestException("A comissão deste financiamento já foi marcada como recebida.");
+    const updated = await this.prisma.financingDeal.update({
+      where: { id: dealId },
+      data: { commissionReceivedAt: new Date() },
+      include: dealInclude,
+    });
+    await this.notifyBuyer(updated.buyerUserId, "cashback_released", { amountLabel: formatBRL(Number(updated.rebateAmount)) });
+    return toFinancingDeal(updated, true);
+  }
+
+  async markPaid(dealId: string, note?: string): Promise<FinancingDeal> {
+    const existing = await this.prisma.financingDeal.findUnique({ where: { id: dealId } });
+    if (!existing) throw new NotFoundException("Negócio não encontrado.");
+    if (existing.status === "paid") throw new BadRequestException("Esse cashback já está marcado como pago.");
+    if (!existing.commissionReceivedAt) {
+      throw new BadRequestException("A comissão ainda não foi recebida — o cashback só é pago depois que o banco paga o NovoSeminovo.");
+    }
+    const updated = await this.prisma.financingDeal.update({
+      where: { id: dealId },
+      data: { status: "paid", paidAt: new Date(), paidNote: note },
+      include: dealInclude,
+    });
+    await this.notifyBuyer(updated.buyerUserId, "cashback_paid", { amountLabel: formatBRL(Number(updated.rebateAmount)) });
+    return toFinancingDeal(updated, true);
+  }
+
+  async listDeals(stage?: CashbackStage): Promise<FinancingDeal[]> {
+    const where: Prisma.FinancingDealWhereInput =
+      stage === "paid"
+        ? { status: "paid" }
+        : stage === "to_pay"
+          ? { status: "registered", commissionReceivedAt: { not: null } }
+          : stage === "awaiting_commission"
+            ? { status: "registered", commissionReceivedAt: null }
+            : {};
+    const deals = await this.prisma.financingDeal.findMany({ where, orderBy: { createdAt: "desc" }, include: dealInclude });
+    return deals.map((deal) => toFinancingDeal(deal, true));
+  }
+
+  // Fechamento mensal: financiamentos registrados no mês, com quem recebe o
+  // cashback e o CPF (chave Pix).
   async monthlyReport(month: string) {
     const match = /^(\d{4})-(\d{2})$/.exec(month);
     if (!match) throw new BadRequestException("Mês inválido — use AAAA-MM.");
-    // Mês no horário de Brasília (UTC−3, sem horário de verão desde 2019):
-    // o servidor roda em UTC, e um negócio das 22h do dia 31 é do mês 31.
+    // Mês no horário de Brasília (UTC−3, sem horário de verão desde 2019).
     const start = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1, 3));
     const end = new Date(Date.UTC(Number(match[1]), Number(match[2]), 1, 3));
 
     const deals = await this.prisma.financingDeal.findMany({
       where: { createdAt: { gte: start, lt: end } },
       orderBy: { createdAt: "asc" },
-      include: {
-        financingLead: { select: { name: true, phone: true } },
-        listing: {
-          select: {
-            title: true,
-            type: true,
-            owner: { select: { name: true, email: true, phone: true, cpf: true } },
-            partner: { select: { id: true, legalName: true, type: true, document: true, owner: { select: { email: true, phone: true } } } },
-          },
-        },
-      },
+      include: { listing: { select: { title: true, type: true } }, buyerUser: { select: { cpf: true } } },
     });
 
-    return deals.map((deal) => {
-      const partner = deal.listing.partner;
-      return {
-        date: deal.createdAt.toISOString(),
-        client: deal.financingLead?.name ?? "",
-        clientPhone: deal.financingLead?.phone ?? "",
-        listingTitle: deal.listing.title,
-        assetType: deal.listing.type,
-        bank: deal.financingProvider,
-        financedAmount: Number(deal.financedAmount),
-        commissionRate: Number(deal.commissionRate),
-        commissionAmount: Number(deal.commissionAmount),
-        receiverKey: partner ? `partner:${partner.id}` : `user:${deal.listing.owner.email}`,
-        receiverName: partner ? partner.legalName : deal.listing.owner.name,
-        receiverType: partner ? PARTNER_TYPE_LABEL[partner.type] ?? partner.type : "Pessoa física",
-        // CNPJ/CPF da loja ou CPF da pessoa física — chave Pix mais comum e
-        // necessário pro recibo. Vazio se a pessoa ainda não preencheu o perfil.
-        receiverDocument: partner ? partner.document : deal.listing.owner.cpf ?? "",
-        receiverEmail: partner ? partner.owner.email : deal.listing.owner.email,
-        receiverPhone: (partner ? partner.owner.phone : deal.listing.owner.phone) ?? "",
-        rebatePercent: Number(deal.rebatePercent),
-        rebateAmount: Number(deal.rebateAmount),
-        netAmount: Number(deal.commissionAmount) - Number(deal.rebateAmount),
-        status: deal.status,
-        paidAt: deal.paidAt?.toISOString() ?? "",
-        paidNote: deal.paidNote ?? "",
-      };
-    });
+    return deals.map((deal) => ({
+      date: deal.createdAt.toISOString(),
+      client: deal.buyerName,
+      clientPhone: deal.buyerPhone ?? "",
+      clientEmail: deal.buyerEmail ?? "",
+      // CPF de quem contratou — chave Pix do cashback. Vazio se a pessoa não
+      // tem conta ou ainda não preencheu o perfil.
+      clientCpf: deal.buyerUser?.cpf ?? "",
+      listingTitle: deal.listing?.title ?? "",
+      assetType: deal.listing?.type ?? "",
+      bank: deal.financingProvider,
+      financedAmount: Number(deal.financedAmount),
+      commissionRate: Number(deal.commissionRate),
+      commissionAmount: Number(deal.commissionAmount),
+      commissionReceivedAt: deal.commissionReceivedAt?.toISOString() ?? "",
+      cashbackPercent: Number(deal.rebatePercent),
+      cashbackAmount: Number(deal.rebateAmount),
+      netAmount: Number(deal.commissionAmount) - Number(deal.rebateAmount),
+      stage: cashbackStage(deal),
+      paidAt: deal.paidAt?.toISOString() ?? "",
+      paidNote: deal.paidNote ?? "",
+    }));
   }
 
-  async listDeals(status?: FinancingDealStatus): Promise<FinancingDeal[]> {
-    const deals = await this.prisma.financingDeal.findMany({
-      where: status ? { status } : undefined,
-      orderBy: { createdAt: "desc" },
-      include: dealInclude,
+  // "Meu cashback" do cliente. Liga à conta os negócios feitos antes do
+  // cadastro com o mesmo e-mail.
+  async myCashback(userId: string): Promise<MyCashbackSummary> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, cpf: true } });
+    if (!user) throw new NotFoundException("Usuário não encontrado.");
+    await this.prisma.financingDeal.updateMany({
+      where: { buyerUserId: null, buyerEmail: { equals: user.email, mode: "insensitive" } },
+      data: { buyerUserId: userId },
     });
-    return deals.map(toFinancingDeal);
-  }
-
-  async markPaid(dealId: string, note?: string): Promise<FinancingDeal> {
-    const existing = await this.prisma.financingDeal.findUnique({ where: { id: dealId } });
-    if (!existing) throw new NotFoundException("Negócio não encontrado.");
-    if (existing.status === "paid") throw new BadRequestException("Esse negócio já está marcado como pago.");
-
-    const updated = await this.prisma.financingDeal.update({
-      where: { id: dealId },
-      data: { status: "paid", paidAt: new Date(), paidNote: note },
-      include: dealInclude,
-    });
-    return toFinancingDeal(updated);
-  }
-
-  // "Meus ganhos": funciona tanto pra quem anuncia como PF quanto pra dono/
-  // agente de uma loja/imobiliária/corretor — identifica qual dos dois casos
-  // é esse usuário e monta o resumo certo.
-  async myRebates(userId: string): Promise<MyRebatesSummary> {
-    const partner = await this.prisma.partner.findFirst({
-      where: { OR: [{ ownerUserId: userId }, { members: { some: { userId } } }] },
-    });
-
-    if (partner && isEligiblePartnerType(partner.type)) {
-      const volume = await this.cumulativeVolume(partner.id);
-      const { current, next } = await this.currentTierFor(partner.type, volume);
-
-      const deals = await this.prisma.financingDeal.findMany({
-        where: { listing: { partnerId: partner.id } },
-        orderBy: { createdAt: "desc" },
-        include: dealInclude,
-      });
-
-      const currentMin = Number(current?.minVolume ?? 0);
-      const nextMin = next ? Number(next.minVolume) : undefined;
-      const progressToNextTierPct =
-        next && nextMin !== undefined && nextMin > currentMin
-          ? Math.min(100, Math.round(((volume - currentMin) / (nextMin - currentMin)) * 100))
-          : 100;
-
-      return {
-        receiverType: partner.type as RebateReceiverType,
-        currentTierName: current?.tierName,
-        currentRebatePercentLabel: `${Number(current?.rebatePercent ?? 0)}%`,
-        cumulativeVolumeLabel: formatBRL(volume),
-        nextTierName: next?.tierName,
-        nextTierMinVolumeLabel: next ? formatBRL(Number(next.minVolume)) : undefined,
-        progressToNextTierPct,
-        totalPendingLabel: formatBRL(sumRebate(deals, "registered")),
-        totalPaidLabel: formatBRL(sumRebate(deals, "paid")),
-        deals: deals.map(toFinancingDeal),
-      };
-    }
-
-    const deals = await this.prisma.financingDeal.findMany({
-      where: { listing: { ownerUserId: userId, partnerId: null } },
-      orderBy: { createdAt: "desc" },
-      include: dealInclude,
-    });
-
+    const deals = await this.prisma.financingDeal.findMany({ where: { buyerUserId: userId }, orderBy: { createdAt: "desc" }, include: dealInclude });
+    const total = (stage: CashbackStage) =>
+      formatBRL(deals.filter((deal) => cashbackStage(deal) === stage).reduce((sum, deal) => sum + Number(deal.rebateAmount), 0));
     return {
-      receiverType: "individual",
-      currentRebatePercentLabel: `${INDIVIDUAL_REBATE_PERCENT}%`,
-      totalPendingLabel: formatBRL(sumRebate(deals, "registered")),
-      totalPaidLabel: formatBRL(sumRebate(deals, "paid")),
-      deals: deals.map(toFinancingDeal),
+      percentLabel: `${CASHBACK_PERCENT}%`,
+      totalAwaitingLabel: total("awaiting_commission"),
+      totalToPayLabel: total("to_pay"),
+      totalPaidLabel: total("paid"),
+      cpfMissing: !user.cpf,
+      deals: deals.map((deal) => toFinancingDeal(deal, false)),
     };
   }
-}
 
-function sumRebate(deals: DealWithListing[], status: FinancingDealStatus): number {
-  return deals.filter((deal) => deal.status === status).reduce((total, deal) => total + Number(deal.rebateAmount), 0);
+  private async notifyBuyer(userId: string | null | undefined, type: "cashback_registered" | "cashback_released" | "cashback_paid", payload: Record<string, unknown>) {
+    if (!userId) return;
+    await this.notifications
+      .notify(userId, type, payload)
+      .catch((error) => this.logger.error(`Falha ao avisar o cliente sobre o cashback: ${error}`));
+  }
 }

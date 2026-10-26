@@ -12,6 +12,7 @@ import {
 import Anthropic from "@anthropic-ai/sdk";
 import { Prisma, type AgentConversation } from "@novoseminovo/db";
 import {
+  CASHBACK_PERCENT,
   CREDIHOME_PHASE_LABELS,
   formatBRL,
   type AgentConversationView,
@@ -29,7 +30,7 @@ import { NotificationsService } from "../notifications/notifications.service";
 import { ListingsService } from "../listings/listings.service";
 import { PartnersService } from "../partners/partners.service";
 import { AdminService } from "../admin/admin.service";
-import { RebatesService } from "../rebates/rebates.service";
+import { RebatesService, cashbackStage } from "../rebates/rebates.service";
 import { runAgentTurn, visibleMessages, type AgentDefinition } from "./agent-engine";
 import { buildBuyerAgent, type FinancingLeadInput } from "./buyer-agent";
 import { buildPartnerAgent } from "./partner-agent";
@@ -333,6 +334,7 @@ export class AgentsService {
       data: {
         ...data,
         conversationId: conversation.id,
+        buyerUserId: conversation.userId,
         channel: conversation.channel,
         // Pelo WhatsApp da Meta a origem é o próprio WhatsApp; pelo site, a do visitante.
         acqSource: conversation.channel === "whatsapp" ? "whatsapp" : conversation.acqSource,
@@ -379,18 +381,11 @@ export class AgentsService {
       where: { ...(status ? { status } : {}), ...(assetType ? { assetType } : {}) },
       include: {
         listing: { select: { title: true } },
-        financingDeal: { select: { status: true, paidAt: true, rebatePercent: true, rebateAmount: true, commissionAmount: true } },
+        financingDeal: { select: { status: true, paidAt: true, rebatePercent: true, rebateAmount: true, commissionAmount: true, commissionReceivedAt: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 500,
     });
-
-    // Percentual previsto por anúncio (o nível do parceiro é o mesmo pra
-    // todos os leads do mesmo anúncio) — uma consulta por anúncio, não por lead.
-    const previews = new Map<string, Awaited<ReturnType<RebatesService["previewRebate"]>>>();
-    for (const listingId of new Set(leads.flatMap((lead) => (lead.listingId ? [lead.listingId] : [])))) {
-      previews.set(listingId, await this.rebates.previewRebate(listingId));
-    }
 
     const money = (value: Prisma.Decimal | null) => (value === null ? undefined : Number(value));
     return leads.map((lead) => {
@@ -405,40 +400,28 @@ export class AgentsService {
       const estimateBase = assetValue !== undefined ? assetValue - (downPayment ?? 0) : undefined;
       const base = negotiatedValue ?? (estimateBase && estimateBase > 0 ? estimateBase : undefined);
       const deal = lead.financingDeal;
-      // Concluído: vale o que foi registrado no negócio (retrato do nível do
-      // parceiro na hora) — não o cálculo de hoje.
+      // Concluído: vale o que foi registrado no negócio — não o cálculo de hoje.
       const commissionAmount = deal
         ? Number(deal.commissionAmount)
         : base !== undefined
           ? Math.round(base * commissionRate) / 100
           : undefined;
 
-      let partnerShare: FinancingLeadSummary["partnerShare"];
-      if (deal) {
-        const amount = Number(deal.rebateAmount);
-        partnerShare = {
-          receiverLabel: previews.get(lead.listingId ?? "")?.receiverLabel ?? lead.listing?.title ?? "anunciante",
-          percent: Number(deal.rebatePercent),
-          amount,
-          amountLabel: formatBRL(amount),
-          stage: deal.status === "paid" ? "paid" : "to_pay",
-          paidAt: deal.paidAt?.toISOString(),
-        };
-      } else if (lead.listingId) {
-        const preview = previews.get(lead.listingId);
-        if (preview) {
-          const amount = commissionAmount !== undefined ? Math.round(commissionAmount * preview.percent) / 100 : undefined;
-          partnerShare = {
-            receiverLabel: preview.receiverLabel,
-            percent: preview.percent,
-            amount,
-            amountLabel: amount === undefined ? undefined : formatBRL(amount),
-            stage: "expected",
-          };
-        }
-      }
+      // Cashback de quem contratou: previsto até concluir; depois segue o negócio.
+      const cashbackAmount = deal
+        ? Number(deal.rebateAmount)
+        : commissionAmount !== undefined
+          ? Math.round(commissionAmount * CASHBACK_PERCENT) / 100
+          : undefined;
+      const cashback: FinancingLeadSummary["cashback"] = {
+        percent: deal ? Number(deal.rebatePercent) : CASHBACK_PERCENT,
+        amount: cashbackAmount,
+        amountLabel: cashbackAmount === undefined ? undefined : formatBRL(cashbackAmount),
+        stage: deal ? cashbackStage(deal) : "expected",
+        paidAt: deal?.paidAt?.toISOString(),
+      };
       const netCommission =
-        commissionAmount === undefined ? undefined : Math.round((commissionAmount - (partnerShare?.amount ?? 0)) * 100) / 100;
+        commissionAmount === undefined ? undefined : Math.round((commissionAmount - (cashbackAmount ?? 0)) * 100) / 100;
 
       return {
         id: lead.id,
@@ -466,7 +449,7 @@ export class AgentsService {
         commissionIsEstimate: !deal && negotiatedValue === undefined,
         bank: lead.bank ?? undefined,
         adminNotes: lead.adminNotes ?? undefined,
-        partnerShare,
+        cashback,
         netCommission,
         netCommissionLabel: netCommission === undefined ? undefined : formatBRL(netCommission),
         statusChangedAt: lead.statusChangedAt?.toISOString(),
@@ -509,17 +492,16 @@ export class AgentsService {
 
     if (lead.financingDeal?.status === "paid" && (nextStatus !== "converted" || valuesChanged)) {
       throw new BadRequestException(
-        "O repasse deste financiamento já foi pago — valor, comissão e banco não podem mais mudar, nem a etapa.",
+        "O cashback deste financiamento já foi pago — valor, comissão e banco não podem mais mudar, nem a etapa.",
       );
     }
 
-    // Concluído com anúncio = negócio registrado no programa de recompensa
-    // (entra no fechamento mensal e no "Meus ganhos" do anunciante). Sem
-    // anúncio, a comissão é toda do correspondente — não há repasse.
+    // Concluído = financiamento fechado: registra o cashback de quem contratou
+    // (com ou sem anúncio) — entra no fechamento mensal e em "Meu cashback".
     let financingDealId = lead.financingDealId;
-    const needsDeal = nextStatus === "converted" && Boolean(lead.listingId);
+    const needsDeal = nextStatus === "converted";
     if (needsDeal && !negotiatedValue) {
-      throw new BadRequestException("Preencha o valor negociado (financiado) antes de concluir — é a base da comissão e do repasse.");
+      throw new BadRequestException("Preencha o valor negociado (financiado) antes de concluir — é a base da comissão e do cashback.");
     }
     if (lead.financingDeal && (!needsDeal || valuesChanged)) {
       // Desliga do card antes de apagar (a chave estrangeira não deixa apagar
@@ -540,12 +522,12 @@ export class AgentsService {
       },
     });
 
-    if (needsDeal && !financingDealId && lead.listingId && negotiatedValue) {
+    if (needsDeal && !financingDealId && negotiatedValue) {
       const assetValue = Math.max(Number(lead.assetValue ?? 0), negotiatedValue);
-      const deal = await this.rebates.registerDeal(adminId, {
-        listingId: lead.listingId,
+      const deal = await this.rebates.registerCashback(adminId, {
+        leadId: lead.id,
+        listingId: lead.listingId ?? undefined,
         financingProvider: bank ?? "Banco não informado",
-        externalRef: `lead:${lead.id}`,
         assetValue,
         financedAmount: negotiatedValue,
         commissionRate,

@@ -1,52 +1,20 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
-import {
-  MarkFinancingDealPaidInputSchema,
-  RegisterFinancingDealInputSchema,
-  UpdateRebateTierInputSchema,
-  type FinancingDealStatus,
-} from "@novoseminovo/shared-types";
+import { Body, Controller, Get, Param, Patch, Query, UseGuards } from "@nestjs/common";
+import { CashbackStage, MarkFinancingDealPaidInputSchema } from "@novoseminovo/shared-types";
 import { AdminGuard } from "../admin/admin.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { RebatesService } from "./rebates.service";
 
+// Cashback no financiamento (ver RebatesService).
 @Controller()
 export class RebatesController {
   constructor(private readonly rebatesService: RebatesService) {}
 
   @UseGuards(JwtAuthGuard)
-  @Get("me/rebates")
-  myRebates(@CurrentUser() user: { id: string }) {
-    return this.rebatesService.myRebates(user.id);
-  }
-
-  // Pública (sem guard nenhum) — página de apresentação do programa
-  // (ver /recompensas no site): percentual de rebate não é informação
-  // sensível, é literalmente o que a pessoa precisa saber pra decidir se
-  // vale a pena anunciar/virar parceiro.
-  @Get("rebate-tiers")
-  listTiersPublic() {
-    return this.rebatesService.listTiers();
-  }
-
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @Get("admin/rebate-tiers")
-  listTiers() {
-    return this.rebatesService.listTiers();
-  }
-
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @Patch("admin/rebate-tiers/:id")
-  updateTier(@Param("id") id: string, @Body() body: unknown) {
-    const input = parseOrBadRequest(UpdateRebateTierInputSchema, body);
-    return this.rebatesService.updateTier(id, input);
-  }
-
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @Get("admin/financing-deals/eligible-listings")
-  listEligibleListings() {
-    return this.rebatesService.listEligibleListings();
+  @Get("me/cashback")
+  myCashback(@CurrentUser() user: { id: string }) {
+    return this.rebatesService.myCashback(user.id);
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
@@ -57,17 +25,15 @@ export class RebatesController {
 
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Get("admin/financing-deals")
-  listDeals(@Query("status") status?: string) {
-    const validStatus: FinancingDealStatus | undefined =
-      status === "registered" || status === "paid" ? status : undefined;
-    return this.rebatesService.listDeals(validStatus);
+  listDeals(@Query("etapa") stage?: string) {
+    const parsed = CashbackStage.safeParse(stage);
+    return this.rebatesService.listDeals(parsed.success ? parsed.data : undefined);
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
-  @Post("admin/financing-deals")
-  registerDeal(@CurrentUser() user: { id: string }, @Body() body: unknown) {
-    const input = parseOrBadRequest(RegisterFinancingDealInputSchema, body);
-    return this.rebatesService.registerDeal(user.id, input);
+  @Patch("admin/financing-deals/:id/commission-received")
+  markCommissionReceived(@Param("id") id: string) {
+    return this.rebatesService.markCommissionReceived(id);
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)

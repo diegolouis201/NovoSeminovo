@@ -50,7 +50,7 @@ function summarize(leads: FinancingLeadSummary[]) {
   const done = leads.filter((lead) => lead.status === "converted");
   const sum = (list: FinancingLeadSummary[], pick: (lead: FinancingLeadSummary) => number | undefined) =>
     list.reduce((total, lead) => total + (pick(lead) ?? 0), 0);
-  const share = (lead: FinancingLeadSummary) => lead.partnerShare?.amount;
+  const share = (lead: FinancingLeadSummary) => lead.cashback.amount;
   const decided = done.length + leads.filter((lead) => lead.status === "lost").length;
   return {
     openCount: open.length,
@@ -60,8 +60,9 @@ function summarize(leads: FinancingLeadSummary[]) {
     doneCount: done.length,
     doneNegotiated: sum(done, (lead) => lead.negotiatedValue),
     doneCommission: sum(done, (lead) => lead.commissionAmount),
-    shareToPay: sum(done.filter((lead) => lead.partnerShare?.stage === "to_pay"), share),
-    sharePaid: sum(done.filter((lead) => lead.partnerShare?.stage === "paid"), share),
+    shareAwaiting: sum(done.filter((lead) => lead.cashback.stage === "awaiting_commission"), share),
+    shareToPay: sum(done.filter((lead) => lead.cashback.stage === "to_pay"), share),
+    sharePaid: sum(done.filter((lead) => lead.cashback.stage === "paid"), share),
     doneNet: sum(done, (lead) => lead.netCommission),
     conversion: decided > 0 ? Math.round((done.length / decided) * 100) : undefined,
   };
@@ -96,13 +97,13 @@ export default async function AdminFinancingLeadsPage({ searchParams }: { search
       </Link>
       <h1 className="mt-2 font-display text-2xl font-semibold text-ink">Funil de financiamentos</h1>
       <p className="text-sm text-ink-muted">
-        Interessados captados pelo assistente de IA (site e WhatsApp). Arraste o card entre as etapas, preencha o valor
-        negociado e a comissão e o repasse ao parceiro são calculados sozinhos. Ao mover para Concluído, o negócio já
-        entra em{" "}
+        Interessados captados pelo assistente de IA (site e WhatsApp) e pelo simulador dos anúncios. Arraste o card entre
+        as etapas e preencha o valor negociado: a comissão e o cashback de 20% de quem contratou são calculados sozinhos. Ao
+        mover para Concluído, o cashback entra em{" "}
         <Link href="/admin/recompensas" className="font-semibold text-brand-blue hover:underline">
-          Recompensas
+          Cashback
         </Link>{" "}
-        e no fechamento do mês.
+        (pago só depois que o banco pagar a comissão) e no fechamento do mês.
       </p>
 
       <nav className="mt-6 inline-flex flex-wrap gap-1 rounded-full bg-surface-sober p-1" aria-label="Tipo de financiamento">
@@ -131,25 +132,29 @@ export default async function AdminFinancingLeadsPage({ searchParams }: { search
         <Stat
           label="Comissão prevista"
           value={brl(stats.openCommission)}
-          hint={`repasse previsto aos parceiros ${brl(stats.openShare)}`}
+          hint={`cashback previsto aos clientes ${brl(stats.openShare)}`}
         />
         <Stat
           label="Comissão realizada"
           value={brl(stats.doneCommission)}
           hint={`${stats.doneCount} concluído(s)${stats.doneNegotiated > 0 ? ` · ${brl(stats.doneNegotiated)} financiado` : ""}`}
         />
-        <Stat label="Repasse a pagar" value={brl(stats.shareToPay)} hint="parceiros, concluídos ainda não pagos" />
-        <Stat label="Repasse pago" value={brl(stats.sharePaid)} hint="marcado como pago em Recompensas" />
-        <Stat label="Seu líquido realizado" value={brl(stats.doneNet)} hint="comissão realizada − repasses" />
+        <Stat
+          label="Cashback a pagar"
+          value={brl(stats.shareToPay)}
+          hint={`liberado (comissão recebida) · aguardando banco ${brl(stats.shareAwaiting)}`}
+        />
+        <Stat label="Cashback pago" value={brl(stats.sharePaid)} hint="marcado como pago em Cashback" />
+        <Stat label="Seu líquido realizado" value={brl(stats.doneNet)} hint="comissão realizada − cashback" />
       </div>
 
       <section className="mt-6 rounded-brand border border-border bg-surface-raised p-4">
         <h2 className="font-display text-lg font-semibold text-ink">Fechamento mensal</h2>
         <p className="mt-1 text-sm text-ink-muted">
           Baixe a planilha (abre no Excel) com todos os financiamentos concluídos no mês — imobiliário e veicular — e
-          quanto pagar a cada parceiro. Depois do Pix, marque como pago em{" "}
+          o cashback de cada cliente (com o CPF para o Pix). Depois do Pix, marque como pago em{" "}
           <Link href="/admin/recompensas" className="font-semibold text-brand-blue hover:underline">
-            Recompensas
+            Cashback
           </Link>
           .
         </p>
@@ -167,10 +172,10 @@ export default async function AdminFinancingLeadsPage({ searchParams }: { search
           <button
             type="submit"
             name="tipo"
-            value="parceiros"
+            value="pagar"
             className="rounded-brand bg-brand-green px-4 py-2 text-sm font-bold text-on-green hover:opacity-90"
           >
-            Baixar fechamento por parceiro
+            Baixar cashback a pagar (Pix)
           </button>
           <button
             type="submit"

@@ -106,13 +106,20 @@ export class AgentsController {
     return this.credihome.simulate(id, parseOrBadRequest(CredihomeSimulateInputSchema, body), clientIp(request));
   }
 
+  @UseGuards(OptionalJwtAuthGuard)
   @Post("listings/:id/credihome/proposal")
-  requestCredihomeProposal(@Param("id") id: string, @Body() body: unknown, @Req() request: Request) {
+  requestCredihomeProposal(
+    @Param("id") id: string,
+    @Body() body: unknown,
+    @Req() request: Request,
+    @CurrentUser() user: { id: string } | undefined,
+  ) {
     return this.credihome.requestProposal(
       id,
       parseOrBadRequest(CredihomeProposalInputSchema, body),
       clientIp(request),
       acquisitionFrom(request),
+      user?.id,
     );
   }
 }

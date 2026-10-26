@@ -36,8 +36,8 @@ const SELL = [
     text: "Depois da aprovação, seu anúncio aparece na busca. Os interessados falam com você pelo chat ou WhatsApp, e você é avisado de cada mensagem.",
   },
   {
-    title: "Venda e ganhe",
-    text: "Se o comprador financiar pelo nosso parceiro, você recebe uma recompensa sobre a comissão do financiamento.",
+    title: "Financie e ganhe cashback",
+    text: "Quem compra e financia pelo NovoSeminovo recebe de volta 20% da nossa comissão do financiamento, por Pix (valor líquido, pago depois que o banco paga a comissão).",
   },
 ];
 
@@ -95,7 +95,7 @@ export default function HowItWorksPage() {
             Anunciar agora
           </Link>
           <Link href="/recompensas" className="rounded-brand border border-border px-5 py-3 text-sm font-bold text-ink hover:bg-surface-sober">
-            Como funciona a recompensa
+            Como funciona o cashback
           </Link>
           <Link href="/para-lojas" className="rounded-brand border border-border px-5 py-3 text-sm font-bold text-ink hover:bg-surface-sober">
             Sou loja ou imobiliária

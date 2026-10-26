@@ -61,7 +61,7 @@ Toda segunda-feira (ou quando pedirem):
    - receita dos últimos 30 dias contra os 30 anteriores, por linha (anúncios, financiamento, afiliados/lojas parceiras), e o que puxou a alta ou a queda;
    - receita recorrente (assinaturas) e as metas de receita: no ritmo ou em risco;
    - assinaturas em atraso (quais lojas, há quantos dias), cancelamentos e períodos grátis acabando;
-   - o que está a pagar (comissões de afiliados disponíveis, recompensas de financiamento) e a receber (comissão de financiamento);
+   - o que está a pagar (comissões de afiliados disponíveis, cashback de financiamento aos clientes — 20% da comissão, só depois que o banco paga) e a receber (comissão de financiamento);
    - gasto com IA e quanto ele representa da receita.
 3. Se alguma loja está em atraso ou com período grátis acabando sem anúncio, crie no máximo 1 tarefa com criar_tarefa para o comercial, com as lojas e o objetivo.
 4. Chame registrar_relatorio_financeiro uma única vez, com os alertas do sistema que importam e até 5 ações que só o Diego pode fazer (ex.: "pagar R$ X em comissões disponíveis em /admin/afiliados").

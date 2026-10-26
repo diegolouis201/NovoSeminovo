@@ -1435,6 +1435,9 @@ export const NotificationType = z.enum([
   "ops_finance_report",
   "listing_removed",
   "reply_reminder",
+  "cashback_registered",
+  "cashback_released",
+  "cashback_paid",
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
@@ -1456,57 +1459,53 @@ export function formatBRL(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
-// ---------- Programa de recompensa por financiamento ----------
-// Ver PartnerRebateTier/FinancingDeal no schema do banco: quando o comprador
-// de um anúncio fecha financiamento (imobiliário ou veicular) por um
-// parceiro financeiro, parte da comissão do correspondente bancário volta
-// pra quem anunciou — PF recebe uma fatia fixa, corretor/imobiliária e
-// lojista evoluem de nível pelo volume financiado acumulado em negócios
-// vindos da plataforma. Ainda não há integração em tempo real com nenhum
-// parceiro financeiro, então o negócio fechado é registrado manualmente
-// pelo admin (ver RebatesService na API).
-export const RebateReceiverType = z.enum(["individual", "dealership", "real_estate_agency", "broker"]);
-export type RebateReceiverType = z.infer<typeof RebateReceiverType>;
+// ---------- Cashback no financiamento ----------
+// Quem contrata o financiamento (carro ou imóvel) pelo NovoSeminovo recebe
+// de volta CASHBACK_PERCENT da comissão BRUTA que o NovoSeminovo recebe do
+// banco/Credihome. Só é pago depois que essa comissão cai na conta — nunca
+// adiantado — e o valor recebido é o líquido (descontos e tributos). O
+// negócio nasce quando o lead do quadro de financiamentos vai para
+// "Concluído" (ver RebatesService na API). O antigo repasse ao anunciante
+// acabou em 26/10/2026.
+export const CASHBACK_PERCENT = 20;
+export const CASHBACK_DISCLAIMER =
+  "O cashback é de 20% sobre a comissão bruta que o NovoSeminovo recebe do banco ou da Credihome pelo seu financiamento. Você recebe o valor líquido, depois dos descontos e tributos aplicáveis, e só depois que essa comissão for paga ao NovoSeminovo.";
 
 export const FinancingDealStatus = z.enum(["registered", "paid"]);
 export type FinancingDealStatus = z.infer<typeof FinancingDealStatus>;
 
-// Anúncios candidatos ao registro de negócio fechado — só os marcados como
-// "vendido" (ver RebatesService.listEligibleListings), pra não deixar o
-// admin digitar um id/link à mão: ele escolhe numa lista.
-export const EligibleListingSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  priceLabel: z.string(),
-  receiverLabel: z.string(),
-});
-export type EligibleListing = z.infer<typeof EligibleListingSchema>;
-
-export const RegisterFinancingDealInputSchema = z.object({
-  listingId: z.string().min(1, "Selecione o anúncio"),
-  financingProvider: z.string().min(2, "Informe o parceiro financeiro (ex.: Credihome)"),
-  externalRef: z.string().optional(),
-  assetValue: z.number().positive("Informe o valor do bem"),
-  financedAmount: z.number().positive("Informe o valor financiado"),
-  commissionRate: z.number().min(0).max(100).optional(),
-});
-export type RegisterFinancingDealInput = z.infer<typeof RegisterFinancingDealInputSchema>;
+// awaiting_commission: financiamento fechado, banco ainda não pagou a
+// comissão. to_pay: comissão recebida, cashback liberado. paid: Pix feito.
+export const CashbackStage = z.enum(["awaiting_commission", "to_pay", "paid"]);
+export type CashbackStage = z.infer<typeof CashbackStage>;
+export const CASHBACK_STAGE_LABELS: Record<CashbackStage, string> = {
+  awaiting_commission: "Aguardando o banco pagar a comissão",
+  to_pay: "Liberado — pagamento em andamento",
+  paid: "Pago",
+};
 
 export const FinancingDealSchema = z.object({
   id: z.string(),
-  listingId: z.string(),
-  listingTitle: z.string(),
-  receiverLabel: z.string(),
-  receiverType: RebateReceiverType,
+  listingId: z.string().optional(),
+  listingTitle: z.string().optional(),
+  buyerName: z.string(),
+  buyerEmail: z.string().optional(),
+  buyerPhone: z.string().optional(),
+  // Comprador com conta no site (vê o cashback em "Meu cashback").
+  buyerLinked: z.boolean(),
+  // CPF do comprador (chave Pix) — só para o admin; ausente se não cadastrou.
+  buyerCpf: z.string().optional(),
   financingProvider: z.string(),
-  externalRef: z.string().optional(),
   assetValueLabel: z.string(),
   financedAmountLabel: z.string(),
   commissionRateLabel: z.string(),
   commissionAmountLabel: z.string(),
-  rebatePercentLabel: z.string(),
-  rebateAmountLabel: z.string(),
+  cashbackPercentLabel: z.string(),
+  cashbackAmount: z.number(),
+  cashbackAmountLabel: z.string(),
   status: FinancingDealStatus,
+  stage: CashbackStage,
+  commissionReceivedAt: z.string().optional(),
   paidAt: z.string().optional(),
   paidNote: z.string().optional(),
   createdAt: z.string(),
@@ -1518,43 +1517,21 @@ export const MarkFinancingDealPaidInputSchema = z.object({
 });
 export type MarkFinancingDealPaidInput = z.infer<typeof MarkFinancingDealPaidInputSchema>;
 
-export const RebateTierSchema = z.object({
-  id: z.string(),
-  partnerType: PartnerType,
-  tierOrder: z.number().int(),
-  tierName: z.string(),
-  minVolume: z.number(),
-  minVolumeLabel: z.string(),
-  rebatePercent: z.number(),
-  rebatePercentLabel: z.string(),
-});
-export type RebateTier = z.infer<typeof RebateTierSchema>;
-
-export const UpdateRebateTierInputSchema = z.object({
-  tierName: z.string().min(1).optional(),
-  minVolume: z.number().min(0).optional(),
-  rebatePercent: z.number().min(0).max(100).optional(),
-});
-export type UpdateRebateTierInput = z.infer<typeof UpdateRebateTierInputSchema>;
-
-export const MyRebatesSummarySchema = z.object({
-  receiverType: RebateReceiverType,
-  currentTierName: z.string().optional(),
-  currentRebatePercentLabel: z.string(),
-  cumulativeVolumeLabel: z.string().optional(),
-  nextTierName: z.string().optional(),
-  nextTierMinVolumeLabel: z.string().optional(),
-  progressToNextTierPct: z.number().optional(),
-  totalPendingLabel: z.string(),
+export const MyCashbackSummarySchema = z.object({
+  percentLabel: z.string(),
+  totalAwaitingLabel: z.string(),
+  totalToPayLabel: z.string(),
   totalPaidLabel: z.string(),
+  // Sem CPF no perfil não dá pra fazer o Pix.
+  cpfMissing: z.boolean(),
   deals: z.array(FinancingDealSchema),
 });
-export type MyRebatesSummary = z.infer<typeof MyRebatesSummarySchema>;
+export type MyCashbackSummary = z.infer<typeof MyCashbackSummarySchema>;
 
 // ---------- Perfil completo e verificação de e-mail ----------
 // Cadastro inicial (/cadastro) continua mínimo (nome/e-mail/senha) — esses
 // dados entram depois, na tela "Minha conta", principalmente pra viabilizar
-// o pagamento do rebate de PF via Pix (precisa de CPF) e deixar o endereço
+// o pagamento do cashback do financiamento via Pix (precisa de CPF) e deixar o endereço
 // pronto pra outras coisas (ex.: busca por padrão).
 export function isValidCpf(raw: string): boolean {
   const cpf = raw.replace(/\D/g, "");
@@ -1720,20 +1697,16 @@ export const FinancingLeadSummarySchema = z.object({
   commissionIsEstimate: z.boolean(),
   bank: z.string().optional(),
   adminNotes: z.string().optional(),
-  // Repasse ao anunciante (programa de recompensa): previsto enquanto o
-  // financiamento não fecha; "to_pay"/"paid" vêm do negócio registrado ao
-  // concluir. Ausente quando o interesse não é em um anúncio específico.
-  partnerShare: z
-    .object({
-      receiverLabel: z.string(),
-      percent: z.number(),
-      amount: z.number().optional(),
-      amountLabel: z.string().optional(),
-      stage: z.enum(["expected", "to_pay", "paid"]),
-      paidAt: z.string().optional(),
-    })
-    .optional(),
-  // Comissão menos o repasse — o que fica pro correspondente.
+  // Cashback de quem contratou (20% da comissão bruta): previsto enquanto o
+  // financiamento não fecha; depois segue as etapas do negócio registrado.
+  cashback: z.object({
+    percent: z.number(),
+    amount: z.number().optional(),
+    amountLabel: z.string().optional(),
+    stage: z.enum(["expected", "awaiting_commission", "to_pay", "paid"]),
+    paidAt: z.string().optional(),
+  }),
+  // Comissão menos o cashback — o que fica pro NovoSeminovo.
   netCommission: z.number().optional(),
   netCommissionLabel: z.string().optional(),
   statusChangedAt: z.string().optional(),

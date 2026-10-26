@@ -437,7 +437,7 @@ const AGENT_JOB: Record<string, string> = {
   comercial: "Lembra lojas com clientes esperando resposta e lojas no período grátis que ainda não anunciaram.",
   marketing: "Cria posts, campanhas e sequências de e-mail para você aprovar em Marketing, a partir das origens, do Google Analytics e do Instagram.",
   atendimento: "Lembra vendedores (PF e lojas) de responder compradores que esperam há mais de 24h e avisa você sobre financiamentos sem contato e denúncias abertas.",
-  financeiro: "Relatório semanal: receita por linha, assinaturas em atraso, comissões e recompensas a pagar e gasto com IA. Só lê; não paga nada.",
+  financeiro: "Relatório semanal: receita por linha, assinaturas em atraso, comissões e cashback a pagar e gasto com IA. Só lê; não paga nada.",
 };
 
 function AgentsPanel({ data }: { data: OpsSummary }) {

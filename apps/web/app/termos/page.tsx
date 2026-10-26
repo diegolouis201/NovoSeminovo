@@ -72,14 +72,16 @@ export default function TermsPage() {
         instituição financeira e não concede crédito.
       </p>
 
-      <H2>6. Planos de parceiros e programa de recompensa</H2>
+      <H2>6. Planos de parceiros e cashback no financiamento</H2>
       <p>
-        Planos pagos, limites de anúncios e o programa de recompensa por financiamento seguem as condições exibidas no
-        painel do parceiro e na página{" "}
+        Planos pagos e limites de anúncios seguem as condições exibidas no painel do parceiro. O cashback no
+        financiamento segue a página{" "}
         <Link href="/recompensas" className="font-semibold text-brand-blue hover:underline">
-          Recompensas
+          Cashback no financiamento
         </Link>
-        . Recompensas são pagas apenas sobre financiamentos efetivamente concluídos e registrados.
+        : é de 20% sobre a comissão bruta recebida pelo NovoSeminovo, pago a quem contratou o financiamento, em valor
+        líquido (após descontos e tributos aplicáveis), por Pix no CPF do titular, somente depois que a comissão for paga
+        ao NovoSeminovo. Financiamento cancelado ou comissão não paga não gera cashback.
       </p>
 
       <H2>7. Condutas proibidas</H2>

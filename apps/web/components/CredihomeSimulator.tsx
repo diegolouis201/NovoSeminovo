@@ -280,6 +280,15 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
           <p className="text-xs text-ink-muted">
             Um especialista da Credihome compara os bancos e te chama com a proposta. Sem custo para você.
           </p>
+          <p className="rounded-brand bg-brand-green/10 px-3 py-2 text-xs text-ink">
+            <strong>Cashback:</strong> fechando o financiamento pelo NovoSeminovo, 20% da nossa comissão volta para você, por Pix.{" "}
+            <Link href="/recompensas" target="_blank" className="font-semibold text-brand-blue underline">
+              Como funciona
+            </Link>
+            <span className="mt-0.5 block text-[11px] text-ink-muted">
+              Valor bruto; você recebe o líquido, depois que o banco paga a comissão. Entre na sua conta para acompanhar.
+            </span>
+          </p>
           <label className={labelClass}>
             Nome completo
             <input name="name" required autoComplete="name" className={inputClass} />

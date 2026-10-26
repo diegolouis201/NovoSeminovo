@@ -1,27 +1,32 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { FinancingDeal, RebateTier } from "@novoseminovo/shared-types";
+import { CASHBACK_DISCLAIMER, CASHBACK_PERCENT, type FinancingDeal } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { FormField, SelectField } from "@/components/FormField";
-import { fetchEligibleListings, fetchFinancingDeals, fetchRebateTiers } from "@/lib/api";
-import {
-  markFinancingDealPaidAction,
-  registerFinancingDealAction,
-  updateRebateTierAction,
-} from "@/lib/actions/rebates";
+import { fetchFinancingDeals } from "@/lib/api";
+import { markCommissionReceivedAction, markFinancingDealPaidAction } from "@/lib/actions/rebates";
 
-const PARTNER_TYPE_LABEL: Record<string, string> = {
-  dealership: "Loja de veículos (lojista)",
-  real_estate_agency: "Imobiliária",
-  broker: "Corretor(a) autônomo(a)",
-};
+function brl(value: number): string {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
-export default async function AdminRebatesPage({
-  searchParams,
-}: {
-  searchParams: { error?: string; sucesso?: string };
-}) {
+function formatPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  const local = digits.startsWith("55") && digits.length > 11 ? digits.slice(2) : digits;
+  if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  return phone;
+}
+
+function formatCpf(cpf: string): string {
+  const digits = cpf.replace(/\D/g, "");
+  return digits.length === 11 ? `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}` : cpf;
+}
+
+// Cashback no financiamento: quem contratou recebe CASHBACK_PERCENT da
+// comissão bruta, só depois que o banco paga. O negócio nasce quando o lead
+// vai para "Concluído" em /admin/financiamentos.
+export default async function AdminCashbackPage({ searchParams }: { searchParams: { error?: string } }) {
   const session = await auth();
   if (!session?.user) redirect("/entrar");
   if (session.user.role !== "admin") {
@@ -33,155 +38,118 @@ export default async function AdminRebatesPage({
     );
   }
 
-  const [pending, paid, tiers, eligibleListings] = await Promise.all([
-    fetchFinancingDeals("registered", session.accessToken),
+  const [awaiting, toPay, paid] = await Promise.all([
+    fetchFinancingDeals("awaiting_commission", session.accessToken),
+    fetchFinancingDeals("to_pay", session.accessToken),
     fetchFinancingDeals("paid", session.accessToken),
-    fetchRebateTiers(session.accessToken),
-    fetchEligibleListings(session.accessToken),
   ]);
-
-  const tiersByPartnerType = tiers.reduce<Record<string, RebateTier[]>>((acc, tier) => {
-    (acc[tier.partnerType] ??= []).push(tier);
-    return acc;
-  }, {});
+  const total = (deals: FinancingDeal[]) => brl(deals.reduce((sum, deal) => sum + deal.cashbackAmount, 0));
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-12">
       <Link href="/admin" className="text-sm font-semibold text-brand-blue hover:underline">
         ← Moderação
       </Link>
-      <h1 className="mt-2 font-display text-2xl font-semibold text-ink">Programa de recompensa por financiamento</h1>
+      <h1 className="mt-2 font-display text-2xl font-semibold text-ink">Cashback no financiamento</h1>
       <p className="text-sm text-ink-muted">
-        Quando o comprador de um anúncio fecha financiamento (imobiliário ou veicular) por um parceiro financeiro,
-        parte da sua comissão volta pra quem anunciou. Registre aqui cada negócio fechado — o cálculo é automático.
+        Quem contrata o financiamento (carro ou imóvel) pelo NovoSeminovo recebe {CASHBACK_PERCENT}% da comissão bruta. O cashback
+        nasce quando o interessado vai para &quot;Concluído&quot; em{" "}
+        <Link href="/admin/financiamentos" className="font-semibold text-brand-blue hover:underline">
+          Financiamentos
+        </Link>
+        . Quando o banco ou a Credihome pagar a comissão, marque &quot;Comissão recebida&quot;; depois do Pix no CPF do cliente,
+        marque como pago. Nunca pague antes de receber.
       </p>
 
       {searchParams.error && (
         <p className="mt-4 rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">{searchParams.error}</p>
       )}
-      {searchParams.sucesso && (
-        <p className="mt-4 rounded-brand bg-brand-green/10 px-4 py-3 text-sm font-semibold text-brand-green">
-          {searchParams.sucesso}
-        </p>
-      )}
 
-      <section className="mt-8 rounded-brand border border-border bg-surface-raised p-5">
-        <h2 className="font-display text-lg font-semibold text-ink">Registrar negócio fechado</h2>
-        {eligibleListings.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-muted">
-            Nenhum anúncio marcado como "Vendido" ainda. Assim que um anúncio for marcado como vendido (em "Meus
-            anúncios"), ele aparece aqui pra você registrar o negócio.
-          </p>
-        ) : (
-          <form action={registerFinancingDealAction} className="mt-4 flex flex-col gap-4">
-            <SelectField
-              label="Anúncio vendido"
-              name="listingRef"
-              options={eligibleListings.map((listing) => ({
-                value: listing.id,
-                label: `${listing.title} — ${listing.priceLabel} — ${listing.receiverLabel}`,
-              }))}
-            />
-            <FormField
-              label="Parceiro financeiro"
-              name="financingProvider"
-              placeholder="Ex.: Credihome by Loft"
-            />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <FormField label="Valor do bem (R$)" name="assetValue" type="number" min={0} step={0.01} />
-              <FormField label="Valor financiado (R$)" name="financedAmount" type="number" min={0} step={0.01} />
-              <FormField
-                label="Sua comissão (%)"
-                name="commissionRate"
-                type="number"
-                min={0}
-                step={0.01}
-                required={false}
-                defaultValue={1}
-              />
-            </div>
-            <Button type="submit" className="self-start">
-              Registrar negócio
-            </Button>
-          </form>
-        )}
-      </section>
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Stat label="Aguardando comissão do banco" value={total(awaiting)} count={awaiting.length} />
+        <Stat label="Liberado — pagar agora" value={total(toPay)} count={toPay.length} highlight />
+        <Stat label="Já pago" value={total(paid)} count={paid.length} />
+      </div>
 
-      <section className="mt-10">
-        <h2 className="font-display text-xl font-semibold text-ink">Níveis de recompensa</h2>
-        <p className="mt-1 text-sm text-ink-muted">
-          PF recebe sempre 20% (fixo). Corretor/imobiliária e lojista evoluem de nível conforme o volume financiado
-          acumulado — ajuste os números abaixo quando quiser, sem precisar de nenhum deploy.
-        </p>
-        <div className="mt-4 flex flex-col gap-6">
-          {Object.entries(tiersByPartnerType).map(([partnerType, partnerTiers]) => (
-            <div key={partnerType} className="rounded-brand border border-border bg-surface-raised p-4">
-              <h3 className="font-semibold text-ink">{PARTNER_TYPE_LABEL[partnerType] ?? partnerType}</h3>
-              <div className="mt-3 flex flex-col gap-3">
-                {partnerTiers
-                  .sort((a, b) => a.tierOrder - b.tierOrder)
-                  .map((tier) => (
-                    <TierRow key={tier.id} tier={tier} />
-                  ))}
-              </div>
-            </div>
-          ))}
-        </div>
-        <Link href="/recompensas" className="mt-3 inline-block text-sm font-semibold text-brand-blue hover:underline">
-          Ver apresentação completa do programa →
-        </Link>
-      </section>
+      <Section title="Liberado — pagar agora" deals={toPay} empty="Nenhum cashback liberado para pagar." mode="pay" />
+      <Section
+        title="Aguardando o banco pagar a comissão"
+        deals={awaiting}
+        empty="Nenhum financiamento aguardando comissão."
+        mode="receive"
+      />
+      <Section title="Pagos" deals={paid} empty="Nenhum cashback pago ainda." mode="none" />
 
-      <section className="mt-10">
-        <h2 className="font-display text-xl font-semibold text-ink">
-          Pendentes de pagamento <span className="text-base font-normal text-ink-muted">({pending.length})</span>
-        </h2>
-        {pending.length === 0 ? (
-          <p className="mt-3 text-ink-muted">Nenhum negócio esperando pagamento.</p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-3">
-            {pending.map((deal) => (
-              <DealCard key={deal.id} deal={deal} showPayForm />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="mt-10">
-        <h2 className="font-display text-xl font-semibold text-ink">
-          Histórico de pagos <span className="text-base font-normal text-ink-muted">({paid.length})</span>
-        </h2>
-        {paid.length === 0 ? (
-          <p className="mt-3 text-ink-muted">Nenhum pagamento registrado ainda.</p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-3">
-            {paid.map((deal) => (
-              <DealCard key={deal.id} deal={deal} />
-            ))}
-          </ul>
-        )}
-      </section>
+      <p className="mt-8 rounded-brand bg-surface-sober px-4 py-3 text-xs text-ink-muted">
+        Texto mostrado ao cliente: {CASHBACK_DISCLAIMER}
+      </p>
     </main>
   );
 }
 
-function DealCard({ deal, showPayForm = false }: { deal: FinancingDeal; showPayForm?: boolean }) {
-  const action = markFinancingDealPaidAction.bind(null, deal.id);
+function Stat({ label, value, count, highlight = false }: { label: string; value: string; count: number; highlight?: boolean }) {
+  return (
+    <div className={`rounded-brand p-4 shadow-card ${highlight ? "bg-brand-green/10" : "bg-surface-raised"}`}>
+      <p className="text-xs text-ink-muted">{label}</p>
+      <p className="font-display text-xl font-semibold text-ink [font-variant-numeric:tabular-nums]">{value}</p>
+      <p className="text-xs text-ink-muted">
+        {count} {count === 1 ? "financiamento" : "financiamentos"}
+      </p>
+    </div>
+  );
+}
 
+function Section({ title, deals, empty, mode }: { title: string; deals: FinancingDeal[]; empty: string; mode: "pay" | "receive" | "none" }) {
+  return (
+    <section className="mt-8">
+      <h2 className="font-display text-xl font-semibold text-ink">
+        {title} <span className="text-base font-normal text-ink-muted">({deals.length})</span>
+      </h2>
+      {deals.length === 0 ? (
+        <p className="mt-3 text-sm text-ink-muted">{empty}</p>
+      ) : (
+        <ul className="mt-3 flex flex-col gap-3">
+          {deals.map((deal) => (
+            <DealCard key={deal.id} deal={deal} mode={mode} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function DealCard({ deal, mode }: { deal: FinancingDeal; mode: "pay" | "receive" | "none" }) {
   return (
     <li className="flex flex-col gap-3 rounded-brand border border-border bg-surface-raised p-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        <Link href={`/anuncio/${deal.listingId}`} className="font-semibold text-ink hover:underline">
-          {deal.listingTitle}
-        </Link>
-        <p className="text-sm text-ink-muted">
-          {deal.receiverLabel} · {deal.financingProvider}
-        </p>
+        <p className="font-semibold text-ink">{deal.buyerName || "Registro antigo (antes do cashback), sem cliente"}</p>
         <p className="text-xs text-ink-muted">
-          Financiado {deal.financedAmountLabel} · comissão {deal.commissionAmountLabel} ({deal.commissionRateLabel}) ·
-          rebate {deal.rebatePercentLabel}
+          {[deal.buyerPhone && formatPhone(deal.buyerPhone), deal.buyerEmail].filter(Boolean).join(" · ")}
+          {!deal.buyerLinked && " · sem conta no site"}
         </p>
-        <p className="text-sm font-bold text-brand-green">{deal.rebateAmountLabel}</p>
+        <p className="mt-1 text-xs">
+          {deal.buyerCpf ? (
+            <span className="text-ink">
+              Pix no CPF: <strong className="[font-variant-numeric:tabular-nums]">{formatCpf(deal.buyerCpf)}</strong>
+            </span>
+          ) : (
+            <span className="font-semibold text-status-danger">Sem CPF cadastrado — peça ao cliente antes do Pix.</span>
+          )}
+        </p>
+        {deal.listingId && (
+          <Link href={`/anuncio/${deal.listingId}`} className="mt-1 block truncate text-xs font-semibold text-brand-blue hover:underline">
+            {deal.listingTitle}
+          </Link>
+        )}
+        <p className="mt-1 text-xs text-ink-muted">
+          {deal.financingProvider} · financiado {deal.financedAmountLabel} · comissão {deal.commissionAmountLabel} ({deal.commissionRateLabel})
+        </p>
+        <p className="text-sm font-bold text-brand-green">
+          Cashback {deal.cashbackAmountLabel} <span className="text-xs font-normal text-ink-muted">({deal.cashbackPercentLabel} da comissão, bruto)</span>
+        </p>
+        {deal.commissionReceivedAt && (
+          <p className="text-xs text-ink-muted">Comissão recebida em {new Date(deal.commissionReceivedAt).toLocaleDateString("pt-BR")}</p>
+        )}
         {deal.paidAt && (
           <p className="text-xs text-ink-muted">
             Pago em {new Date(deal.paidAt).toLocaleDateString("pt-BR")}
@@ -189,11 +157,19 @@ function DealCard({ deal, showPayForm = false }: { deal: FinancingDeal; showPayF
           </p>
         )}
       </div>
-      {showPayForm && (
-        <form action={action} className="flex shrink-0 flex-col gap-2 sm:w-56">
+      {mode === "receive" && (
+        <form action={markCommissionReceivedAction.bind(null, deal.id)} className="flex shrink-0 flex-col gap-1 sm:w-56">
+          <Button type="submit" variant="secondary">
+            Comissão recebida
+          </Button>
+          <span className="text-[11px] text-ink-muted">Marque quando o banco ou a Credihome pagar você.</span>
+        </form>
+      )}
+      {mode === "pay" && (
+        <form action={markFinancingDealPaidAction.bind(null, deal.id)} className="flex shrink-0 flex-col gap-2 sm:w-56">
           <input
             name="note"
-            placeholder="Nota (opcional, ex.: comprovante Pix)"
+            placeholder="Nota (ex.: comprovante Pix, valor líquido)"
             className="rounded-brand border border-border bg-surface-page px-3 py-2 text-xs text-ink placeholder:text-ink-muted"
           />
           <Button type="submit" variant="primary">
@@ -202,36 +178,5 @@ function DealCard({ deal, showPayForm = false }: { deal: FinancingDeal; showPayF
         </form>
       )}
     </li>
-  );
-}
-
-function TierRow({ tier }: { tier: RebateTier }) {
-  const action = updateRebateTierAction.bind(null, tier.id);
-
-  return (
-    <form action={action} className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
-      <FormField label="Nome do nível" name="tierName" defaultValue={tier.tierName} required={false} />
-      <FormField
-        label="A partir de (R$ financiados)"
-        name="minVolume"
-        type="number"
-        min={0}
-        step={1}
-        required={false}
-        defaultValue={tier.minVolume}
-      />
-      <FormField
-        label="Rebate (%)"
-        name="rebatePercent"
-        type="number"
-        min={0}
-        step={0.01}
-        required={false}
-        defaultValue={tier.rebatePercent}
-      />
-      <Button type="submit" variant="secondary">
-        Salvar
-      </Button>
-    </form>
   );
 }

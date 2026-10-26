@@ -108,6 +108,8 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
     input: CredihomeProposalInput & { phone: string },
     visitor: string,
     acquisition?: Acquisition,
+    // Conta de quem pediu (se estava logado) — recebe o cashback.
+    buyerUserId?: string,
   ): Promise<{ outcome: ProposalOutcome }> {
     const listing = await this.propertyListing(listingId);
     this.checkLimit("proposal", visitor);
@@ -141,6 +143,7 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
           assetValue: input.realtyPrice,
           downPayment: Math.max(0, input.realtyPrice - input.mortgageValue),
           notes,
+          buyerUserId,
           acqSource: acquisition?.source,
           acqCampaign: acquisition?.campaign,
         },

@@ -88,8 +88,8 @@ export default function AboutPage() {
       <Section title="Financiamento com acompanhamento">
         <p className="mt-4 max-w-3xl text-base text-ink">
           O financiamento é feito com a <strong>{CORBAN.brand}</strong>, correspondente bancário parceiro, que leva o
-          pedido aos bancos e financeiras e acompanha o cliente até a assinatura. E quem anunciou ainda recebe uma
-          recompensa quando o comprador financia.
+          pedido aos bancos e financeiras e acompanha o cliente até a assinatura. E quem financia pelo NovoSeminovo ainda recebe
+          cashback: 20% da nossa comissão volta para o cliente.
         </p>
       </Section>
 

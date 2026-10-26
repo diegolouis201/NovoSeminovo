@@ -250,32 +250,34 @@ function LeadCard({
             )}
           </dd>
         </div>
-        {lead.partnerShare && (
-          <div className="flex justify-between gap-2" title={lead.partnerShare.receiverLabel}>
-            <dt className="min-w-0 truncate text-ink-muted">
-              Repasse {lead.partnerShare.percent.toLocaleString("pt-BR")}% · {lead.partnerShare.receiverLabel}
-            </dt>
-            <dd className="shrink-0 text-ink [font-variant-numeric:tabular-nums]">
-              {lead.partnerShare.amountLabel ? `− ${lead.partnerShare.amountLabel}` : "—"}
-            </dd>
-          </div>
-        )}
-        {lead.partnerShare && lead.netCommissionLabel && (
+        <div className="flex justify-between gap-2" title="20% da comissão bruta, para quem contratou o financiamento">
+          <dt className="min-w-0 truncate text-ink-muted">Cashback ({lead.cashback.percent.toLocaleString("pt-BR")}%)</dt>
+          <dd className="shrink-0 text-ink [font-variant-numeric:tabular-nums]">
+            {lead.cashback.amountLabel ? `− ${lead.cashback.amountLabel}` : "—"}
+          </dd>
+        </div>
+        {lead.netCommissionLabel && (
           <div className="flex justify-between gap-2">
             <dt className="text-ink-muted">Seu líquido</dt>
             <dd className="font-semibold text-ink [font-variant-numeric:tabular-nums]">{lead.netCommissionLabel}</dd>
           </div>
         )}
-        {lead.partnerShare && lead.partnerShare.stage !== "expected" && (
+        {lead.cashback.stage !== "expected" && (
           <div className="flex justify-end">
             <span
               className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                lead.partnerShare.stage === "paid" ? "bg-brand-green text-on-green" : "bg-brand-orange text-on-orange"
+                lead.cashback.stage === "paid"
+                  ? "bg-brand-green text-on-green"
+                  : lead.cashback.stage === "to_pay"
+                    ? "bg-brand-orange text-on-orange"
+                    : "bg-surface-sober text-ink"
               }`}
             >
-              {lead.partnerShare.stage === "paid"
-                ? `Repasse pago${lead.partnerShare.paidAt ? ` em ${new Date(lead.partnerShare.paidAt).toLocaleDateString("pt-BR")}` : ""}`
-                : "Repasse a pagar"}
+              {lead.cashback.stage === "paid"
+                ? `Cashback pago${lead.cashback.paidAt ? ` em ${new Date(lead.cashback.paidAt).toLocaleDateString("pt-BR")}` : ""}`
+                : lead.cashback.stage === "to_pay"
+                  ? "Cashback a pagar"
+                  : "Cashback aguardando comissão"}
             </span>
           </div>
         )}

@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import type { CredihomeProposalInput, CredihomeSimulateInput } from "@novoseminovo/shared-types";
+import { auth } from "@/auth";
 import { acquisitionHeaders } from "@/lib/acquisition";
 import { requestCredihomeProposal, simulateCredihome } from "@/lib/api";
 
@@ -17,5 +18,9 @@ export async function simulateCredihomeAction(listingId: string, input: Credihom
 }
 
 export async function requestCredihomeProposalAction(listingId: string, input: CredihomeProposalInput) {
-  return requestCredihomeProposal(listingId, input, { clientIp: visitorIp(), extraHeaders: acquisitionHeaders() });
+  // Logado: o pedido fica na conta da pessoa (o cashback aparece em "Meu cashback").
+  const session = await auth();
+  const extraHeaders: Record<string, string> = { ...acquisitionHeaders() };
+  if (session?.accessToken) extraHeaders.Authorization = `Bearer ${session.accessToken}`;
+  return requestCredihomeProposal(listingId, input, { clientIp: visitorIp(), extraHeaders });
 }

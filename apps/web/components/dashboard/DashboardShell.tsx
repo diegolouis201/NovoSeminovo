@@ -42,7 +42,6 @@ function partnerItems(partner: Partner): SidebarItem[] {
           { href: "/parceiro/equipe", label: "Equipe", icon: "team" as const },
         ]
       : []),
-    { href: "/conta/recompensas", label: "Recompensas", icon: "gift" },
     { href: "/afiliado", label: "Programa de afiliados", icon: "chart" },
     { href: "/conta/notificacoes", label: "Notificações", icon: "bell" },
     { href: "/conta/perfil", label: "Meus dados", icon: "user" },
@@ -56,7 +55,7 @@ const PERSON_ITEMS: SidebarItem[] = [
   { href: "/conta/buscas-salvas", label: "Buscas salvas", icon: "search" },
   { href: "/conta/notificacoes", label: "Notificações", icon: "bell" },
   { href: "/conta/veiculos", label: "Passaporte dos meus carros", icon: "id" },
-  { href: "/conta/recompensas", label: "Recompensas", icon: "gift" },
+  { href: "/conta/recompensas", label: "Meu cashback", icon: "gift" },
   { href: "/afiliado", label: "Programa de afiliados", icon: "chart" },
   { href: "/conta/perfil", label: "Meus dados", icon: "user" },
   { href: "/parceiro", label: "Sou loja ou imobiliária", icon: "store" },
