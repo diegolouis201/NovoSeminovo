@@ -25,6 +25,8 @@ const MAX_TASKS_PER_AGENT_PER_DAY = 30;
 // Avisos dos agentes a donos de anúncio e parceiros: no máximo 1 por anúncio
 // (ou por loja e assunto) a cada 7 dias, e um teto diário no site todo.
 const TIP_COOLDOWN_DAYS = 7;
+// Lembrete de resposta ao vendedor: 1 por conversa a cada 3 dias.
+const REPLY_COOLDOWN_DAYS = 3;
 const MAX_SUGGESTIONS_PER_TASK = 6;
 
 function maxMessagesPerDay(): number {
@@ -80,6 +82,7 @@ export class OpsToolsService {
     this.registerReadTools();
     this.registerActionTools();
     this.registerFinanceTools();
+    this.registerSupportTools();
   }
 
   // ---------------- Leitura (verdes) ----------------
@@ -436,6 +439,139 @@ export class OpsToolsService {
     });
   }
 
+  // ---------------- Atendimento ----------------
+
+  private registerSupportTools(): void {
+    this.register({
+      name: "listar_conversas_sem_resposta",
+      color: "green",
+      description:
+        "Conversas em que o comprador mandou a última mensagem e o vendedor (pessoa física ou loja) não respondeu há mais de N horas. Sem nome, telefone ou texto das mensagens. Não traz conversas que já receberam lembrete nos últimos 3 dias.",
+      input: z.object({ horas: z.number().int().min(6).max(240).optional() }),
+      schema: { type: "object", properties: { horas: { type: "integer", minimum: 6, maximum: 240, description: "Padrão: 24" } } },
+      run: async ({ horas }) => this.unansweredConversations(horas ?? 24),
+    });
+
+    this.register({
+      name: "lembrar_resposta",
+      color: "green",
+      description:
+        "Manda ao vendedor um lembrete curto e educado de que um comprador está esperando resposta (notificação e e-mail, com link para a conversa). No máximo 1 por conversa a cada 3 dias; conta no teto diário de avisos.",
+      input: z.object({ conversa_id: z.string().min(5).max(40), mensagem: z.string().trim().min(20).max(300) }),
+      schema: {
+        type: "object",
+        properties: {
+          conversa_id: { type: "string" },
+          mensagem: { type: "string", description: "Até 300 caracteres, cita o anúncio e há quanto tempo o comprador espera. Sem cobrança nem ameaça." },
+        },
+        required: ["conversa_id", "mensagem"],
+      },
+      run: async ({ conversa_id, mensagem }) => {
+        const conversation = await this.prisma.conversation.findUnique({
+          where: { id: conversa_id },
+          include: { listing: { select: { title: true, ownerUserId: true } }, messages: { orderBy: { createdAt: "desc" }, take: 1, select: { senderId: true } } },
+        });
+        if (!conversation) throw new Error("Conversa não encontrada");
+        const sellerId = conversation.sellerUserId ?? conversation.listing.ownerUserId;
+        if (conversation.messages[0]?.senderId !== conversation.buyerId) throw new Error("O vendedor já respondeu esta conversa");
+        await this.checkDailyMessageCap();
+        const recent = await this.prisma.notification.count({
+          where: { type: "reply_reminder", createdAt: { gte: new Date(Date.now() - REPLY_COOLDOWN_DAYS * DAY_MS) }, payload: { path: ["conversationId"], equals: conversa_id } },
+        });
+        if (recent) throw new Error("Esta conversa já recebeu lembrete nos últimos 3 dias");
+        await this.notifications.notify(sellerId, "reply_reminder", { conversationId: conversa_id, listingTitle: conversation.listing.title, message: mensagem });
+        return { lembrado: conversa_id };
+      },
+    });
+
+    this.register({
+      name: "listar_pendencias_atendimento",
+      color: "green",
+      description:
+        "Pendências de atendimento que dependem da equipe: pedidos de financiamento ainda sem contato (status novo) e denúncias de anúncio abertas, com há quanto tempo esperam. Só contagens e prazos, sem dados pessoais.",
+      input: z.object({}),
+      schema: { type: "object", properties: {} },
+      run: async () => this.supportBacklog(),
+    });
+
+    this.register({
+      name: "avisar_dono_atendimento",
+      color: "green",
+      description: "Avisa o dono (notificação e e-mail) sobre pendências de atendimento que só a equipe resolve. No máximo 1 aviso por dia.",
+      input: z.object({ titulo: z.string().trim().min(5).max(100), mensagem: z.string().trim().min(20).max(1500) }),
+      schema: {
+        type: "object",
+        properties: { titulo: { type: "string" }, mensagem: { type: "string", description: "O que está esperando, há quanto tempo e onde resolver (ex.: /admin/financiamentos, /admin)." } },
+        required: ["titulo", "mensagem"],
+      },
+      run: async ({ titulo, mensagem }) => {
+        const today = await this.prisma.notification.count({
+          where: { type: "ops_alert", createdAt: { gte: new Date(Date.now() - DAY_MS) }, payload: { path: ["source"], equals: "atendimento" } },
+        });
+        if (today) throw new Error("O aviso de atendimento de hoje já foi enviado");
+        const admins = await this.prisma.user.findMany({ where: { role: "admin", status: "active" }, select: { id: true } });
+        for (const admin of admins) await this.notifications.notify(admin.id, "ops_alert", { title: titulo, body: mensagem, source: "atendimento" }).catch(() => undefined);
+        return { avisado: true };
+      },
+    });
+  }
+
+  async unansweredConversations(hours: number, now = new Date()) {
+    const before = new Date(now.getTime() - hours * 60 * 60 * 1000);
+    const conversations = await this.prisma.conversation.findMany({
+      where: { lastMessageAt: { lt: before, gt: new Date(now.getTime() - 30 * DAY_MS) }, listing: { status: { in: ["active", "paused"] } } },
+      include: {
+        listing: { select: { id: true, title: true, type: true, partnerId: true } },
+        messages: { orderBy: { createdAt: "desc" }, take: 1, select: { senderId: true, createdAt: true } },
+      },
+      orderBy: { lastMessageAt: "asc" },
+      take: 200,
+    });
+    const reminded = new Set(
+      (
+        await this.prisma.notification.findMany({
+          where: { type: "reply_reminder", createdAt: { gte: new Date(now.getTime() - REPLY_COOLDOWN_DAYS * DAY_MS) } },
+          select: { payload: true },
+        })
+      ).map((row) => String((row.payload as Record<string, unknown>).conversationId ?? "")),
+    );
+    const waiting = conversations
+      .filter((conversation) => {
+        const last = conversation.messages[0];
+        return last && last.senderId === conversation.buyerId && last.createdAt < before && !reminded.has(conversation.id);
+      })
+      .map((conversation) => ({
+        conversaId: conversation.id,
+        anuncio: conversation.listing.title,
+        tipo: conversation.listing.type,
+        vendedor: conversation.listing.partnerId ? "loja" : "particular",
+        horasEsperando: Math.floor((now.getTime() - conversation.messages[0].createdAt.getTime()) / (60 * 60 * 1000)),
+      }));
+    return { horasMinimas: hours, total: waiting.length, conversas: waiting.slice(0, 30) };
+  }
+
+  async supportBacklog(now = new Date()) {
+    const days = (date: Date) => Math.floor((now.getTime() - date.getTime()) / DAY_MS);
+    const [financing, reports] = await Promise.all([
+      this.prisma.financingLead.findMany({ where: { status: "new" }, select: { createdAt: true, assetType: true }, orderBy: { createdAt: "asc" }, take: 200 }),
+      this.prisma.report.findMany({ where: { status: "open" }, select: { createdAt: true }, orderBy: { createdAt: "asc" }, take: 200 }),
+    ]);
+    return {
+      pedidosDeFinanciamentoSemContato: {
+        total: financing.length,
+        maisAntigoDias: financing[0] ? days(financing[0].createdAt) : undefined,
+        haMaisDe1Dia: financing.filter((lead) => days(lead.createdAt) >= 1).length,
+        onde: "/admin/financiamentos",
+      },
+      denunciasAbertas: {
+        total: reports.length,
+        maisAntigaDias: reports[0] ? days(reports[0].createdAt) : undefined,
+        haMaisDe2Dias: reports.filter((report) => days(report.createdAt) >= 2).length,
+        onde: "/admin",
+      },
+    };
+  }
+
   // Números financeiros calculados pelo sistema (o agente não informa nenhum).
   async financeSnapshot(now = new Date()) {
     const since30 = new Date(now.getTime() - 30 * DAY_MS);
@@ -531,7 +667,7 @@ export class OpsToolsService {
   }
 
   private async checkDailyMessageCap(): Promise<void> {
-    const sent = await this.prisma.notification.count({ where: { type: { in: ["listing_tip", "partner_tip"] }, createdAt: { gte: new Date(Date.now() - DAY_MS) } } });
+    const sent = await this.prisma.notification.count({ where: { type: { in: ["listing_tip", "partner_tip", "reply_reminder"] }, createdAt: { gte: new Date(Date.now() - DAY_MS) } } });
     if (sent >= maxMessagesPerDay()) throw new Error(`Teto de ${maxMessagesPerDay()} avisos por dia atingido`);
   }
 

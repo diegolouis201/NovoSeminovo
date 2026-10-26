@@ -216,6 +216,13 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - O `JwtAuthGuard` derruba conta suspensa ou excluída mesmo com o token válido (cache de 1 minuto).
    - Junto foi a rodada de segurança de outra sessão: `JWT_SECRET` obrigatória com 32 ou mais caracteres, rate limit, upload seguro e cabeçalhos no Caddy.
 
+37. **Agente de Atendimento (26/10/2026)**
+   - Roda todo dia às 14h.
+   - Lembra vendedores (PF e lojas) de responder compradores que esperam há mais de 24h.
+   - Avisa o dono sobre pedidos de financiamento sem contato e denúncias abertas.
+   - Detalhes em `docs/agentes-ia.md`.
+   - Tráfego pago adiado até haver conta de anúncios ligada no Windsor.
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).

@@ -364,3 +364,69 @@ describe("Agente Financeiro (banco local)", { skip: !withDb && "sem DATABASE_URL
     assert.ok(report.body.includes("Para você decidir:"));
   });
 });
+
+describe("Agente de Atendimento (banco local)", { skip: !withDb && "sem DATABASE_URL" }, () => {
+  const prisma = new PrismaService();
+  const notifications = {
+    notify: async (userId: string, type: string, payload: Record<string, unknown>) => {
+      await prisma.notification.create({ data: { userId, type, payload: payload as object } });
+    },
+  } as unknown as NotificationsService;
+  const overview = { overview: async () => ({}) } as unknown as AdminOverviewService;
+  const queue = new TaskQueueService(prisma);
+  const tools = new OpsToolsService(prisma, notifications, overview, queue, new GoalsService(prisma, overview));
+  const tag = `atendimento-${Date.now()}`;
+  const ids = { seller: "", buyer: "", listing: "", waiting: "", answered: "" };
+
+  before(async () => {
+    ids.seller = (await prisma.user.create({ data: { name: "Vendedor", email: `vendedor-${tag}@teste.local` } })).id;
+    ids.buyer = (await prisma.user.create({ data: { name: "Comprador", email: `comprador-${tag}@teste.local` } })).id;
+    ids.listing = (
+      await prisma.listing.create({
+        data: { type: "vehicle", ownerUserId: ids.seller, title: `Gol ${tag}`, description: "Teste do atendimento", price: 40000, city: "BH", state: "MG", status: "active" },
+      })
+    ).id;
+    const old = new Date(Date.now() - 30 * 60 * 60 * 1000);
+    const conversation = async (lastFrom: string) => {
+      const created = await prisma.conversation.create({ data: { listingId: ids.listing, buyerId: ids.buyer, sellerUserId: ids.seller, lastMessageAt: old } });
+      await prisma.message.create({ data: { conversationId: created.id, senderId: ids.buyer, body: "Olá, ainda está à venda?", createdAt: new Date(old.getTime() - 60000) } });
+      if (lastFrom === "seller") await prisma.message.create({ data: { conversationId: created.id, senderId: ids.seller, body: "Sim!", createdAt: old } });
+      return created.id;
+    };
+    ids.waiting = await conversation("buyer");
+    ids.answered = await conversation("seller");
+  });
+
+  after(async () => {
+    await prisma.notification.deleteMany({ where: { userId: { in: [ids.seller, ids.buyer] } } });
+    await prisma.message.deleteMany({ where: { conversation: { listingId: ids.listing } } });
+    await prisma.conversation.deleteMany({ where: { listingId: ids.listing } });
+    await prisma.listing.deleteMany({ where: { id: ids.listing } });
+    await prisma.user.deleteMany({ where: { id: { in: [ids.seller, ids.buyer] } } });
+    await prisma.$disconnect();
+  });
+
+  test("só lista conversa em que o comprador espera, sem dados pessoais", async () => {
+    const result = await tools.unansweredConversations(24);
+    const mine = result.conversas.filter((row) => row.anuncio === `Gol ${tag}`);
+    assert.deepEqual(mine.map((row) => row.conversaId), [ids.waiting]);
+    assert.ok(mine[0].horasEsperando >= 29);
+    assert.equal(JSON.stringify(mine).includes("@teste.local"), false);
+  });
+
+  test("lembrete vai ao vendedor uma vez; conversa respondida não recebe", async () => {
+    const mensagem = "Um comprador está esperando a sua resposta sobre o Gol há mais de um dia.";
+    assert.equal((await tools.request("atendimento", "lembrar_resposta", { conversa_id: ids.waiting, mensagem })).status, "done");
+    const reminder = await prisma.notification.findFirstOrThrow({ where: { userId: ids.seller, type: "reply_reminder" } });
+    assert.equal((reminder.payload as { conversationId: string }).conversationId, ids.waiting);
+    await assert.rejects(tools.request("atendimento", "lembrar_resposta", { conversa_id: ids.waiting, mensagem }), /3 dias/);
+    await assert.rejects(tools.request("atendimento", "lembrar_resposta", { conversa_id: ids.answered, mensagem }), /já respondeu/);
+    const after = await tools.unansweredConversations(24);
+    assert.equal(after.conversas.some((row) => row.conversaId === ids.waiting), false);
+  });
+
+  test("atendimento não pode suspender anúncio nem mexer em marketing", () => {
+    assert.equal(decide("atendimento", { name: "suspender_anuncio", color: "yellow" }, "suspender_anuncio").kind, "blocked");
+    assert.equal(decide("atendimento", { name: "criar_campanha_email", color: "green" }, "criar_campanha_email").kind, "blocked");
+  });
+});

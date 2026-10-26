@@ -89,6 +89,12 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: String(payload.body ?? ""),
         link: "/admin/operacao",
       };
+    case "reply_reminder":
+      return {
+        title: "Um comprador está esperando a sua resposta",
+        body: String(payload.message ?? `Sobre "${payload.listingTitle}".`),
+        link: `/conta/mensagens/${payload.conversationId}`,
+      };
     case "listing_removed":
       return {
         title: "Seu anúncio foi removido",

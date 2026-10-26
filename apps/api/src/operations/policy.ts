@@ -32,6 +32,8 @@ export const AGENT_TOOL_ALLOWLIST: Record<string, readonly string[]> = {
   // publicado ou enviado sem o dono aprovar na tela /admin/marketing.
   // Financeiro só lê e relata: pagar, estornar ou mudar preço é vermelho (ninguém tem a ferramenta).
   financeiro: ["ler_painel", "ler_metas", "ler_financeiro", "criar_tarefa", "registrar_relatorio_financeiro"],
+  // Atendimento: ninguém fica sem resposta. Só lembra vendedores e avisa o dono.
+  atendimento: ["ler_painel", "listar_conversas_sem_resposta", "lembrar_resposta", "listar_pendencias_atendimento", "avisar_dono_atendimento", "criar_tarefa"],
   marketing: [
     "ler_painel",
     "ler_metas",

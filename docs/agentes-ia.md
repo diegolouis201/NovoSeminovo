@@ -81,3 +81,15 @@ O Diego pediu para rodar todas as fases de uma vez, porque o site ainda está em
 - O relatório vai para `ops_reports` (kind `relatorio_financeiro`). Ele aparece em verde em `/admin/operacao#financeiro` e é enviado por e-mail (notificação `ops_finance_report`).
 - O Diretor também pode chamar `ler_financeiro`.
 
+## Agente de Atendimento (Fase 4, 26/10/2026)
+
+- Roda todo dia às 14h. Também pode ser disparado por "Rodar agora".
+- Ferramentas:
+  - `listar_conversas_sem_resposta`: conversas em que a última mensagem é do comprador e já passaram mais de N horas, padrão 24. Não traz dados pessoais nem o texto das mensagens.
+  - `lembrar_resposta`: notificação `reply_reminder` ao vendedor, com link para a conversa. Limite de 1 por conversa a cada 3 dias, e entra no teto diário `OPS_MAX_MESSAGES_PER_DAY`.
+  - `listar_pendencias_atendimento`: pedidos de financiamento com status "novo" e denúncias abertas, com idade.
+  - `avisar_dono_atendimento`: `ops_alert` com `source` "atendimento", 1 por dia.
+  - Também usa `criar_tarefa` e `ler_painel`.
+- Não suspende anúncio, não mexe em marketing e não fala com compradores.
+- O agente de Tráfego pago fica para quando o Google Ads (ou o Meta Ads) estiver ligado no Windsor, porque os campos precisam ser conferidos com a conta real.
+

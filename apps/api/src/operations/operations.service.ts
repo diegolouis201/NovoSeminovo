@@ -40,6 +40,7 @@ const SCHEDULES: { key: string; agent: string; hourBrt: number; weekday?: number
   { key: "diretor", agent: "diretor", hourBrt: 8, usesAi: true, objective: "Resumo diário: metas, números do mês e prioridades" },
   { key: "operacoes", agent: "operacoes", hourBrt: 9, usesAi: true, objective: "Revisar anúncios com problema e avisar os donos" },
   { key: "comercial", agent: "comercial", hourBrt: 10, usesAi: true, objective: "Lembrar lojas com leads parados ou sem anúncio no período grátis" },
+  { key: "atendimento", agent: "atendimento", hourBrt: 14, usesAi: true, objective: "Garantir que nenhum comprador fique sem resposta e avisar o dono das pendências de atendimento" },
   { key: "financeiro", agent: "financeiro", hourBrt: 7, weekday: 1, usesAi: true, objective: "Relatório financeiro da semana: receita, assinaturas, valores a pagar e gasto com IA" },
   { key: "marketing", agent: "marketing", hourBrt: 11, weekday: 1, usesAi: true, objective: "Sugestões de conteúdo e campanhas da semana" },
 ];
