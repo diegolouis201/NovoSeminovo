@@ -258,6 +258,12 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - Telas: `/admin/recompensas` (Cashback: liberar e pagar, CPF para o Pix), `/admin/financiamentos` (cashback previsto e etapas), planilha mensal (`tipo=detalhado|pagar`), `/conta/recompensas` (Meu cashback), `/recompensas` (página pública), simulador do anúncio, FAQ, termos (seção 6), privacidade, como funciona, quem somos, para lojas, rodapé e menus. Assistentes de IA atualizados.
    - Teste: `rebates/cashback.spec.ts`.
 
+42. **Importar anúncio pelo link de outro site (27/10/2026)**
+   - `/anunciar/importar` (atalho "Importar de outro site" no /anunciar e item 4 em /parceiro/integracoes): a pessoa cola o link do anúncio dela (OLX, Webmotors, ZAP, VivaReal, iCarros, Mercado Livre…), confirma que é dela, vê uma prévia e o passo a passo abre preenchido (rascunho gravado no localStorage do wizard; fotos baixadas de novo pelo navegador via `/api/importar-foto`, comprimidas e com placa borrada ao salvar, como foto comum). Nada é publicado sem revisão.
+   - API: `POST /listing-import` e `GET /listing-import/photo` (`listings/listing-import.service.ts`). A página é lida com `safeFetch` (anti-SSRF, user-agent de navegador), `listing-import.ts` junta JSON-LD, Open Graph, texto e imagens, e `AiService.extractListingFromPage` monta o rascunho no nosso padrão (título padrão, texto reescrito, sem contato/nome de outro site). `stripContactInfo` tira linhas com telefone/e-mail/link.
+   - Limites: sites com bloqueio anti-robô ou que exigem navegador/login podem recusar — a tela explica e manda para o passo a passo. Nunca testado contra os portais reais daqui (sem internet no ambiente de desenvolvimento).
+   - Teste: `listings/listing-import.spec.ts`. Também corrigido: o passo a passo só grava o rascunho depois de ler o salvo.
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).

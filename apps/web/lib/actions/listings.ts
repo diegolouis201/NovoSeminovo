@@ -7,6 +7,7 @@ import type {
   FipePrice,
   FipeVersion,
   CreateListingInput,
+  ImportedListing,
   ListingSummary,
   ListingStatus,
   Photo,
@@ -35,6 +36,7 @@ import {
   extractCrlvData,
   fetchPriceSuggestion,
   generateListingDraft,
+  importListingFromUrl,
   recommendProperty,
   recommendVehicle,
   type RecommendPropertyResult,
@@ -499,4 +501,12 @@ export async function importListingsCsvAction(formData: FormData): Promise<void>
   const allErrors = results.filter((r) => !r.ok);
   const summary = { total: results.length, success: results.length - allErrors.length, errors: allErrors.slice(0, 20) };
   redirect(`/parceiro/anuncios/importar?resultado=${encodeURIComponent(JSON.stringify(summary))}`);
+}
+
+// "Importar pelo link" (/anunciar/importar).
+export async function importListingFromUrlAction(url: string): Promise<WizardResult<ImportedListing>> {
+  const session = await auth();
+  if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
+  const result = await importListingFromUrl(url.trim(), session.accessToken);
+  return result.ok ? { ok: true, value: result.value } : result;
 }

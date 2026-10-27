@@ -66,7 +66,7 @@ async function compressPhoto(file: File): Promise<File> {
 
 // Comprime e devolve as fotos novas (até completar MAX_PHOTOS) e um aviso,
 // se alguma ficou de fora.
-export async function preparePhotos(files: FileList, current: number): Promise<{ added: WizardPhoto[]; warning?: string }> {
+export async function preparePhotos(files: FileList | File[], current: number): Promise<{ added: WizardPhoto[]; warning?: string }> {
   const room = MAX_PHOTOS - current;
   const chosen = Array.from(files).slice(0, room);
   const added: WizardPhoto[] = [];
@@ -376,4 +376,36 @@ export function Toggle({
       </span>
     </button>
   );
+}
+
+// Fotos de um anúncio importado de outro site (ver /anunciar/importar): os
+// links ficam no sessionStorage até o passo a passo abrir; aqui viram
+// arquivos e passam pela mesma compressão das fotos escolhidas à mão.
+export const IMPORT_PHOTOS_KEY = "ns-importar-fotos";
+
+export async function takeImportedPhotos(assetType: "vehicle" | "property"): Promise<File[]> {
+  let urls: string[] = [];
+  try {
+    const saved = sessionStorage.getItem(IMPORT_PHOTOS_KEY);
+    if (!saved) return [];
+    const parsed = JSON.parse(saved) as { assetType: string; urls: string[] };
+    sessionStorage.removeItem(IMPORT_PHOTOS_KEY);
+    if (parsed.assetType !== assetType) return [];
+    urls = parsed.urls.slice(0, MAX_PHOTOS);
+  } catch {
+    return [];
+  }
+  const files = await Promise.all(
+    urls.map(async (url, index) => {
+      try {
+        const res = await fetch(`/api/importar-foto?url=${encodeURIComponent(url)}`);
+        if (!res.ok) return undefined;
+        const blob = await res.blob();
+        return new File([blob], `importada-${index + 1}.jpg`, { type: blob.type || "image/jpeg" });
+      } catch {
+        return undefined;
+      }
+    }),
+  );
+  return files.filter((file): file is File => Boolean(file));
 }

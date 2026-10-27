@@ -96,6 +96,9 @@ export type SafeFetchOptions = {
   timeoutMs: number;
   maxRedirects?: number;
   accept?: string;
+  // Alguns portais recusam robôs: a importação pelo link se identifica como
+  // navegador comum (ver ListingImportService).
+  userAgent?: string;
 };
 
 export type SafeFetchResult = { buffer: Buffer; contentType?: string; finalUrl: string };
@@ -110,7 +113,8 @@ function requestOnce(url: URL, options: SafeFetchOptions): Promise<{ status: num
         lookup: safeLookup,
         timeout: options.timeoutMs,
         headers: {
-          "User-Agent": "NovoSeminovo-Integracao/1.0 (+https://novoseminovo.com.br)",
+          "User-Agent": options.userAgent ?? "NovoSeminovo-Integracao/1.0 (+https://novoseminovo.com.br)",
+          "Accept-Language": "pt-BR,pt;q=0.9",
           Accept: options.accept ?? "*/*",
           "Accept-Encoding": "identity",
         },

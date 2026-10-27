@@ -49,6 +49,7 @@ import {
   formatThousands,
   inputClass,
   preparePhotos,
+  takeImportedPhotos,
   publishLabel,
   type WizardPhoto,
 } from "@/components/wizard/WizardParts";
@@ -243,16 +244,28 @@ export function VehicleListingWizard({
     } catch {
       // sem localStorage (aba anônima etc.): segue sem rascunho
     }
+    setLoaded(true);
+    // Veio de "Importar pelo link": baixa as fotos do anúncio original.
+    void takeImportedPhotos("vehicle")
+      .then((files) => (files.length ? preparePhotos(files, 0) : undefined))
+      .then((result) => {
+        if (result?.added.length) setPhotos((list) => (list.length ? list : result.added));
+      });
     void fipeBrandsAction().then(setBrands).catch(() => setBrands([]));
   }, []);
 
+  // Só grava depois de ler o rascunho salvo — senão o estado inicial (vazio)
+  // apagaria o rascunho antes de ele ser lido (ex.: o que vem de
+  // "Importar pelo link").
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
+    if (!loaded) return;
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({ draft, step }));
     } catch {
       // ignora
     }
-  }, [draft, step]);
+  }, [draft, step, loaded]);
 
   useEffect(() => {
     window.scrollTo({ top: 0 });

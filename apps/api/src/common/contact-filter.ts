@@ -23,3 +23,14 @@ export function findContactInfo(text: string): string | undefined {
 export function contactInfoMessage(kind: string, field: string): string {
   return `Não é permitido colocar ${kind} ${field} do anúncio — por segurança, o contato acontece pelo chat e pelo botão de WhatsApp do site. Remova e tente de novo.`;
 }
+
+// Texto vindo de fora (importação pelo link de outro site): em vez de
+// recusar, tira as linhas que tenham contato — o resto do texto fica.
+export function stripContactInfo(text: string): string {
+  return text
+    .split(/\n/)
+    .filter((line) => !findContactInfo(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}

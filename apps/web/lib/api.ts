@@ -20,6 +20,7 @@ import type {
   MarketingSummary,
   AdminListingsPage,
   AdminLeadsPage,
+  ImportedListing,
   AdminUserProfile,
   AdminDeleteInput,
   AdminListingActionInput,
@@ -609,6 +610,24 @@ async function publicPost<T>(path: string, body: unknown): Promise<ApiResult<T>>
     return { ok: true, value: data as T };
   } catch {
     return { ok: false, error: "Não foi possível falar com o servidor agora." };
+  }
+}
+
+// Importar anúncio pelo link de outro site — leitura da página + IA leva
+// alguns segundos.
+export async function importListingFromUrl(url: string, accessToken: string): Promise<ApiResult<ImportedListing>> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listing-import`,
+      { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders(accessToken) }, body: JSON.stringify({ url, confirmOwner: true }) },
+      90_000,
+    );
+    const data = (await res.json().catch(() => ({}))) as { message?: string | string[] };
+    if (res.status === 429) return { ok: false, error: "Muitas importações seguidas. Espere um minuto e tente de novo." };
+    if (!res.ok) return { ok: false, error: (Array.isArray(data.message) ? data.message[0] : data.message) ?? "Não foi possível importar agora." };
+    return { ok: true, value: data as ImportedListing };
+  } catch {
+    return { ok: false, error: "A leitura do anúncio demorou demais. Tente de novo em instantes." };
   }
 }
 

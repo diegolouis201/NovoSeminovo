@@ -89,9 +89,14 @@ export default async function CreateListingPage({
           ) : (
             <span />
           )}
-          <Link href={`/anunciar?tipo=${assetType}&modo=completo`} className="text-xs font-semibold text-ink-muted hover:underline">
-            Formulário completo
-          </Link>
+          <span className="flex items-center gap-3">
+            <Link href="/anunciar/importar" className="text-xs font-semibold text-brand-blue hover:underline">
+              Importar de outro site
+            </Link>
+            <Link href={`/anunciar?tipo=${assetType}&modo=completo`} className="text-xs font-semibold text-ink-muted hover:underline">
+              Formulário completo
+            </Link>
+          </span>
         </nav>
         {assetType === "vehicle" ? <VehicleListingWizard {...wizardProps} /> : <PropertyListingWizard {...wizardProps} />}
       </main>

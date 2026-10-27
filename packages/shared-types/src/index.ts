@@ -637,6 +637,63 @@ export const ListingDraftSchema = z.object({
 });
 export type ListingDraft = z.infer<typeof ListingDraftSchema>;
 
+// "Importar pelo link": a pessoa cola o link do anúncio dela em outro site
+// (OLX, Webmotors, ZAP…), o NovoSeminovo lê a página e devolve um rascunho no
+// nosso padrão — ela revisa tudo no passo a passo antes de publicar.
+export const ImportFromUrlInputSchema = z.object({
+  url: z.string().trim().url("Cole o link completo do anúncio (começando com https://)").max(2000),
+  confirmOwner: z.literal(true, { errorMap: () => ({ message: "Confirme que o anúncio é seu" }) }),
+});
+export type ImportFromUrlInput = z.infer<typeof ImportFromUrlInputSchema>;
+
+export const ImportedListingSchema = z.object({
+  assetType: z.enum(["vehicle", "property"]),
+  sourceHost: z.string(),
+  title: z.string(),
+  description: z.string(),
+  price: z.number().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  neighborhood: z.string().optional(),
+  vehicle: z
+    .object({
+      brand: z.string().optional(),
+      model: z.string().optional(),
+      version: z.string().optional(),
+      yearManufacture: z.number().optional(),
+      yearModel: z.number().optional(),
+      mileage: z.number().optional(),
+      transmission: z.enum(["manual", "automatic"]).optional(),
+      fuelType: z.enum(["flex", "gasoline", "ethanol", "diesel", "electric", "hybrid"]).optional(),
+      color: z.string().optional(),
+      doors: z.number().optional(),
+      bodyType: z.string().optional(),
+    })
+    .optional(),
+  property: z
+    .object({
+      purpose: z.enum(["sale", "rent"]).optional(),
+      propertyType: z.string().optional(),
+      bedrooms: z.number().optional(),
+      suites: z.number().optional(),
+      bathrooms: z.number().optional(),
+      parkingSpots: z.number().optional(),
+      areaM2: z.number().optional(),
+      totalAreaM2: z.number().optional(),
+      floor: z.number().optional(),
+      condoFee: z.number().optional(),
+      iptu: z.number().optional(),
+      features: z.array(z.string()).optional(),
+    })
+    .optional(),
+  // Fotos da página de origem (links); o site baixa e passa pelo mesmo
+  // tratamento das fotos enviadas à mão (compressão, placa borrada).
+  photos: z.array(z.string()),
+  // O que não deu para achar na página — a pessoa completa no passo a passo.
+  missing: z.array(z.string()),
+});
+export type ImportedListing = z.infer<typeof ImportedListingSchema>;
+
 // Mesmo padrão de PaymentsStatusSchema — o site usa isto pra decidir se
 // mostra o gerador de anúncio por IA.
 export const AiStatusSchema = z.object({

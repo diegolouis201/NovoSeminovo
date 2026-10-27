@@ -1,0 +1,163 @@
+import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
+import type { ImportedListing } from "@novoseminovo/shared-types";
+import { stripContactInfo } from "../common/contact-filter";
+import { SafeFetchError, safeFetch, type SafeFetchOptions, type SafeFetchResult } from "../common/safe-fetch";
+import { toUf } from "../integrations/vehicle-catalog-parser";
+import { AiService } from "./ai.service";
+import { extractPageData } from "./listing-import";
+
+// Muitos portais devolvem página vazia ou bloqueio para robôs: a leitura se
+// identifica como um navegador comum (é a pessoa importando o próprio anúncio).
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
+const PAGE_LIMITS: SafeFetchOptions = { maxBytes: 4_000_000, timeoutMs: 15_000, maxRedirects: 5, accept: "text/html,application/xhtml+xml", userAgent: BROWSER_UA };
+const PHOTO_LIMITS: SafeFetchOptions = { maxBytes: 12_000_000, timeoutMs: 20_000, maxRedirects: 5, accept: "image/*", userAgent: BROWSER_UA };
+const MAX_PHOTOS = 20;
+
+type Fetcher = (url: string, options: SafeFetchOptions) => Promise<SafeFetchResult>;
+
+const num = (value: unknown, min = 0, max = Number.MAX_SAFE_INTEGER): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) && value >= min && value <= max ? value : undefined;
+const int = (value: unknown, min = 0, max = 100_000): number | undefined => {
+  const n = num(value, min, max);
+  return n === undefined ? undefined : Math.round(n);
+};
+const str = (value: unknown, max = 120): string | undefined =>
+  typeof value === "string" && value.trim() ? value.trim().slice(0, max) : undefined;
+
+// "Importar pelo link": lê a página do anúncio da pessoa em outro site e
+// devolve um rascunho no padrão do NovoSeminovo. Nada é publicado aqui — o
+// rascunho vai para o passo a passo, onde a pessoa revisa e completa.
+@Injectable()
+export class ListingImportService {
+  // Trocável nos testes (o safeFetch recusa endereço local).
+  fetcher: Fetcher = safeFetch;
+
+  constructor(private readonly ai: AiService) {}
+
+  async importFromUrl(url: string): Promise<ImportedListing> {
+    if (!this.ai.isEnabled()) throw new ServiceUnavailableException("A importação pelo link está indisponível no momento.");
+
+    let page: SafeFetchResult;
+    try {
+      page = await this.fetcher(url, PAGE_LIMITS);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof SafeFetchError && /endereço|link/i.test(error.message)
+          ? error.message
+          : "Não conseguimos abrir esse link — alguns sites bloqueiam a leitura automática. Confira o link ou cadastre pelo passo a passo.",
+      );
+    }
+    if (page.contentType && !/html|xml/i.test(page.contentType)) {
+      throw new BadRequestException("Esse link não é de uma página de anúncio.");
+    }
+
+    const data = extractPageData(page.buffer.toString("utf8"), page.finalUrl);
+    if (data.text.length < 200 && !data.structured) {
+      throw new BadRequestException(
+        "A página não mostrou o conteúdo do anúncio (o site pode exigir navegador ou login). Cadastre pelo passo a passo.",
+      );
+    }
+
+    const raw = await this.ai.extractListingFromPage(data);
+    const assetType = raw.assetType === "vehicle" || raw.assetType === "property" ? raw.assetType : undefined;
+    if (raw.is_listing === false || !assetType) {
+      throw new BadRequestException("Esse link não parece ser de um anúncio de carro ou imóvel. Abra o anúncio e copie o link da barra do navegador.");
+    }
+
+    const photos = (Array.isArray(raw.photoIndexes) ? raw.photoIndexes : [])
+      .map((index) => (Number.isInteger(index) ? data.images[index] : undefined))
+      .filter((photo): photo is string => Boolean(photo))
+      .filter((photo, index, all) => all.indexOf(photo) === index)
+      .slice(0, MAX_PHOTOS);
+
+    const title = stripContactInfo(str(raw.title, 120) ?? data.title ?? "").slice(0, 120);
+    const description = stripContactInfo(typeof raw.description === "string" ? raw.description : data.description ?? "").slice(0, 5000);
+
+    const listing: ImportedListing = {
+      assetType,
+      sourceHost: data.host,
+      title,
+      description,
+      price: num(raw.price, 1, 1_000_000_000),
+      city: str(raw.city, 80),
+      state: toUf(str(raw.state, 40)),
+      neighborhood: str(raw.neighborhood, 80),
+      photos,
+      missing: [],
+    };
+
+    if (assetType === "vehicle") {
+      const transmission = raw.transmission === "manual" || raw.transmission === "automatic" ? raw.transmission : undefined;
+      const fuelType = ["flex", "gasoline", "ethanol", "diesel", "electric", "hybrid"].includes(raw.fuelType as string)
+        ? (raw.fuelType as NonNullable<ImportedListing["vehicle"]>["fuelType"])
+        : undefined;
+      listing.vehicle = {
+        brand: str(raw.brand, 40),
+        model: str(raw.model, 60),
+        version: str(raw.version, 80),
+        yearManufacture: int(raw.yearManufacture, 1950, 2100),
+        yearModel: int(raw.yearModel, 1950, 2100),
+        mileage: int(raw.mileage, 0, 2_000_000),
+        transmission,
+        fuelType,
+        color: str(raw.color, 30),
+        doors: int(raw.doors, 2, 6),
+        bodyType: str(raw.bodyType, 20)?.toLowerCase(),
+      };
+      const v = listing.vehicle;
+      listing.missing = [
+        !v.brand && "marca",
+        !v.model && "modelo",
+        !v.yearModel && "ano",
+        v.mileage === undefined && "quilometragem",
+        !listing.price && "preço",
+        !listing.city && "cidade",
+        photos.length === 0 && "fotos",
+      ].filter((item): item is string => Boolean(item));
+    } else {
+      const features = (Array.isArray(raw.features) ? raw.features : []).filter((feature): feature is string =>
+        ["pool", "balcony", "barbecue", "elevator", "gourmet_area", "garden", "furnished", "concierge"].includes(feature as string),
+      );
+      listing.property = {
+        purpose: raw.purpose === "rent" ? "rent" : raw.purpose === "sale" ? "sale" : undefined,
+        propertyType: str(raw.propertyType, 20),
+        bedrooms: int(raw.bedrooms, 0, 50),
+        suites: int(raw.suites, 0, 50),
+        bathrooms: int(raw.bathrooms, 0, 50),
+        parkingSpots: int(raw.parkingSpots, 0, 50),
+        areaM2: num(raw.areaM2, 1, 10_000_000),
+        totalAreaM2: num(raw.totalAreaM2, 1, 10_000_000),
+        floor: int(raw.floor, 0, 300),
+        condoFee: num(raw.condoFee, 0, 1_000_000),
+        iptu: num(raw.iptu, 0, 1_000_000),
+        features,
+      };
+      const p = listing.property;
+      listing.missing = [
+        !p.propertyType && "tipo do imóvel",
+        !p.areaM2 && "área",
+        !listing.price && "preço",
+        !listing.city && "cidade",
+        "endereço (rua e número)",
+        photos.length === 0 && "fotos",
+      ].filter((item): item is string => Boolean(item));
+    }
+    if (description.length < 20) listing.missing.push("descrição");
+    return listing;
+  }
+
+  // Foto da página de origem, baixada pelo servidor (o navegador não pode
+  // buscar direto em outro site). O passo a passo comprime e envia como foto
+  // comum — e a placa é borrada na hora de salvar, como qualquer foto.
+  async fetchPhoto(url: string): Promise<{ buffer: Buffer; contentType: string }> {
+    try {
+      const photo = await this.fetcher(url, PHOTO_LIMITS);
+      const contentType = (photo.contentType ?? "").split(";")[0]!.trim().toLowerCase();
+      if (!contentType.startsWith("image/") || contentType.includes("svg")) throw new Error(`tipo ${contentType}`);
+      return { buffer: photo.buffer, contentType };
+    } catch {
+      throw new BadRequestException("Não foi possível baixar esta foto.");
+    }
+  }
+}
