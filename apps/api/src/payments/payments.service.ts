@@ -12,6 +12,9 @@ export type CheckoutSessionMetadata = { partnerId: string; planId: string };
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
   private client: Stripe | undefined;
+  // Os preços já gravados nos planos foram conferidos contra o modo atual
+  // (teste/real) nesta execução da API?
+  private catalogChecked = false;
 
   isEnabled(): boolean {
     return Boolean(process.env.STRIPE_SECRET_KEY);
@@ -45,6 +48,19 @@ export class PaymentsService {
     if (!this.isEnabled()) return;
     const client = this.getClient();
 
+    // Preço criado no modo de teste não existe no modo real (e vice-versa):
+    // ao trocar as chaves, o que não serve mais é recriado no modo atual.
+    if (!this.catalogChecked) {
+      const priced = await this.prisma.plan.findMany({ where: { stripePriceId: { not: null } } });
+      for (const plan of priced) {
+        if (!(await this.usablePrice(plan.stripePriceId!))) {
+          await this.prisma.plan.update({ where: { id: plan.id }, data: { stripePriceId: null } });
+          this.logger.log(`Preço do plano "${plan.name}" era de outro modo do Stripe — será recriado.`);
+        }
+      }
+      this.catalogChecked = true;
+    }
+
     const plans = await this.prisma.plan.findMany({ where: { stripePriceId: null } });
     for (const plan of plans) {
       const product = await client.products.create({ name: `NovoSeminovo — Plano ${plan.name}` });
@@ -59,8 +75,30 @@ export class PaymentsService {
     }
   }
 
+  // Preço existe, está ativo e é do mesmo modo (teste/real) da chave atual.
+  private async usablePrice(priceId: string): Promise<boolean> {
+    try {
+      const price = await this.getClient().prices.retrieve(priceId);
+      return price.active && price.livemode === !this.isTestMode();
+    } catch (error) {
+      if ((error as { code?: string }).code === "resource_missing") return false;
+      throw error;
+    }
+  }
+
+  private async usableCustomer(customerId: string): Promise<boolean> {
+    try {
+      const customer = await this.getClient().customers.retrieve(customerId);
+      return !customer.deleted && customer.livemode === !this.isTestMode();
+    } catch (error) {
+      if ((error as { code?: string }).code === "resource_missing") return false;
+      throw error;
+    }
+  }
+
   private async ensureCustomer(partner: { id: string; legalName: string; stripeCustomerId: string | null }, email?: string): Promise<string> {
-    if (partner.stripeCustomerId) return partner.stripeCustomerId;
+    // Cliente criado no modo de teste não serve no modo real: cria outro.
+    if (partner.stripeCustomerId && (await this.usableCustomer(partner.stripeCustomerId))) return partner.stripeCustomerId;
 
     // E-mail do dono no Customer — é pra ele que o Stripe manda recibo e o
     // aviso de cartão recusado com o link de atualizar o pagamento.
