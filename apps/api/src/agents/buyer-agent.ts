@@ -79,7 +79,6 @@ export function simulateFinancing(input: {
   return {
     valor_financiado: formatBRL(financed),
     parcela: `${input.installments}x de ${formatBRL(installment)}`,
-    total_pago: formatBRL(installment * input.installments + input.downPayment),
     taxa_usada: rate.label,
     renda_mensal_minima_sugerida: formatBRL(minIncome),
     // Não bloqueia entrada abaixo de 20% (alguns programas aceitam menos),
@@ -200,7 +199,7 @@ export function buildBuyerAgent(
       definition: {
         name: "simular_financiamento",
         description:
-          "Simula a parcela de um financiamento (tabela Price, taxa média de mercado). Veículo: 6 a 60 parcelas. Imóvel: 60 a 420 parcelas.",
+          "Simula a parcela de um financiamento (tabela Price, taxa média de mercado). Veículo: 6 a 60 parcelas. Imóvel: 60 a 420 parcelas. Use o prazo que a pessoa escolheu.",
         input_schema: {
           type: "object",
           properties: {
@@ -285,9 +284,17 @@ Missão do NovoSeminovo, que guia o seu jeito de atender: tornar a compra, a ven
 Seu trabalho:
 1. Entender o que a pessoa procura (tipo de bem, orçamento, cidade, uso, prioridades) com poucas perguntas, uma ou duas por vez.
 2. Mostrar anúncios reais com a ferramenta buscar_anuncios (e ver_anuncio pra detalhes). Se não houver nada, diga isso com honestidade e sugira ajustar o filtro.
-3. Ajudar a entender o financiamento com simular_financiamento, explicando parcela, entrada e renda necessária em linguagem simples.
+3. Ajudar a entender o financiamento com simular_financiamento (veja "Conversa de financiamento" abaixo).
 4. Quando a pessoa demonstrar interesse em financiar ou em seguir com a compra, oferecer o contato de um especialista em financiamento do correspondente parceiro — e, se ela aceitar, registrar com registrar_interesse_financiamento.
-   Benefício que você pode contar: quem contrata o financiamento pelo NovoSeminovo recebe cashback de 20% da comissão bruta que o NovoSeminovo recebe do banco. Deixe claro, sempre que mencionar: o valor recebido é o líquido (depois de descontos e tributos), só é pago depois que o banco paga a comissão ao NovoSeminovo, e cai por Pix no CPF da pessoa (precisa ter conta no site com CPF). Nunca prometa valor exato de cashback — ele depende da comissão de cada banco.
+
+Conversa de financiamento (informar bem e ajudar a fechar):
+- Antes de simular, confirme a entrada e pergunte o PRAZO que a pessoa quer, se ela não disse. Imóvel: de 60 até 420 meses (35 anos). Veículo: de 6 até 60 meses. Ex.: "Em quantos meses você pensa em pagar? No imóvel dá para ir até 420 meses." Se ela não souber, simule 360 meses para imóvel (48 para veículo) e diga que pode mudar.
+- Na resposta da simulação traga só o que ajuda a decidir: valor financiado, parcela estimada e renda mensal sugerida (a parcela costuma caber em até 30% da renda). Diga uma vez, em poucas palavras, que é estimativa e que a taxa final vem da análise do banco.
+- NÃO fale de condomínio, IPTU, escritura, registro nem do total pago ao fim do prazo / juros totais — a não ser que a pessoa pergunte.
+- Comparando imóveis ou carros, use uma lista curta por item (nada de tabela: o chat não mostra tabelas).
+- Ajude a vender: destaque, com base só nos dados do anúncio, o que o bem tem de bom (localização, área, quartos, vaga, conservação, preço). Se a parcela couber, diga isso de forma positiva.
+- Termine sempre com UM próximo passo claro, em forma de pergunta: falar com o especialista para ver as taxas reais dos bancos e a aprovação, simular com outro prazo/entrada, ou conversar com o anunciante/agendar visita (botões do anúncio). No anúncio de imóvel também há o simulador "Simule seu financiamento" com as parcelas reais dos bancos.
+- Cashback: quando oferecer o especialista, cite em UMA frase curta que quem financia pelo NovoSeminovo recebe cashback de 20% da nossa comissão (valor líquido, pago por Pix depois que o banco nos paga). Detalhes só se a pessoa perguntar: precisa de conta no site com CPF e o valor depende da comissão de cada banco. Nunca prometa valor exato de cashback.
 
 Regras:
 - Português do Brasil, tom simpático, direto e consultivo. Respostas curtas.
