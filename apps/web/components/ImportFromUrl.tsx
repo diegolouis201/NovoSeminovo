@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type ClipboardEvent } from "react";
 import { CheckCircle, LinkSimple, PuzzlePiece, WarningCircle } from "@phosphor-icons/react";
 import { VEHICLE_BODY_TYPE_OPTIONS, formatBRL, type ImportedListing } from "@novoseminovo/shared-types";
 import { importListingFromPageAction, importListingFromTextAction, importListingFromUrlAction } from "@/lib/actions/listings";
@@ -21,6 +21,30 @@ type CapturedPage = {
   page: { url: string; title?: string; description?: string; structured?: string; text: string; images?: string[] };
   photos: Record<string, string>;
 };
+
+const NOT_A_PHOTO = /logo|icon|sprite|avatar|placeholder|banner|badge|favicon|selo|\.svg(\?|$)|\.gif(\?|$)|pixel|tracking/i;
+
+function imagesFromHtml(html: string, pageUrl: string): string[] {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const base = /^https?:\/\//i.test(pageUrl) ? pageUrl : undefined;
+  const found: string[] = [];
+  const add = (raw: string | null | undefined) => {
+    if (!raw) return;
+    try {
+      const absolute = new URL(raw.trim(), base).href;
+      if (/^https?:\/\//.test(absolute) && !NOT_A_PHOTO.test(absolute)) found.push(absolute);
+    } catch {
+      // endereço relativo sem link de origem, ou inválido
+    }
+  };
+  const largest = (srcset: string | null) => srcset?.split(",").map((part) => part.trim().split(/\s+/)[0]).filter(Boolean).pop();
+  doc.querySelectorAll("img, source").forEach((element) => {
+    add(largest(element.getAttribute("srcset")) ?? largest(element.getAttribute("data-srcset")));
+    add(element.getAttribute("data-src"));
+    add(element.getAttribute("src"));
+  });
+  return [...new Set(found)].slice(0, 80);
+}
 
 const text = (value: number | undefined) => (value === undefined ? "" : String(Math.round(value)));
 
@@ -78,6 +102,8 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
   // Plano B (site bloqueou a leitura): texto da página colado.
   const [showPaste, setShowPaste] = useState(false);
   const [pasted, setPasted] = useState("");
+  const [pastedImages, setPastedImages] = useState<string[]>([]);
+  const pasteRef = useRef<HTMLTextAreaElement>(null);
   const [pending, start] = useTransition();
   const [captured, setCaptured] = useState<CapturedPage | undefined>();
 
@@ -126,10 +152,18 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
       const response = await importListingFromUrlAction(url);
       if (!response.ok) {
         setShowPaste(true);
+        pasteRef.current?.focus();
         return setError(response.error);
       }
       accept(response.value);
     });
+  }
+
+  // Quem copia a página inteira leva junto as imagens (no HTML da área de
+  // transferência): os endereços viram candidatos a foto.
+  function onPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const html = event.clipboardData.getData("text/html");
+    setPastedImages(html ? imagesFromHtml(html, url.trim()) : []);
   }
 
   function readPasted() {
@@ -138,7 +172,7 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
     setError(undefined);
     setResult(undefined);
     start(async () => {
-      const response = await importListingFromTextAction(pasted, url.trim());
+      const response = await importListingFromTextAction(pasted, url.trim(), pastedImages);
       if (!response.ok) return setError(response.error);
       accept(response.value);
     });
@@ -203,6 +237,10 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
   return (
     <div className="mt-6 flex flex-col gap-4">
       <div className="flex flex-col gap-3 rounded-brand border border-border bg-surface-raised p-4 shadow-card">
+        <label className="flex items-start gap-2 text-xs text-ink">
+          <input type="checkbox" checked={owner} onChange={(event) => setOwner(event.target.checked)} className="mt-0.5" />
+          <span>O anúncio é meu e tenho direito de usar as fotos e o texto dele no NovoSeminovo.</span>
+        </label>
         {captured ? (
           <div className="flex items-start gap-2 rounded-brand bg-brand-blue/10 px-3 py-2.5 text-sm text-ink">
             <PuzzlePiece size={20} weight="duotone" className="mt-px shrink-0 text-brand-blue" />
@@ -212,54 +250,19 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
             </span>
           </div>
         ) : (
-        <label className="flex flex-col gap-1 text-sm font-semibold text-ink">
-          Link do anúncio
-          <span className="flex items-center gap-2 rounded-brand border border-border bg-surface-page px-3">
-            <LinkSimple size={18} className="text-ink-muted" />
-            <input
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-              inputMode="url"
-              placeholder="https://www.olx.com.br/..."
-              className="min-w-0 flex-1 bg-transparent py-2.5 text-sm font-normal text-ink outline-none"
-            />
-          </span>
-        </label>
-        )}
-        <label className="flex items-start gap-2 text-xs text-ink">
-          <input type="checkbox" checked={owner} onChange={(event) => setOwner(event.target.checked)} className="mt-0.5" />
-          <span>O anúncio é meu e tenho direito de usar as fotos e o texto dele no NovoSeminovo.</span>
-        </label>
-        {error && (
-          <p className="flex items-start gap-1.5 rounded-brand bg-status-danger/10 px-3 py-2 text-xs text-status-danger">
-            <WarningCircle size={16} className="mt-px shrink-0" /> {error}
-          </p>
-        )}
-        {showPaste && (
-          <div className="flex flex-col gap-2 rounded-brand bg-surface-sober p-3">
-            <p className="text-sm font-semibold text-ink">É só copiar e colar:</p>
-            <ol className="list-decimal space-y-0.5 pl-5 text-xs text-ink">
-              <li>Abra o seu anúncio no outro site.</li>
-              <li>Aperte Ctrl+A (no celular: &quot;Selecionar tudo&quot;) e depois Ctrl+C (&quot;Copiar&quot;).</li>
-              <li>Volte aqui, clique na caixa abaixo e aperte Ctrl+V (&quot;Colar&quot;).</li>
-            </ol>
-            <p className="text-xs text-ink-muted">As fotos você envia no passo a passo.</p>
-            <textarea
-              value={pasted}
-              onChange={(event) => setPasted(event.target.value)}
-              rows={6}
-              placeholder="Cole aqui o texto do anúncio"
-              className="rounded-brand border border-border bg-surface-page px-3 py-2 text-sm text-ink"
-            />
-            <button
-              type="button"
-              onClick={readPasted}
-              disabled={pending}
-              className="rounded-brand border border-brand-blue px-4 py-2.5 text-sm font-bold text-brand-blue disabled:opacity-60"
-            >
-              {pending ? "Lendo o texto…" : "Usar o texto colado"}
-            </button>
-          </div>
+          <label className="flex flex-col gap-1 text-sm font-semibold text-ink">
+            Link do anúncio
+            <span className="flex items-center gap-2 rounded-brand border border-border bg-surface-page px-3">
+              <LinkSimple size={18} className="text-ink-muted" />
+              <input
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                inputMode="url"
+                placeholder="https://..."
+                className="min-w-0 flex-1 bg-transparent py-2.5 text-sm font-normal text-ink outline-none"
+              />
+            </span>
+          </label>
         )}
         <button
           type="button"
@@ -267,12 +270,59 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
           disabled={pending}
           className="rounded-brand bg-brand-blue px-4 py-3 text-sm font-bold text-on-blue disabled:opacity-60"
         >
-          {pending ? "Lendo o anúncio… leva alguns segundos" : "Importar anúncio"}
+          {pending ? "Lendo o anúncio… leva alguns segundos" : captured ? "Importar anúncio" : "Importar pelo link"}
         </button>
         {captured && (
           <button type="button" onClick={() => setCaptured(undefined)} className="text-xs font-semibold text-brand-blue hover:underline">
             Prefiro colar outro link
           </button>
+        )}
+        {error && (
+          <p className="flex items-start gap-1.5 rounded-brand bg-status-danger/10 px-3 py-2 text-xs text-status-danger">
+            <WarningCircle size={16} className="mt-px shrink-0" /> {error}
+          </p>
+        )}
+
+        {!captured && (
+          <>
+            <p className="flex items-center gap-3 text-xs font-semibold text-ink-muted before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
+              ou copie e cole o anúncio
+            </p>
+            <div className={`flex flex-col gap-2 rounded-brand bg-surface-sober p-3 ${showPaste ? "ring-2 ring-brand-blue" : ""}`}>
+              <p className="text-xs text-ink">
+                Para OLX, Webmotors e outros sites que não deixam ler o link:
+              </p>
+              <ol className="list-decimal space-y-0.5 pl-5 text-xs text-ink">
+                <li>Abra o seu anúncio no outro site.</li>
+                <li>Aperte Ctrl+A (no celular: &quot;Selecionar tudo&quot;) e depois Ctrl+C (&quot;Copiar&quot;).</li>
+                <li>Volte aqui, clique na caixa abaixo e aperte Ctrl+V (&quot;Colar&quot;).</li>
+              </ol>
+              <textarea
+                ref={pasteRef}
+                value={pasted}
+                onChange={(event) => setPasted(event.target.value)}
+                onPaste={onPaste}
+                rows={5}
+                placeholder="Cole aqui o anúncio"
+                className="rounded-brand border border-border bg-surface-page px-3 py-2 text-sm text-ink"
+              />
+              {pasted.trim() && (
+                <p className="text-xs text-ink-muted">
+                  {pastedImages.length
+                    ? `${pastedImages.length} imagem(ns) vieram junto — escolhemos as fotos do anúncio.`
+                    : "Nenhuma foto veio junto: você envia as fotos no passo a passo."}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={readPasted}
+                disabled={pending}
+                className="rounded-brand border border-brand-blue bg-surface-raised px-4 py-2.5 text-sm font-bold text-brand-blue disabled:opacity-60"
+              >
+                {pending ? "Lendo o anúncio…" : "Importar o que colei"}
+              </button>
+            </div>
+          </>
         )}
       </div>
 
@@ -296,6 +346,7 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
                 <img
                   key={photo}
                   src={photoSrc(photo)}
+                  onError={(event) => (event.currentTarget.style.display = "none")}
                   alt=""
                   className="h-16 w-24 shrink-0 rounded-brand object-cover"
                 />

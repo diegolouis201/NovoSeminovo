@@ -125,7 +125,7 @@ describe("Importar anúncio pelo link (página e modelo falsos)", () => {
     service.fetcher = async () => {
       throw new Error("HTTP 403");
     };
-    await assert.rejects(service.importFromUrl("https://www.webmotors.com.br/x"), /bloqueou a leitura automática/);
+    await assert.rejects(service.importFromUrl("https://www.webmotors.com.br/x"), /não deixa a gente ler o link/);
     service.fetcher = async () => ({ buffer: Buffer.from("<html><body>Acesso negado</body></html>"), contentType: "text/html", finalUrl: "https://x.com" });
     await assert.rejects(service.importFromUrl("https://x.com"), /não mostrou o conteúdo/);
     service.fetcher = async () => ({ buffer: Buffer.from([1, 2]), contentType: "image/svg+xml", finalUrl: "https://x.com/a.svg" });
@@ -142,6 +142,16 @@ describe("Importar anúncio pelo link (página e modelo falsos)", () => {
     assert.equal(draft.vehicle?.model, "Corolla");
     assert.deepEqual(draft.photos, [], "sem imagens na lista, nenhuma foto escolhida");
     assert.ok(draft.missing.includes("fotos"));
+  });
+
+  test("copiar e colar: imagens que vieram junto na cópia viram fotos", async () => {
+    const service = new ListingImportService(new AiService());
+    const draft = await service.importFromText(
+      "Toyota Corolla XEi 2.0 2020 automático, 45.000 km, R$ 98.900. Único dono, revisões na concessionária.",
+      "https://mg.olx.com.br/autos-e-pecas/carros/corolla-123",
+      ["https://img.olx.com.br/images/a.jpg", "https://img.olx.com.br/images/b.jpg", "https://img.olx.com.br/images/a.jpg"],
+    );
+    assert.deepEqual(draft.photos, ["https://img.olx.com.br/images/a.jpg", "https://img.olx.com.br/images/b.jpg"]);
   });
 
   test("extensão do Chrome: página capturada no navegador vira rascunho com as fotos escolhidas", async () => {

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import type { ImportedListing } from "@novoseminovo/shared-types";
 import { stripContactInfo } from "../common/contact-filter";
 import { SafeFetchError, safeFetch, type SafeFetchOptions, type SafeFetchResult } from "../common/safe-fetch";
@@ -31,6 +31,7 @@ const str = (value: unknown, max = 120): string | undefined =>
 @Injectable()
 export class ListingImportService {
   // Trocável nos testes (o safeFetch recusa endereço local).
+  private readonly logger = new Logger(ListingImportService.name);
   fetcher: Fetcher = safeFetch;
 
   constructor(private readonly ai: AiService) {}
@@ -42,10 +43,11 @@ export class ListingImportService {
     try {
       page = await this.fetcher(url, PAGE_LIMITS);
     } catch (error) {
+      this.logger.warn(`Leitura do link falhou (${new URL(url).hostname}): ${error instanceof Error ? error.message : error}`);
       throw new BadRequestException(
         error instanceof SafeFetchError && /endereço|link/i.test(error.message)
           ? error.message
-          : "Esse site bloqueou a leitura automática do anúncio. Sem problema: copie o texto do anúncio e cole abaixo.",
+          : "Esse site não deixa a gente ler o link. Sem problema: copie a página do anúncio e cole abaixo.",
       );
     }
     if (page.contentType && !/html|xml/i.test(page.contentType)) {
@@ -61,10 +63,10 @@ export class ListingImportService {
     return this.fromPage(data, "Esse link não parece ser de um anúncio de carro ou imóvel. Abra o anúncio e copie o link da barra do navegador — ou cole o texto dele abaixo.");
   }
 
-  // Plano B para site que bloqueia a leitura (ex.: Webmotors): a pessoa abre
-  // o anúncio, copia o texto da página e cola. Sem fotos — ela envia no passo
-  // a passo.
-  async importFromText(text: string, sourceUrl?: string): Promise<ImportedListing> {
+  // Site que bloqueia a leitura (OLX, Webmotors): a pessoa abre o anúncio,
+  // copia a página e cola. As imagens que vieram junto no que foi copiado
+  // viram candidatas a foto; se não vier nenhuma, ela envia no passo a passo.
+  async importFromText(text: string, sourceUrl?: string, images: string[] = []): Promise<ImportedListing> {
     if (!this.ai.isEnabled()) throw new ServiceUnavailableException("A importação está indisponível no momento.");
     let host = "texto colado";
     try {
@@ -72,7 +74,13 @@ export class ListingImportService {
     } catch {
       // link inválido: fica "texto colado"
     }
-    const data = { url: sourceUrl ?? "", host, structured: "", text: text.trim().slice(0, 12_000), images: [] };
+    const data = {
+      url: sourceUrl ?? "",
+      host,
+      structured: "",
+      text: text.trim().slice(0, 12_000),
+      images: [...new Set(images.filter((image) => /^https?:\/\//.test(image)))].slice(0, 40),
+    };
     return this.fromPage(data, "Não encontramos um anúncio de carro ou imóvel nesse texto. Abra o anúncio, selecione a página inteira (Ctrl+A), copie e cole aqui.");
   }
 

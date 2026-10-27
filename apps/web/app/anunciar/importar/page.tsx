@@ -21,8 +21,8 @@ export default async function ImportListingPage() {
       </Link>
       <h1 className="mt-2 font-display text-2xl font-semibold text-ink">Importar anúncio de outro site</h1>
       <p className="mt-1 text-sm text-ink-muted">
-        Já anuncia na OLX, Webmotors, ZAP, VivaReal, iCarros, Mercado Livre ou em outro site? Cole o link: a gente lê o anúncio, organiza
-        tudo no padrão do NovoSeminovo e você só revisa antes de publicar.
+        Já anuncia na OLX, Webmotors, ZAP, VivaReal, iCarros, Mercado Livre ou em outro site? Cole o link — ou copie e cole o anúncio. A
+        gente organiza tudo no padrão do NovoSeminovo e você só revisa antes de publicar.
       </p>
       {aiEnabled ? (
         <ImportFromUrl allowed={allowedAssetTypes(partner?.type)} />

@@ -514,10 +514,11 @@ export async function importListingFromUrlAction(url: string): Promise<WizardRes
   return result.ok ? { ok: true, value: result.value } : result;
 }
 
-export async function importListingFromTextAction(text: string, sourceUrl?: string): Promise<WizardResult<ImportedListing>> {
+export async function importListingFromTextAction(text: string, sourceUrl?: string, images: string[] = []): Promise<WizardResult<ImportedListing>> {
   const session = await auth();
   if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
-  const result = await importListingFromText(text, /^https?:\/\//i.test(sourceUrl ?? "") ? sourceUrl : undefined, session.accessToken);
+  const validImages = images.filter((image) => /^https?:\/\//i.test(image)).slice(0, 80);
+  const result = await importListingFromText(text, /^https?:\/\//i.test(sourceUrl ?? "") ? sourceUrl : undefined, validImages, session.accessToken);
   return result.ok ? { ok: true, value: result.value } : result;
 }
 

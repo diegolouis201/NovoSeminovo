@@ -23,7 +23,7 @@ export class ListingImportController {
   @Post("text")
   importFromText(@Body() body: unknown) {
     const input = parseOrBadRequest(ImportFromTextInputSchema, body);
-    return this.service.importFromText(input.text, input.sourceUrl);
+    return this.service.importFromText(input.text, input.sourceUrl, input.images);
   }
 
   // Extensão do Chrome (ver apps/chrome-extension).

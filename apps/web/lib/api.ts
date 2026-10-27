@@ -632,14 +632,14 @@ export async function importListingFromUrl(url: string, accessToken: string): Pr
   }
 }
 
-export async function importListingFromText(text: string, sourceUrl: string | undefined, accessToken: string): Promise<ApiResult<ImportedListing>> {
+export async function importListingFromText(text: string, sourceUrl: string | undefined, images: string[], accessToken: string): Promise<ApiResult<ImportedListing>> {
   try {
     const res = await fetchWithTimeout(
       `${API_URL}/listing-import/text`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
-        body: JSON.stringify({ text, sourceUrl: sourceUrl || undefined, confirmOwner: true }),
+        body: JSON.stringify({ text, sourceUrl: sourceUrl || undefined, images: images.length ? images : undefined, confirmOwner: true }),
       },
       90_000,
     );

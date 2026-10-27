@@ -650,6 +650,8 @@ export type ImportFromUrlInput = z.infer<typeof ImportFromUrlInputSchema>;
 export const ImportFromTextInputSchema = z.object({
   text: z.string().trim().min(80, "Cole o texto do anúncio inteiro (selecione a página e copie)").max(30_000),
   sourceUrl: z.string().trim().url().max(2000).optional(),
+  // Endereços das imagens que vieram junto no que a pessoa copiou da página.
+  images: z.array(z.string().url().max(2000)).max(80).optional(),
   confirmOwner: z.literal(true, { errorMap: () => ({ message: "Confirme que o anúncio é seu" }) }),
 });
 export type ImportFromTextInput = z.infer<typeof ImportFromTextInputSchema>;
