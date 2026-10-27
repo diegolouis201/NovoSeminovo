@@ -17,7 +17,9 @@ describe("Cashback de quem contratou o financiamento (banco local)", { skip: !wi
   const ids = { admin: "", buyer: "", lead: "", leadNoAccount: "" };
 
   before(async () => {
-    ids.admin = (await prisma.user.create({ data: { name: "Admin", email: `admin-${tag}@teste.local`, role: "admin" } })).id;
+    // Papel "buyer" de propósito: outros testes avisam todos os admins e a
+    // notificação nova travaria a limpeza deste usuário.
+    ids.admin = (await prisma.user.create({ data: { name: "Admin", email: `admin-${tag}@teste.local`, role: "buyer" } })).id;
     ids.buyer = (await prisma.user.create({ data: { name: "Bruna", email: `bruna-${tag}@teste.local`, role: "buyer", cpf: tag.replace(/\D/g, "").slice(-11).padStart(11, "1") } })).id;
     ids.lead = (
       await prisma.financingLead.create({
