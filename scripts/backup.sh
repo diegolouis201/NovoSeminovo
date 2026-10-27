@@ -4,8 +4,8 @@
 #     restaurada num banco temporário para provar que funciona.
 #   - Fotos dos anúncios (pasta uploads da API): aos domingos (ou com
 #     BACKUP_FOTOS=1), guarda as 4 últimas.
-#   - Se existir um destino do rclone chamado "backup", copia tudo para lá
-#     (cópia fora da VPS).
+#   - Se existir um destino do rclone chamado "backup" (Google Drive, ver
+#     DEPLOY.md), copia tudo para lá e guarda 60 dias (cópia fora da VPS).
 # Uso manual: sh scripts/backup.sh   (termina com BACKUP-OK)
 set -eu
 
@@ -62,7 +62,9 @@ fi
 
 # 3) Cópia fora da VPS, se configurada (rclone config → destino "backup").
 if command -v rclone >/dev/null 2>&1 && rclone listremotes 2>/dev/null | grep -qx 'backup:'; then
-  rclone copy "$DESTINO" backup:novoseminovo-backups --exclude '*.parcial' || falha "cópia para fora da VPS falhou"
+  rclone copy "$DESTINO" backup:novoseminovo-backups --exclude '*.parcial' --exclude 'backup.log' || falha "cópia para fora da VPS falhou"
+  # Lá fora guarda mais tempo que na VPS: apaga só o que passou de 60 dias.
+  rclone delete backup:novoseminovo-backups --min-age 60d || true
   echo "$(date '+%d/%m %H:%M') cópia fora da VPS ok"
 fi
 
