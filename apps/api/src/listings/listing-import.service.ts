@@ -101,7 +101,7 @@ export class ListingImportService {
       url: sourceUrl ?? "",
       host,
       structured: "",
-      text: text.trim().slice(0, 12_000),
+      text: text.trim().slice(0, 20_000),
       images: [...new Set(images.filter((image) => /^https?:\/\//.test(image)))].slice(0, 40),
     };
     return this.fromPage(data, "Não encontramos um anúncio de carro ou imóvel nesse texto. Abra o anúncio, selecione a página inteira (Ctrl+A), copie e cole aqui.");

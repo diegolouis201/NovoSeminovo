@@ -650,7 +650,7 @@ export type ImportFromUrlInput = z.infer<typeof ImportFromUrlInputSchema>;
 
 // Plano B quando o site bloqueia a leitura: o texto da página, colado.
 export const ImportFromTextInputSchema = z.object({
-  text: z.string().trim().min(80, "Cole o texto do anúncio inteiro (selecione a página e copie)").max(30_000),
+  text: z.string().trim().min(80, "Cole o texto do anúncio inteiro (selecione a página e copie)").max(150_000, "Texto grande demais — copie só a página do anúncio"),
   sourceUrl: z.string().trim().url().max(2000).optional(),
   // Endereços das imagens que vieram junto no que a pessoa copiou da página.
   images: z.array(z.string().url().max(2000)).max(80).optional(),
