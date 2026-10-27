@@ -237,17 +237,27 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
           </p>
         )}
         {showPaste && (
+          <div className="flex flex-col gap-2 rounded-brand border border-brand-blue bg-brand-blue/10 p-3">
+            <p className="flex items-start gap-2 text-sm text-ink">
+              <PuzzlePiece size={20} weight="duotone" className="mt-px shrink-0 text-brand-blue" />
+              <span>
+                <strong>Melhor caminho: a extensão do NovoSeminovo para o Chrome.</strong> Você abre o anúncio, clica no ícone e o texto e as
+                fotos vêm em um clique — funciona na Webmotors e em qualquer site.
+              </span>
+            </p>
+            <Link
+              href="/extensao"
+              className="rounded-brand bg-brand-blue px-4 py-2.5 text-center text-sm font-bold text-on-blue hover:opacity-90"
+            >
+              Instalar a extensão
+            </Link>
+          </div>
+        )}
+        {showPaste && (
           <div className="flex flex-col gap-2 rounded-brand bg-surface-sober p-3">
             <p className="text-xs text-ink">
-              <strong>Plano B:</strong> abra o anúncio no navegador, selecione a página inteira (Ctrl+A ou &quot;Selecionar tudo&quot;), copie
-              e cole aqui. As fotos você envia no passo a passo.
-            </p>
-            <p className="text-xs text-ink">
-              <strong>Melhor ainda:</strong> com a{" "}
-              <Link href="/extensao" className="font-semibold text-brand-blue hover:underline">
-                extensão do NovoSeminovo para o Chrome
-              </Link>{" "}
-              você traz o texto e as fotos em um clique, de qualquer site.
+              <strong>Ou, sem instalar nada:</strong> abra o anúncio no navegador, selecione a página inteira (Ctrl+A ou &quot;Selecionar
+              tudo&quot;), copie e cole aqui. As fotos você envia no passo a passo.
             </p>
             <textarea
               value={pasted}

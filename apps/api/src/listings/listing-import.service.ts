@@ -45,7 +45,7 @@ export class ListingImportService {
       throw new BadRequestException(
         error instanceof SafeFetchError && /endereço|link/i.test(error.message)
           ? error.message
-          : "Esse site bloqueou a leitura automática do anúncio. Sem problema: copie o texto do anúncio e cole abaixo.",
+          : "Esse site bloqueou a leitura automática do anúncio. Use a extensão do Chrome (abaixo) para trazer texto e fotos, ou copie e cole o texto.",
       );
     }
     if (page.contentType && !/html|xml/i.test(page.contentType)) {
