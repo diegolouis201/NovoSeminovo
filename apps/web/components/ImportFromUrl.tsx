@@ -6,7 +6,7 @@ import { CheckCircle, LinkSimple, PuzzlePiece, WarningCircle } from "@phosphor-i
 import { VEHICLE_BODY_TYPE_OPTIONS, formatBRL, type ImportedListing } from "@novoseminovo/shared-types";
 import { importListingFromPageAction, importListingFromTextAction, importListingFromUrlAction } from "@/lib/actions/listings";
 import { dataUrlToBlob, saveImportedPhotoBlobs } from "@/lib/import-photos";
-import { IMPORT_PHOTOS_KEY } from "@/components/wizard/WizardParts";
+import { IMPORT_ORIGIN_KEY, IMPORT_PHOTOS_KEY } from "@/components/wizard/WizardParts";
 
 const BODY_TYPES = new Set<string>(VEHICLE_BODY_TYPE_OPTIONS.map((option) => option.value));
 const FUEL_LABEL: Record<string, string> = { flex: "Flex", gasoline: "Gasolina", ethanol: "Etanol", diesel: "Diesel", electric: "Elétrico", hybrid: "Híbrido" };
@@ -91,6 +91,8 @@ function saveWizardDraft(listing: ImportedListing) {
     localStorage.setItem("ns-anunciar-imovel", JSON.stringify({ draft, step: 1 }));
   }
   sessionStorage.setItem(IMPORT_PHOTOS_KEY, JSON.stringify({ assetType: listing.assetType, urls: listing.photos }));
+  if (listing.sourceUrl) localStorage.setItem(IMPORT_ORIGIN_KEY, JSON.stringify({ assetType: listing.assetType, url: listing.sourceUrl }));
+  else localStorage.removeItem(IMPORT_ORIGIN_KEY);
 }
 
 export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "property")[] }) {
@@ -151,8 +153,11 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
     start(async () => {
       const response = await importListingFromUrlAction(url);
       if (!response.ok) {
-        setShowPaste(true);
-        pasteRef.current?.focus();
+        // Só o site que não deixa ler chama o copiar e colar (não o anúncio repetido).
+        if (!/já trouxe|já foi trazido|muitas importações/i.test(response.error)) {
+          setShowPaste(true);
+          pasteRef.current?.focus();
+        }
         return setError(response.error);
       }
       accept(response.value);

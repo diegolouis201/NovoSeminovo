@@ -50,6 +50,7 @@ import {
   inputClass,
   preparePhotos,
   takeImportedPhotos,
+  importOrigin,
   publishLabel,
   type WizardPhoto,
 } from "@/components/wizard/WizardParts";
@@ -474,6 +475,7 @@ export function VehicleListingWizard({
     setError(undefined);
     const conditions = [...draft.conditions, ...(draft.acceptsTrade ? ["accepts_trade"] : [])];
     const input: Extract<CreateListingInput, { assetType: "vehicle" }> = {
+      importUrl: importOrigin("vehicle"),
       assetType: "vehicle",
       title: (draft.title || autoTitle).trim(),
       description: draft.description.trim(),

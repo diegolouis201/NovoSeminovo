@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post, Query, Res, UseGuards } from "@nestjs/comm
 import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
 import { ImportFromPageInputSchema, ImportFromTextInputSchema, ImportFromUrlInputSchema } from "@novoseminovo/shared-types";
+import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { ListingImportService } from "./listing-import.service";
@@ -15,22 +16,22 @@ export class ListingImportController {
   // Cada importação é uma leitura de página + uma chamada à IA.
   @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Post()
-  importFromUrl(@Body() body: unknown) {
-    return this.service.importFromUrl(parseOrBadRequest(ImportFromUrlInputSchema, body).url);
+  importFromUrl(@CurrentUser() user: { id: string }, @Body() body: unknown) {
+    return this.service.importFromUrl(user.id, parseOrBadRequest(ImportFromUrlInputSchema, body).url);
   }
 
   @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Post("text")
-  importFromText(@Body() body: unknown) {
+  importFromText(@CurrentUser() user: { id: string }, @Body() body: unknown) {
     const input = parseOrBadRequest(ImportFromTextInputSchema, body);
-    return this.service.importFromText(input.text, input.sourceUrl, input.images);
+    return this.service.importFromText(user.id, input.text, input.sourceUrl, input.images);
   }
 
   // Extensão do Chrome (ver apps/chrome-extension).
   @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Post("page")
-  importFromPage(@Body() body: unknown) {
-    return this.service.importFromCapturedPage(parseOrBadRequest(ImportFromPageInputSchema, body));
+  importFromPage(@CurrentUser() user: { id: string }, @Body() body: unknown) {
+    return this.service.importFromCapturedPage(user.id, parseOrBadRequest(ImportFromPageInputSchema, body));
   }
 
   @Throttle({ default: { limit: 60, ttl: 60_000 } })

@@ -50,6 +50,7 @@ import {
   inputClass,
   preparePhotos,
   takeImportedPhotos,
+  importOrigin,
   publishLabel,
   type WizardPhoto,
 } from "@/components/wizard/WizardParts";
@@ -387,6 +388,7 @@ export function PropertyListingWizard({
     setError(undefined);
     const streetAddress = [draft.street.trim(), draft.number.trim(), draft.complement.trim()].filter(Boolean).join(", ");
     const input: Extract<CreateListingInput, { assetType: "property" }> = {
+      importUrl: importOrigin("property"),
       assetType: "property",
       title: (draft.title || autoTitle).trim(),
       description: draft.description.trim(),

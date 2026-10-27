@@ -1,9 +1,11 @@
-import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, HttpException, HttpStatus, Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import type { ImportedListing } from "@novoseminovo/shared-types";
 import { stripContactInfo } from "../common/contact-filter";
 import { SafeFetchError, safeFetch, type SafeFetchOptions, type SafeFetchResult } from "../common/safe-fetch";
 import { toUf } from "../integrations/vehicle-catalog-parser";
+import { PrismaService } from "../prisma/prisma.service";
 import { AiService } from "./ai.service";
+import { assertNotImportedYet } from "./import-origin";
 import { extractPageData, type PageData } from "./listing-import";
 
 // Muitos portais devolvem página vazia ou bloqueio para robôs: a leitura se
@@ -11,6 +13,7 @@ import { extractPageData, type PageData } from "./listing-import";
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
 const PAGE_LIMITS: SafeFetchOptions = { maxBytes: 4_000_000, timeoutMs: 15_000, maxRedirects: 5, accept: "text/html,application/xhtml+xml", userAgent: BROWSER_UA };
+const MAX_IMPORTS_PER_HOUR = 30;
 const PHOTO_LIMITS: SafeFetchOptions = { maxBytes: 12_000_000, timeoutMs: 20_000, maxRedirects: 5, accept: "image/*", userAgent: BROWSER_UA };
 const MAX_PHOTOS = 20;
 
@@ -34,10 +37,29 @@ export class ListingImportService {
   private readonly logger = new Logger(ListingImportService.name);
   fetcher: Fetcher = safeFetch;
 
-  constructor(private readonly ai: AiService) {}
+  // Importações por pessoa na última hora (além do limite por conexão do
+  // controller): cada uma custa uma leitura de página e uma chamada à IA.
+  private readonly recentByUser = new Map<string, number[]>();
 
-  async importFromUrl(url: string): Promise<ImportedListing> {
+  constructor(
+    private readonly ai: AiService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  private async beforeImport(userId: string, sourceUrl: string | undefined) {
+    const now = Date.now();
+    const recent = (this.recentByUser.get(userId) ?? []).filter((at) => now - at < 60 * 60_000);
+    if (recent.length >= MAX_IMPORTS_PER_HOUR) {
+      throw new HttpException("Você fez muitas importações na última hora. Tente de novo mais tarde.", HttpStatus.TOO_MANY_REQUESTS);
+    }
+    recent.push(now);
+    this.recentByUser.set(userId, recent);
+    await assertNotImportedYet(this.prisma, userId, sourceUrl);
+  }
+
+  async importFromUrl(userId: string, url: string): Promise<ImportedListing> {
     if (!this.ai.isEnabled()) throw new ServiceUnavailableException("A importação pelo link está indisponível no momento.");
+    await this.beforeImport(userId, url);
 
     let page: SafeFetchResult;
     try {
@@ -66,8 +88,9 @@ export class ListingImportService {
   // Site que bloqueia a leitura (OLX, Webmotors): a pessoa abre o anúncio,
   // copia a página e cola. As imagens que vieram junto no que foi copiado
   // viram candidatas a foto; se não vier nenhuma, ela envia no passo a passo.
-  async importFromText(text: string, sourceUrl?: string, images: string[] = []): Promise<ImportedListing> {
+  async importFromText(userId: string, text: string, sourceUrl?: string, images: string[] = []): Promise<ImportedListing> {
     if (!this.ai.isEnabled()) throw new ServiceUnavailableException("A importação está indisponível no momento.");
+    await this.beforeImport(userId, sourceUrl);
     let host = "texto colado";
     try {
       if (sourceUrl) host = new URL(sourceUrl).hostname.replace(/^www\./, "");
@@ -85,8 +108,9 @@ export class ListingImportService {
   }
 
   // Extensão do Chrome: a página capturada no navegador da pessoa.
-  async importFromCapturedPage(page: { url: string; title?: string; description?: string; structured?: string; text: string; images?: string[] }) {
+  async importFromCapturedPage(userId: string, page: { url: string; title?: string; description?: string; structured?: string; text: string; images?: string[] }) {
     if (!this.ai.isEnabled()) throw new ServiceUnavailableException("A importação está indisponível no momento.");
+    await this.beforeImport(userId, page.url);
     const host = new URL(page.url).hostname.replace(/^www\./, "");
     const data: PageData = {
       url: page.url,
@@ -120,6 +144,7 @@ export class ListingImportService {
     const listing: ImportedListing = {
       assetType,
       sourceHost: data.host,
+      sourceUrl: data.url || undefined,
       title,
       description,
       price: num(raw.price, 1, 1_000_000_000),

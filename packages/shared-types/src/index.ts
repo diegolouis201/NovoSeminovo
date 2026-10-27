@@ -315,6 +315,8 @@ const listingCoreFields = {
   city: z.string().min(2, "Informe a cidade"),
   state: z.string().length(2, "Use a sigla do estado (ex.: MG)"),
   neighborhood: z.string().optional(),
+  // Link do anúncio original, quando veio de "Importar anúncio".
+  importUrl: z.string().trim().url().max(2000).optional(),
 };
 
 // Opcionais e condições do carro (estilo Webmotors) — lista fechada com
@@ -670,9 +672,42 @@ export const ImportFromPageInputSchema = z.object({
 });
 export type ImportFromPageInput = z.infer<typeof ImportFromPageInputSchema>;
 
+// Origem de um anúncio importado: o portal e o código do anúncio lá (o mesmo
+// anúncio pode ter links diferentes — subdomínio da região na OLX, ?parâmetros).
+// Sem código reconhecível, vale o caminho do link.
+export function importSourceKey(raw: string): { source: string; id: string } | undefined {
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    return undefined;
+  }
+  if (!/^https?:$/.test(url.protocol)) return undefined;
+  let host = url.hostname.toLowerCase().replace(/^www\./, "");
+  const path = decodeURIComponent(url.pathname).replace(/\/+$/, "");
+  const PORTALS: Array<[RegExp, string, RegExp]> = [
+    [/(^|\.)olx\.com\.br$/, "olx.com.br", /-(\d{7,})$/],
+    [/(^|\.)webmotors\.com\.br$/, "webmotors.com.br", /\/(\d{6,})$/],
+    [/(^|\.)mercadolivre\.com\.br$/, "mercadolivre.com.br", /MLB-?(\d{6,})/i],
+    [/(^|\.)zapimoveis\.com\.br$/, "zapimoveis.com.br", /id-(\d{5,})/],
+    [/(^|\.)vivareal\.com\.br$/, "vivareal.com.br", /id-(\d{5,})/],
+    [/(^|\.)icarros\.com\.br$/, "icarros.com.br", /\/d(\d{6,})/],
+  ];
+  for (const [hostPattern, name, idPattern] of PORTALS) {
+    if (!hostPattern.test(host)) continue;
+    host = name;
+    const match = path.match(idPattern);
+    if (match?.[1]) return { source: host, id: match[1] };
+  }
+  if (!path) return undefined;
+  return { source: host, id: path.toLowerCase().slice(0, 300) };
+}
+
 export const ImportedListingSchema = z.object({
   assetType: z.enum(["vehicle", "property"]),
   sourceHost: z.string(),
+  // Link do anúncio original (vai para o passo a passo e fica no anúncio).
+  sourceUrl: z.string().optional(),
   title: z.string(),
   description: z.string(),
   price: z.number().optional(),

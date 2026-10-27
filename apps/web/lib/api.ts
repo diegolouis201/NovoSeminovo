@@ -624,7 +624,10 @@ export async function importListingFromUrl(url: string, accessToken: string): Pr
       90_000,
     );
     const data = (await res.json().catch(() => ({}))) as { message?: string | string[] };
-    if (res.status === 429) return { ok: false, error: "Muitas importações seguidas. Espere um minuto e tente de novo." };
+    if (res.status === 429) {
+      const ours = typeof data.message === "string" && /importações/.test(data.message) ? data.message : undefined;
+      return { ok: false, error: ours ?? "Muitas importações seguidas. Espere um minuto e tente de novo." };
+    }
     if (!res.ok) return { ok: false, error: (Array.isArray(data.message) ? data.message[0] : data.message) ?? "Não foi possível importar agora." };
     return { ok: true, value: data as ImportedListing };
   } catch {
@@ -644,7 +647,10 @@ export async function importListingFromText(text: string, sourceUrl: string | un
       90_000,
     );
     const data = (await res.json().catch(() => ({}))) as { message?: string | string[] };
-    if (res.status === 429) return { ok: false, error: "Muitas importações seguidas. Espere um minuto e tente de novo." };
+    if (res.status === 429) {
+      const ours = typeof data.message === "string" && /importações/.test(data.message) ? data.message : undefined;
+      return { ok: false, error: ours ?? "Muitas importações seguidas. Espere um minuto e tente de novo." };
+    }
     if (!res.ok) return { ok: false, error: (Array.isArray(data.message) ? data.message[0] : data.message) ?? "Não foi possível importar agora." };
     return { ok: true, value: data as ImportedListing };
   } catch {
@@ -661,7 +667,10 @@ export async function importListingFromPage(page: Omit<ImportFromPageInput, "con
       90_000,
     );
     const data = (await res.json().catch(() => ({}))) as { message?: string | string[] };
-    if (res.status === 429) return { ok: false, error: "Muitas importações seguidas. Espere um minuto e tente de novo." };
+    if (res.status === 429) {
+      const ours = typeof data.message === "string" && /importações/.test(data.message) ? data.message : undefined;
+      return { ok: false, error: ours ?? "Muitas importações seguidas. Espere um minuto e tente de novo." };
+    }
     if (!res.ok) return { ok: false, error: (Array.isArray(data.message) ? data.message[0] : data.message) ?? "Não foi possível importar agora." };
     return { ok: true, value: data as ImportedListing };
   } catch {

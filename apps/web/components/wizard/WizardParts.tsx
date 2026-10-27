@@ -43,6 +43,7 @@ export function formatCep(value: string): string {
 export function clearDraft(key: string) {
   try {
     localStorage.removeItem(key);
+    localStorage.removeItem(IMPORT_ORIGIN_KEY);
   } catch {
     // ignora
   }
@@ -383,6 +384,20 @@ export function Toggle({
 // links ficam no sessionStorage até o passo a passo abrir; aqui viram
 // arquivos e passam pela mesma compressão das fotos escolhidas à mão.
 export const IMPORT_PHOTOS_KEY = "ns-importar-fotos";
+
+// Link do anúncio original, junto do rascunho importado: vai na criação do
+// anúncio (a API não deixa o mesmo anúncio entrar duas vezes). Sai junto com
+// o rascunho (clearDraft).
+export const IMPORT_ORIGIN_KEY = "ns-importar-origem";
+
+export function importOrigin(assetType: "vehicle" | "property"): string | undefined {
+  try {
+    const saved = JSON.parse(localStorage.getItem(IMPORT_ORIGIN_KEY) ?? "null") as { assetType: string; url: string } | null;
+    return saved?.assetType === assetType && /^https?:\/\//.test(saved.url) ? saved.url : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function takeImportedPhotos(assetType: "vehicle" | "property"): Promise<File[]> {
   let urls: string[] = [];

@@ -30,6 +30,7 @@ import {
 } from "@novoseminovo/shared-types";
 import { leadOrigin } from "../common/acquisition";
 import { PrismaService } from "../prisma/prisma.service";
+import { assertNotImportedYet } from "./import-origin";
 import { NotificationsService } from "../notifications/notifications.service";
 import { VehiclesService } from "../vehicles/vehicles.service";
 import { FipeService } from "../vehicles/fipe.service";
@@ -909,6 +910,10 @@ export class ListingsService {
       }
     }
 
+    // Veio de "Importar anúncio": confere de novo (alguém pode ter publicado
+    // o mesmo anúncio enquanto esta pessoa revisava).
+    const importKey = await assertNotImportedYet(this.prisma, ownerUserId, input.importUrl);
+
     const { detailsData, linkedVehicleId } = await this.prepareDetails(ownerUserId, input);
 
     const listing = await this.prisma.listing.create({
@@ -929,6 +934,9 @@ export class ListingsService {
         videoUrl: input.videoUrl?.trim() || undefined,
         financingEnabled: input.financingEnabled ?? true,
         showPhone: input.showPhone ?? true,
+        importSource: importKey?.source,
+        importSourceId: importKey?.id,
+        importUrl: importKey ? input.importUrl : undefined,
         ...detailsData,
       },
       include: listingInclude,

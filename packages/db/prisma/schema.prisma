@@ -419,6 +419,13 @@ model Listing {
   externalSource   String?       @map("external_source")
   externalId       String?       @map("external_id")
   externalHash     String?       @map("external_hash")
+  // Anúncio trazido de outro site por "Importar anúncio" (ver
+  // listings/import-origin.ts): portal, código do anúncio lá e o link. Serve
+  // para não deixar o mesmo anúncio ser importado duas vezes. Separado de
+  // externalSource/externalId, que são da integração com CRM.
+  importSource     String?       @map("import_source")
+  importSourceId   String?       @map("import_source_id")
+  importUrl        String?       @map("import_url")
   syncPaused       Boolean       @default(false) @map("sync_paused")
   // Moderação automática (ver AutoModerationService): quando a IA olhou o
   // anúncio e, se deixou pra revisão humana, o porquê (aparece no /admin).
@@ -444,6 +451,7 @@ model Listing {
 
   @@unique([partnerId, externalId])
   @@index([type, status, city, price])
+  @@index([importSource, importSourceId])
   @@map("listings")
 }
 
