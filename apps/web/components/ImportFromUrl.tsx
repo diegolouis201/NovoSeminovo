@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { CheckCircle, LinkSimple, PuzzlePiece, WarningCircle } from "@phosphor-icons/react";
@@ -237,28 +236,14 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
           </p>
         )}
         {showPaste && (
-          <div className="flex flex-col gap-2 rounded-brand border border-brand-blue bg-brand-blue/10 p-3">
-            <p className="flex items-start gap-2 text-sm text-ink">
-              <PuzzlePiece size={20} weight="duotone" className="mt-px shrink-0 text-brand-blue" />
-              <span>
-                <strong>Melhor caminho: a extensão do NovoSeminovo para o Chrome.</strong> Você abre o anúncio, clica no ícone e o texto e as
-                fotos vêm em um clique — funciona na Webmotors e em qualquer site.
-              </span>
-            </p>
-            <Link
-              href="/extensao"
-              className="rounded-brand bg-brand-blue px-4 py-2.5 text-center text-sm font-bold text-on-blue hover:opacity-90"
-            >
-              Instalar a extensão
-            </Link>
-          </div>
-        )}
-        {showPaste && (
           <div className="flex flex-col gap-2 rounded-brand bg-surface-sober p-3">
-            <p className="text-xs text-ink">
-              <strong>Ou, sem instalar nada:</strong> abra o anúncio no navegador, selecione a página inteira (Ctrl+A ou &quot;Selecionar
-              tudo&quot;), copie e cole aqui. As fotos você envia no passo a passo.
-            </p>
+            <p className="text-sm font-semibold text-ink">É só copiar e colar:</p>
+            <ol className="list-decimal space-y-0.5 pl-5 text-xs text-ink">
+              <li>Abra o seu anúncio no outro site.</li>
+              <li>Aperte Ctrl+A (no celular: &quot;Selecionar tudo&quot;) e depois Ctrl+C (&quot;Copiar&quot;).</li>
+              <li>Volte aqui, clique na caixa abaixo e aperte Ctrl+V (&quot;Colar&quot;).</li>
+            </ol>
+            <p className="text-xs text-ink-muted">As fotos você envia no passo a passo.</p>
             <textarea
               value={pasted}
               onChange={(event) => setPasted(event.target.value)}
