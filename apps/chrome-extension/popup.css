@@ -1,0 +1,8 @@
+body { width: 300px; margin: 0; padding: 14px; font-family: "Nunito Sans", Arial, sans-serif; color: #1c2b36; background: #f7f8f3; }
+header { display: flex; align-items: center; gap: 8px; font-size: 16px; color: #006aa4; }
+p { font-size: 13px; line-height: 1.4; margin: 10px 0; }
+.muted { color: #5b6b76; }
+.small { font-size: 11px; }
+.error { color: #c0262d; }
+button { width: 100%; padding: 11px; border: 0; border-radius: 12px; background: #76b82a; color: #102006; font-weight: 700; font-size: 14px; cursor: pointer; }
+button:disabled { opacity: 0.6; cursor: default; }

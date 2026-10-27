@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "NovoSeminovo — Importar anúncio",
+  "short_name": "NovoSeminovo",
+  "version": "1.0.0",
+  "description": "Traga para o NovoSeminovo o anúncio que você já tem em outro site (OLX, Webmotors, ZAP, VivaReal, iCarros…), com texto e fotos, em um clique.",
+  "action": {
+    "default_title": "Importar este anúncio para o NovoSeminovo",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" }
+  },
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "permissions": ["activeTab", "scripting", "storage", "unlimitedStorage"],
+  "host_permissions": ["https://*/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://novoseminovo.com.br/anunciar/importar*", "https://www.novoseminovo.com.br/anunciar/importar*", "http://localhost:3000/anunciar/importar*"],
+      "js": ["entrega.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

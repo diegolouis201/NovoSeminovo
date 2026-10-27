@@ -143,4 +143,21 @@ describe("Importar anúncio pelo link (página e modelo falsos)", () => {
     assert.deepEqual(draft.photos, [], "sem imagens na lista, nenhuma foto escolhida");
     assert.ok(draft.missing.includes("fotos"));
   });
+
+  test("extensão do Chrome: página capturada no navegador vira rascunho com as fotos escolhidas", async () => {
+    const service = new ListingImportService(new AiService());
+    const draft = await service.importFromCapturedPage({
+      url: "https://www.webmotors.com.br/comprar/toyota/corolla/123",
+      title: "Toyota Corolla XEi 2020",
+      structured: "",
+      text: "Toyota Corolla XEi 2.0 2020 automático. 45.000 km. R$ 98.900. Único dono, revisões na concessionária. ".repeat(3),
+      images: ["https://image.webmotors.com.br/a.jpg", "https://image.webmotors.com.br/b.jpg", "https://image.webmotors.com.br/c.jpg"],
+    });
+    assert.equal(draft.sourceHost, "webmotors.com.br");
+    assert.deepEqual(draft.photos, [
+      "https://image.webmotors.com.br/a.jpg",
+      "https://image.webmotors.com.br/b.jpg",
+      "https://image.webmotors.com.br/c.jpg",
+    ]);
+  });
 });

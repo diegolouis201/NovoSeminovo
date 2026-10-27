@@ -257,6 +257,17 @@ export default async function PartnerIntegrationsPage({
               </Link>
             </p>
           </section>
+
+          <section className="mt-10">
+            <h3 className="font-display text-lg font-semibold text-ink">5. Extensão do Chrome</h3>
+            <p className="mt-1 text-sm text-ink-muted">
+              Alguns sites (como a Webmotors) não deixam a gente ler o link. Com a extensão, você abre o seu anúncio no Chrome, clica no
+              ícone do NovoSeminovo e o texto e as fotos vêm junto.{" "}
+              <Link href="/extensao" className="font-semibold text-brand-blue hover:underline">
+                Instalar a extensão →
+              </Link>
+            </p>
+          </section>
         </>
       )}
     </main>

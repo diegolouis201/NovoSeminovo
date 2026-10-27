@@ -20,6 +20,7 @@ import type {
   MarketingSummary,
   AdminListingsPage,
   AdminLeadsPage,
+  ImportFromPageInput,
   ImportedListing,
   AdminUserProfile,
   AdminDeleteInput,
@@ -640,6 +641,23 @@ export async function importListingFromText(text: string, sourceUrl: string | un
         headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
         body: JSON.stringify({ text, sourceUrl: sourceUrl || undefined, confirmOwner: true }),
       },
+      90_000,
+    );
+    const data = (await res.json().catch(() => ({}))) as { message?: string | string[] };
+    if (res.status === 429) return { ok: false, error: "Muitas importações seguidas. Espere um minuto e tente de novo." };
+    if (!res.ok) return { ok: false, error: (Array.isArray(data.message) ? data.message[0] : data.message) ?? "Não foi possível importar agora." };
+    return { ok: true, value: data as ImportedListing };
+  } catch {
+    return { ok: false, error: "A leitura do anúncio demorou demais. Tente de novo em instantes." };
+  }
+}
+
+// Extensão do Chrome: a página que a pessoa abriu no navegador dela.
+export async function importListingFromPage(page: Omit<ImportFromPageInput, "confirmOwner">, accessToken: string): Promise<ApiResult<ImportedListing>> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listing-import/page`,
+      { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders(accessToken) }, body: JSON.stringify({ ...page, confirmOwner: true }) },
       90_000,
     );
     const data = (await res.json().catch(() => ({}))) as { message?: string | string[] };

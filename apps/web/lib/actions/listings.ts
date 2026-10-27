@@ -7,6 +7,7 @@ import type {
   FipePrice,
   FipeVersion,
   CreateListingInput,
+  ImportFromPageInput,
   ImportedListing,
   ListingSummary,
   ListingStatus,
@@ -36,6 +37,7 @@ import {
   extractCrlvData,
   fetchPriceSuggestion,
   generateListingDraft,
+  importListingFromPage,
   importListingFromText,
   importListingFromUrl,
   recommendProperty,
@@ -516,5 +518,13 @@ export async function importListingFromTextAction(text: string, sourceUrl?: stri
   const session = await auth();
   if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
   const result = await importListingFromText(text, /^https?:\/\//i.test(sourceUrl ?? "") ? sourceUrl : undefined, session.accessToken);
+  return result.ok ? { ok: true, value: result.value } : result;
+}
+
+// Extensão do Chrome (/anunciar/importar recebe a página capturada).
+export async function importListingFromPageAction(page: Omit<ImportFromPageInput, "confirmOwner">): Promise<WizardResult<ImportedListing>> {
+  const session = await auth();
+  if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
+  const result = await importListingFromPage(page, session.accessToken);
   return result.ok ? { ok: true, value: result.value } : result;
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Camera, CaretLeft, CaretRight, Check, Star, Trash } from "@phosphor-icons/react";
 import { LISTING_TIERS, formatBRL, listingTier, type ListingTierId } from "@novoseminovo/shared-types";
+import { takeImportedPhotoBlobs } from "@/lib/import-photos";
 
 // Peças comuns dos cadastros em passo a passo (carro e imóvel): campos,
 // fotos, planos do particular e o aceite dos termos.
@@ -388,10 +389,16 @@ export async function takeImportedPhotos(assetType: "vehicle" | "property"): Pro
   try {
     const saved = sessionStorage.getItem(IMPORT_PHOTOS_KEY);
     if (!saved) return [];
-    const parsed = JSON.parse(saved) as { assetType: string; urls: string[] };
+    const parsed = JSON.parse(saved) as { assetType: string; urls?: string[]; source?: "idb" };
     sessionStorage.removeItem(IMPORT_PHOTOS_KEY);
+    if (parsed.source === "idb") {
+      // Extensão do Chrome: as fotos já vieram baixadas.
+      const blobs = await takeImportedPhotoBlobs();
+      if (parsed.assetType !== assetType) return [];
+      return blobs.slice(0, MAX_PHOTOS).map((blob, index) => new File([blob], `importada-${index + 1}.jpg`, { type: blob.type || "image/jpeg" }));
+    }
     if (parsed.assetType !== assetType) return [];
-    urls = parsed.urls.slice(0, MAX_PHOTOS);
+    urls = (parsed.urls ?? []).slice(0, MAX_PHOTOS);
   } catch {
     return [];
   }

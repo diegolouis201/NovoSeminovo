@@ -76,6 +76,25 @@ export class ListingImportService {
     return this.fromPage(data, "Não encontramos um anúncio de carro ou imóvel nesse texto. Abra o anúncio, selecione a página inteira (Ctrl+A), copie e cole aqui.");
   }
 
+  // Extensão do Chrome: a página capturada no navegador da pessoa.
+  async importFromCapturedPage(page: { url: string; title?: string; description?: string; structured?: string; text: string; images?: string[] }) {
+    if (!this.ai.isEnabled()) throw new ServiceUnavailableException("A importação está indisponível no momento.");
+    const host = new URL(page.url).hostname.replace(/^www\./, "");
+    const data: PageData = {
+      url: page.url,
+      host,
+      title: page.title,
+      description: page.description,
+      structured: (page.structured ?? "").slice(0, 8_000),
+      text: page.text.slice(0, 12_000),
+      images: [...new Set((page.images ?? []).filter((image) => /^https?:\/\//.test(image)))].slice(0, 40),
+    };
+    if (data.text.length < 100 && !data.structured) {
+      throw new BadRequestException("A página aberta não tem o conteúdo de um anúncio. Abra o anúncio e clique na extensão de novo.");
+    }
+    return this.fromPage(data, "A página aberta não parece ser um anúncio de carro ou imóvel. Abra o anúncio e clique na extensão de novo.");
+  }
+
   private async fromPage(data: PageData, notListingMessage: string): Promise<ImportedListing> {
     const raw = await this.ai.extractListingFromPage(data);
     const assetType = raw.assetType === "vehicle" || raw.assetType === "property" ? raw.assetType : undefined;

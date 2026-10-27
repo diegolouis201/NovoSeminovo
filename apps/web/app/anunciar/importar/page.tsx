@@ -24,6 +24,13 @@ export default async function ImportListingPage() {
         Já anuncia na OLX, Webmotors, ZAP, VivaReal, iCarros, Mercado Livre ou em outro site? Cole o link: a gente lê o anúncio, organiza
         tudo no padrão do NovoSeminovo e você só revisa antes de publicar.
       </p>
+      <p className="mt-2 text-xs text-ink-muted">
+        Site não deixou ler (Webmotors, por exemplo)? Use a{" "}
+        <Link href="/extensao" className="font-semibold text-brand-blue hover:underline">
+          extensão do NovoSeminovo para o Chrome
+        </Link>
+        : texto e fotos em um clique.
+      </p>
       {aiEnabled ? (
         <ImportFromUrl allowed={allowedAssetTypes(partner?.type)} />
       ) : (

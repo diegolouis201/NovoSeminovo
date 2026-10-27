@@ -654,6 +654,20 @@ export const ImportFromTextInputSchema = z.object({
 });
 export type ImportFromTextInput = z.infer<typeof ImportFromTextInputSchema>;
 
+// Extensão do Chrome: a página já aberta no navegador da pessoa (o site de
+// origem não bloqueia, porque é ela navegando). Mesmo formato que o servidor
+// monta quando lê o link (ver listing-import.ts na API).
+export const ImportFromPageInputSchema = z.object({
+  url: z.string().trim().url().max(2000),
+  title: z.string().max(500).optional(),
+  description: z.string().max(5000).optional(),
+  structured: z.string().max(40_000).optional(),
+  text: z.string().max(60_000),
+  images: z.array(z.string().url().max(2000)).max(80).optional(),
+  confirmOwner: z.literal(true, { errorMap: () => ({ message: "Confirme que o anúncio é seu" }) }),
+});
+export type ImportFromPageInput = z.infer<typeof ImportFromPageInputSchema>;
+
 export const ImportedListingSchema = z.object({
   assetType: z.enum(["vehicle", "property"]),
   sourceHost: z.string(),

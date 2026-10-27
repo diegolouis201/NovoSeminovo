@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { CheckCircle, LinkSimple, WarningCircle } from "@phosphor-icons/react";
+import { useEffect, useState, useTransition } from "react";
+import { CheckCircle, LinkSimple, PuzzlePiece, WarningCircle } from "@phosphor-icons/react";
 import { VEHICLE_BODY_TYPE_OPTIONS, formatBRL, type ImportedListing } from "@novoseminovo/shared-types";
-import { importListingFromTextAction, importListingFromUrlAction } from "@/lib/actions/listings";
+import { importListingFromPageAction, importListingFromTextAction, importListingFromUrlAction } from "@/lib/actions/listings";
+import { dataUrlToBlob, saveImportedPhotoBlobs } from "@/lib/import-photos";
 import { IMPORT_PHOTOS_KEY } from "@/components/wizard/WizardParts";
 
 const BODY_TYPES = new Set<string>(VEHICLE_BODY_TYPE_OPTIONS.map((option) => option.value));
@@ -12,6 +14,13 @@ const FUEL_LABEL: Record<string, string> = { flex: "Flex", gasoline: "Gasolina",
 const PROPERTY_TYPE_LABEL: Record<string, string> = {
   house: "Casa", apartment: "Apartamento", land: "Terreno", commercial: "Comercial", penthouse: "Cobertura", farm: "Sítio/Fazenda",
   warehouse: "Galpão", condo_house: "Casa em condomínio", studio: "Studio", store: "Loja", garage: "Garagem",
+};
+
+// O que a extensão do Chrome capturou na aba do anúncio (ver
+// apps/chrome-extension): a página e as fotos já baixadas, por endereço.
+type CapturedPage = {
+  page: { url: string; title?: string; description?: string; structured?: string; text: string; images?: string[] };
+  photos: Record<string, string>;
 };
 
 const text = (value: number | undefined) => (value === undefined ? "" : String(Math.round(value)));
@@ -71,6 +80,43 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
   const [showPaste, setShowPaste] = useState(false);
   const [pasted, setPasted] = useState("");
   const [pending, start] = useTransition();
+  const [captured, setCaptured] = useState<CapturedPage | undefined>();
+
+  // Conversa com a extensão (entrega.js): quem chegar primeiro avisa o outro.
+  useEffect(() => {
+    const origin = window.location.origin;
+    const ready = () => window.postMessage({ source: "ns-site", type: "pronto" }, origin);
+    function onMessage(event: MessageEvent) {
+      if (event.source !== window || event.data?.source !== "ns-extensao") return;
+      if (event.data.type === "oi") ready();
+      if (event.data.type === "anuncio" && event.data.payload?.page) {
+        const payload = event.data.payload as CapturedPage;
+        setCaptured({ page: payload.page, photos: payload.photos ?? {} });
+        setUrl(payload.page.url);
+        setResult(undefined);
+        setError(undefined);
+      }
+    }
+    window.addEventListener("message", onMessage);
+    ready();
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
+  function readCaptured() {
+    if (!captured) return;
+    if (!owner) return setError("Confirme que o anúncio é seu.");
+    setError(undefined);
+    setResult(undefined);
+    const downloaded = Object.keys(captured.photos);
+    start(async () => {
+      const response = await importListingFromPageAction({ ...captured.page, images: downloaded.length ? downloaded : captured.page.images });
+      if (!response.ok) return setError(response.error);
+      // A IA escolhe as fotos do anúncio; se não escolher nenhuma, ficam todas as baixadas.
+      const chosen = response.value.photos.filter((photo) => captured.photos[photo]);
+      const photos = chosen.length ? chosen : downloaded;
+      accept({ ...response.value, photos, missing: photos.length ? response.value.missing.filter((item) => item !== "fotos") : response.value.missing });
+    });
+  }
 
   function read() {
     if (!/^https?:\/\//i.test(url.trim())) return setError("Cole o link completo do anúncio (começando com https://).");
@@ -111,14 +157,28 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
     setResult(value);
   }
 
-  function continueToWizard() {
+  async function continueToWizard() {
     if (!result) return;
     try {
       saveWizardDraft(result);
+      if (captured) {
+        const dataUrls = result.photos.map((photo) => captured.photos[photo]).filter((dataUrl): dataUrl is string => Boolean(dataUrl));
+        const blobs = await Promise.all(dataUrls.map(dataUrlToBlob));
+        await saveImportedPhotoBlobs(blobs);
+        sessionStorage.setItem(IMPORT_PHOTOS_KEY, JSON.stringify({ assetType: result.assetType, source: "idb" }));
+      }
     } catch {
       return setError("Seu navegador bloqueou o rascunho (aba anônima?). Tente numa aba comum.");
     }
     router.push(`/anunciar?tipo=${result.assetType}`);
+  }
+
+  const photoSrc = (photo: string) => captured?.photos[photo] ?? `/api/importar-foto?url=${encodeURIComponent(photo)}`;
+  let capturedHost = "";
+  try {
+    capturedHost = captured ? new URL(captured.page.url).hostname.replace(/^www\./, "") : "";
+  } catch {
+    // endereço inválido
   }
 
   const v = result?.vehicle;
@@ -144,6 +204,15 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
   return (
     <div className="mt-6 flex flex-col gap-4">
       <div className="flex flex-col gap-3 rounded-brand border border-border bg-surface-raised p-4 shadow-card">
+        {captured ? (
+          <div className="flex items-start gap-2 rounded-brand bg-brand-blue/10 px-3 py-2.5 text-sm text-ink">
+            <PuzzlePiece size={20} weight="duotone" className="mt-px shrink-0 text-brand-blue" />
+            <span>
+              <strong>Recebemos o anúncio de {capturedHost}</strong> pela extensão, com {Object.keys(captured.photos).length} foto(s).
+              <span className="block truncate text-xs text-ink-muted">{captured.page.title || captured.page.url}</span>
+            </span>
+          </div>
+        ) : (
         <label className="flex flex-col gap-1 text-sm font-semibold text-ink">
           Link do anúncio
           <span className="flex items-center gap-2 rounded-brand border border-border bg-surface-page px-3">
@@ -157,6 +226,7 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
             />
           </span>
         </label>
+        )}
         <label className="flex items-start gap-2 text-xs text-ink">
           <input type="checkbox" checked={owner} onChange={(event) => setOwner(event.target.checked)} className="mt-0.5" />
           <span>O anúncio é meu e tenho direito de usar as fotos e o texto dele no NovoSeminovo.</span>
@@ -171,6 +241,13 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
             <p className="text-xs text-ink">
               <strong>Plano B:</strong> abra o anúncio no navegador, selecione a página inteira (Ctrl+A ou &quot;Selecionar tudo&quot;), copie
               e cole aqui. As fotos você envia no passo a passo.
+            </p>
+            <p className="text-xs text-ink">
+              <strong>Melhor ainda:</strong> com a{" "}
+              <Link href="/extensao" className="font-semibold text-brand-blue hover:underline">
+                extensão do NovoSeminovo para o Chrome
+              </Link>{" "}
+              você traz o texto e as fotos em um clique, de qualquer site.
             </p>
             <textarea
               value={pasted}
@@ -191,12 +268,17 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
         )}
         <button
           type="button"
-          onClick={read}
+          onClick={captured ? readCaptured : read}
           disabled={pending}
           className="rounded-brand bg-brand-blue px-4 py-3 text-sm font-bold text-on-blue disabled:opacity-60"
         >
           {pending ? "Lendo o anúncio… leva alguns segundos" : "Importar anúncio"}
         </button>
+        {captured && (
+          <button type="button" onClick={() => setCaptured(undefined)} className="text-xs font-semibold text-brand-blue hover:underline">
+            Prefiro colar outro link
+          </button>
+        )}
       </div>
 
       {result && (
@@ -218,7 +300,7 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={photo}
-                  src={`/api/importar-foto?url=${encodeURIComponent(photo)}`}
+                  src={photoSrc(photo)}
                   alt=""
                   className="h-16 w-24 shrink-0 rounded-brand object-cover"
                 />
@@ -237,7 +319,7 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
           </p>
           <button
             type="button"
-            onClick={continueToWizard}
+            onClick={() => void continueToWizard()}
             className="rounded-brand bg-brand-green px-4 py-3 text-sm font-bold text-on-green hover:opacity-90"
           >
             Revisar e publicar
