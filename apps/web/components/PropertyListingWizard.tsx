@@ -51,6 +51,7 @@ import {
   preparePhotos,
   takeImportedPhotos,
   importOrigin,
+  ImportShortcut,
   publishLabel,
   type WizardPhoto,
 } from "@/components/wizard/WizardParts";
@@ -503,6 +504,7 @@ export function PropertyListingWizard({
             {restored && <span className="mt-2 block font-semibold text-ink">Achamos um rascunho seu — é só continuar.</span>}
           </Intro>
         )}
+        {current === "intro1" && <ImportShortcut />}
 
         {current === "intent" && (
           <Step title="O que você quer fazer?" hint="Pelo CEP a gente preenche o endereço.">

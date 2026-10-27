@@ -51,6 +51,7 @@ import {
   preparePhotos,
   takeImportedPhotos,
   importOrigin,
+  ImportShortcut,
   publishLabel,
   type WizardPhoto,
 } from "@/components/wizard/WizardParts";
@@ -593,6 +594,7 @@ export function VehicleListingWizard({
             {restored && <span className="mt-2 block font-semibold text-ink">Achamos um rascunho seu — é só continuar.</span>}
           </Intro>
         )}
+        {current === "intro1" && <ImportShortcut />}
 
         {current === "plate" && (
           <Step title="Qual é a placa?" hint="Ela não aparece no anúncio. Serve para ligar o carro ao Passaporte Digital (histórico do veículo) — é opcional.">

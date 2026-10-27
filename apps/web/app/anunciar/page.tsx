@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Car, FileText, House, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { Car, DownloadSimple, FileText, House, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField, SelectField, TextAreaField } from "@/components/FormField";
@@ -90,10 +90,13 @@ export default async function CreateListingPage({
             <span />
           )}
           <span className="flex items-center gap-3">
-            <Link href="/anunciar/importar" className="text-xs font-semibold text-brand-blue hover:underline">
-              Importar de outro site
+            <Link
+              href="/anunciar/importar"
+              className="hidden items-center gap-1.5 whitespace-nowrap rounded-full border border-brand-blue px-3 py-1.5 text-xs font-bold text-brand-blue hover:bg-brand-blue/10 sm:flex"
+            >
+              <DownloadSimple size={14} weight="bold" /> Importar de outro site
             </Link>
-            <Link href={`/anunciar?tipo=${assetType}&modo=completo`} className="text-xs font-semibold text-ink-muted hover:underline">
+            <Link href={`/anunciar?tipo=${assetType}&modo=completo`} className="whitespace-nowrap text-xs font-semibold text-ink-muted hover:underline">
               Formulário completo
             </Link>
           </span>

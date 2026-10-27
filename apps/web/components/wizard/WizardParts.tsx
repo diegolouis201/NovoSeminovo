@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Camera, CaretLeft, CaretRight, Check, Star, Trash } from "@phosphor-icons/react";
+import { Camera, CaretLeft, CaretRight, Check, DownloadSimple, Star, Trash } from "@phosphor-icons/react";
 import { LISTING_TIERS, formatBRL, listingTier, type ListingTierId } from "@novoseminovo/shared-types";
 import { takeImportedPhotoBlobs } from "@/lib/import-photos";
 
@@ -269,11 +269,31 @@ export function Step({ title, hint, children }: { title: string; hint?: string; 
 export function Intro({ icon, stage, title, children }: { icon: ReactNode; stage: string; title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col">
-      <div className="mx-auto mt-6 flex h-40 w-40 items-center justify-center rounded-full bg-brand-blue/10">{icon}</div>
-      <span className="mt-8 self-start rounded-full bg-surface-sober px-3 py-1 text-xs font-bold text-ink">{stage}</span>
+      <div className="mx-auto mt-4 flex h-28 w-28 items-center justify-center rounded-full bg-brand-blue/10 sm:mt-6 sm:h-40 sm:w-40">{icon}</div>
+      <span className="mt-6 self-start sm:mt-8 rounded-full bg-surface-sober px-3 py-1 text-xs font-bold text-ink">{stage}</span>
       <h1 className="mt-3 font-display text-3xl font-bold uppercase leading-tight text-ink">{title}</h1>
       <p className="mt-2 text-sm text-ink-muted">{children}</p>
     </section>
+  );
+}
+
+// Atalho no começo do passo a passo: quem já anuncia em outro site traz o
+// anúncio pronto (ver /anunciar/importar) em vez de digitar tudo.
+export function ImportShortcut() {
+  return (
+    <Link
+      href="/anunciar/importar"
+      className="mt-6 flex items-center gap-3 rounded-brand border-2 border-brand-blue bg-brand-blue/10 p-4 hover:bg-brand-blue/15"
+    >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-blue text-on-blue">
+        <DownloadSimple size={22} weight="bold" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-bold text-ink">Já anuncia na OLX, Webmotors ou outro site?</span>
+        <span className="block text-xs text-ink-muted">Traga o anúncio pronto, com texto e fotos — é só copiar e colar.</span>
+      </span>
+      <span className="shrink-0 rounded-brand bg-brand-blue px-3 py-2 text-xs font-bold text-on-blue">Importar</span>
+    </Link>
   );
 }
 
