@@ -19,7 +19,7 @@ export default function ExtensionPage() {
       </p>
       <h1 className="mt-1 font-display text-3xl font-bold text-ink">Seu anúncio de outro site no NovoSeminovo, em um clique</h1>
       <p className="mt-2 text-ink-muted">
-        Abra o seu anúncio na Webmotors, OLX, iCarros, ZAP, VivaReal ou outro site, clique no ícone do NovoSeminovo e pronto: o texto e as
+        Abra o seu anúncio no outro site, clique no ícone do NovoSeminovo e pronto: o texto e as
         fotos vêm para o passo a passo, no nosso padrão. Você revisa tudo antes de publicar.
       </p>
 

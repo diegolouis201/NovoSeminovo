@@ -212,12 +212,7 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
   }
 
   const photoSrc = (photo: string) => captured?.photos[photo] ?? `/api/importar-foto?url=${encodeURIComponent(photo)}`;
-  let capturedHost = "";
-  try {
-    capturedHost = captured ? new URL(captured.page.url).hostname.replace(/^www\./, "") : "";
-  } catch {
-    // endereço inválido
-  }
+
 
   const v = result?.vehicle;
   const p = result?.property;
@@ -250,7 +245,7 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
           <div className="flex items-start gap-2 rounded-brand bg-brand-blue/10 px-3 py-2.5 text-sm text-ink">
             <PuzzlePiece size={20} weight="duotone" className="mt-px shrink-0 text-brand-blue" />
             <span>
-              <strong>Recebemos o anúncio de {capturedHost}</strong> pela extensão, com {Object.keys(captured.photos).length} foto(s).
+              <strong>Recebemos o seu anúncio</strong> pela extensão, com {Object.keys(captured.photos).length} foto(s).
               <span className="block truncate text-xs text-ink-muted">{captured.page.title || captured.page.url}</span>
             </span>
           </div>
@@ -295,7 +290,7 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
             </p>
             <div className={`flex flex-col gap-2 rounded-brand bg-surface-sober p-3 ${showPaste ? "ring-2 ring-brand-blue" : ""}`}>
               <p className="text-xs text-ink">
-                Para OLX, Webmotors e outros sites que não deixam ler o link:
+                Para sites que não deixam ler o link:
               </p>
               <ol className="list-decimal space-y-0.5 pl-5 text-xs text-ink">
                 <li>Abra o seu anúncio no outro site.</li>
@@ -334,7 +329,7 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
       {result && (
         <div className="flex flex-col gap-3 rounded-brand border border-brand-green bg-surface-raised p-4 shadow-card">
           <p className="flex items-center gap-1.5 text-sm font-bold text-brand-green">
-            <CheckCircle size={18} weight="fill" /> Anúncio lido em {result.sourceHost}
+            <CheckCircle size={18} weight="fill" /> Anúncio lido
           </p>
           <div>
             <p className="font-semibold text-ink">{result.title}</p>

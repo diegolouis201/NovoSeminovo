@@ -289,7 +289,7 @@ export function ImportShortcut() {
         <DownloadSimple size={22} weight="bold" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-bold text-ink">Já anuncia na OLX, Webmotors ou outro site?</span>
+        <span className="block text-sm font-bold text-ink">Já anuncia em outro site?</span>
         <span className="block text-xs text-ink-muted">Traga o anúncio pronto, com texto e fotos — é só copiar e colar.</span>
       </span>
       <span className="shrink-0 rounded-brand bg-brand-blue px-3 py-2 text-xs font-bold text-on-blue">Importar</span>

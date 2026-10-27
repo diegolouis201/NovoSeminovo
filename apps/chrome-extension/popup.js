@@ -74,7 +74,7 @@ async function run() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id || !/^https?:/.test(tab.url || "")) throw new Error("Abra a página do anúncio e clique de novo.");
-    if (new URL(tab.url).hostname.endsWith("novoseminovo.com.br")) throw new Error("Abra o anúncio no outro site (OLX, Webmotors…) e clique de novo.");
+    if (new URL(tab.url).hostname.endsWith("novoseminovo.com.br")) throw new Error("Abra o anúncio no outro site e clique de novo.");
     setStatus("Lendo o anúncio…");
     const [{ result: page }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: capturePage });
     if (!page || page.text.length < 100) throw new Error("Não encontramos o conteúdo do anúncio nesta página.");

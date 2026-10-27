@@ -3,7 +3,7 @@
   "name": "NovoSeminovo — Importar anúncio",
   "short_name": "NovoSeminovo",
   "version": "1.0.0",
-  "description": "Traga para o NovoSeminovo o anúncio que você já tem em outro site (OLX, Webmotors, ZAP, VivaReal, iCarros…), com texto e fotos, em um clique.",
+  "description": "Traga para o NovoSeminovo o anúncio que você já tem em outro site, com texto e fotos, em um clique.",
   "action": {
     "default_title": "Importar este anúncio para o NovoSeminovo",
     "default_popup": "popup.html",

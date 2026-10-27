@@ -250,7 +250,7 @@ export default async function PartnerIntegrationsPage({
           <section className="mt-10">
             <h3 className="font-display text-lg font-semibold text-ink">4. Link de um anúncio</h3>
             <p className="mt-1 text-sm text-ink-muted">
-              Tem um anúncio na OLX, Webmotors, ZAP, VivaReal ou outro site? Cole o link e o anúncio abre pronto no passo a passo, no
+              Tem um anúncio em outro site? Cole o link e o anúncio abre pronto no passo a passo, no
               padrão do NovoSeminovo — é só revisar e publicar.{" "}
               <Link href="/anunciar/importar" className="font-semibold text-brand-blue hover:underline">
                 Importar pelo link →
