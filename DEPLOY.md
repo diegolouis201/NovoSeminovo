@@ -76,7 +76,9 @@ Acesse `https://seudominio.com.br` — deve carregar o site; `https://api.seudom
 
 - **Atualizar depois de um novo commit**: `git pull && docker compose up --build -d`.
 - **Ver logs de um serviço**: `docker compose logs -f api` (ou `web`, `postgres`, `caddy`).
-- **Backup do banco**: `docker compose exec postgres pg_dump -U novoseminovo novoseminovo > backup.sql`.
+- **Backup automático** (`scripts/backup.sh`): banco todo dia às 03:17 (guarda 14 dias, e cada cópia é restaurada num banco temporário para provar que funciona) e fotos aos domingos (guarda as 4 últimas), em `~/backups`. Ativar uma vez: `sh scripts/instalar-backup.sh`. Rodar na hora: `sh scripts/backup.sh` (termina com `BACKUP-OK`). Registro: `tail ~/backups/backup.log`. Cópia fora da VPS: configurar no `rclone` um destino chamado `backup` — o script passa a copiar para lá sozinho.
+- **Restaurar o banco** (apaga o banco atual e põe o do backup — só em caso de perda): `docker compose stop api web && docker compose exec -T postgres pg_restore -U novoseminovo -d novoseminovo --clean --if-exists --no-owner < ~/backups/banco/banco-AAAAMMDD-HHMM.dump && docker compose start api web`.
+- **Restaurar as fotos**: `docker compose exec -T api tar xzf - -C /app/apps/api < ~/backups/fotos/fotos-AAAAMMDD-HHMM.tar.gz`.
 
 ## Stripe, Resend e S3 passam a funcionar de verdade aqui
 
