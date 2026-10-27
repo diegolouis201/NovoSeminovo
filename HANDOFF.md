@@ -271,6 +271,8 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
 
 ## Pendências e dívidas conhecidas (não esquecer)
 
+**Backup (27/10/2026, no ar):** `scripts/backup.sh` agendado no cron da VPS (03:17, `scripts/instalar-backup.sh`): banco diário com teste de restauração (14 dias em `~/backups`), fotos aos domingos (4 cópias) e cópia no Google Drive do Diego pelo rclone (destino `backup:`, pasta `novoseminovo-backups`, 60 dias). O rclone usa um cliente OAuth próprio (projeto Google Cloud "NovoSeminovo Backup", app "NovoSeminovo Backup" em produção, escopo `drive.file`) — o cliente compartilhado do rclone foi removido da conta Google. Restauração em DEPLOY.md. Pendente: guardar o `.env` da VPS fora dela.
+
 **Painel do projeto (artefato, 24/10/2026):** https://claude.ai/artifact/Pvn9WabYvLcwsWsUbw3TtY — quadro com os itens em aberto (com o Diego / com o Claude / esperando terceiros) e os concluídos, guardados no banco do artefato (coleção `itens`: titulo, detalhe, frente, responsavel diego|claude|terceiros, status pendente|andamento|aguardando|feito, terceiro, ordem, concluidoEm). Ao concluir algo, atualizar lá também (ArtifactData).
 
 - **Afiliados do Arquiteto**: Amazon ligada em produção (`AFFILIATE_AMAZON_TAG=meusite0240-20` no .env da VPS, 23/10/2026; site novoseminovo.com.br já cadastrado no perfil de associado; falta fazer 3 vendas em 180 dias). Magalu (Parceiro Magalu) e Leroy Merlin (Rakuten): **adiados pelo Diego em 24/10/2026** — os botões dessas lojas continuam na lista do Arquiteto, só sem código de afiliado (sem comissão) até ele retomar.
