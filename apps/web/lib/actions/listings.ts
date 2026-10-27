@@ -36,6 +36,7 @@ import {
   extractCrlvData,
   fetchPriceSuggestion,
   generateListingDraft,
+  importListingFromText,
   importListingFromUrl,
   recommendProperty,
   recommendVehicle,
@@ -508,5 +509,12 @@ export async function importListingFromUrlAction(url: string): Promise<WizardRes
   const session = await auth();
   if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
   const result = await importListingFromUrl(url.trim(), session.accessToken);
+  return result.ok ? { ok: true, value: result.value } : result;
+}
+
+export async function importListingFromTextAction(text: string, sourceUrl?: string): Promise<WizardResult<ImportedListing>> {
+  const session = await auth();
+  if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
+  const result = await importListingFromText(text, /^https?:\/\//i.test(sourceUrl ?? "") ? sourceUrl : undefined, session.accessToken);
   return result.ok ? { ok: true, value: result.value } : result;
 }

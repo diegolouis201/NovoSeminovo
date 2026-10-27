@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { CheckCircle, LinkSimple, WarningCircle } from "@phosphor-icons/react";
 import { VEHICLE_BODY_TYPE_OPTIONS, formatBRL, type ImportedListing } from "@novoseminovo/shared-types";
-import { importListingFromUrlAction } from "@/lib/actions/listings";
+import { importListingFromTextAction, importListingFromUrlAction } from "@/lib/actions/listings";
 import { IMPORT_PHOTOS_KEY } from "@/components/wizard/WizardParts";
 
 const BODY_TYPES = new Set<string>(VEHICLE_BODY_TYPE_OPTIONS.map((option) => option.value));
@@ -67,6 +67,9 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
   const [owner, setOwner] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [result, setResult] = useState<ImportedListing | undefined>();
+  // Plano B (site bloqueou a leitura): texto da página colado.
+  const [showPaste, setShowPaste] = useState(false);
+  const [pasted, setPasted] = useState("");
   const [pending, start] = useTransition();
 
   function read() {
@@ -76,16 +79,36 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
     setResult(undefined);
     start(async () => {
       const response = await importListingFromUrlAction(url);
-      if (!response.ok) return setError(response.error);
-      if (!allowed.includes(response.value.assetType)) {
-        return setError(
-          response.value.assetType === "vehicle"
-            ? "Esse anúncio é de veículo, e a sua conta anuncia só imóveis."
-            : "Esse anúncio é de imóvel, e a sua conta anuncia só veículos.",
-        );
+      if (!response.ok) {
+        setShowPaste(true);
+        return setError(response.error);
       }
-      setResult(response.value);
+      accept(response.value);
     });
+  }
+
+  function readPasted() {
+    if (!owner) return setError("Confirme que o anúncio é seu.");
+    if (pasted.trim().length < 80) return setError("Cole o texto do anúncio inteiro (selecione a página e copie).");
+    setError(undefined);
+    setResult(undefined);
+    start(async () => {
+      const response = await importListingFromTextAction(pasted, url.trim());
+      if (!response.ok) return setError(response.error);
+      accept(response.value);
+    });
+  }
+
+  function accept(value: ImportedListing) {
+    if (!allowed.includes(value.assetType)) {
+      return setError(
+        value.assetType === "vehicle"
+          ? "Esse anúncio é de veículo, e a sua conta anuncia só imóveis."
+          : "Esse anúncio é de imóvel, e a sua conta anuncia só veículos.",
+      );
+    }
+    setShowPaste(false);
+    setResult(value);
   }
 
   function continueToWizard() {
@@ -142,6 +165,29 @@ export function ImportFromUrl({ allowed }: { allowed: readonly ("vehicle" | "pro
           <p className="flex items-start gap-1.5 rounded-brand bg-status-danger/10 px-3 py-2 text-xs text-status-danger">
             <WarningCircle size={16} className="mt-px shrink-0" /> {error}
           </p>
+        )}
+        {showPaste && (
+          <div className="flex flex-col gap-2 rounded-brand bg-surface-sober p-3">
+            <p className="text-xs text-ink">
+              <strong>Plano B:</strong> abra o anúncio no navegador, selecione a página inteira (Ctrl+A ou &quot;Selecionar tudo&quot;), copie
+              e cole aqui. As fotos você envia no passo a passo.
+            </p>
+            <textarea
+              value={pasted}
+              onChange={(event) => setPasted(event.target.value)}
+              rows={6}
+              placeholder="Cole aqui o texto do anúncio"
+              className="rounded-brand border border-border bg-surface-page px-3 py-2 text-sm text-ink"
+            />
+            <button
+              type="button"
+              onClick={readPasted}
+              disabled={pending}
+              className="rounded-brand border border-brand-blue px-4 py-2.5 text-sm font-bold text-brand-blue disabled:opacity-60"
+            >
+              {pending ? "Lendo o texto…" : "Usar o texto colado"}
+            </button>
+          </div>
         )}
         <button
           type="button"

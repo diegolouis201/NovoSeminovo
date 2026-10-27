@@ -631,6 +631,26 @@ export async function importListingFromUrl(url: string, accessToken: string): Pr
   }
 }
 
+export async function importListingFromText(text: string, sourceUrl: string | undefined, accessToken: string): Promise<ApiResult<ImportedListing>> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listing-import/text`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+        body: JSON.stringify({ text, sourceUrl: sourceUrl || undefined, confirmOwner: true }),
+      },
+      90_000,
+    );
+    const data = (await res.json().catch(() => ({}))) as { message?: string | string[] };
+    if (res.status === 429) return { ok: false, error: "Muitas importações seguidas. Espere um minuto e tente de novo." };
+    if (!res.ok) return { ok: false, error: (Array.isArray(data.message) ? data.message[0] : data.message) ?? "Não foi possível importar agora." };
+    return { ok: true, value: data as ImportedListing };
+  } catch {
+    return { ok: false, error: "A leitura do anúncio demorou demais. Tente de novo em instantes." };
+  }
+}
+
 export function createPartnerLead(input: CreateLeadInput, accessToken: string): Promise<ApiResult<LeadSummary>> {
   return sendJson("/partners/mine/leads", "POST", input, accessToken);
 }

@@ -125,10 +125,22 @@ describe("Importar anúncio pelo link (página e modelo falsos)", () => {
     service.fetcher = async () => {
       throw new Error("HTTP 403");
     };
-    await assert.rejects(service.importFromUrl("https://www.webmotors.com.br/x"), /bloqueiam a leitura automática/);
+    await assert.rejects(service.importFromUrl("https://www.webmotors.com.br/x"), /bloqueou a leitura automática/);
     service.fetcher = async () => ({ buffer: Buffer.from("<html><body>Acesso negado</body></html>"), contentType: "text/html", finalUrl: "https://x.com" });
     await assert.rejects(service.importFromUrl("https://x.com"), /não mostrou o conteúdo/);
     service.fetcher = async () => ({ buffer: Buffer.from([1, 2]), contentType: "image/svg+xml", finalUrl: "https://x.com/a.svg" });
     await assert.rejects(service.fetchPhoto("https://x.com/a.svg"), /Não foi possível baixar/);
+  });
+
+  test("plano B: texto colado vira rascunho (sem fotos), com o site de origem", async () => {
+    const service = new ListingImportService(new AiService());
+    const draft = await service.importFromText(
+      "Toyota Corolla XEi 2.0 2020 automático, 45.000 km, R$ 98.900. Único dono, revisões na concessionária.",
+      "https://www.webmotors.com.br/comprar/toyota/corolla/123",
+    );
+    assert.equal(draft.sourceHost, "webmotors.com.br");
+    assert.equal(draft.vehicle?.model, "Corolla");
+    assert.deepEqual(draft.photos, [], "sem imagens na lista, nenhuma foto escolhida");
+    assert.ok(draft.missing.includes("fotos"));
   });
 });

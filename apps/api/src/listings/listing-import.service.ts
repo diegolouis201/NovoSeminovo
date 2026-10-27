@@ -4,7 +4,7 @@ import { stripContactInfo } from "../common/contact-filter";
 import { SafeFetchError, safeFetch, type SafeFetchOptions, type SafeFetchResult } from "../common/safe-fetch";
 import { toUf } from "../integrations/vehicle-catalog-parser";
 import { AiService } from "./ai.service";
-import { extractPageData } from "./listing-import";
+import { extractPageData, type PageData } from "./listing-import";
 
 // Muitos portais devolvem página vazia ou bloqueio para robôs: a leitura se
 // identifica como um navegador comum (é a pessoa importando o próprio anúncio).
@@ -45,7 +45,7 @@ export class ListingImportService {
       throw new BadRequestException(
         error instanceof SafeFetchError && /endereço|link/i.test(error.message)
           ? error.message
-          : "Não conseguimos abrir esse link — alguns sites bloqueiam a leitura automática. Confira o link ou cadastre pelo passo a passo.",
+          : "Esse site bloqueou a leitura automática do anúncio. Sem problema: copie o texto do anúncio e cole abaixo.",
       );
     }
     if (page.contentType && !/html|xml/i.test(page.contentType)) {
@@ -55,15 +55,31 @@ export class ListingImportService {
     const data = extractPageData(page.buffer.toString("utf8"), page.finalUrl);
     if (data.text.length < 200 && !data.structured) {
       throw new BadRequestException(
-        "A página não mostrou o conteúdo do anúncio (o site pode exigir navegador ou login). Cadastre pelo passo a passo.",
+        "A página não mostrou o conteúdo do anúncio (o site pode exigir navegador ou login). Copie o texto do anúncio e cole abaixo.",
       );
     }
+    return this.fromPage(data, "Esse link não parece ser de um anúncio de carro ou imóvel. Abra o anúncio e copie o link da barra do navegador — ou cole o texto dele abaixo.");
+  }
 
+  // Plano B para site que bloqueia a leitura (ex.: Webmotors): a pessoa abre
+  // o anúncio, copia o texto da página e cola. Sem fotos — ela envia no passo
+  // a passo.
+  async importFromText(text: string, sourceUrl?: string): Promise<ImportedListing> {
+    if (!this.ai.isEnabled()) throw new ServiceUnavailableException("A importação está indisponível no momento.");
+    let host = "texto colado";
+    try {
+      if (sourceUrl) host = new URL(sourceUrl).hostname.replace(/^www\./, "");
+    } catch {
+      // link inválido: fica "texto colado"
+    }
+    const data = { url: sourceUrl ?? "", host, structured: "", text: text.trim().slice(0, 12_000), images: [] };
+    return this.fromPage(data, "Não encontramos um anúncio de carro ou imóvel nesse texto. Abra o anúncio, selecione a página inteira (Ctrl+A), copie e cole aqui.");
+  }
+
+  private async fromPage(data: PageData, notListingMessage: string): Promise<ImportedListing> {
     const raw = await this.ai.extractListingFromPage(data);
     const assetType = raw.assetType === "vehicle" || raw.assetType === "property" ? raw.assetType : undefined;
-    if (raw.is_listing === false || !assetType) {
-      throw new BadRequestException("Esse link não parece ser de um anúncio de carro ou imóvel. Abra o anúncio e copie o link da barra do navegador.");
-    }
+    if (raw.is_listing === false || !assetType) throw new BadRequestException(notListingMessage);
 
     const photos = (Array.isArray(raw.photoIndexes) ? raw.photoIndexes : [])
       .map((index) => (Number.isInteger(index) ? data.images[index] : undefined))

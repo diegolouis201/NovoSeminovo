@@ -646,6 +646,14 @@ export const ImportFromUrlInputSchema = z.object({
 });
 export type ImportFromUrlInput = z.infer<typeof ImportFromUrlInputSchema>;
 
+// Plano B quando o site bloqueia a leitura: o texto da página, colado.
+export const ImportFromTextInputSchema = z.object({
+  text: z.string().trim().min(80, "Cole o texto do anúncio inteiro (selecione a página e copie)").max(30_000),
+  sourceUrl: z.string().trim().url().max(2000).optional(),
+  confirmOwner: z.literal(true, { errorMap: () => ({ message: "Confirme que o anúncio é seu" }) }),
+});
+export type ImportFromTextInput = z.infer<typeof ImportFromTextInputSchema>;
+
 export const ImportedListingSchema = z.object({
   assetType: z.enum(["vehicle", "property"]),
   sourceHost: z.string(),

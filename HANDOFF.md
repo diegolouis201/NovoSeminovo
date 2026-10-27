@@ -261,7 +261,7 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
 42. **Importar anúncio pelo link de outro site (27/10/2026)**
    - `/anunciar/importar` (atalho "Importar de outro site" no /anunciar e item 4 em /parceiro/integracoes): a pessoa cola o link do anúncio dela (OLX, Webmotors, ZAP, VivaReal, iCarros, Mercado Livre…), confirma que é dela, vê uma prévia e o passo a passo abre preenchido (rascunho gravado no localStorage do wizard; fotos baixadas de novo pelo navegador via `/api/importar-foto`, comprimidas e com placa borrada ao salvar, como foto comum). Nada é publicado sem revisão.
    - API: `POST /listing-import` e `GET /listing-import/photo` (`listings/listing-import.service.ts`). A página é lida com `safeFetch` (anti-SSRF, user-agent de navegador), `listing-import.ts` junta JSON-LD, Open Graph, texto e imagens, e `AiService.extractListingFromPage` monta o rascunho no nosso padrão (título padrão, texto reescrito, sem contato/nome de outro site). `stripContactInfo` tira linhas com telefone/e-mail/link.
-   - Limites: sites com bloqueio anti-robô ou que exigem navegador/login podem recusar — a tela explica e manda para o passo a passo. Nunca testado contra os portais reais daqui (sem internet no ambiente de desenvolvimento).
+   - Limites: sites com bloqueio anti-robô (a Webmotors devolveu 403 para a VPS em 27/10) caem no plano B: a tela mostra uma caixa para colar o texto da página (`POST /listing-import/text`), sem fotos — a pessoa envia no passo a passo. Nunca testado contra os portais reais daqui (sem internet no ambiente de desenvolvimento).
    - Teste: `listings/listing-import.spec.ts`. Também corrigido: o passo a passo só grava o rascunho depois de ler o salvo.
 
 ## Pendências e dívidas conhecidas (não esquecer)
