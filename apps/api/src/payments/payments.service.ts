@@ -21,7 +21,7 @@ export class PaymentsService {
   }
 
   isTestMode(): boolean {
-    return (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
+    return /^(sk|rk)_test_/.test(process.env.STRIPE_SECRET_KEY ?? "");
   }
 
   private getClient(): Stripe {
