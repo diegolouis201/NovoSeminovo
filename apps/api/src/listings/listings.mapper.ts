@@ -29,7 +29,7 @@ const listingWithDetails = Prisma.validator<Prisma.ListingDefaultArgs>()({
     partner: true,
     // Só o telefone (nunca e-mail) — usado em toListingDetail para o botão
     // "Chamar no WhatsApp"; omitido quando o dono não cadastrou telefone.
-    owner: { select: { phone: true } },
+    owner: { select: { phone: true, name: true, createdAt: true } },
   },
 });
 
@@ -373,6 +373,7 @@ export function toListingDetail(
   fullView = false,
   // Telefone do vendedor só para quem entrou na conta (ver sellerPhone).
   viewerLoggedIn = false,
+  sellerStats?: { rating?: number; reviewCount: number; activeListings: number },
 ): ListingDetail {
   const benefits = listingBenefits(listing);
   const visiblePhotos = fullView ? listing.photos : listing.photos.slice(0, benefits.photos);
@@ -393,6 +394,25 @@ export function toListingDetail(
     sellerPhone: listing.showPhone && viewerLoggedIn ? listing.owner.phone ?? undefined : undefined,
     sellerHasWhatsapp: Boolean(listing.showPhone && listing.owner.phone),
     reviewStatus,
+    seller: sellerStats
+      ? listing.partner
+        ? {
+            kind: "partner" as const,
+            name: listing.partner.legalName,
+            logoUrl: listing.partner.logoUrl ?? undefined,
+            verified: Boolean(listing.partner.verifiedAt),
+            ...sellerStats,
+            since: listing.partner.createdAt.toISOString(),
+          }
+        : {
+            // Particular: só o primeiro nome, nunca o nome completo.
+            kind: "private" as const,
+            name: listing.owner.name.trim().split(/\s+/)[0] ?? "Particular",
+            verified: false,
+            ...sellerStats,
+            since: listing.owner.createdAt.toISOString(),
+          }
+      : undefined,
     photos: visiblePhotos.map((photo) => ({ id: photo.id, url: photo.url })),
     vehicleId: listing.type === "vehicle" ? listing.vehicleDetails?.vehicleId ?? undefined : undefined,
     youtubeVideoId: benefits.video || fullView ? youtubeVideoId(listing.videoUrl ?? undefined) : undefined,

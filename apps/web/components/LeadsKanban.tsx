@@ -30,6 +30,7 @@ const SOURCE: Record<LeadSource, { icon: Icon; label: string }> = {
   referral: { icon: UsersThree, label: "Indicação" },
   social: { icon: InstagramLogo, label: "Redes sociais" },
   other: { icon: UserPlus, label: "Outro" },
+  form: { icon: EnvelopeSimple, label: "Formulário do anúncio" },
 };
 
 const MANUAL_SOURCES: CreateLeadInput["source"][] = ["phone", "walk_in", "referral", "social", "other"];

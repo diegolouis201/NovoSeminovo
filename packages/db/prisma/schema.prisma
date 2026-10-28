@@ -132,6 +132,8 @@ enum LeadSource {
   referral
   social
   other
+  // Formulário "Enviar mensagem" do anúncio (com ou sem conta no site).
+  form
 }
 
 // Funil do lead no kanban do parceiro. "negotiating" = proposta/negociando.
@@ -230,6 +232,7 @@ model User {
   moderationLogs           ModerationLog[]
   notifications            Notification[]
   pushDevices              PushDevice[]
+  listingContacts          ListingContact[]      @relation("ListingContactBuyer")
   vehiclesOwned            Vehicle[]             @relation("VehicleCurrentOwner")
   vehicleEvents            VehicleEvent[]
   financingDealsRegistered FinancingDeal[]       @relation("FinancingDealRegisteredBy")
@@ -445,6 +448,7 @@ model Listing {
   favorites         Favorite[]
   conversations     Conversation[]
   leads             Lead[]
+  contacts          ListingContact[]
   reports           Report[]
   simulations       FinancingSimulation[]
   reviews           Review[]
@@ -697,6 +701,7 @@ model Lead {
   // Lead manual (sem conta no site): nome e telefone digitados pela loja.
   contactName     String?    @map("contact_name")
   contactPhone    String?    @map("contact_phone")
+  contactEmail    String?    @map("contact_email")
   notes           String?
   proposalValue   Decimal?   @map("proposal_value") @db.Decimal(12, 2)
   // Origem de quem gerou o lead (cookie do site ou cadastro do comprador).
@@ -708,6 +713,27 @@ model Lead {
 
   @@index([partnerId, status])
   @@map("leads")
+}
+
+// Mensagem enviada pelo formulário do anúncio. Vale para loja e para
+// particular, com ou sem conta: o anunciante recebe por notificação/e-mail
+// e, se for loja, também vira card no funil (Lead source "form").
+model ListingContact {
+  id           String   @id @default(cuid())
+  listingId    String   @map("listing_id")
+  listing      Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyerId      String?  @map("buyer_id")
+  buyer        User?    @relation("ListingContactBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
+  name         String
+  email        String
+  phone        String
+  message      String
+  wantsSimilar Boolean  @default(false) @map("wants_similar")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([listingId, createdAt])
+  @@index([email, createdAt])
+  @@map("listing_contacts")
 }
 
 model FinancingSimulation {

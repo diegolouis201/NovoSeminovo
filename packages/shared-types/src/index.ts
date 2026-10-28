@@ -270,6 +270,20 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
   // conversou sobre ele. "can_review": já conversou e ainda não avaliou.
   // "already_reviewed": já avaliou — a API recusa uma segunda vez.
   reviewStatus: z.enum(["not_eligible", "can_review", "already_reviewed"]),
+  // Cartão do anunciante ao lado do formulário de contato. Loja: nome, logo,
+  // selo, nota e quantos anúncios tem no ar. Particular: só o primeiro nome.
+  seller: z
+    .object({
+      kind: z.enum(["partner", "private"]),
+      name: z.string(),
+      logoUrl: z.string().optional(),
+      verified: z.boolean(),
+      rating: z.number().optional(),
+      reviewCount: z.number(),
+      activeListings: z.number(),
+      since: z.string(),
+    })
+    .optional(),
   // Todas as fotos do anúncio, capa primeiro (ver Photo.isCover). Vazio até o
   // dono enviar alguma em /anuncio/:id/fotos — a UI cai pro emoji placeholder
   // nesse caso (ver ListingSummary.image, que usa a mesma primeira foto). O
@@ -1257,7 +1271,7 @@ export type FeaturedPartner = z.infer<typeof FeaturedPartnerSchema>;
 export const LeadStatus = z.enum(["new", "contacted", "visit_scheduled", "negotiating", "won", "lost"]);
 export type LeadStatus = z.infer<typeof LeadStatus>;
 
-export const LeadSource = z.enum(["chat", "whatsapp", "phone", "walk_in", "referral", "social", "other"]);
+export const LeadSource = z.enum(["chat", "whatsapp", "phone", "walk_in", "referral", "social", "other", "form"]);
 export type LeadSource = z.infer<typeof LeadSource>;
 
 export const LeadSummarySchema = z.object({
@@ -1284,6 +1298,21 @@ export const LeadSummarySchema = z.object({
   createdAt: z.string(),
 });
 export type LeadSummary = z.infer<typeof LeadSummarySchema>;
+
+// Formulário "Enviar mensagem" do anúncio — funciona com ou sem conta.
+// "site" é um campo escondido: pessoa nunca preenche, robô preenche.
+export const ListingContactInputSchema = z.object({
+  name: z.string().trim().min(2, "Informe seu nome").max(80),
+  email: z.string().trim().toLowerCase().email("Informe um e-mail válido").max(160),
+  phone: z
+    .string()
+    .transform((value) => value.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, ""))
+    .refine((value) => /^\d{10,11}$/.test(value), "Informe o telefone com DDD"),
+  message: z.string().trim().min(5, "Escreva uma mensagem").max(1000),
+  wantsSimilar: z.boolean().default(false),
+  site: z.string().max(200).optional(),
+});
+export type ListingContactInput = z.infer<typeof ListingContactInputSchema>;
 
 export const UpdateLeadStatusInputSchema = z.object({
   status: LeadStatus,
@@ -1380,6 +1409,7 @@ export const LEAD_SOURCE_LABELS: Record<z.infer<typeof LeadSource>, string> = {
   referral: "Indicação",
   social: "Redes sociais",
   other: "Outro",
+  form: "Formulário do anúncio",
 };
 export type AdminLeadRow = {
   id: string;
@@ -1556,6 +1586,7 @@ export const NotificationType = z.enum([
   "cashback_registered",
   "cashback_released",
   "cashback_paid",
+  "listing_contact",
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 

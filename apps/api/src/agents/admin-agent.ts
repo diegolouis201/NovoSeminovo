@@ -190,7 +190,7 @@ export function buildAdminAgent(
         // Direto do banco: getDetail contaria visualização no anúncio.
         const listing = await prisma.listing.findUnique({
           where: { id },
-          include: { ...listingInclude, owner: { select: { name: true, email: true, phone: true } }, _count: { select: { reports: true } } },
+          include: { ...listingInclude, owner: { select: { name: true, email: true, phone: true, createdAt: true } }, _count: { select: { reports: true } } },
         });
         if (!listing) throw new Error("Anúncio não encontrado.");
         const detail = toListingDetail(listing, "not_eligible");

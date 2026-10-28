@@ -666,7 +666,24 @@ export class ListingsService {
     }
 
     const reviewStatus = await this.getReviewStatus(listing.id, listing.ownerUserId, viewer?.id);
-    return toListingDetail(listing, reviewStatus, isOwner || isAdmin, Boolean(viewer));
+    return toListingDetail(listing, reviewStatus, isOwner || isAdmin, Boolean(viewer), await this.sellerStats(listing.partnerId, listing.ownerUserId));
+  }
+
+  // Nota, avaliações e anúncios no ar do anunciante (cartão do formulário de contato).
+  private async sellerStats(partnerId: string | null, ownerUserId: string) {
+    const [reviews, activeListings] = await Promise.all([
+      this.prisma.review.aggregate({
+        where: partnerId ? { reviewedPartnerId: partnerId } : { reviewedUserId: ownerUserId },
+        _avg: { rating: true },
+        _count: true,
+      }),
+      this.prisma.listing.count({ where: { status: "active", ...(partnerId ? { partnerId } : { ownerUserId, partnerId: null }) } }),
+    ]);
+    return {
+      rating: reviews._count > 0 && reviews._avg.rating != null ? Math.round(reviews._avg.rating * 10) / 10 : undefined,
+      reviewCount: reviews._count,
+      activeListings,
+    };
   }
 
   // "can_review" exige ter conversado sobre o anúncio — sem isso, qualquer

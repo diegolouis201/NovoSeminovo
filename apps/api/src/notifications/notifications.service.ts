@@ -33,6 +33,11 @@ function toNotification(row: NotificationRow): Notification {
   };
 }
 
+function formatPhone(digits: string): string {
+  const match = digits.match(/^(\d{2})(\d{4,5})(\d{4})$/);
+  return match ? `(${match[1]}) ${match[2]}-${match[3]}` : digits;
+}
+
 function describe(type: NotificationType, payload: Record<string, unknown>): { title: string; body: string; link?: string } {
   switch (type) {
     case "listing_approved":
@@ -108,6 +113,12 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         title: `Relatório financeiro — ${payload.periodLabel}`,
         body: String(payload.body ?? ""),
         link: "/admin/operacao#financeiro",
+      };
+    case "listing_contact":
+      return {
+        title: `Novo contato: ${payload.listingTitle}`,
+        body: `${payload.contactName} quer falar sobre o seu anúncio.\nTelefone/WhatsApp: ${formatPhone(String(payload.contactPhone ?? ""))}\nE-mail: ${payload.contactEmail}\n\n"${payload.message}"`,
+        link: payload.conversationId ? `/conta/mensagens/${payload.conversationId}` : payload.isPartner ? "/parceiro/leads" : `/anuncio/${payload.listingId}`,
       };
     case "new_message":
       return {

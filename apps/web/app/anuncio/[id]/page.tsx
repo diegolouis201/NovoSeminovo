@@ -13,9 +13,10 @@ import { MarkVertical } from "@/components/ActiveVertical";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
 import { ShareListingButton } from "@/components/ShareListingButton";
+import { ListingContactCard } from "@/components/ListingContactCard";
 import { PhotoCarousel } from "@/components/PhotoCarousel";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
-import { confirmListingBoost, fetchListing, resolveMediaUrl } from "@/lib/api";
+import { confirmListingBoost, fetchListing, fetchProfile, resolveMediaUrl } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
 import { startConversationAction } from "@/lib/actions/conversations";
 
@@ -87,6 +88,9 @@ export default async function ListingDetailPage({
   if (!listing) notFound();
 
   const isOwnListing = session?.user?.id === listing.ownerUserId;
+  // Formulário de contato já vem preenchido para quem entrou na conta.
+  const profile = session?.accessToken && !isOwnListing ? await fetchProfile(session.accessToken) : undefined;
+  const prefill = { name: profile?.name ?? session?.user?.name ?? undefined, email: profile?.email ?? session?.user?.email ?? undefined, phone: profile?.phone ?? undefined };
   const startConversationWithListing = startConversationAction.bind(null, listing.id);
 
   return (
@@ -230,18 +234,26 @@ export default async function ListingDetailPage({
         </div>
 
         <aside className="flex flex-col gap-6">
+          {!isOwnListing && listing.status === "active" && (
+            <ListingContactCard
+              listingId={listing.id}
+              title={listing.title}
+              priceLabel={listing.priceLabel}
+              assetType={listing.assetType}
+              seller={listing.seller}
+              hasInstallments={listing.financingEnabled}
+              prefill={prefill}
+              isLoggedIn={isAuthenticated}
+            />
+          )}
           <div className="flex flex-col gap-3 rounded-brand border border-border bg-surface-raised p-4">
-            {listing.sellerType === "partner" && listing.partnerSlug ? (
+            {listing.sellerType === "partner" && listing.partnerSlug && (
               <Link
                 href={`/lojas/${listing.partnerSlug}`}
                 className="text-sm font-semibold text-brand-blue hover:underline"
               >
-                {listing.partnerVerified ? "Loja verificada" : "Loja parceira"} — ver vitrine
+                Ver todos os anúncios de {listing.seller?.name ?? "da loja"}
               </Link>
-            ) : (
-              <p className="text-sm font-semibold text-ink">
-                {listing.sellerType === "partner" ? "Loja parceira" : "Anunciante particular"}
-              </p>
             )}
             {searchParams.erroConversa && (
               <p className="rounded-brand bg-status-danger/10 px-3 py-2 text-xs text-status-danger">
@@ -255,22 +267,18 @@ export default async function ListingDetailPage({
               >
                 Este é o seu anúncio
               </Link>
-            ) : isAuthenticated ? (
-              <form action={startConversationWithListing}>
-                <Button type="submit" variant="primary" className="w-full justify-center">
-                  Conversar no chat
-                </Button>
-              </form>
             ) : (
-              <Link
-                href={`/entrar?voltar=${encodeURIComponent(`/anuncio/${listing.id}`)}`}
-                className="rounded-brand bg-brand-green px-4 py-3 text-center text-sm font-bold text-on-green hover:opacity-90"
-              >
-                Entrar para conversar
-              </Link>
+              isAuthenticated && (
+                <form action={startConversationWithListing}>
+                  <Button type="submit" variant="secondary" className="w-full justify-center">
+                    Conversar no chat
+                  </Button>
+                </form>
+              )
             )}
             {/* O número do vendedor só vem para quem entrou na conta: todo
-                contato vira lead identificado (ver ListingDetail.sellerPhone). */}
+                contato vira lead identificado (ver ListingDetail.sellerPhone).
+                Sem conta, o formulário acima já leva nome, e-mail e telefone. */}
             {!isOwnListing && listing.sellerHasWhatsapp && (
               listing.sellerPhone ? (
                 <WhatsAppButton listingId={listing.id} phone={listing.sellerPhone} listingTitle={listing.title} />
@@ -320,6 +328,7 @@ export default async function ListingDetailPage({
           {/* Imóvel: um bloco só de financiamento — parcelas dos bancos pela
               Credihome e, se o cliente quiser, o pedido de proposta. Veículo:
               calculadora local (ainda sem parceiro de crédito). */}
+          <div id="financiamento" className="scroll-mt-24" />
           {listing.financingEnabled && listing.assetType === "property" && (
             <CredihomeSimulator listingId={listing.id} price={listing.financing.priceValue} />
           )}

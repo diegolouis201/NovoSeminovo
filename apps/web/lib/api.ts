@@ -63,6 +63,7 @@ import type {
   LeadStatus,
   LeadSummary,
   ListingDetail,
+  ListingContactInput,
   ListingStatus,
   ListingSummary,
   ModerateListingInput,
@@ -1440,6 +1441,38 @@ export async function markAllNotificationsRead(accessToken: string): Promise<boo
     headers: authHeaders(accessToken),
   });
   return res.ok;
+}
+
+// Formulário "Enviar mensagem" do anúncio (com ou sem conta).
+export async function sendListingContact(
+  listingId: string,
+  input: ListingContactInput,
+  options: { accessToken?: string; clientIp?: string; extraHeaders?: Record<string, string> },
+): Promise<{ ok: true; conversationId?: string } | { ok: false; error: string }> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listings/${listingId}/contact`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.accessToken ? authHeaders(options.accessToken) : {}),
+          ...(options.clientIp ? { "x-client-ip": options.clientIp } : {}),
+          ...options.extraHeaders,
+        },
+        body: JSON.stringify(input),
+      },
+      10_000,
+    );
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const message = Array.isArray(body.message) ? body.message[0] : body.message;
+      return { ok: false, error: typeof message === "string" ? message : "Não foi possível enviar agora. Tente de novo." };
+    }
+    return { ok: true, conversationId: body.conversationId };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente de novo." };
+  }
 }
 
 // App do celular: aparelho que recebe as notificações como push.
