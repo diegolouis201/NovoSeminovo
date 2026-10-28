@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isAppRequest } from "@/lib/app-context";
 import { notFound, redirect } from "next/navigation";
 import { Check } from "@phosphor-icons/react/dist/ssr";
 import { LISTING_TIERS, formatBRL, listingTier } from "@novoseminovo/shared-types";
@@ -21,6 +22,8 @@ export default async function BoostListingPage({
   const listing = await fetchListing(params.id, session.accessToken);
   if (!listing) notFound();
   if (listing.ownerUserId !== session.user?.id || listing.isPartnerListing) redirect(`/anuncio/${params.id}`);
+  // Dentro do app não se vende plano (lib/app-context.ts).
+  if (isAppRequest()) redirect(`/anuncio/${params.id}`);
 
   const current = listingTier(listing.planTier);
   const options = LISTING_TIERS.filter((tier) => tier.rank > current.rank);

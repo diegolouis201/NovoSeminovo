@@ -1,5 +1,6 @@
 "use server";
 
+import { isAppRequest } from "@/lib/app-context";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { CnpjLookup, CreateLeadInput, CreatePartnerInput, HighlightLevel, LeadStatus, LeadSummary, PartnerType, UpdateLeadInput } from "@novoseminovo/shared-types";
@@ -94,6 +95,7 @@ export async function removePartnerMemberAction(memberId: string): Promise<void>
 export async function subscribeToPlanAction(planId: string): Promise<void> {
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");
+  if (isAppRequest()) redirect("/parceiro/plano");
 
   const result = await subscribeToPlan(planId, session.accessToken);
   if (!result.ok) {
@@ -121,6 +123,7 @@ export async function cancelSubscriptionAction(): Promise<void> {
 export async function startCheckoutAction(planId: string): Promise<void> {
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");
+  if (isAppRequest()) redirect("/parceiro/plano");
 
   const result = await startCheckoutSession(planId, session.accessToken);
   if (!result.ok) {
@@ -133,6 +136,7 @@ export async function startCheckoutAction(planId: string): Promise<void> {
 export async function openBillingPortalAction(): Promise<void> {
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");
+  if (isAppRequest()) redirect("/parceiro/plano");
 
   const result = await startBillingPortalSession(session.accessToken);
   if (!result.ok) {

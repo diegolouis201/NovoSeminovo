@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { isAppRequest } from "@/lib/app-context";
 import Link from "next/link";
 import {
   ChartLineUp,
@@ -71,6 +72,8 @@ const FEATURES = [
 ];
 
 export default async function ForPartnersPage() {
+  // Dentro do app não aparece compra de plano (lib/app-context.ts).
+  const inApp = isAppRequest();
   const [vehiclePlans, propertyPlans] = await Promise.all([fetchPlans("vehicle"), fetchPlans("property")]);
   const planGroups = [
     { title: "Lojas de veículos", plans: vehiclePlans, enterpriseText: "Mais de 100 anúncios, várias lojas ou condições especiais." },
@@ -169,12 +172,14 @@ export default async function ForPartnersPage() {
                         Leads ilimitados, vitrine, assistente de IA e posts pro Instagram
                       </li>
                     </ul>
-                    <Link
-                      href="/parceiro/plano"
-                      className="mt-5 rounded-brand bg-brand-green px-4 py-2.5 text-center text-sm font-bold text-on-green"
-                    >
-                      Escolher {plan.name}
-                    </Link>
+                    {!inApp && (
+                      <Link
+                        href="/parceiro/plano"
+                        className="mt-5 rounded-brand bg-brand-green px-4 py-2.5 text-center text-sm font-bold text-on-green"
+                      >
+                        Escolher {plan.name}
+                      </Link>
+                    )}
                   </div>
                 ))}
                 {group.enterpriseText && (

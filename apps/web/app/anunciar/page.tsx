@@ -15,6 +15,7 @@ import { VehicleListingWizard } from "@/components/VehicleListingWizard";
 import { PropertyListingWizard } from "@/components/PropertyListingWizard";
 import { allowedAssetTypes } from "@novoseminovo/shared-types";
 import { fetchAiStatus, fetchMyPartner, fetchProfile } from "@/lib/api";
+import { isAppRequest } from "@/lib/app-context";
 import { FUEL_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
 
 const PURPOSE_OPTIONS = [
@@ -64,6 +65,7 @@ export default async function CreateListingPage({
       profilePhone: profile?.phone,
       isPartner: Boolean(partner),
       needsCpf: !partner && Boolean(profile) && !profile?.cpf,
+      inApp: isAppRequest(),
     };
     const tabs = [
       { type: "vehicle" as const, label: "Carro", icon: <Car size={18} weight="bold" /> },

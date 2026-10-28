@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { isAppRequest } from "@/lib/app-context";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { listingTier } from "@novoseminovo/shared-types";
@@ -88,6 +89,8 @@ export default async function ListingDetailPage({
   if (!listing) notFound();
 
   const isOwnListing = session?.user?.id === listing.ownerUserId;
+  // Dentro do app não aparece compra de plano (lib/app-context.ts).
+  const inApp = isAppRequest();
   // Formulário de contato já vem preenchido para quem entrou na conta.
   const profile = session?.accessToken && !isOwnListing ? await fetchProfile(session.accessToken) : undefined;
   const prefill = { name: profile?.name ?? session?.user?.name ?? undefined, email: profile?.email ?? session?.user?.email ?? undefined, phone: profile?.phone ?? undefined };
@@ -132,9 +135,11 @@ export default async function ListingDetailPage({
       {searchParams.pagamento === "cancelado" && (
         <p className="mb-6 rounded-brand bg-surface-sober px-4 py-3 text-sm text-ink-muted">
           Pagamento não concluído — o anúncio segue no plano {listingTier(listing.planTier).name}.{" "}
-          <Link href={`/anuncio/${listing.id}/turbinar`} className="font-semibold text-brand-blue hover:underline">
-            Tentar de novo
-          </Link>
+          {!inApp && (
+            <Link href={`/anuncio/${listing.id}/turbinar`} className="font-semibold text-brand-blue hover:underline">
+              Tentar de novo
+            </Link>
+          )}
         </p>
       )}
       {searchParams.denunciaEnviada && (
@@ -181,7 +186,7 @@ export default async function ListingDetailPage({
                   ? ` · ${listing.hiddenPhotosCount} foto(s) suas não aparecem neste plano`
                   : ""}
               </span>
-              {listing.planTier !== "nitro" && (
+              {listing.planTier !== "nitro" && !inApp && (
                 <Link href={`/anuncio/${listing.id}/turbinar`} className="rounded-brand bg-brand-green px-3 py-1.5 font-bold text-on-green">
                   Turbinar anúncio
                 </Link>

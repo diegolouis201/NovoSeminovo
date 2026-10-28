@@ -1,5 +1,6 @@
 "use server";
 
+import { IN_APP_PURCHASE_BLOCKED, isAppRequest } from "@/lib/app-context";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type {
@@ -155,6 +156,7 @@ export async function similarPropertiesAction(filters: {
 export async function startBoostAction(listingId: string, tier: string): Promise<WizardResult<{ url?: string }>> {
   const session = await auth();
   if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
+  if (isAppRequest()) return { ok: false, error: IN_APP_PURCHASE_BLOCKED };
   const result = await startListingBoost(listingId, tier, session.accessToken);
   if (!result.ok) return { ok: false, error: result.error };
   revalidatePath(`/anuncio/${listingId}`);
@@ -162,6 +164,7 @@ export async function startBoostAction(listingId: string, tier: string): Promise
 }
 
 export async function boostFormAction(listingId: string, tier: string): Promise<void> {
+  if (isAppRequest()) redirect(`/anuncio/${listingId}`);
   const result = await startBoostAction(listingId, tier);
   if (!result.ok) redirect(`/anuncio/${listingId}/turbinar?erro=${encodeURIComponent(result.error)}`);
   redirect(result.value.url ?? `/anuncio/${listingId}?pagamento=ok`);

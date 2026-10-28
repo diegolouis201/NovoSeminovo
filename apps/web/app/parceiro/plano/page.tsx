@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { fetchMyPartner, fetchPaymentsStatus, fetchPlans } from "@/lib/api";
 import { COMPANY } from "@/lib/company";
+import { isAppRequest } from "@/lib/app-context";
 import {
   cancelSubscriptionAction,
   confirmCheckoutAction,
@@ -30,6 +31,10 @@ export default async function PartnerPlanPage({
   const partner = await fetchMyPartner(session.accessToken);
   if (!partner) redirect("/parceiro");
   if (!partner.isOwner) redirect("/parceiro");
+
+  // Dentro do app: só a situação do plano, sem preços nem botões de compra
+  // (Apple e Google exigem o pagamento delas para isso; ver lib/app-context.ts).
+  if (isAppRequest()) return <AppPlanStatus partner={partner} />;
 
   const audience = allowedAssetTypes(partner.type).includes("property") ? "property" : "vehicle";
   const [plans, paymentsStatus] = await Promise.all([fetchPlans(audience), fetchPaymentsStatus()]);
@@ -203,5 +208,29 @@ function PlanCard({ plan, isCurrent, stripeEnabled }: { plan: Plan; isCurrent: b
         </form>
       )}
     </li>
+  );
+}
+
+function AppPlanStatus({ partner }: { partner: Partner }) {
+  const subscription = partner.subscription;
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-12">
+      <h1 className="font-display text-2xl font-semibold text-ink">{partner.legalName}</h1>
+      <h2 className="mt-6 font-display text-xl font-semibold text-ink">Plano</h2>
+      <div className="mt-4 rounded-brand border border-border bg-surface-raised p-4">
+        {subscription ? (
+          <>
+            <p className="text-xs text-ink-muted">Plano atual</p>
+            <p className="font-semibold text-ink">{subscription.planName}</p>
+            <p className="mt-1 text-sm text-ink-muted">
+              Até {subscription.maxActiveListings} anúncios · {subscription.highlightCredits} destaque(s) · renova em{" "}
+              {new Date(subscription.currentPeriodEnd).toLocaleDateString("pt-BR")}
+            </p>
+          </>
+        ) : (
+          <p className="text-ink-muted">Nenhum plano ativo.</p>
+        )}
+      </div>
+    </main>
   );
 }

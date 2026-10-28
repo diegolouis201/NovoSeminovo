@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isAppRequest } from "@/lib/app-context";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
@@ -18,6 +19,8 @@ const STATUS_LABEL: Record<string, { label: string; tone: string }> = {
 };
 
 export default async function MyListingsPage() {
+  // Dentro do app não aparece compra de plano (lib/app-context.ts).
+  const inApp = isAppRequest();
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");
 
@@ -92,7 +95,7 @@ export default async function MyListingsPage() {
                       </span>
                     )}
                   </p>
-                  {listing.planTier && listing.planTier !== "nitro" && listing.status !== "sold" && (
+                  {listing.planTier && listing.planTier !== "nitro" && listing.status !== "sold" && !inApp && (
                     <Link href={`/anuncio/${listing.id}/turbinar`} className="text-xs font-bold text-brand-green hover:underline">
                       Turbinar anúncio →
                     </Link>

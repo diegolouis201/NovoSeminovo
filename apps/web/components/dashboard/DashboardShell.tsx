@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { allowedAssetTypes, type Partner } from "@novoseminovo/shared-types";
 import { auth, signOut } from "@/auth";
 import { fetchMyListings, fetchMyPartner } from "@/lib/api";
+import { isAppRequest } from "@/lib/app-context";
 import {
   DashboardSidebar,
   type NewListingOption,
@@ -64,7 +65,8 @@ const PERSON_ITEMS: SidebarItem[] = [
 function partnerCounters(partner: Partner): SidebarCounter[] {
   const counters: SidebarCounter[] = [];
   if (partner.offline) {
-    counters.push({ label: "Fora do ar", value: "Assinar", tone: "danger", href: "/parceiro/plano" });
+    // No app não se oferece compra de plano (lib/app-context.ts).
+    counters.push({ label: "Fora do ar", value: isAppRequest() ? "Sem plano" : "Assinar", tone: "danger", href: "/parceiro/plano" });
   } else if (partner.subscription) {
     counters.push({
       label: `Plano ${partner.subscription.planName}`,

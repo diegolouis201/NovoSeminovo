@@ -159,14 +159,18 @@ export function PropertyListingWizard({
   profilePhone,
   isPartner,
   needsCpf = false,
+  inApp = false,
 }: {
   aiEnabled: boolean;
   profilePhone?: string;
   isPartner: boolean;
+  // Dentro do app do celular não há escolha de plano pago (lib/app-context.ts).
+  inApp?: boolean;
   needsCpf?: boolean;
 }) {
   const router = useRouter();
-  const steps = useMemo(() => (isPartner ? STEPS.filter((id) => id !== "plan") : STEPS), [isPartner]);
+  const hidePlans = isPartner || inApp;
+  const steps = useMemo(() => (hidePlans ? STEPS.filter((id) => id !== "plan") : STEPS), [hidePlans]);
   const [draft, setDraft] = useState<Draft>({ ...EMPTY, phone: profilePhone ? formatPhone(profilePhone) : "" });
   const [step, setStep] = useState(0);
   const [restored, setRestored] = useState(false);
@@ -441,7 +445,7 @@ export function PropertyListingWizard({
       }
     }
     clearDraft(DRAFT_KEY);
-    if (!isPartner && draft.planTier !== "free") {
+    if (!hidePlans && draft.planTier !== "free") {
       setBusy("Abrindo o pagamento…");
       const boost = await startBoostAction(listingId, draft.planTier).catch(() => ({ ok: false as const, error: "" }));
       if (boost.ok && boost.value.url) {
@@ -654,7 +658,7 @@ export function PropertyListingWizard({
         {current === "photos" && (
           <Step
             title={`Adicione até ${MAX_PHOTOS} fotos`}
-            hint={`A primeira é a capa. Use as setas para mudar a ordem.${isPartner ? "" : " O plano Grátis mostra 5 fotos; Flex 10, Turbo 15 e Nitro 20."}`}
+            hint={`A primeira é a capa. Use as setas para mudar a ordem.${hidePlans ? "" : " O plano Grátis mostra 5 fotos; Flex 10, Turbo 15 e Nitro 20."}`}
           >
             <PhotoGrid photos={photos} onAdd={addPhotos} onMove={movePhoto} onRemove={removePhoto} />
           </Step>
@@ -663,7 +667,7 @@ export function PropertyListingWizard({
         {current === "video" && (
           <Step
             title="Tem um vídeo ou tour do imóvel?"
-            hint={`Cole o link de um vídeo do YouTube — ele aparece junto com as fotos. É opcional.${isPartner ? "" : " O vídeo aparece nos planos Flex, Turbo e Nitro."}`}
+            hint={`Cole o link de um vídeo do YouTube — ele aparece junto com as fotos. É opcional.${hidePlans ? "" : " O vídeo aparece nos planos Flex, Turbo e Nitro."}`}
           >
             <Field label="Link do YouTube">
               <input value={draft.videoUrl} onChange={(event) => set({ videoUrl: event.target.value })} placeholder="https://www.youtube.com/watch?v=..." className={inputClass} />
@@ -819,7 +823,7 @@ export function PropertyListingWizard({
                 )}
               </div>
             </div>
-            {!isPartner && <PlanSummary tier={draft.planTier} />}
+            {!hidePlans && <PlanSummary tier={draft.planTier} />}
           </Step>
         )}
       </div>
@@ -847,7 +851,7 @@ export function PropertyListingWizard({
               : current === "intro2"
                 ? "Combinado, continuar"
                 : current === "review"
-                  ? publishLabel(isPartner, draft.planTier)
+                  ? publishLabel(isPartner, hidePlans ? "free" : draft.planTier)
                   : "Continuar"}
             <ArrowRight size={18} weight="bold" />
           </button>
