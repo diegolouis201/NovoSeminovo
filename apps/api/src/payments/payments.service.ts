@@ -254,4 +254,18 @@ export class PaymentsService {
     if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET não configurada");
     return this.getClient().webhooks.constructEvent(payload, signature, secret);
   }
+
+  // Estorno (charge.refunded): descobre o que aquele pagamento pagou — um
+  // plano de anúncio (Checkout avulso) ou uma mensalidade (fatura).
+  async findRefundTarget(paymentIntentId: string): Promise<{ kind: "boost"; purchaseId: string } | { kind: "invoice"; invoiceId: string } | undefined> {
+    const client = this.getClient();
+    const sessions = await client.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 1 });
+    const session = sessions.data[0];
+    if (session?.metadata?.kind === "listing_boost" && session.metadata.purchaseId) return { kind: "boost", purchaseId: session.metadata.purchaseId };
+    const invoicePayments = await client.invoicePayments.list({ payment: { type: "payment_intent", payment_intent: paymentIntentId }, limit: 1 });
+    const invoice = invoicePayments.data[0]?.invoice;
+    const invoiceId = typeof invoice === "string" ? invoice : invoice?.id;
+    return invoiceId ? { kind: "invoice", invoiceId } : undefined;
+  }
+
 }

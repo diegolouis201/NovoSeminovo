@@ -210,6 +210,26 @@ export class ListingsService {
     return { url, applied: false };
   }
 
+  // Plano de anúncio estornado no Stripe: deixa de contar como receita, a
+  // comissão do afiliado cai e o anúncio volta ao maior plano que continua
+  // pago (ou ao Grátis). Estorno parcial só fica no log.
+  async refundBoost(purchaseId: string, fullRefund: boolean): Promise<void> {
+    const purchase = await this.prisma.listingBoostPurchase.findUnique({ where: { id: purchaseId }, include: { listing: true } });
+    if (!purchase || purchase.status !== "paid") return;
+    if (!fullRefund) {
+      this.logger.warn(`Estorno parcial no plano de anúncio ${purchaseId} — receita e plano mantidos; confira no Stripe.`);
+      return;
+    }
+    await this.prisma.listingBoostPurchase.update({ where: { id: purchaseId }, data: { status: "refunded", refundedAt: new Date() } });
+    await this.affiliates.cancelCommission(`boost:${purchaseId}`);
+    if (purchase.listing.planTier === purchase.tier) {
+      const stillPaid = await this.prisma.listingBoostPurchase.findMany({ where: { listingId: purchase.listingId, status: "paid" }, select: { tier: true } });
+      const best = stillPaid.map((row) => listingTier(row.tier)).sort((a, b) => b.rank - a.rank)[0] ?? listingTier("free");
+      await this.prisma.listing.update({ where: { id: purchase.listingId }, data: { planTier: best.id, tierRank: best.rank } });
+    }
+    this.logger.log(`Plano de anúncio ${purchaseId} estornado`);
+  }
+
   async confirmBoost(listingId: string, userId: string, sessionId: string): Promise<{ tier: string }> {
     const purchaseId = await this.payments.confirmListingBoostSession(sessionId);
     const purchase = purchaseId ? await this.prisma.listingBoostPurchase.findUnique({ where: { id: purchaseId } }) : null;

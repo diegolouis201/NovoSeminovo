@@ -85,6 +85,11 @@ export class AdminOverviewService {
       money(
         (await db.subscriptionPayment.aggregate({ where: { paidAt: range, ...(partnerTypes ? { partnerType: { in: partnerTypes } } : {}) }, _sum: { amount: true } }))._sum
           .amount,
+      ) -
+      // Mensalidades estornadas no Stripe saem da receita.
+      money(
+        (await db.subscriptionPayment.aggregate({ where: { paidAt: range, ...(partnerTypes ? { partnerType: { in: partnerTypes } } : {}) }, _sum: { refundedAmount: true } }))._sum
+          .refundedAmount,
       );
     // Receita de financiamento = comissão do banco menos o cashback devolvido a quem contratou.
     const financingIn = async (range: Range) => {
@@ -212,7 +217,7 @@ export class AdminOverviewService {
       db.listingBoostPurchase.findMany({ where: { status: "paid", paidAt: { gte: monthsStart }, listing: listingWhere }, select: { paidAt: true, amount: true } }),
       db.subscriptionPayment.findMany({
         where: { paidAt: { gte: monthsStart }, ...(partnerTypes ? { partnerType: { in: partnerTypes } } : {}) },
-        select: { paidAt: true, amount: true },
+        select: { paidAt: true, amount: true, refundedAmount: true },
       }),
       db.financingDeal.findMany({
         where: { createdAt: { gte: monthsStart }, ...dealListing },
@@ -253,7 +258,7 @@ export class AdminOverviewService {
       if (entry) entry[field] += value;
     };
     for (const row of monthPlans) addMonth(row.paidAt, "listingPlans", money(row.amount));
-    for (const row of monthSubscriptions) addMonth(row.paidAt, "subscriptions", money(row.amount));
+    for (const row of monthSubscriptions) addMonth(row.paidAt, "subscriptions", money(row.amount) - money(row.refundedAmount));
     for (const row of monthDeals) addMonth(row.createdAt, "financing", money(row.commissionAmount) - money(row.rebateAmount));
     if (hasStores) for (const row of storeEntries) addMonth(new Date(`${row.month}-15T00:00:00Z`), "stores", money(row.amount));
 

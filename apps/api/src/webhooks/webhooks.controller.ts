@@ -90,6 +90,18 @@ export class WebhooksController {
         }
         break;
       }
+      // Estorno feito no painel do Stripe (total ou parcial).
+      case "charge.refunded": {
+        const charge = event.data.object as { payment_intent?: string | { id: string } | null; amount: number; amount_refunded: number; refunded: boolean };
+        const paymentIntentId = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
+        if (!paymentIntentId) break;
+        const target = await this.payments.findRefundTarget(paymentIntentId);
+        const fullRefund = charge.refunded || charge.amount_refunded >= charge.amount;
+        if (target?.kind === "boost") await this.listings.refundBoost(target.purchaseId, fullRefund);
+        if (target?.kind === "invoice") await this.affiliates.recordInvoiceRefund(target.invoiceId, charge.amount_refunded / 100, fullRefund);
+        if (!target) this.logger.warn(`Estorno de um pagamento que o site não reconhece (${paymentIntentId}).`);
+        break;
+      }
       default:
         break;
     }

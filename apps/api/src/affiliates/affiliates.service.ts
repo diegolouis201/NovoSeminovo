@@ -187,6 +187,27 @@ export class AffiliatesService {
     });
   }
 
+  // Estorno de mensalidade: sai da receita; se foi total, a comissão cai.
+  async recordInvoiceRefund(invoiceId: string, refundedAmount: number, fullRefund: boolean): Promise<void> {
+    await this.prisma.subscriptionPayment.updateMany({
+      where: { stripeInvoiceId: invoiceId },
+      data: { refundedAmount, refundedAt: new Date() },
+    });
+    if (fullRefund) await this.cancelCommission(`invoice:${invoiceId}`);
+  }
+
+  // Comissão de pagamento estornado: cancelada se ainda não foi paga ao
+  // afiliado (já paga, fica o aviso no log para acertar à mão).
+  async cancelCommission(sourceRef: string): Promise<void> {
+    const commission = await this.prisma.affiliateCommission.findUnique({ where: { sourceRef } });
+    if (!commission || commission.status === "canceled") return;
+    if (commission.status === "paid") {
+      this.logger.warn(`Pagamento estornado, mas a comissão ${commission.id} já foi paga ao afiliado — acertar à mão.`);
+      return;
+    }
+    await this.prisma.affiliateCommission.update({ where: { id: commission.id }, data: { status: "canceled" } });
+  }
+
   // Plano de anúncio de pessoa física pago (ListingsService.applyBoost).
   async recordListingPlan(purchaseId: string): Promise<void> {
     const purchase = await this.prisma.listingBoostPurchase.findUnique({ where: { id: purchaseId } });
