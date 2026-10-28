@@ -50,7 +50,7 @@ export class AdminAccountsService {
       this.prisma.favorite.count({ where: { userId } }),
       this.prisma.marketingContact.findUnique({ where: { userId }, select: { consent: true, status: true } }),
     ]);
-    const blocked = await this.deleteBlockedReason(user.id, user.role);
+    const blocked = await this.deleteBlockedReason(user.id, user.role, false);
     const subscription = partner?.subscriptions[0];
     return {
       id: user.id,
@@ -121,8 +121,23 @@ export class AdminAccountsService {
     if (!user) throw new NotFoundException("Usuário não encontrado");
     if (user.id === adminId) throw new ForbiddenException("Você não pode excluir a sua própria conta por aqui.");
     if (user.email.endsWith(`@${DELETED_EMAIL_DOMAIN}`)) throw new ConflictException("Esta conta já foi excluída.");
-    const blocked = await this.deleteBlockedReason(user.id, user.role);
+    const blocked = await this.deleteBlockedReason(user.id, user.role, false);
     if (blocked) throw new ConflictException(blocked);
+    return this.eraseAccount(userId, `admin:${adminId}`, input.reason);
+  }
+
+  // A própria pessoa exclui a conta (Minha conta → Excluir minha conta). A
+  // Apple e a Google exigem isso dentro do app. Mesma limpeza do admin.
+  async deleteOwnAccount(userId: string, password: string): Promise<{ deleted: true; listingsDeleted: number; listingsKept: number }> {
+    await this.checkPassword(userId, password, false);
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true, email: true } });
+    if (!user || user.email.endsWith(`@${DELETED_EMAIL_DOMAIN}`)) throw new NotFoundException("Conta não encontrada");
+    const blocked = await this.deleteBlockedReason(user.id, user.role, true);
+    if (blocked) throw new ConflictException(blocked);
+    return this.eraseAccount(userId, `usuario:${userId}`, "Pedido pelo próprio usuário em Minha conta");
+  }
+
+  private async eraseAccount(userId: string, actor: string, reason: string): Promise<{ deleted: true; listingsDeleted: number; listingsKept: number }> {
 
     // Anúncios: apaga os que não têm registro financeiro; os outros saem do ar e ficam guardados.
     const listings = await this.prisma.listing.findMany({
@@ -148,6 +163,7 @@ export class AdminAccountsService {
       this.prisma.favorite.deleteMany({ where: { userId } }),
       this.prisma.savedSearch.deleteMany({ where: { userId } }),
       this.prisma.notification.deleteMany({ where: { userId } }),
+      this.prisma.pushDevice.deleteMany({ where: { userId } }),
       this.prisma.marketingContact.deleteMany({ where: { userId } }),
       this.prisma.affiliate.updateMany({ where: { userId }, data: { status: "suspended", pixKey: "", audience: null } }),
       this.prisma.user.update({
@@ -170,12 +186,12 @@ export class AdminAccountsService {
       }),
     ]);
     await this.removePhotoFiles(files);
-    this.logger.log(`Admin ${adminId} excluiu a conta ${userId}. Motivo: ${input.reason}`);
+    this.logger.log(`${actor} excluiu a conta ${userId}. Motivo: ${reason}`);
     await this.prisma.opsReport.create({
       data: {
-        agent: `admin:${adminId}`,
+        agent: actor,
         kind: "exclusao_conta",
-        body: `Conta ${userId} excluída (dados pessoais apagados). Anúncios apagados: ${listingsDeleted}; guardados fora do ar por terem pagamento: ${listingsKept}. Motivo: ${input.reason}`,
+        body: `Conta ${userId} excluída (dados pessoais apagados). Anúncios apagados: ${listingsDeleted}; guardados fora do ar por terem pagamento: ${listingsKept}. Motivo: ${reason}`,
       },
     });
     return { deleted: true, listingsDeleted, listingsKept };
@@ -183,15 +199,21 @@ export class AdminAccountsService {
 
   // ---------------- Regras ----------------
 
-  private async deleteBlockedReason(userId: string, role: string): Promise<string | undefined> {
+  private async deleteBlockedReason(userId: string, role: string, self: boolean): Promise<string | undefined> {
     if (role === "admin") return "Contas de administrador não podem ser excluídas por aqui.";
     const subscription = await this.prisma.subscription.findFirst({
       where: { partner: { ownerUserId: userId }, status: { in: [...SUBSCRIPTION_IN_EFFECT] } },
       select: { id: true },
     });
-    if (subscription) return "A loja tem assinatura em vigor. Cancele a assinatura antes de excluir a conta, senão o cartão continua sendo cobrado.";
+    if (subscription)
+      return self
+        ? "Sua loja tem um plano mensal em vigor. Cancele o plano em Painel da loja → Plano antes de excluir a conta, para o cartão não continuar sendo cobrado."
+        : "A loja tem assinatura em vigor. Cancele a assinatura antes de excluir a conta, senão o cartão continua sendo cobrado.";
     const available = await this.prisma.affiliateCommission.count({ where: { affiliate: { userId }, status: "available" } });
-    if (available) return "Esta pessoa tem comissões de afiliado disponíveis para pagar. Pague ou cancele antes de excluir a conta.";
+    if (available)
+      return self
+        ? "Você tem comissões de afiliado disponíveis. Peça o pagamento no painel de afiliado antes de excluir a conta, ou fale com a gente."
+        : "Esta pessoa tem comissões de afiliado disponíveis para pagar. Pague ou cancele antes de excluir a conta.";
     return undefined;
   }
 
@@ -225,12 +247,12 @@ export class AdminAccountsService {
   }
 
   // Confirma que quem clicou é mesmo o admin logado. 5 erros em 15 min bloqueiam por um tempo.
-  private async checkPassword(adminId: string, password: string): Promise<void> {
+  private async checkPassword(adminId: string, password: string, requireAdmin = true): Promise<void> {
     const now = Date.now();
     const fails = (this.failedPasswords.get(adminId) ?? []).filter((at) => now - at < PASSWORD_WINDOW_MS);
     if (fails.length >= PASSWORD_MAX_FAILS) throw new ForbiddenException("Muitas tentativas com senha errada. Espere 15 minutos.");
     const admin = await this.prisma.user.findUnique({ where: { id: adminId }, select: { passwordHash: true, role: true } });
-    if (!admin || admin.role !== "admin") throw new ForbiddenException("Só administradores podem excluir.");
+    if (!admin || (requireAdmin && admin.role !== "admin")) throw new ForbiddenException("Só administradores podem excluir.");
     if (!admin.passwordHash) throw new BadRequestException("Sua conta não tem senha cadastrada; crie uma senha em Meus dados.");
     if (!(await compare(password, admin.passwordHash))) {
       fails.push(now);

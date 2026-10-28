@@ -108,6 +108,13 @@ export default async function AccountPage() {
           </Button>
         </form>
       </div>
+      {session.user.role !== "admin" && (
+        <p className="mt-10 text-sm">
+          <Link href="/conta/excluir" className="text-ink-muted underline hover:text-status-danger">
+            Excluir minha conta
+          </Link>
+        </p>
+      )}
     </main>
   );
 }

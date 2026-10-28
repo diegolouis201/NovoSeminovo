@@ -15,7 +15,7 @@ describe("Admin: excluir anúncio e conta (banco local)", { skip: !withDb && "se
   const notifications = { notify: async (_userId: string, type: string) => void notified.push(type) } as unknown as NotificationsService;
   const accounts = new AdminAccountsService(prisma, notifications);
   const tag = `teste-exclusao-${Date.now()}`;
-  const ids = { admin: "", owner: "", buyer: "" };
+  const ids = { admin: "", owner: "", buyer: "", self: "" };
 
   const makeUser = (name: string, role: "admin" | "buyer", passwordHash?: string) =>
     prisma.user.create({ data: { name, email: `${name}-${tag}@teste.local`, role, passwordHash } });
@@ -32,7 +32,8 @@ describe("Admin: excluir anúncio e conta (banco local)", { skip: !withDb && "se
 
   after(async () => {
     const users = Object.values(ids);
-    await prisma.opsReport.deleteMany({ where: { agent: `admin:${ids.admin}` } });
+    await prisma.opsReport.deleteMany({ where: { agent: { in: [`admin:${ids.admin}`, `usuario:${ids.self}`] } } });
+    await prisma.pushDevice.deleteMany({ where: { userId: { in: users } } });
     await prisma.listingBoostPurchase.deleteMany({ where: { userId: { in: users } } });
     await prisma.message.deleteMany({ where: { senderId: { in: users } } });
     await prisma.conversation.deleteMany({ where: { buyerId: { in: users } } });
@@ -78,5 +79,18 @@ describe("Admin: excluir anúncio e conta (banco local)", { skip: !withDb && "se
     assert.deepEqual(kept.map((listing) => listing.status), ["paused"]);
     const profile = await accounts.profile(ids.owner);
     assert.equal(profile.deleted, true);
+  });
+
+  test("a própria pessoa exclui a conta com a senha (exigência das lojas de app)", async () => {
+    ids.self = (await makeUser("propria", "buyer", await hash("minha-senha", 4))).id;
+    await prisma.pushDevice.create({ data: { userId: ids.self, token: `tok-${tag}-self-abcdefghijklmnop`, platform: "ios" } });
+    await assert.rejects(accounts.deleteOwnAccount(ids.self, "errada"), /Senha incorreta/);
+    const result = await accounts.deleteOwnAccount(ids.self, "minha-senha");
+    assert.equal(result.deleted, true);
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: ids.self } });
+    assert.equal(user.name, "Conta excluída");
+    assert.ok(user.email.endsWith(`@${DELETED_EMAIL_DOMAIN}`));
+    assert.equal(user.passwordHash, null);
+    assert.equal(await prisma.pushDevice.count({ where: { userId: ids.self } }), 0);
   });
 });

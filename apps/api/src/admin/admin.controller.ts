@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
+  DeleteMyAccountInputSchema,
   AdminDeleteInputSchema,
   AdminListingActionInputSchema,
   ModerateListingInputSchema,
@@ -131,5 +132,18 @@ export class AdminController {
   @Get("moderation-log")
   listModerationLog() {
     return this.adminService.listModerationLog();
+  }
+}
+
+// Minha conta → Excluir minha conta (exigência da Apple e da Google para o app).
+@UseGuards(JwtAuthGuard)
+@Controller("me")
+export class MyAccountController {
+  constructor(private readonly accounts: AdminAccountsService) {}
+
+  @Post("account/delete")
+  deleteMine(@CurrentUser() user: { id: string }, @Body() body: unknown) {
+    const { password } = parseOrBadRequest(DeleteMyAccountInputSchema, body);
+    return this.accounts.deleteOwnAccount(user.id, password);
   }
 }

@@ -18,6 +18,15 @@ export default function DataDeletionPage() {
         Você pode pedir a exclusão dos dados pessoais que o {COMPANY.brand} guarda sobre você — cadastro, anúncios,
         mensagens e conversas com o assistente, inclusive as feitas pelo WhatsApp.
       </p>
+      <h2 className="mt-6 font-display text-xl font-semibold">Pelo site ou pelo app</h2>
+      <p>
+        Entre na sua conta e vá em{" "}
+        <Link href="/conta/excluir" className="font-semibold text-brand-blue hover:underline">
+          Minha conta → Excluir minha conta
+        </Link>
+        . Confirme com a sua senha e a exclusão é feita na hora.
+      </p>
+      <h2 className="mt-6 font-display text-xl font-semibold">Sem acesso à conta</h2>
       <ol className="mt-3 list-decimal pl-5">
         <li>
           Envie uma mensagem pelo WhatsApp{" "}

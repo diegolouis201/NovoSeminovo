@@ -1475,6 +1475,23 @@ export async function sendListingContact(
   }
 }
 
+// Minha conta → Excluir minha conta.
+export async function deleteMyAccount(password: string, accessToken: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/me/account/delete`,
+      { method: "POST", headers: { ...authHeaders(accessToken), "Content-Type": "application/json" }, body: JSON.stringify({ password }) },
+      20_000,
+    );
+    if (res.ok) return { ok: true };
+    const body = await res.json().catch(() => ({}));
+    const message = Array.isArray(body.message) ? body.message[0] : body.message;
+    return { ok: false, error: typeof message === "string" ? message : "Não foi possível excluir agora. Tente de novo." };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente de novo." };
+  }
+}
+
 // App do celular: aparelho que recebe as notificações como push.
 export async function registerPushDevice(token: string, platform: "android" | "ios", accessToken: string): Promise<boolean> {
   const res = await fetchWithTimeout(`${API_URL}/me/push-devices`, {

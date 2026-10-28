@@ -151,7 +151,14 @@ export default function PrivacyPage() {
 
       <H2 id="exclusao-de-dados">8. Como pedir a exclusão dos seus dados</H2>
       <p>
-        Envie uma mensagem pelo WhatsApp{" "}
+        Com a conta: no site ou no app, vá em{" "}
+        <Link href="/conta/excluir" className="font-semibold text-brand-blue hover:underline">
+          Minha conta → Excluir minha conta
+        </Link>{" "}
+        e confirme com a sua senha; a exclusão é feita na hora.
+      </p>
+      <p>
+        Sem acesso à conta: envie uma mensagem pelo WhatsApp{" "}
         <a href={COMPANY.whatsappLink} className="font-semibold text-brand-blue hover:underline">
           {COMPANY.whatsappDisplay}
         </a>{" "}

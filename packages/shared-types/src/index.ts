@@ -1456,6 +1456,11 @@ export const AdminDeleteInputSchema = z.object({
 });
 export type AdminDeleteInput = z.infer<typeof AdminDeleteInputSchema>;
 
+// Minha conta → Excluir minha conta: só a senha confirma.
+export const DeleteMyAccountInputSchema = z.object({
+  password: z.string().min(1, "Digite a sua senha").max(200),
+});
+
 // Página de uma pessoa ou loja no admin (/admin/usuarios/[id]).
 export type AdminUserProfile = {
   id: string;
