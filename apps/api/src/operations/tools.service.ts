@@ -9,6 +9,7 @@ import { SUBSCRIPTION_STATUSES_IN_EFFECT } from "../partners/partners.service";
 import { GoalsService } from "./goals.service";
 import { TaskQueueService } from "./task-queue.service";
 import { windsorEnabled, windsorRows } from "./windsor";
+import type { DailyReport } from "../email/daily-report";
 import { AGENT_TOOL_ALLOWLIST, APPROVAL_TTL_MS, actionHash, decide, type OpsTool, type OpsToolContext } from "./policy";
 
 export type ToolOutcome =
@@ -332,6 +333,7 @@ export class OpsToolsService {
         resumo: z.string().trim().min(50).max(4000),
         metas_em_risco: z.array(z.string().max(200)).max(10).optional(),
         prioridades: z.array(z.string().max(200)).max(5).optional(),
+        destaques: z.array(z.string().max(200)).max(5).optional(),
       }),
       schema: {
         type: "object",
@@ -339,20 +341,22 @@ export class OpsToolsService {
           resumo: { type: "string", description: "Texto corrido, até 4000 caracteres, só com números lidos nas ferramentas." },
           metas_em_risco: { type: "array", items: { type: "string" } },
           prioridades: { type: "array", items: { type: "string" }, description: "Até 5 ações recomendadas para hoje." },
+          destaques: { type: "array", items: { type: "string" }, description: "Até 5 frases curtas (uma linha cada) com o que foi bem ou mudou desde ontem." },
         },
         required: ["resumo"],
       },
-      run: async ({ resumo, metas_em_risco, prioridades }, context) => {
+      run: async ({ resumo, metas_em_risco, prioridades, destaques }, context) => {
         const lines = [resumo];
         if (metas_em_risco?.length) lines.push("", "Metas em risco:", ...metas_em_risco.map((item) => `• ${item}`));
         if (prioridades?.length) lines.push("", "Prioridades sugeridas:", ...prioridades.map((item, index) => `${index + 1}. ${item}`));
         const body = lines.join("\n");
         const report = await this.prisma.opsReport.create({
-          data: { agent: context.agent, kind: "resumo_diario", body, data: { metas_em_risco, prioridades } as Prisma.InputJsonValue, taskId: context.taskId },
+          data: { agent: context.agent, kind: "resumo_diario", body, data: { metas_em_risco, prioridades, destaques } as Prisma.InputJsonValue, taskId: context.taskId },
         });
         const dayLabel = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
+        const visual = await this.dailyReport({ metas_em_risco, prioridades, destaques });
         const admins = await this.prisma.user.findMany({ where: { role: "admin", status: "active" }, select: { id: true } });
-        for (const admin of admins) await this.notifications.notify(admin.id, "ops_daily_summary", { dayLabel, body }).catch(() => undefined);
+        for (const admin of admins) await this.notifications.notify(admin.id, "ops_daily_summary", { dayLabel, body, report: visual }).catch(() => undefined);
         return { resumoId: report.id };
       },
     });
@@ -663,6 +667,36 @@ export class OpsToolsService {
           .slice(0, 8),
       },
       alertas,
+    };
+  }
+
+  // Números do relatório visual do resumo do dia: sempre do banco, nunca do agente.
+  async dailyReport(text: { metas_em_risco?: string[]; prioridades?: string[]; destaques?: string[] }, now = new Date()): Promise<DailyReport> {
+    const since = { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) };
+    const [goals, cadastros, anuncios, leads, financiamentos] = await Promise.all([
+      this.goals.current(now),
+      this.prisma.user.count({ where: { createdAt: since } }),
+      this.prisma.listing.count({ where: { createdAt: since } }),
+      this.prisma.lead.count({ where: { createdAt: since } }),
+      this.prisma.financingLead.count({ where: { createdAt: since } }),
+    ]);
+    return {
+      dayOfMonth: now.getUTCDate(),
+      daysInMonth: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate(),
+      goals: goals
+        .filter((goal) => goal.current !== undefined)
+        .map((goal) => ({
+          label: OPS_GOAL_METRICS[goal.metric] ?? goal.metric,
+          segment: goal.segment,
+          current: goal.current!,
+          target: goal.target,
+          money: goal.metric === "receita_total",
+          stock: goal.metric === "anuncios_ativos",
+        })),
+      last24h: { cadastros, anuncios, leads, financiamentos },
+      highlights: text.destaques ?? [],
+      risks: text.metas_em_risco ?? [],
+      priorities: text.prioridades ?? [],
     };
   }
 

@@ -1,3 +1,4 @@
+import { LOGO_PATH } from "../email/email-template";
 import { webOrigin } from "./links";
 
 // Modelo dos e-mails de marketing (campanhas e sequências). Texto do agente ou
@@ -50,7 +51,7 @@ export function renderMarketingEmail(params: {
   const html = `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#f4f6f8;">${preheader}
 <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
   <div style="background:#ffffff;border-radius:16px;padding:28px;">
-    <img src="${webOrigin()}/marca/novoseminovo-logo.png" alt="NovoSeminovo" width="140" style="display:block;margin:0 0 20px;">
+    <img src="${webOrigin()}${LOGO_PATH}" alt="NovoSeminovo" width="120" style="display:block;margin:0 0 20px;border:0;">
     ${paragraphs}
     ${cta}
   </div>

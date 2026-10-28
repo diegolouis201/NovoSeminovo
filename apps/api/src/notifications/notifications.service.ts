@@ -4,6 +4,7 @@ import type { Notification, NotificationType } from "@novoseminovo/shared-types"
 import { PrismaService } from "../prisma/prisma.service";
 import { EmailService } from "../email/email.service";
 import { renderNotificationEmail } from "../email/email-template";
+import { renderDailyReportHtml, type DailyReport } from "../email/daily-report";
 
 type NotificationRow = {
   id: string;
@@ -215,7 +216,11 @@ export class NotificationsService {
     if (!user) return;
 
     const { title, body, link } = describe(type, payload);
-    const html = renderNotificationEmail({ userName: user.name, title, body, link });
+    // Resumo do dia: no e-mail, o texto corrido dá lugar ao relatório visual.
+    const report = type === "ops_daily_summary" ? (payload.report as DailyReport | undefined) : undefined;
+    const html = report
+      ? renderNotificationEmail({ userName: user.name, title, body: "Como o site está hoje, em um minuto de leitura.", link, linkLabel: "Abrir o painel", sectionsHtml: renderDailyReportHtml(report) })
+      : renderNotificationEmail({ userName: user.name, title, body, link });
     await this.email.send(user.email, title, html);
   }
 

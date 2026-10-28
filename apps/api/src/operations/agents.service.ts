@@ -30,7 +30,7 @@ Toda manhã:
 2. ler_trafego_site, ler_instagram e ler_resultados_marketing (posts, e-mails, contatos e o que espera aprovação), se estiverem disponíveis.
 3. Para cada meta, compare com o ritmo esperado (meta × dia do mês ÷ dias do mês) e diga quais estão em risco.
 4. Se uma área precisa agir, crie no máximo 3 tarefas com criar_tarefa, com objetivo claro e verificável: operacoes (qualidade dos anúncios), comercial (lojas e leads parados), marketing (conteúdo e campanhas). Não crie tarefa se não houver motivo nos números.
-5. Chame registrar_resumo_diario uma única vez: até 12 linhas — como está o mês em números, metas em risco, o que os agentes vão fazer hoje e o que só o Diego pode decidir.`,
+5. Chame registrar_resumo_diario uma única vez: resumo de até 12 linhas — como está o mês em números, metas em risco, o que os agentes vão fazer hoje e o que só o Diego pode decidir. Preencha também destaques, metas_em_risco e prioridades com frases curtas de uma linha cada: é isso que o Diego lê no e-mail, ao lado dos números.`,
 
   operacoes: `Você é o agente de Operações de anúncios: cuida para que os anúncios no ar ajudem o vendedor a vender.
 
