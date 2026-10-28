@@ -4,6 +4,7 @@ import type { Notification, NotificationType } from "@novoseminovo/shared-types"
 import { PrismaService } from "../prisma/prisma.service";
 import { EmailService } from "../email/email.service";
 import { renderNotificationEmail } from "../email/email-template";
+import { PushService } from "./push.service";
 import { renderDailyReportHtml, type DailyReport } from "../email/daily-report";
 
 type NotificationRow = {
@@ -200,6 +201,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
+    private readonly push: PushService,
   ) {}
 
   // Grava a notificação dentro do site sempre; manda uma cópia por e-mail
@@ -209,6 +211,10 @@ export class NotificationsService {
     await this.prisma.notification.create({
       data: { userId, type, payload: payload as Prisma.InputJsonValue },
     });
+
+    // Celular com o app: o mesmo aviso como push (não segura o resto se falhar).
+    const pushed = describe(type, payload);
+    void this.push.sendToUser(userId, { title: pushed.title, body: pushed.body, link: pushed.link }).catch(() => undefined);
 
     if (!this.email.isEnabled()) return;
 

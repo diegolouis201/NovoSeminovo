@@ -5,6 +5,7 @@ import "./globals.css";
 import { SITE_URL } from "@/lib/company";
 import { auth } from "@/auth";
 import { AgentChatWidget } from "@/components/AgentChatWidget";
+import { NativeAppBridge } from "@/components/NativeAppBridge";
 import { Analytics } from "@/components/Analytics";
 import { AttributionCapture } from "@/components/AttributionCapture";
 import { ReferralCapture } from "@/components/ReferralCapture";
@@ -72,6 +73,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <ReferralCapture />
           <AttributionCapture />
         </Suspense>
+        <NativeAppBridge isLoggedIn={Boolean(session?.accessToken)} />
         <AgentChatWidget isLoggedIn={Boolean(session?.accessToken)} isAdmin={session?.user?.role === "admin"} />
       </body>
     </html>

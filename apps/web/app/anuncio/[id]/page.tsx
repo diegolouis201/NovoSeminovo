@@ -12,6 +12,7 @@ import { CredihomeSimulator } from "@/components/CredihomeSimulator";
 import { MarkVertical } from "@/components/ActiveVertical";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
+import { ShareListingButton } from "@/components/ShareListingButton";
 import { PhotoCarousel } from "@/components/PhotoCarousel";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { confirmListingBoost, fetchListing, resolveMediaUrl } from "@/lib/api";
@@ -210,6 +211,7 @@ export default async function ListingDetailPage({
             <p className="text-2xl font-extrabold [font-variant-numeric:tabular-nums]">
               {listing.priceLabel}
             </p>
+            <ShareListingButton title={listing.title} priceLabel={listing.priceLabel} />
           </div>
 
           <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-brand border border-border bg-surface-raised p-4 sm:grid-cols-3">

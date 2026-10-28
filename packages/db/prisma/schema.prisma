@@ -209,10 +209,10 @@ model User {
   // dos 15 minutos de validade do código.
   emailVerificationAttempts  Int       @default(0) @map("email_verification_attempts")
   // "Esqueci minha senha": só o hash (sha256) do token do link fica no banco.
-  passwordResetTokenHash String?   @unique @map("password_reset_token_hash")
-  passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
+  passwordResetTokenHash     String?   @unique @map("password_reset_token_hash")
+  passwordResetExpiresAt     DateTime? @map("password_reset_expires_at")
   // Sessões (JWT de 30 dias) emitidas antes disto deixam de valer.
-  passwordChangedAt      DateTime? @map("password_changed_at")
+  passwordChangedAt          DateTime? @map("password_changed_at")
 
   ownedPartners            Partner[]             @relation("PartnerOwner")
   partnerMemberships       PartnerMember[]
@@ -229,6 +229,7 @@ model User {
   reports                  Report[]
   moderationLogs           ModerationLog[]
   notifications            Notification[]
+  pushDevices              PushDevice[]
   vehiclesOwned            Vehicle[]             @relation("VehicleCurrentOwner")
   vehicleEvents            VehicleEvent[]
   financingDealsRegistered FinancingDeal[]       @relation("FinancingDealRegisteredBy")
@@ -783,6 +784,22 @@ model Notification {
   @@map("notifications")
 }
 
+// Celular com o app instalado (mobile/): recebe as notificações como push.
+// android = token do Firebase (FCM); ios = token da Apple (APNs). Um token
+// só vale para quem entrou por último naquele celular.
+model PushDevice {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique
+  platform   String
+  createdAt  DateTime @default(now()) @map("created_at")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+
+  @@index([userId])
+  @@map("push_devices")
+}
+
 // ---------- Programa de recompensa por financiamento ----------
 // Quando o comprador de um anúncio fecha financiamento (imobiliário ou
 // veicular) por um parceiro financeiro, uma parte da comissão do correspondente
@@ -812,40 +829,40 @@ model PartnerRebateTier {
 // (commissionReceivedAt). Os campos rebate* guardam o cashback (nome antigo
 // do programa, que pagava o anunciante até 26/10/2026).
 model FinancingDeal {
-  id                 String              @id @default(cuid())
-  listingId          String?             @map("listing_id")
-  listing            Listing?            @relation(fields: [listingId], references: [id])
+  id                   String              @id @default(cuid())
+  listingId            String?             @map("listing_id")
+  listing              Listing?            @relation(fields: [listingId], references: [id])
   // Quem contratou o financiamento e recebe o cashback. buyerUserId liga à
   // conta do site (pode ficar vazio até a pessoa se cadastrar com o mesmo
   // e-mail/telefone); nome/e-mail/telefone são o retrato do lead.
-  buyerUserId        String?             @map("buyer_user_id")
-  buyerUser          User?               @relation("FinancingDealBuyer", fields: [buyerUserId], references: [id])
-  buyerName          String              @default("") @map("buyer_name")
-  buyerEmail         String?             @map("buyer_email")
-  buyerPhone         String?             @map("buyer_phone")
+  buyerUserId          String?             @map("buyer_user_id")
+  buyerUser            User?               @relation("FinancingDealBuyer", fields: [buyerUserId], references: [id])
+  buyerName            String              @default("") @map("buyer_name")
+  buyerEmail           String?             @map("buyer_email")
+  buyerPhone           String?             @map("buyer_phone")
   // Data em que o banco/Credihome pagou a comissão ao NovoSeminovo — só
   // depois disso o cashback pode ser pago.
-  commissionReceivedAt DateTime?         @map("commission_received_at")
+  commissionReceivedAt DateTime?           @map("commission_received_at")
   // Nome livre (não um enum fechado) porque o programa não é exclusivo da
   // Credihome — qualquer parceiro de financiamento futuro usa o mesmo fluxo.
-  financingProvider  String              @map("financing_provider")
-  externalRef        String?             @map("external_ref")
-  assetValue         Decimal             @map("asset_value") @db.Decimal(12, 2)
-  financedAmount     Decimal             @map("financed_amount") @db.Decimal(12, 2)
-  commissionRate     Decimal             @default(1.00) @map("commission_rate") @db.Decimal(5, 2)
-  commissionAmount   Decimal             @map("commission_amount") @db.Decimal(12, 2)
+  financingProvider    String              @map("financing_provider")
+  externalRef          String?             @map("external_ref")
+  assetValue           Decimal             @map("asset_value") @db.Decimal(12, 2)
+  financedAmount       Decimal             @map("financed_amount") @db.Decimal(12, 2)
+  commissionRate       Decimal             @default(1.00) @map("commission_rate") @db.Decimal(5, 2)
+  commissionAmount     Decimal             @map("commission_amount") @db.Decimal(12, 2)
   // Percentual e valor do rebate são um retrato de quando o negócio foi
   // registrado — o nível de um parceiro pode mudar depois, mas isso não deve
   // alterar o valor de um negócio já fechado.
-  rebatePercent      Decimal             @map("rebate_percent") @db.Decimal(5, 2)
-  rebateAmount       Decimal             @map("rebate_amount") @db.Decimal(12, 2)
-  status             FinancingDealStatus @default(registered)
-  registeredByUserId String              @map("registered_by_user_id")
-  registeredBy       User                @relation("FinancingDealRegisteredBy", fields: [registeredByUserId], references: [id])
-  paidAt             DateTime?           @map("paid_at")
-  paidNote           String?             @map("paid_note")
-  createdAt          DateTime            @default(now()) @map("created_at")
-  financingLead      FinancingLead?
+  rebatePercent        Decimal             @map("rebate_percent") @db.Decimal(5, 2)
+  rebateAmount         Decimal             @map("rebate_amount") @db.Decimal(12, 2)
+  status               FinancingDealStatus @default(registered)
+  registeredByUserId   String              @map("registered_by_user_id")
+  registeredBy         User                @relation("FinancingDealRegisteredBy", fields: [registeredByUserId], references: [id])
+  paidAt               DateTime?           @map("paid_at")
+  paidNote             String?             @map("paid_note")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  financingLead        FinancingLead?
 
   @@index([status])
   @@index([buyerUserId])
@@ -916,53 +933,53 @@ enum FinancingLeadStatus {
 // parceiro dono do anúncio. Vira FinancingDeal (manual, pelo admin) se o
 // financiamento fechar.
 model FinancingLead {
-  id              String              @id @default(cuid())
-  conversationId  String?             @map("conversation_id")
-  conversation    AgentConversation?  @relation(fields: [conversationId], references: [id])
-  listingId       String?             @map("listing_id")
-  listing         Listing?            @relation(fields: [listingId], references: [id])
-  channel         AgentChannel
-  name            String
-  phone           String
-  email           String?
-  assetType       String              @map("asset_type")
-  assetValue      Decimal?            @map("asset_value") @db.Decimal(12, 2)
-  downPayment     Decimal?            @map("down_payment") @db.Decimal(12, 2)
-  monthlyIncome   Decimal?            @map("monthly_income") @db.Decimal(12, 2)
+  id                 String              @id @default(cuid())
+  conversationId     String?             @map("conversation_id")
+  conversation       AgentConversation?  @relation(fields: [conversationId], references: [id])
+  listingId          String?             @map("listing_id")
+  listing            Listing?            @relation(fields: [listingId], references: [id])
+  channel            AgentChannel
+  name               String
+  phone              String
+  email              String?
+  assetType          String              @map("asset_type")
+  assetValue         Decimal?            @map("asset_value") @db.Decimal(12, 2)
+  downPayment        Decimal?            @map("down_payment") @db.Decimal(12, 2)
+  monthlyIncome      Decimal?            @map("monthly_income") @db.Decimal(12, 2)
   // Resumo escrito pelo assistente de compra na hora do pedido.
-  notes           String?
-  status          FinancingLeadStatus @default(new)
+  notes              String?
+  status             FinancingLeadStatus @default(new)
   // Preenchidos pelo admin conforme a negociação anda: valor que vai ser
   // financiado de fato, banco, percentual de comissão do correspondente
   // (padrão 1%, igual ao FinancingDeal) e anotações próprias.
-  negotiatedValue Decimal?            @map("negotiated_value") @db.Decimal(12, 2)
-  acqSource       String?             @map("acq_source")
-  acqCampaign     String?             @map("acq_campaign")
-  commissionRate  Decimal             @default(1.00) @map("commission_rate") @db.Decimal(5, 2)
-  bank            String?
-  adminNotes      String?             @map("admin_notes")
-  statusChangedAt DateTime?           @map("status_changed_at")
+  negotiatedValue    Decimal?            @map("negotiated_value") @db.Decimal(12, 2)
+  acqSource          String?             @map("acq_source")
+  acqCampaign        String?             @map("acq_campaign")
+  commissionRate     Decimal             @default(1.00) @map("commission_rate") @db.Decimal(5, 2)
+  bank               String?
+  adminNotes         String?             @map("admin_notes")
+  statusChangedAt    DateTime?           @map("status_changed_at")
   // Negócio registrado automaticamente quando o lead é concluído (ver
   // AgentsService.updateFinancingLead) — é o que entra no fechamento mensal
   // e no repasse ao anunciante (ver RebatesService).
   // Conta de quem pediu (chat logado ou simulador logado) — recebe o cashback.
-  buyerUserId     String?             @map("buyer_user_id")
-  buyerUser       User?               @relation("FinancingLeadBuyer", fields: [buyerUserId], references: [id])
-  financingDealId String?             @unique @map("financing_deal_id")
-  financingDeal   FinancingDeal?      @relation(fields: [financingDealId], references: [id])
+  buyerUserId        String?             @map("buyer_user_id")
+  buyerUser          User?               @relation("FinancingLeadBuyer", fields: [buyerUserId], references: [id])
+  financingDealId    String?             @unique @map("financing_deal_id")
+  financingDeal      FinancingDeal?      @relation(fields: [financingDealId], references: [id])
   // Envio à Credihome (só imóvel; ver apps/api/src/agents/credihome.ts). O
   // CPF e a data de nascimento vão direto pra Credihome e não são guardados
   // aqui — só o id do lead lá, a fase da jornada e quando o admin confirmou
   // a autorização do cliente.
   // Não é único: o mesmo cliente pedindo em dois anúncios na mesma semana
   // cai no mesmo lead da Credihome (ela devolve o existente).
-  credihomeLeadId    String?   @map("credihome_lead_id")
-  credihomePhase     String?   @map("credihome_phase")
-  credihomeSentAt    DateTime? @map("credihome_sent_at")
-  credihomeSyncedAt  DateTime? @map("credihome_synced_at")
-  credihomeConsentAt DateTime? @map("credihome_consent_at")
-  createdAt       DateTime            @default(now()) @map("created_at")
-  updatedAt       DateTime            @updatedAt @map("updated_at")
+  credihomeLeadId    String?             @map("credihome_lead_id")
+  credihomePhase     String?             @map("credihome_phase")
+  credihomeSentAt    DateTime?           @map("credihome_sent_at")
+  credihomeSyncedAt  DateTime?           @map("credihome_synced_at")
+  credihomeConsentAt DateTime?           @map("credihome_consent_at")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
 
   @@index([status])
   @@index([credihomeLeadId])
@@ -1152,16 +1169,16 @@ model AffiliateCommission {
 // Cada mensalidade paga de loja/imobiliária (webhook invoice.paid do Stripe):
 // receita real por mês no painel geral do admin.
 model SubscriptionPayment {
-  id              String   @id @default(cuid())
-  stripeInvoiceId String   @unique @map("stripe_invoice_id")
-  partnerId       String   @map("partner_id")
-  partnerType     String   @map("partner_type")
-  amount          Decimal  @db.Decimal(12, 2)
-  paidAt          DateTime @map("paid_at")
+  id              String    @id @default(cuid())
+  stripeInvoiceId String    @unique @map("stripe_invoice_id")
+  partnerId       String    @map("partner_id")
+  partnerType     String    @map("partner_type")
+  amount          Decimal   @db.Decimal(12, 2)
+  paidAt          DateTime  @map("paid_at")
   // Estorno no Stripe (charge.refunded): sai da receita.
-  refundedAmount  Decimal  @default(0) @map("refunded_amount") @db.Decimal(12, 2)
+  refundedAmount  Decimal   @default(0) @map("refunded_amount") @db.Decimal(12, 2)
   refundedAt      DateTime? @map("refunded_at")
-  createdAt       DateTime @default(now()) @map("created_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   @@index([paidAt])
   @@map("subscription_payments")

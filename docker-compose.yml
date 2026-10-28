@@ -64,6 +64,11 @@ services:
       EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-diego.louis@novoseminovo.com.br}
       RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
       MARKETING_LINK_SECRET: ${MARKETING_LINK_SECRET:-}
+      # Push do app do celular (notifications/push.service.ts, mobile/README.md)
+      FCM_SERVICE_ACCOUNT: ${FCM_SERVICE_ACCOUNT:-}
+      APNS_KEY: ${APNS_KEY:-}
+      APNS_KEY_ID: ${APNS_KEY_ID:-}
+      APNS_TEAM_ID: ${APNS_TEAM_ID:-}
       # Credihome (financiamento imobiliário, /admin/financiamentos)
       CREDIHOME_LOGIN: ${CREDIHOME_LOGIN:-}
       CREDIHOME_PASSWORD: ${CREDIHOME_PASSWORD:-}
@@ -95,6 +100,9 @@ services:
       NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
       MAPTILER_KEY: ${MAPTILER_KEY:-}
       MAPTILER_STYLE: ${MAPTILER_STYLE:-}
+      # App do celular: links do site abrindo no app (mobile/README.md).
+      ANDROID_CERT_SHA256: ${ANDROID_CERT_SHA256:-}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
 
   caddy:
     image: caddy:2

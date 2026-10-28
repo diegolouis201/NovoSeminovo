@@ -1442,6 +1442,25 @@ export async function markAllNotificationsRead(accessToken: string): Promise<boo
   return res.ok;
 }
 
+// App do celular: aparelho que recebe as notificações como push.
+export async function registerPushDevice(token: string, platform: "android" | "ios", accessToken: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/me/push-devices`, {
+    method: "POST",
+    headers: { ...authHeaders(accessToken), "Content-Type": "application/json" },
+    body: JSON.stringify({ token, platform }),
+  });
+  return res.ok;
+}
+
+export async function removePushDevice(token: string): Promise<boolean> {
+  const res = await fetchWithTimeout(`${API_URL}/push-devices/remove`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  return res.ok;
+}
+
 // Perfil completo (ver /conta/perfil) e verificação de e-mail.
 export async function fetchProfile(accessToken: string): Promise<Profile | undefined> {
   try {
