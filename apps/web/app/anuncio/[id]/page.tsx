@@ -212,9 +212,25 @@ export default async function ListingDetailPage({
               <span className="text-sm text-ink-muted">{listing.location}</span>
             </div>
             <h1 className="font-display text-3xl font-bold text-ink">{listing.title}</h1>
-            <p className="text-2xl font-extrabold [font-variant-numeric:tabular-nums]">
-              {listing.priceLabel}
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-2xl font-extrabold [font-variant-numeric:tabular-nums]">
+                {listing.priceLabel}
+              </p>
+              {/* Arquiteto ao lado do preço: o comprador vê o imóvel
+                  reformado sem precisar descer até a lateral. */}
+              {listing.assetType === "property" && (
+                <Link
+                  href={`/anuncio/${listing.id}/arquiteto`}
+                  className="flex items-center gap-2.5 rounded-brand bg-brand-purple px-4 py-2.5 text-on-purple transition-opacity hover:opacity-90"
+                >
+                  <PaintBrushHousehold size={26} weight="fill" className="shrink-0" />
+                  <span className="flex flex-col leading-tight">
+                    <span className="text-sm font-bold">Ver reformado com IA</span>
+                    <span className="text-xs opacity-90">Arquiteto NovoSeminovo · lista de compras</span>
+                  </span>
+                </Link>
+              )}
+            </div>
             <ShareListingButton title={listing.title} priceLabel={listing.priceLabel} />
           </div>
 
@@ -312,18 +328,6 @@ export default async function ListingDetailPage({
               </Link>
             )}
           </div>
-
-          {listing.assetType === "property" && (
-            <Link
-              href={`/anuncio/${listing.id}/arquiteto`}
-              className="flex w-full max-w-sm flex-col items-center gap-0.5 rounded-brand bg-brand-purple px-4 py-3 text-center text-on-purple transition-opacity hover:opacity-90"
-            >
-              <span className="flex items-center gap-2 text-sm font-bold">
-                <PaintBrushHousehold size={20} weight="fill" /> Arquiteto NovoSeminovo
-              </span>
-              <span className="text-xs opacity-90">Veja como este imóvel ficaria reformado, com lista de compras</span>
-            </Link>
-          )}
 
           {/* Imóvel: um bloco só de financiamento — parcelas dos bancos pela
               Credihome e, se o cliente quiser, o pedido de proposta. Veículo:
