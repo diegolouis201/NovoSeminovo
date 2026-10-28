@@ -80,6 +80,21 @@ Acesse `https://seudominio.com.br` — deve carregar o site; `https://api.seudom
 - **Restaurar o banco** (apaga o banco atual e põe o do backup — só em caso de perda): `docker compose stop api web && docker compose exec -T postgres pg_restore -U novoseminovo -d novoseminovo --clean --if-exists --no-owner < ~/backups/banco/banco-AAAAMMDD-HHMM.dump && docker compose start api web`.
 - **Restaurar as fotos**: `docker compose exec -T api tar xzf - -C /app/apps/api < ~/backups/fotos/fotos-AAAAMMDD-HHMM.tar.gz`.
 
+## Alertas (site fora do ar, backup, disco)
+
+`sh scripts/instalar-vigia.sh seu@email.com` grava `ALERTA_EMAIL` no `.env`,
+agenda o vigia (`scripts/vigia.sh`, a cada 5 minutos) e manda um e-mail de
+teste. O vigia confere `https://DOMAIN/` e `https://api.DOMAIN/health`; com 2
+falhas seguidas tenta `docker compose up -d` e avisa por e-mail (repete a cada
+hora e avisa quando voltar). Também avisa se o último backup do banco tiver
+mais de 26 horas, se o backup terminar com erro, ou se sobrar menos de 2 GB no
+disco. Registro em `~/backups/vigia.log`. O e-mail sai pelo Resend
+(`scripts/alerta.sh`), com a mesma chave do site.
+
+Se a VPS inteira cair, o vigia cai junto: para isso, um monitor externo
+gratuito (ex.: UptimeRobot) checando `https://api.DOMAIN/health` a cada 5
+minutos.
+
 ## Stripe, Resend e S3 passam a funcionar de verdade aqui
 
 As integrações de cobrança (Stripe), e-mail (Resend) e fotos em nuvem (S3/R2) já estão prontas no código, mas não puderam ser testadas no ambiente de desenvolvimento usado até aqui porque ele bloqueava a saída de rede pra essas APIs. Um VPS de verdade não tem esse bloqueio — basta preencher as variáveis correspondentes no `.env` (ver `.env.docker.example` e `apps/api/.env.example` pro que cada uma faz) e rodar `docker compose up -d` de novo.

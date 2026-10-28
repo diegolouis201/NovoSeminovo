@@ -189,6 +189,9 @@ export function AgentChatWidget({ isLoggedIn, isAdmin }: { isLoggedIn: boolean; 
 }
 
 function AgentChat({ config }: { config: AgentConfig }) {
+  // No passo a passo do anúncio a barra de "Continuar" fica presa no rodapé:
+  // no celular o botão vira só o ícone, acima da barra, para não cobrir.
+  const hasBottomBar = (usePathname() ?? "/").startsWith("/anunciar");
   const [open, setOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [entries, setEntries] = useState<ChatEntry[]>([]);
@@ -260,10 +263,13 @@ function AgentChat({ config }: { config: AgentConfig }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-brand-green px-5 py-3 text-sm font-bold text-on-green shadow-pop transition-transform hover:-translate-y-0.5"
+          aria-label="Assistente"
+          className={`fixed right-4 z-40 flex items-center gap-2 rounded-full bg-brand-green text-sm font-bold text-on-green shadow-pop transition-transform hover:-translate-y-0.5 ${
+            hasBottomBar ? "bottom-28 p-3 sm:bottom-4 sm:px-5 sm:py-3" : "bottom-4 px-5 py-3"
+          }`}
         >
           <ChatCircleDots size={22} weight="fill" />
-          Assistente
+          <span className={hasBottomBar ? "hidden sm:inline" : undefined}>Assistente</span>
         </button>
       )}
 

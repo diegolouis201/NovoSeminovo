@@ -22,6 +22,7 @@ import { IntegrationsModule } from "./integrations/integrations.module";
 import { ArchitectModule } from "./architect/architect.module";
 import { OperationsModule } from "./operations/operations.module";
 import { MarketingModule } from "./marketing/marketing.module";
+import { HealthController } from "./common/health.controller";
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { MarketingModule } from "./marketing/marketing.module";
     MarketingModule,
     AffiliatesModule,
   ],
+  controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
