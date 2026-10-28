@@ -6,6 +6,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowClockwise, Car, ChatCircleDots, House, PaperPlaneRight, X } from "@phosphor-icons/react";
 import type { AgentChatMessage, AgentKind, ListingSummary } from "@novoseminovo/shared-types";
 import { resolveMediaUrl } from "@/lib/api";
+import { HIDE_TAB_BAR_PREFIXES } from "@/components/AppTabBar";
 import { agentStatusAction, loadAgentConversationAction, sendAgentMessageAction } from "@/lib/actions/agents";
 
 type AgentConfig = {
@@ -165,7 +166,7 @@ function MiniListingCard({ listing }: { listing: ListingSummary }) {
 // de gestão da loja; pra quem é admin, o do administrador no resto do site;
 // pra todo o resto, o de compra. O `key` recria o chat do zero ao trocar de área, sem misturar as
 // conversas.
-export function AgentChatWidget({ isLoggedIn, isAdmin }: { isLoggedIn: boolean; isAdmin: boolean }) {
+export function AgentChatWidget({ isLoggedIn, isAdmin, inApp = false }: { isLoggedIn: boolean; isAdmin: boolean; inApp?: boolean }) {
   const pathname = usePathname() ?? "/";
   const [enabled, setEnabled] = useState(false);
 
@@ -177,21 +178,23 @@ export function AgentChatWidget({ isLoggedIn, isAdmin }: { isLoggedIn: boolean; 
   if (pathname.startsWith("/parceiro")) {
     // Sem login o painel já manda pra /entrar; sem loja a API recusa e o
     // chat mostra o erro — não vale esconder o botão por isso.
-    return isLoggedIn ? <AgentChat key="partner" config={PARTNER_AGENT} /> : null;
+    return isLoggedIn ? <AgentChat key="partner" config={PARTNER_AGENT} inApp={inApp} /> : null;
   }
   // Logado como admin, o assistente dele acompanha o site todo (conta,
   // moderação, páginas públicas) — pedido do Diego, que usa o site como
   // admin e quer o painel de gestão à mão em qualquer página. A API confere
   // de novo o papel no banco a cada mensagem.
-  if (isAdmin) return <AgentChat key="admin" config={ADMIN_AGENT} />;
+  if (isAdmin) return <AgentChat key="admin" config={ADMIN_AGENT} inApp={inApp} />;
   if (pathname.startsWith("/admin")) return null;
-  return <AgentChat key="buyer" config={BUYER_AGENT} />;
+  return <AgentChat key="buyer" config={BUYER_AGENT} inApp={inApp} />;
 }
 
-function AgentChat({ config }: { config: AgentConfig }) {
-  // No passo a passo do anúncio a barra de "Continuar" fica presa no rodapé:
-  // no celular o botão vira só o ícone, acima da barra, para não cobrir.
-  const hasBottomBar = (usePathname() ?? "/").startsWith("/anunciar");
+function AgentChat({ config, inApp }: { config: AgentConfig; inApp: boolean }) {
+  const pathname = usePathname() ?? "/";
+  // No passo a passo do anúncio a barra de "Continuar" fica presa no rodapé,
+  // e no app o menu fixo também: no celular o botão vira só o ícone, acima
+  // da barra, para não cobrir.
+  const hasBottomBar = pathname.startsWith("/anunciar") || (inApp && !HIDE_TAB_BAR_PREFIXES.some((prefix) => pathname.startsWith(prefix)));
   const [open, setOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [entries, setEntries] = useState<ChatEntry[]>([]);

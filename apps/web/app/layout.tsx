@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { headers } from "next/headers";
 import localFont from "next/font/local";
 import "./globals.css";
 import { SITE_URL } from "@/lib/company";
 import { auth } from "@/auth";
 import { AgentChatWidget } from "@/components/AgentChatWidget";
 import { NativeAppBridge } from "@/components/NativeAppBridge";
+import { AppTabBar } from "@/components/AppTabBar";
 import { Analytics } from "@/components/Analytics";
 import { AttributionCapture } from "@/components/AttributionCapture";
 import { ReferralCapture } from "@/components/ReferralCapture";
@@ -58,6 +60,8 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
+  // Dentro do app do celular (mobile/capacitor.config.ts, appendUserAgent).
+  const inApp = /NovoSeminovoApp/.test(headers().get("user-agent") ?? "");
 
   return (
     <html lang="pt-BR" className={`${display.variable} ${sans.variable}`}>
@@ -67,6 +71,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <div className="flex-1">{children}</div>
         </VerticalProvider>
         <SiteFooter />
+        {/* Espaço para o menu fixo do app não cobrir o fim da página. */}
+        {inApp && <div aria-hidden className="h-16 shrink-0" />}
         <Analytics />
         {/* Link de afiliado (?ref=) e origem da visita — useSearchParams pede Suspense no layout. */}
         <Suspense fallback={null}>
@@ -74,7 +80,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <AttributionCapture />
         </Suspense>
         <NativeAppBridge isLoggedIn={Boolean(session?.accessToken)} />
-        <AgentChatWidget isLoggedIn={Boolean(session?.accessToken)} isAdmin={session?.user?.role === "admin"} />
+        {inApp && <AppTabBar />}
+        <AgentChatWidget isLoggedIn={Boolean(session?.accessToken)} isAdmin={session?.user?.role === "admin"} inApp={inApp} />
       </body>
     </html>
   );
