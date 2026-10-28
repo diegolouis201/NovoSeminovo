@@ -225,8 +225,8 @@ export default async function ListingDetailPage({
                 >
                   <PaintBrushHousehold size={26} weight="fill" className="shrink-0" />
                   <span className="flex flex-col leading-tight">
-                    <span className="text-sm font-bold">Ver reformado com IA</span>
-                    <span className="text-xs opacity-90">Arquiteto NovoSeminovo · lista de compras</span>
+                    <span className="text-sm font-bold">Arquiteto NovoSeminovo</span>
+                    <span className="text-xs opacity-90">Veja o imóvel reformado com IA</span>
                   </span>
                 </Link>
               )}
