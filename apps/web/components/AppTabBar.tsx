@@ -38,7 +38,7 @@ export function AppTabBar() {
                   highlight ? "text-brand-green" : active ? "text-brand-blue" : "text-ink-muted"
                 }`}
               >
-                <Icon size={highlight ? 30 : 24} weight={active || highlight ? "fill" : "regular"} />
+                <Icon size={24} weight={active || highlight ? "fill" : "regular"} />
                 {label}
               </Link>
             </li>
