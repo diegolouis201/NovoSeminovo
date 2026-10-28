@@ -30,6 +30,7 @@ import {
 } from "@novoseminovo/shared-types";
 import { leadOrigin } from "../common/acquisition";
 import { PrismaService } from "../prisma/prisma.service";
+import { listingEvents } from "../common/listing-events";
 import { assertNotImportedYet } from "./import-origin";
 import { NotificationsService } from "../notifications/notifications.service";
 import { VehiclesService } from "../vehicles/vehicles.service";
@@ -268,6 +269,8 @@ export class ListingsService {
     if (purchase.stripeSessionId) {
       await this.affiliates.recordListingPlan(purchaseId).catch((error: Error) => this.logger.warn(`Comissão de afiliado não registrada (${purchaseId}): ${error.message}`));
     }
+    // Anúncio pago não espera a fila: a moderação automática analisa na hora.
+    listingEvents.emit("pagamento-confirmado", purchase.listingId);
   }
 
   async search(query: ListingSearchQuery): Promise<ListingSummary[]> {

@@ -171,7 +171,10 @@ function PendingListingCard({ listing }: { listing: PendingListing }) {
   return (
     <li className="flex flex-col gap-3 rounded-brand border border-border bg-surface-raised p-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        <p className="font-semibold text-ink">{listing.title}</p>
+        <p className="font-semibold text-ink">
+          {listing.paid && <span className="mr-2 rounded-full bg-brand-green px-2 py-0.5 align-middle text-[11px] font-bold text-on-green">Pago</span>}
+          {listing.title}
+        </p>
         <p className="text-sm text-ink-muted">
           {listing.priceLabel} · {listing.location}
         </p>

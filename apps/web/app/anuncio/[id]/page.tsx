@@ -97,7 +97,9 @@ export default async function ListingDetailPage({
             searchParams.publicado ? "bg-brand-green/10 text-brand-green" : "bg-brand-orange/10 text-brand-orange"
           }`}
         >
-          {searchParams.publicado
+          {searchParams.pagamento === "confirmado" || searchParams.pagamento === "ok"
+            ? "Estamos conferindo seu anúncio agora — em geral ele entra no ar em menos de um minuto. Recarregue a página para ver."
+            : searchParams.publicado
             ? "Anúncio enviado! Ele passa por uma revisão rápida e aparece na busca assim que for aprovado — você recebe um aviso."
             : "Seu anúncio está em análise — ele só aparece na busca depois de aprovado pela moderação."}
         </p>

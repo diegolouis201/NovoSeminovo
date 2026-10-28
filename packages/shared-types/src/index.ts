@@ -1319,6 +1319,8 @@ export const PendingListingSchema = z.object({
   createdAt: z.string(),
   // Por que a moderação automática deixou este pra uma pessoa decidir.
   autoReviewNote: z.string().optional(),
+  // Pagou plano/destaque: aparece primeiro e marcado na fila.
+  paid: z.boolean().optional(),
 });
 export type PendingListing = z.infer<typeof PendingListingSchema>;
 

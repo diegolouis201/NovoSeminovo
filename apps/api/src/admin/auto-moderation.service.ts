@@ -3,6 +3,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/commo
 import sharp from "sharp";
 import { formatBRL } from "@novoseminovo/shared-types";
 import type { Prisma } from "@novoseminovo/db";
+import { listingEvents } from "../common/listing-events";
 import { PrismaService } from "../prisma/prisma.service";
 import { readPhotoBytes } from "../common/storage";
 import { AGENT_MODEL } from "../agents/agent-engine";
@@ -88,6 +89,10 @@ export class AutoModerationService implements OnModuleInit, OnModuleDestroy {
   private client?: Anthropic;
   private timer?: NodeJS.Timeout;
   private running = false;
+  // Anúncios sendo analisados agora (a varredura e o aviso de pagamento não
+  // analisam o mesmo duas vezes).
+  private readonly inReview = new Set<string>();
+  private readonly onPaid = (listingId: string) => void this.reviewNow(listingId);
   private readonly failures = new Map<string, number>();
 
   constructor(
@@ -108,10 +113,27 @@ export class AutoModerationService implements OnModuleInit, OnModuleDestroy {
       .catch((error: Error) => this.logger.warn(`Não reabri a fila da moderação: ${error.message}`));
     this.timer = setInterval(() => void trackRoutine("moderacao", SWEEP_MS, () => this.sweep()), SWEEP_MS);
     this.timer.unref();
+    listingEvents.on("pagamento-confirmado", this.onPaid);
   }
 
   onModuleDestroy(): void {
     if (this.timer) clearInterval(this.timer);
+    listingEvents.off("pagamento-confirmado", this.onPaid);
+  }
+
+  // Pagamento confirmado: analisa já, sem esperar a carência das fotos (no
+  // passo a passo o pagamento vem depois do envio delas).
+  async reviewNow(listingId: string): Promise<void> {
+    if (!this.isEnabled()) return;
+    try {
+      const listing = await this.prisma.listing.findFirst({
+        where: { id: listingId, status: "pending_review", autoReviewedAt: null },
+        include: listingInclude,
+      });
+      if (listing) await this.review(listing);
+    } catch (error) {
+      this.logger.error(`Falha na moderação do anúncio pago ${listingId}: ${(error as Error).message}`);
+    }
   }
 
   async sweep(): Promise<void> {
@@ -119,7 +141,12 @@ export class AutoModerationService implements OnModuleInit, OnModuleDestroy {
     this.running = true;
     try {
       const listings = await this.prisma.listing.findMany({
-        where: { status: "pending_review", autoReviewedAt: null, createdAt: { lte: new Date(Date.now() - GRACE_MS) } },
+        where: {
+          status: "pending_review",
+          autoReviewedAt: null,
+          // Pago entra sem carência (caso o aviso na hora do pagamento falhe).
+          OR: [{ createdAt: { lte: new Date(Date.now() - GRACE_MS) } }, { boostPurchases: { some: { status: "paid" } } }],
+        },
         include: listingInclude,
         orderBy: { createdAt: "asc" },
         take: BATCH,
@@ -133,6 +160,16 @@ export class AutoModerationService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async review(listing: ListingRow): Promise<void> {
+    if (this.inReview.has(listing.id)) return;
+    this.inReview.add(listing.id);
+    try {
+      await this.reviewOnce(listing);
+    } finally {
+      this.inReview.delete(listing.id);
+    }
+  }
+
+  private async reviewOnce(listing: ListingRow): Promise<void> {
     let decision: Decision;
     if (listing.photos.length === 0) {
       decision = { decision: "human", adminNote: "Anúncio sem fotos — confira se o anunciante ainda vai enviar." };

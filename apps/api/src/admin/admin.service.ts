@@ -32,9 +32,11 @@ export class AdminService {
   async listPendingListings(): Promise<PendingListing[]> {
     const listings = await this.prisma.listing.findMany({
       where: { status: "pending_review" },
-      include: { owner: { select: { name: true, email: true } } },
+      include: { owner: { select: { name: true, email: true } }, boostPurchases: { where: { status: "paid" }, select: { id: true } } },
       orderBy: { createdAt: "asc" },
     });
+    // Quem pagou plano/destaque vem primeiro na fila.
+    listings.sort((a, b) => Number(b.boostPurchases.length > 0) - Number(a.boostPurchases.length > 0));
 
     return listings.map((listing) => ({
       id: listing.id,
@@ -46,6 +48,7 @@ export class AdminService {
       ownerEmail: listing.owner.email,
       createdAt: listing.createdAt.toISOString(),
       autoReviewNote: listing.autoReviewNote ?? undefined,
+      paid: listing.boostPurchases.length > 0,
     }));
   }
 
