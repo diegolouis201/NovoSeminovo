@@ -58,7 +58,7 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
         <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-brand-blue">
           <Bank size={16} weight="bold" /> Simule seu financiamento
         </p>
-        <p className="mt-1 text-xs text-ink-muted">Parcelas dos principais bancos, lado a lado.</p>
+        <p className="mt-1 text-xs text-ink-muted">Parcelas dos bancos parceiros, com a Credihome.</p>
       </div>
       {step !== "simulate" && step !== "done" && (
         <button
@@ -80,7 +80,7 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
       <p>{error}</p>
       {unavailable && (
         <a href={CREDIHOME_FALLBACK_URL} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block font-bold underline">
-          Simular no site do nosso parceiro
+          Simular no site da Credihome
         </a>
       )}
     </div>
@@ -220,7 +220,7 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
             </p>
           ))}
           <p className="text-[11px] text-ink-muted">
-            Taxas e parcelas informadas agora pelos bancos, por meio do nosso parceiro de crédito. Incluem seguros obrigatórios e podem
+            Taxas e parcelas informadas agora pelos bancos, por meio da Credihome. Incluem seguros obrigatórios e podem
             mudar na análise de crédito.
           </p>
           <div className="flex gap-2">
@@ -278,7 +278,7 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
           className="flex flex-col gap-3"
         >
           <p className="text-xs text-ink-muted">
-            Um especialista do nosso parceiro de crédito compara os bancos e te chama com a proposta. Sem custo para você.
+            Um especialista da Credihome compara os bancos e te chama com a proposta. Sem custo para você.
           </p>
           <p className="rounded-brand bg-brand-green/10 px-3 py-2 text-xs text-ink">
             <strong>Cashback:</strong> fechando o financiamento pelo NovoSeminovo, 20% da nossa comissão volta para você, por Pix.{" "}
@@ -313,7 +313,7 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
           <label className="flex items-start gap-2 text-xs text-ink">
             <input name="consent" type="checkbox" required className="mt-0.5" />
             <span>
-              Autorizo o NovoSeminovo a enviar meus dados à plataforma parceira de crédito imobiliário para simulação, análise de crédito e contato sobre
+              Autorizo o NovoSeminovo a enviar meus dados à Credihome (Loft) para simulação, análise de crédito e contato sobre
               a proposta. Veja a{" "}
               <Link href="/privacidade" target="_blank" className="font-semibold text-brand-blue underline">
                 política de privacidade
