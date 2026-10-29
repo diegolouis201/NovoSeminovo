@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/Button";
 import { FormField } from "@/components/FormField";
+import { PASSWORD_RULE_HINT, hasSpecialChar } from "@novoseminovo/shared-types";
 import { resetPassword } from "@/lib/api";
 
 export const metadata = { title: "Criar nova senha" };
@@ -16,6 +17,7 @@ export default function ResetPasswordPage({ searchParams }: { searchParams: { to
     const confirm = String(formData.get("confirm") ?? "");
     const back = (message: string) => redirect(`/redefinir-senha?token=${encodeURIComponent(tokenValue)}&erro=${encodeURIComponent(message)}`);
     if (password.length < 8) back("A senha precisa ter pelo menos 8 caracteres.");
+    if (!hasSpecialChar(password)) back("A senha precisa ter pelo menos um caractere especial (ex.: ! @ # $ %).");
     if (password !== confirm) back("As duas senhas não são iguais.");
     const result = await resetPassword(tokenValue, password);
     if (!result.ok) back(result.error);
@@ -47,7 +49,10 @@ export default function ResetPasswordPage({ searchParams }: { searchParams: { to
           )}
           <form action={save} className="flex flex-col gap-3">
             <input type="hidden" name="token" value={token} />
-            <FormField label="Nova senha (mínimo 8 caracteres)" name="password" type="password" />
+            <div className="flex flex-col gap-1">
+              <FormField label="Nova senha" name="password" type="password" />
+              <p className="text-xs text-ink-muted">{PASSWORD_RULE_HINT}.</p>
+            </div>
             <FormField label="Repita a nova senha" name="confirm" type="password" />
             <Button type="submit">Salvar nova senha</Button>
           </form>

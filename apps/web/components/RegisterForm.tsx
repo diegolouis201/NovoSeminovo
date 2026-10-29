@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Buildings, User } from "@phosphor-icons/react";
+import { PASSWORD_RULE_HINT } from "@novoseminovo/shared-types";
 import { CompanyCnpjFields } from "@/components/CompanyCnpjFields";
 import { FormField } from "@/components/FormField";
 import { registerAction, type RegisterState } from "@/lib/actions/auth";
@@ -83,7 +84,10 @@ export function RegisterForm({ initialError, returnTo }: { initialError?: string
         <p className="text-xs text-ink-muted">Uma conta por pessoa, para a segurança de todos. O CPF nunca aparece no site.</p>
       </div>
       <FormField label="WhatsApp" name="phone" type="tel" required={false} placeholder="(31) 99999-8888" />
-      <FormField label="Senha" name="password" type="password" />
+      <div className="flex flex-col gap-1">
+        <FormField label="Senha" name="password" type="password" />
+        <p className="text-xs text-ink-muted">{PASSWORD_RULE_HINT}.</p>
+      </div>
       {/* Programa de afiliados: vem preenchido quando a pessoa chegou pelo link ?ref=. */}
       <FormField key={referral ?? "sem-indicacao"} label="Código de indicação" name="referralCode" required={false} defaultValue={referral} placeholder="Ex.: MARIA27" />
       {/* LGPD: desmarcada por padrão; quem marca entra na lista de novidades (pode sair a qualquer momento). */}

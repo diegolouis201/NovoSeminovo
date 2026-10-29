@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { ChatCircleDots } from "@phosphor-icons/react/dist/ssr";
+import { ChatCircleDots, Info } from "@phosphor-icons/react/dist/ssr";
 import { ArchitectStudio } from "@/components/architect/ArchitectStudio";
 import { startConversationAction } from "@/lib/actions/conversations";
 import { PUBLIC_API_URL, openArchitectSession } from "@/lib/api";
@@ -42,6 +42,15 @@ export default async function ArchitectPage({ params }: { params: { id: string }
         Veja o potencial deste imóvel: converse sobre suas ideias de reforma, veja como os ambientes poderiam ficar e leve uma lista de compras com
         estimativa de custo. {view.listing.location} · {view.listing.priceLabel}
       </p>
+      {/* Aviso pedido pelo Diego: deixar claro que é só inspiração. Também sai na impressão. */}
+      <div role="note" className="mt-4 flex gap-3 rounded-brand border border-brand-orange bg-brand-orange/10 p-4 text-sm text-ink">
+        <Info size={22} weight="fill" className="mt-0.5 shrink-0 text-brand-orange" />
+        <p>
+          <strong>Isto é só uma ideia.</strong> As imagens, sugestões e a lista de compras são criadas por inteligência artificial para inspirar, a partir
+          das fotos do anúncio. Não levamos em consideração as medidas reais do imóvel, a estrutura nem as instalações, e os valores são estimativas.
+          Antes de reformar ou comprar, confirme tudo com um profissional (arquiteto ou engenheiro) e meça o imóvel.
+        </p>
+      </div>
       {/* Quem se empolgou com a reforma já fala com o anunciante daqui. */}
       <div className="mt-4 flex flex-col gap-3 rounded-brand border border-brand-green bg-brand-green/10 p-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
         <div>

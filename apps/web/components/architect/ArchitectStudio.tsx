@@ -445,7 +445,8 @@ export function ArchitectStudio({ initial, apiBase }: { initial: ArchitectSessio
           </>
         )}
         <p className="mt-4 text-xs text-ink-muted">
-          Quantidades e preços são estimativas da IA a partir das fotos e da metragem do anúncio — confira medidas e valores antes de comprar. As imagens
+          É só uma ideia: quantidades e preços são estimativas da IA a partir das fotos e da metragem informada no anúncio, sem as medidas reais do
+          imóvel — meça e confira valores antes de comprar. As imagens
           são ilustrativas e não substituem projeto: mudanças em paredes, hidráulica, elétrica ou fachada exigem profissional habilitado (CREA/CAU) e, em
           apartamento, autorização do condomínio. Os links levam a buscas nas lojas; o NovoSeminovo pode receber comissão por compras feitas por eles,
           sem custo extra para você.

@@ -23,10 +23,23 @@ export type Role = z.infer<typeof Role>;
 // case-sensitive) não pega o conflito.
 const EmailSchema = z.string().trim().toLowerCase().email("E-mail inválido");
 
+// Senha nova (cadastro e redefinição): 8+ caracteres com pelo menos um
+// caractere especial (qualquer coisa que não seja letra, número ou espaço).
+// Login não usa esta regra: contas antigas continuam entrando com a senha que têm.
+export const PASSWORD_RULE_HINT = "Mínimo de 8 caracteres, com pelo menos um caractere especial (ex.: ! @ # $ %)";
+export function hasSpecialChar(value: string): boolean {
+  return /[^\p{L}\p{N}\s]/u.test(value);
+}
+export const NewPasswordSchema = z
+  .string()
+  .min(8, "A senha precisa ter pelo menos 8 caracteres")
+  .max(200)
+  .refine(hasSpecialChar, "A senha precisa ter pelo menos um caractere especial (ex.: ! @ # $ %)");
+
 export const RegisterInputSchema = z.object({
   name: z.string().min(2, "Nome muito curto"),
   email: EmailSchema,
-  password: z.string().min(8, "Mínimo de 8 caracteres"),
+  password: NewPasswordSchema,
   // Opcional: sem ele o botão "Chamar no WhatsApp" não aparece nos anúncios
   // da pessoa (ver ListingDetail.sellerPhone) — não trava o cadastro.
   phone: z.string().min(8, "Informe um telefone válido com DDD").optional(),
@@ -50,7 +63,7 @@ export type ForgotPasswordInput = z.infer<typeof ForgotPasswordInputSchema>;
 
 export const ResetPasswordInputSchema = z.object({
   token: z.string().min(20).max(200),
-  password: z.string().min(8, "Mínimo de 8 caracteres").max(200),
+  password: NewPasswordSchema,
 });
 export type ResetPasswordInput = z.infer<typeof ResetPasswordInputSchema>;
 
