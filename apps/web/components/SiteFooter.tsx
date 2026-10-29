@@ -45,7 +45,7 @@ export function SiteFooter() {
     <footer className="mt-16 border-t border-border bg-surface-raised">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-[1.2fr_repeat(4,1fr)]">
         <div className="flex flex-col gap-3">
-          <Logo variant="stacked" className="text-sm" />
+          <Logo variant="stacked" className="h-14" />
           <p className="text-sm text-ink-muted">Carros e imóveis, sem enrolação.</p>
           <div className="flex gap-2">
             <Link

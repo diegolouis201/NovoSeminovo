@@ -12,7 +12,7 @@ export const contentType = "image/png";
 // Logo oficial (padrão da marca em grade — public/marca), recortada sem margem.
 const LOGO_FILE = join(process.cwd(), "public/marca/novoseminovo-logo-recortado.png");
 const LOGO_HEIGHT = 230;
-const LOGO_WIDTH = Math.round((LOGO_HEIGHT * 764) / 590);
+const LOGO_WIDTH = Math.round((LOGO_HEIGHT * 600) / 422);
 export default async function OpenGraphImage() {
   const logo = `data:image/png;base64,${(await readFile(LOGO_FILE)).toString("base64")}`;
   return new ImageResponse(

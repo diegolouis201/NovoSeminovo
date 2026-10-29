@@ -33,7 +33,7 @@ export function renderNotificationEmail(params: {
   return `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#f4f6f8;">
 <div style="font-family: Arial, Helvetica, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1a1a1a;">
   <div style="background: #ffffff; border-radius: 16px; padding: 28px; border-top: 6px solid #006aa4;">
-    <img src="${webOrigin}${LOGO_PATH}" alt="NovoSeminovo" width="120" style="display: block; margin: 0 0 20px; border: 0;">
+    <img src="${webOrigin}${LOGO_PATH}" alt="NovoSeminovo" width="150" style="display: block; margin: 0 0 20px; border: 0;">
     <p style="margin: 0 0 16px; color: #666; font-size: 14px;">Olá, ${userName}</p>
     <h1 style="font-size: 20px; margin: 0 0 12px; color: #0e2f4a;">${title}</h1>
     <p style="font-size: 15px; line-height: 1.6; color: #333; margin: 0 0 20px;">${body}</p>

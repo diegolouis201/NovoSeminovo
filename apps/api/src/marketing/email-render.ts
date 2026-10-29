@@ -51,7 +51,7 @@ export function renderMarketingEmail(params: {
   const html = `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#f4f6f8;">${preheader}
 <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
   <div style="background:#ffffff;border-radius:16px;padding:28px;">
-    <img src="${webOrigin()}${LOGO_PATH}" alt="NovoSeminovo" width="120" style="display:block;margin:0 0 20px;border:0;">
+    <img src="${webOrigin()}${LOGO_PATH}" alt="NovoSeminovo" width="150" style="display:block;margin:0 0 20px;border:0;">
     ${paragraphs}
     ${cta}
   </div>

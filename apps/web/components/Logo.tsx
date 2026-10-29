@@ -39,25 +39,12 @@ function Smile({ tall = false }: { tall?: boolean }) {
 
 export function Logo({ variant = "inline", className }: LogoProps) {
   if (variant === "stacked") {
-    // Padrão da marca (out/2026): grade de 4 colunas, cada letra centralizada
-    // sobre a de baixo (N/S/N, O/E/O, V/M/V, O/I/O) — mesmo desenho dos
-    // arquivos em public/marca e do pedido de registro no INPI.
-    const cells: [string, string][] = [
-      ["N", "text-brand-blue"], ["O", "text-brand-blue"], ["V", "text-brand-blue"], ["O", "text-brand-blue"],
-      ["S", "text-brand-orange"], ["E", "text-brand-orange"], ["M", "text-brand-orange"], ["I", "text-brand-green"],
-      ["N", "text-brand-orange"], ["O", "text-brand-orange"], ["V", "text-brand-orange"], ["O", "text-brand-green"],
-    ];
+    // Padrão da marca (out/2026): o logo com brilho e relevo do manual,
+    // como imagem (o desenho em texto não reproduz o acabamento). A altura
+    // vem de className (h-*); sem ela, h-12 do cabeçalho.
     return (
-      <span className={`inline-flex items-stretch font-display font-bold leading-[0.82] ${className ?? ""}`} aria-label="NovoSeminovo">
-        <span className="grid grid-cols-[repeat(4,0.68em)]" aria-hidden>
-          {cells.map(([letter, color], index) => (
-            <span key={index} className={`text-center ${color}`}>
-              {letter}
-            </span>
-          ))}
-        </span>
-        <Smile tall />
-      </span>
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src="/marca/novoseminovo-logo-site.png" alt="NovoSeminovo" width={360} height={253} className={`w-auto self-start ${className ?? "h-12"}`} />
     );
   }
 
