@@ -121,7 +121,7 @@ function page(title: string, message: string, form?: string): string {
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>
 <body style="margin:0;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;">
 <div style="max-width:480px;margin:48px auto;padding:32px;background:#fff;border-radius:16px;text-align:center;">
-<img src="${webOrigin()}${LOGO_PATH}" alt="NovoSeminovo" width="120"><h1 style="font-size:20px;color:#1a1a1a;">${title}</h1>
+<img src="${webOrigin()}${LOGO_PATH}" alt="NovoSeminovo" width="150"><h1 style="font-size:20px;color:#1a1a1a;">${title}</h1>
 <p style="color:#444;line-height:1.5;">${message}</p>${form ?? ""}
 <p style="margin-top:24px;"><a href="${webOrigin()}" style="color:#006aa4;">Ir para o NovoSeminovo</a></p></div></body></html>`;
 }

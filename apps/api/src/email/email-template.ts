@@ -9,7 +9,8 @@ function escapeHtml(text: string): string {
 }
 
 // Logo oficial (public/marca no site), servido pelo próprio domínio.
-export const LOGO_PATH = "/marca/novoseminovo-logo-recortado.png";
+// Nome novo a cada troca de logo: o Gmail guarda a imagem pelo endereço.
+export const LOGO_PATH = "/marca/novoseminovo-logo-email.png";
 
 export function renderNotificationEmail(params: {
   userName: string;
