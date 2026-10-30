@@ -53,8 +53,8 @@ export default async function AdminPage() {
     <main className="mx-auto max-w-4xl px-4 py-12">
       <h1 className="font-display text-2xl font-semibold text-ink">Moderação</h1>
       <p className="text-sm text-ink-muted">
-        Todo anúncio novo espera aqui antes de aparecer na busca; toda loja/imobiliária nova espera
-        aqui antes de ganhar o selo de verificada.
+        Anúncios que a moderação automática não decidiu esperam aqui. Lojas e imobiliárias ganham o selo
+        de verificada sozinhas quando a Receita confirma o CNPJ ativo e o ramo; as outras esperam aqui.
       </p>
       <nav aria-label="Áreas do admin" className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {ADMIN_AREAS.map((area) => (

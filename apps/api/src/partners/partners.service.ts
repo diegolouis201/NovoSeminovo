@@ -277,8 +277,10 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
   }
 
   // Confere o CNPJ na Receita e decide o tipo da conta pelo ramo (CNAE).
-  // Consulta fora do ar: aceita o tipo escolhido na tela (o admin confere
-  // depois, a conta já nasce sem o selo de verificada).
+  // Selo de verificada automático (pedido do Diego, 30/10/2026) quando a
+  // Receita confirma tudo: CNPJ ativo e o tipo de conta saindo da atividade
+  // PRINCIPAL. Consulta fora do ar, tipo vindo de atividade secundária ou
+  // escolhido à mão: nasce sem o selo e o admin confere em Moderação.
   async resolveCompany(input: { document: string; type?: PartnerType; legalName?: string; address?: string }) {
     const cnpj = input.document.replace(/\D/g, "");
     const taken = await this.prisma.partner.findFirst({ where: { document: { in: [cnpj, input.document] } } });
@@ -301,7 +303,8 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
     }
     const legalName = company ? company.tradeName || company.legalName : input.legalName;
     if (!legalName || legalName.length < 3) throw new BadRequestException("Informe a razão social ou nome fantasia.");
-    return { cnpj, type, legalName, address: input.address ?? company?.address };
+    const autoVerified = Boolean(company?.active && company.detectedType && !company.detectedFromSecondary && company.detectedType === type);
+    return { cnpj, type, legalName, address: input.address ?? company?.address, autoVerified };
   }
 
   async create(ownerUserId: string, input: CreatePartnerInput): Promise<Partner> {
@@ -317,7 +320,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
 
   async createPartnerRow(
     ownerUserId: string,
-    company: { cnpj: string; type: PartnerType; legalName: string; address?: string },
+    company: { cnpj: string; type: PartnerType; legalName: string; address?: string; autoVerified?: boolean },
     description?: string,
   ): Promise<void> {
     const slug = await this.uniqueSlug(company.legalName);
@@ -331,6 +334,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
           description,
           address: company.address,
           slug,
+          verifiedAt: company.autoVerified ? new Date() : null,
         },
       }),
       this.prisma.user.update({ where: { id: ownerUserId }, data: { role: "partner_owner" } }),
