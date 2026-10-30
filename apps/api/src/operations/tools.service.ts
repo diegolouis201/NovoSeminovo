@@ -28,7 +28,6 @@ const MAX_TASKS_PER_AGENT_PER_DAY = 30;
 const TIP_COOLDOWN_DAYS = 7;
 // Lembrete de resposta ao vendedor: 1 por conversa a cada 3 dias.
 const REPLY_COOLDOWN_DAYS = 3;
-const MAX_SUGGESTIONS_PER_TASK = 6;
 
 function maxMessagesPerDay(): number {
   const value = Number(process.env.OPS_MAX_MESSAGES_PER_DAY);
@@ -43,27 +42,9 @@ const PARTNER_SUBJECTS = {
   leads_parados: { title: "Tem cliente esperando a sua resposta", link: "/parceiro/leads" },
   teste_sem_anuncio: { title: "Seu período grátis já começou — publique o primeiro anúncio", link: "/anunciar" },
 } as const;
-const MARKETING_CHANNELS = ["instagram", "facebook", "tiktok", "whatsapp", "google", "youtube", "email", "blog"] as const;
 
 function normalizeTitle(title: string): string {
   return title.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
-}
-
-// Link de sugestão de marketing sempre aponta pro site e sai rastreado (utm),
-// pra origem aparecer no painel geral.
-export function trackedLink(raw: string | undefined, channel: string): string | undefined {
-  if (!raw) return undefined;
-  let url: URL;
-  try {
-    url = new URL(raw, "https://novoseminovo.com.br");
-  } catch {
-    return undefined;
-  }
-  if (!/(^|\.)novoseminovo\.com\.br$/.test(url.hostname)) return undefined;
-  url.protocol = "https:";
-  if (!url.searchParams.get("utm_source")) url.searchParams.set("utm_source", channel);
-  if (!url.searchParams.get("utm_campaign")) url.searchParams.set("utm_campaign", "sugestao-ia");
-  return url.toString();
 }
 
 // Ferramentas de negócio dos agentes. Toda ação passa por request(): a regra
@@ -213,7 +194,7 @@ export class OpsToolsService {
     this.register({
       name: "criar_tarefa",
       color: "green",
-      description: "Cria uma tarefa para outro agente da operação (diretor, operacoes, comercial ou marketing).",
+      description: "Cria uma tarefa para outro agente da operação (diretor, operacoes, comercial, financeiro ou atendimento).",
       input: z.object({
         agente: z.enum(Object.keys(AGENT_TOOL_ALLOWLIST) as [string, ...string[]]),
         objetivo: z.string().trim().min(5).max(500),
@@ -358,40 +339,6 @@ export class OpsToolsService {
         const admins = await this.prisma.user.findMany({ where: { role: "admin", status: "active" }, select: { id: true } });
         for (const admin of admins) await this.notifications.notify(admin.id, "ops_daily_summary", { dayLabel, body, report: visual }).catch(() => undefined);
         return { resumoId: report.id };
-      },
-    });
-
-    this.register({
-      name: "registrar_sugestao_marketing",
-      color: "green",
-      description: "Grava uma sugestão de post ou campanha para o dono aprovar e publicar. Nada é publicado automaticamente. Até 6 por tarefa.",
-      input: z.object({
-        titulo: z.string().trim().min(5).max(120),
-        canal: z.enum(MARKETING_CHANNELS),
-        publico: z.string().trim().max(200).optional(),
-        texto: z.string().trim().min(20).max(1500),
-        link: z.string().trim().max(300).optional(),
-      }),
-      schema: {
-        type: "object",
-        properties: {
-          titulo: { type: "string" },
-          canal: { type: "string", enum: MARKETING_CHANNELS },
-          publico: { type: "string", description: "Para quem é (ex.: lojas de carros, quem procura apartamento)." },
-          texto: { type: "string", description: "Legenda ou roteiro pronto para usar, sem inventar números ou promessas." },
-          link: { type: "string", description: "Página do novoseminovo.com.br; o sistema acrescenta o rastreio utm." },
-        },
-        required: ["titulo", "canal", "texto"],
-      },
-      run: async ({ titulo, canal, publico, texto, link }, context) => {
-        if (context.taskId) {
-          const count = await this.prisma.marketingSuggestion.count({ where: { taskId: context.taskId } });
-          if (count >= MAX_SUGGESTIONS_PER_TASK) throw new Error(`Limite de ${MAX_SUGGESTIONS_PER_TASK} sugestões por tarefa`);
-        }
-        const suggestion = await this.prisma.marketingSuggestion.create({
-          data: { title: titulo, channel: canal, audience: publico, body: texto, link: trackedLink(link, canal), taskId: context.taskId },
-        });
-        return { sugestaoId: suggestion.id, link: suggestion.link };
       },
     });
   }

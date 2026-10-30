@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
-import { MarketingSuggestionStatusInputSchema, OPS_RUNNABLE_AGENTS, OpsDecisionInputSchema, OpsGoalInputSchema } from "@novoseminovo/shared-types";
+import { OPS_RUNNABLE_AGENTS, OpsDecisionInputSchema, OpsGoalInputSchema } from "@novoseminovo/shared-types";
 import { AdminGuard } from "../admin/admin.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -65,10 +65,5 @@ export class OperationsController {
     } catch (error) {
       throw new BadRequestException(error instanceof Error ? error.message : String(error));
     }
-  }
-
-  @Patch("suggestions/:id")
-  setSuggestionStatus(@Param("id") id: string, @Body() body: unknown) {
-    return this.operations.setSuggestionStatus(id, parseOrBadRequest(MarketingSuggestionStatusInputSchema, body).status);
   }
 }

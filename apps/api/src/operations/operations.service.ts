@@ -42,8 +42,9 @@ const SCHEDULES: { key: string; agent: string; hourBrt: number; weekday?: number
   { key: "comercial", agent: "comercial", hourBrt: 10, usesAi: true, objective: "Lembrar lojas com leads parados ou sem anúncio no período grátis" },
   { key: "atendimento", agent: "atendimento", hourBrt: 14, usesAi: true, objective: "Garantir que nenhum comprador fique sem resposta e avisar o dono das pendências de atendimento" },
   { key: "financeiro", agent: "financeiro", hourBrt: 7, weekday: 1, usesAi: true, objective: "Relatório financeiro da semana: receita, assinaturas, valores a pagar e gasto com IA" },
-  { key: "marketing", agent: "marketing", hourBrt: 11, weekday: 1, usesAi: true, objective: "Sugestões de conteúdo e campanhas da semana" },
 ];
+
+const RETIRED_ROUTINES = ["marketing"];
 
 function brtWeekday(now: Date): number {
   return new Date(now.getTime() - 3 * 60 * 60 * 1000).getUTCDay();
@@ -82,8 +83,19 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
     setAiUsageSink((run) => this.usage.record(run));
     setRoutineSink((report) => this.recordHeartbeat(report.name, report.intervalMs, report.error));
     if (process.env.OPERATIONS_DISABLED === "1") return;
+    void this.retireRemovedRoutines().catch((error) => this.logger.warn(`Limpeza de rotinas removidas falhou: ${error}`));
     this.timers.push(setInterval(() => void this.tick(), TICK_MS));
     this.timers.push(setInterval(() => void this.monitor().catch((error) => this.logger.warn(`Monitor falhou: ${error}`)), MONITOR_MS));
+  }
+
+  // Rotinas e agentes que saíram do site (o marketing, em 10/2026): sem isso o
+  // monitor acharia o último sinal de vida velho e avisaria "Marketing parou".
+  async retireRemovedRoutines(): Promise<void> {
+    await this.prisma.routineHeartbeat.deleteMany({ where: { name: { in: RETIRED_ROUTINES } } });
+    await this.prisma.agentTask.updateMany({
+      where: { agent: { in: RETIRED_ROUTINES }, status: { in: ["pending", "blocked", "awaiting_approval"] } },
+      data: { status: "cancelled", lockedAt: null },
+    });
   }
 
   onModuleDestroy(): void {
@@ -240,10 +252,9 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
       this.prisma.routineHeartbeat.findMany({ orderBy: { name: "asc" } }),
       this.goals.list(now),
     ]);
-    const [latestSummary, latestFinance, suggestions] = await Promise.all([
+    const [latestSummary, latestFinance] = await Promise.all([
       this.prisma.opsReport.findFirst({ where: { kind: "resumo_diario" }, orderBy: { createdAt: "desc" } }),
       this.prisma.opsReport.findFirst({ where: { kind: "relatorio_financeiro" }, orderBy: { createdAt: "desc" } }),
-      this.prisma.marketingSuggestion.findMany({ where: { status: "nova" }, orderBy: { createdAt: "desc" }, take: 20 }),
     ]);
 
     const approvalView = (row: (typeof pending)[number]): OpsApprovalView => ({
@@ -302,16 +313,6 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
       latestSummary: latestSummary
         ? { id: latestSummary.id, agent: latestSummary.agent, kind: latestSummary.kind, body: latestSummary.body, createdAt: latestSummary.createdAt.toISOString() }
         : undefined,
-      suggestions: suggestions.map((row) => ({
-        id: row.id,
-        title: row.title,
-        channel: row.channel,
-        audience: row.audience ?? undefined,
-        body: row.body,
-        link: row.link ?? undefined,
-        status: row.status,
-        createdAt: row.createdAt.toISOString(),
-      })),
       windsorEnabled: windsorEnabled(),
       agentsEnabled: aiAgentsEnabled(),
     };
@@ -322,11 +323,6 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
     if (!aiAgentsEnabled()) throw new Error("A IA dos agentes está desligada no servidor.");
     const { task } = await this.queue.enqueue({ agent, createdBy: `admin:${adminId}`, objective: "Rodada pedida pelo admin", priority: 1 });
     return { taskId: task.id };
-  }
-
-  async setSuggestionStatus(id: string, status: string): Promise<{ ok: true }> {
-    await this.prisma.marketingSuggestion.updateMany({ where: { id }, data: { status } });
-    return { ok: true };
   }
 }
 

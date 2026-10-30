@@ -25,29 +25,13 @@ export type OpsTool<Input = unknown> = {
 // Ferramentas que cada agente pode chamar. Agente fora da lista ou ferramenta
 // fora da lista dele = bloqueado, mesmo que a ferramenta exista.
 export const AGENT_TOOL_ALLOWLIST: Record<string, readonly string[]> = {
-  diretor: ["ler_painel", "ler_metas", "ler_trafego_site", "ler_instagram", "ler_resultados_marketing", "ler_financeiro", "criar_tarefa", "registrar_resumo_diario"],
+  diretor: ["ler_painel", "ler_metas", "ler_trafego_site", "ler_instagram", "ler_financeiro", "criar_tarefa", "registrar_resumo_diario"],
   operacoes: ["ler_painel", "listar_anuncios_com_problema", "avisar_dono_anuncio", "suspender_anuncio", "criar_tarefa"],
   comercial: ["ler_painel", "ler_metas", "listar_leads_parados", "listar_lojas_em_teste_sem_anuncio", "lembrar_parceiro", "criar_tarefa"],
-  // As ferramentas de post/campanha/sequência só criam rascunhos: nada é
-  // publicado ou enviado sem o dono aprovar na tela /admin/marketing.
   // Financeiro só lê e relata: pagar, estornar ou mudar preço é vermelho (ninguém tem a ferramenta).
   financeiro: ["ler_painel", "ler_metas", "ler_financeiro", "criar_tarefa", "registrar_relatorio_financeiro"],
   // Atendimento: ninguém fica sem resposta. Só lembra vendedores e avisa o dono.
   atendimento: ["ler_painel", "listar_conversas_sem_resposta", "lembrar_resposta", "listar_pendencias_atendimento", "avisar_dono_atendimento", "criar_tarefa"],
-  marketing: [
-    "ler_painel",
-    "ler_metas",
-    "ler_trafego_site",
-    "ler_instagram",
-    "ler_resultados_marketing",
-    "listar_anuncios_para_post",
-    "registrar_sugestao_marketing",
-    "criar_post_instagram",
-    "revisar_post_instagram",
-    "criar_campanha_email",
-    "revisar_campanha_email",
-    "propor_sequencia",
-  ],
 };
 
 export const APPROVAL_TTL_MS = 72 * 60 * 60 * 1000;

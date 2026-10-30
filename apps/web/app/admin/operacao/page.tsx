@@ -13,9 +13,8 @@ import {
 } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { opsDecisionAction, opsDeleteGoalAction, opsRunAgentAction, opsSaveGoalAction, opsSuggestionAction, opsTaskActionForm } from "@/lib/actions/operations";
+import { opsDecisionAction, opsDeleteGoalAction, opsRunAgentAction, opsSaveGoalAction, opsTaskActionForm } from "@/lib/actions/operations";
 import { fetchOpsSummary } from "@/lib/api";
-import { mktSuggestionToPostAction } from "@/lib/actions/marketing";
 
 export const dynamic = "force-dynamic";
 
@@ -275,7 +274,6 @@ function Operations({ data }: { data: OpsSummary }) {
         </div>
       </section>
 
-      <MarketingSuggestions data={data} />
 
       <Goals data={data} />
     </>
@@ -403,7 +401,7 @@ function Goals({ data }: { data: OpsSummary }) {
         <label className="flex flex-col gap-1 text-xs font-semibold text-ink">
           Responsável
           <select name="agent" className="rounded-brand border border-border bg-surface-page px-3 py-2 text-sm font-normal">
-            {["diretor", "operacoes", "comercial", "marketing"].map((value) => (
+            {["diretor", "operacoes", "comercial", "financeiro", "atendimento"].map((value) => (
               <option key={value} value={value}>
                 {OPS_AGENT_LABELS[value]}
               </option>
@@ -426,7 +424,6 @@ const AGENT_SCHEDULE: Record<string, string> = {
   diretor: "todo dia às 8h",
   operacoes: "todo dia às 9h",
   comercial: "todo dia às 10h",
-  marketing: "segundas às 11h",
   financeiro: "segundas às 7h",
   atendimento: "todo dia às 14h",
 };
@@ -435,7 +432,6 @@ const AGENT_JOB: Record<string, string> = {
   diretor: "Lê metas e números, aponta o que está em risco, distribui tarefas e manda o resumo do dia por e-mail.",
   operacoes: "Acha anúncios com problema e manda dicas aos donos; pede sua aprovação para suspender casos suspeitos.",
   comercial: "Lembra lojas com clientes esperando resposta e lojas no período grátis que ainda não anunciaram.",
-  marketing: "Cria posts, campanhas e sequências de e-mail para você aprovar em Marketing, a partir das origens, do Google Analytics e do Instagram.",
   atendimento: "Lembra vendedores (PF e lojas) de responder compradores que esperam há mais de 24h e avisa você sobre financiamentos sem contato e denúncias abertas.",
   financeiro: "Relatório semanal: receita por linha, assinaturas em atraso, comissões e cashback a pagar e gasto com IA. Só lê; não paga nada.",
 };
@@ -450,7 +446,7 @@ function AgentsPanel({ data }: { data: OpsSummary }) {
         )}
         {!data.windsorEnabled && (
           <p className="mt-1 rounded-brand bg-surface-sober px-3 py-2 text-sm text-ink">
-            Google Analytics e Instagram ainda não estão ligados (falta a chave do Windsor.ai no servidor). O Diretor e o Marketing trabalham só com os dados do site até lá.
+            Google Analytics e Instagram ainda não estão ligados (falta a chave do Windsor.ai no servidor). O Diretor trabalha só com os dados do site até lá.
           </p>
         )}
       </div>
@@ -486,60 +482,3 @@ function AgentsPanel({ data }: { data: OpsSummary }) {
   );
 }
 
-const CHANNEL_LABELS: Record<string, string> = {
-  instagram: "Instagram",
-  facebook: "Facebook",
-  tiktok: "TikTok",
-  whatsapp: "WhatsApp",
-  google: "Google",
-  youtube: "YouTube",
-  email: "E-mail",
-  blog: "Blog",
-};
-
-function MarketingSuggestions({ data }: { data: OpsSummary }) {
-  return (
-    <section id="marketing" className="flex scroll-mt-24 flex-col gap-3">
-      <div>
-        <h2 className="font-display text-lg font-semibold text-ink">
-          Sugestões do Marketing <span className="text-base font-normal text-ink-muted">({data.suggestions.length})</span>
-        </h2>
-        <p className="text-xs text-ink-muted">
-          Nada é publicado sozinho. Para o Instagram, use “Transformar em post”: o agente monta a arte e a legenda e o post aparece em{" "}
-          <Link href="/admin/marketing" className="font-semibold text-brand-blue hover:underline">
-            Marketing
-          </Link>{" "}
-          para você aprovar e publicar. Para outros canais, copie o texto e marque como usada — o link já vem rastreado.
-        </p>
-      </div>
-      {data.suggestions.length === 0 ? (
-        <p className="text-sm text-ink-muted">Nenhuma sugestão nova. O Marketing roda às segundas; use “Rodar agora” para pedir antes.</p>
-      ) : (
-        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {data.suggestions.map((suggestion) => (
-            <li key={suggestion.id} className="flex flex-col gap-2 rounded-brand-lg border border-border bg-surface-raised p-4 text-sm">
-              <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">
-                {CHANNEL_LABELS[suggestion.channel] ?? suggestion.channel}
-                {suggestion.audience ? ` · ${suggestion.audience}` : ""}
-              </p>
-              <p className="font-semibold text-ink">{suggestion.title}</p>
-              <p className="whitespace-pre-line text-ink">{suggestion.body}</p>
-              {suggestion.link && <p className="break-all rounded-brand bg-surface-sober px-2 py-1 font-mono text-xs text-ink">{suggestion.link}</p>}
-              <form action={opsSuggestionAction.bind(null, suggestion.id)} className="flex flex-wrap gap-4">
-                <button type="submit" formAction={mktSuggestionToPostAction.bind(null, suggestion.id)} className="text-xs font-semibold text-brand-blue hover:underline">
-                  Transformar em post
-                </button>
-                <button type="submit" name="status" value="usada" className="text-xs font-semibold text-brand-green hover:underline">
-                  Usei
-                </button>
-                <button type="submit" name="status" value="descartada" className="text-xs font-semibold text-status-danger hover:underline">
-                  Descartar
-                </button>
-              </form>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}

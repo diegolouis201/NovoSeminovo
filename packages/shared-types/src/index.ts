@@ -2550,10 +2550,8 @@ export type OpsRoutineView = {
   healthy: boolean;
 };
 export type OpsReportView = { id: string; agent: string; kind: string; body: string; createdAt: string };
-export type MarketingSuggestionView = { id: string; title: string; channel: string; audience?: string; body: string; link?: string; status: string; createdAt: string };
 // Agentes que o admin pode mandar rodar na hora (botão "Rodar agora").
-export const OPS_RUNNABLE_AGENTS = ["diretor", "operacoes", "comercial", "marketing", "financeiro", "atendimento"] as const;
-export const MarketingSuggestionStatusInputSchema = z.object({ status: z.enum(["nova", "usada", "descartada"]) });
+export const OPS_RUNNABLE_AGENTS = ["diretor", "operacoes", "comercial", "financeiro", "atendimento"] as const;
 export type OpsGoalView = { id: string; metric: string; segment: string; period: string; target: number; agent: string; note?: string; current?: number };
 export type OpsSummary = {
   generatedAt: string;
@@ -2566,7 +2564,6 @@ export type OpsSummary = {
   goals: OpsGoalView[];
   latestSummary?: OpsReportView;
   latestFinanceReport?: OpsReportView;
-  suggestions: MarketingSuggestionView[];
   windsorEnabled: boolean;
   agentsEnabled: boolean;
 };
@@ -2597,39 +2594,6 @@ export const MARKETING_CONSENT_LABELS: Record<string, string> = {
   legitimate_interest: "Cliente/pediu contato",
   none: "Sem permissão de marketing",
 };
-export const MARKETING_POST_STATUS_LABELS: Record<string, string> = {
-  awaiting_approval: "Esperando sua aprovação",
-  changes_requested: "Alteração pedida ao agente",
-  approved: "Aprovado — publica em instantes",
-  scheduled: "Agendado",
-  publishing: "Publicando",
-  published: "Publicado",
-  failed: "Falhou",
-  rejected: "Rejeitado",
-};
-export const EMAIL_CAMPAIGN_STATUS_LABELS: Record<string, string> = {
-  awaiting_approval: "Esperando sua aprovação",
-  changes_requested: "Alteração pedida ao agente",
-  approved: "Aprovada",
-  scheduled: "Agendada",
-  sending: "Enviando",
-  sent: "Enviada",
-  rejected: "Rejeitada",
-};
-export const EMAIL_SEQUENCE_STATUS_LABELS: Record<string, string> = {
-  awaiting_approval: "Esperando sua aprovação",
-  changes_requested: "Alteração pedida ao agente",
-  active: "Ativa",
-  paused: "Pausada",
-};
-
-export const MarketingDecisionInputSchema = z.object({
-  action: z.enum(["approve", "schedule", "changes", "reject", "pause"]),
-  note: z.string().trim().max(1000).optional(),
-  scheduledFor: z.string().datetime({ offset: true }).optional(),
-});
-export type MarketingDecisionInput = z.infer<typeof MarketingDecisionInputSchema>;
-
 export const NewsletterSubscribeInputSchema = z.object({
   email: EmailSchema,
   name: z.string().trim().max(120).optional(),
@@ -2637,125 +2601,3 @@ export const NewsletterSubscribeInputSchema = z.object({
   consent: z.literal(true, { errorMap: () => ({ message: "Marque a caixa para autorizar o envio." }) }),
 });
 export type NewsletterSubscribeInput = z.infer<typeof NewsletterSubscribeInputSchema>;
-
-// Edição feita pelo admin na prévia (volta para "esperando aprovação").
-export const MarketingPostInputSchema = z.object({
-  title: z.string().trim().min(3).max(120),
-  caption: z.string().trim().min(10).max(2000),
-  hashtags: z.array(z.string().trim().regex(/^#?[\p{L}\p{N}_]{2,40}$/u, "Hashtag inválida")).max(15),
-  extraText: z.string().trim().max(1000).optional(),
-  artSource: z.enum(["listing", "ai", "brand"]),
-  artHeadline: z.string().trim().min(3).max(90),
-  artSubline: z.string().trim().max(120).optional(),
-  listingId: z.string().trim().max(40).optional(),
-  artPrompt: z.string().trim().max(600).optional(),
-});
-export type MarketingPostInput = z.infer<typeof MarketingPostInputSchema>;
-
-export const EmailCampaignInputSchema = z.object({
-  name: z.string().trim().min(3).max(120),
-  subject: z.string().trim().min(3).max(120),
-  preheader: z.string().trim().max(150).optional(),
-  body: z.string().trim().min(20).max(5000),
-  ctaLabel: z.string().trim().max(40).optional(),
-  ctaUrl: z.string().trim().max(300).optional(),
-  interests: z.array(z.enum(["geral", "comprar_carro", "comprar_imovel", "vender", "loja"])).max(5),
-});
-export type EmailCampaignInput = z.infer<typeof EmailCampaignInputSchema>;
-
-export type MarketingPostView = {
-  id: string;
-  title: string;
-  caption: string;
-  hashtags: string[];
-  extraText?: string;
-  artSource: string;
-  artHeadline: string;
-  artSubline?: string;
-  imageUrl?: string;
-  status: string;
-  feedback?: string;
-  revision: number;
-  scheduledFor?: string;
-  publishedAt?: string;
-  igPermalink?: string;
-  error?: string;
-  metrics?: Record<string, number>;
-  metricsAt?: string;
-  createdAt: string;
-};
-export type EmailCampaignView = {
-  id: string;
-  name: string;
-  subject: string;
-  preheader?: string;
-  body: string;
-  ctaLabel?: string;
-  ctaUrl?: string;
-  segment: { interests: string[] };
-  audienceSize: number;
-  status: string;
-  feedback?: string;
-  scheduledFor?: string;
-  sentAt?: string;
-  stats: { queued: number; sent: number; delivered: number; bounced: number; failed: number; clicked: number; clicks: number; unsubscribed: number };
-  createdAt: string;
-};
-// condition: sempre | sem_conta (só quem ainda não criou conta) | com_conta.
-export const EMAIL_STEP_CONDITIONS = { sempre: "Sempre", sem_conta: "Só quem ainda não tem conta", com_conta: "Só quem já tem conta" } as const;
-export type EmailSequenceStep = {
-  delayDays: number;
-  subject: string;
-  preheader?: string;
-  body: string;
-  ctaLabel?: string;
-  ctaUrl?: string;
-  condition?: keyof typeof EMAIL_STEP_CONDITIONS;
-};
-export type EmailSequenceView = {
-  id: string;
-  key: string;
-  name: string;
-  interests: string[];
-  steps: EmailSequenceStep[];
-  status: string;
-  feedback?: string;
-  enrolled: { active: number; completed: number; stopped: number };
-  createdAt: string;
-};
-export type MarketingContactView = {
-  id: string;
-  email?: string;
-  name?: string;
-  interest: string;
-  source: string;
-  consent: string;
-  status: string;
-  stage: string;
-  createdAt: string;
-};
-export type MarketingSummary = {
-  generatedAt: string;
-  integrations: { instagram: boolean; email: boolean; emailWebhook: boolean; images: boolean };
-  emailDailyLimit: number;
-  emailSentToday: number;
-  posts: MarketingPostView[];
-  campaigns: EmailCampaignView[];
-  sequences: EmailSequenceView[];
-  contacts: { total: number; reachable: number; new30d: number; unsubscribed: number; bySource: { source: string; count: number }[]; byInterest: { interest: string; count: number }[]; latest: MarketingContactView[] };
-  results: {
-    postsPublished30d: number;
-    reach: number;
-    likes: number;
-    comments: number;
-    saves: number;
-    emailsSent30d: number;
-    delivered30d: number;
-    bounced30d: number;
-    clicked30d: number;
-    unsubscribed30d: number;
-    leadsFromEmail30d: number;
-    signupsFromEmail30d: number;
-    contactsConverted: number;
-  };
-};

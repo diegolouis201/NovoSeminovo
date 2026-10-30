@@ -192,7 +192,7 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - A publicação usa a API oficial da Meta. O envio usa o Resend, com teto diário, descadastro em um clique, cliques rastreados e webhook de entrega.
    - Contatos são captados no cadastro (caixa de opt-in, desmarcada por padrão), na loja nova, no pedido de financiamento e no formulário de novidades do rodapé. Cada contato guarda a origem e nunca é duplicado.
    - Nas sugestões em `/admin/operacao` há o botão "Transformar em post".
-   - Detalhes e o que configurar: `docs/marketing.md`.
+   - **REMOVIDO em 30/10/2026** (pedido do Diego, para o site ficar mais leve): o marketing passou a ser feito fora do site, na sessão "Marketing NovoSeminovo" (Instagram, Meta Ads e Google Ads pelo Windsor.ai). Saíram `/admin/marketing`, posts/artes, campanhas, sequências, o agente de Marketing e as sugestões em `/admin/operacao`. Ficaram: formulário "Receba novidades" do rodapé (`POST /marketing/subscribe`), descadastro `/m/u/:token` (LGPD), redirecionamento de links antigos `/m/c/...` e os contatos (`ContactsService`, gravados no cadastro, loja nova, financiamento e contato de anúncio). As tabelas antigas (posts, campanhas, envios, sequências, sugestões) continuam no banco, sem uso — não apagar sem antes exportar. Código antigo no histórico do git (commit anterior a esta remoção).
    - **Falta configurar:**
      - token da Meta com `instagram_content_publish` (`INSTAGRAM_ACCESS_TOKEN` e `INSTAGRAM_ACCOUNT_ID`);
      - webhook do Resend (`RESEND_WEBHOOK_SECRET`);

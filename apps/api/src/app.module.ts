@@ -21,7 +21,7 @@ import { AgentsModule } from "./agents/agents.module";
 import { IntegrationsModule } from "./integrations/integrations.module";
 import { ArchitectModule } from "./architect/architect.module";
 import { OperationsModule } from "./operations/operations.module";
-import { MarketingModule } from "./marketing/marketing.module";
+import { NewsletterModule } from "./marketing/newsletter.module";
 import { HealthController } from "./common/health.controller";
 
 @Module({
@@ -51,7 +51,7 @@ import { HealthController } from "./common/health.controller";
     IntegrationsModule,
     ArchitectModule,
     OperationsModule,
-    MarketingModule,
+    NewsletterModule,
     AffiliatesModule,
   ],
   controllers: [HealthController],
