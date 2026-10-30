@@ -8,11 +8,14 @@ import { saveSearchAction } from "@/lib/actions/saved-searches";
 import { VEHICLE_BODY_TYPE_OPTIONS, VEHICLE_CONDITION_OPTIONS, VEHICLE_FEATURE_OPTIONS } from "@novoseminovo/shared-types";
 import { FUEL_OPTIONS, PROPERTY_TYPE_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
 import { MarkVertical } from "@/components/ActiveVertical";
+import { StateCityFields } from "@/components/StateCityFields";
+import { BRAZIL_STATES, isBrazilState } from "@/lib/brazil-states";
 
 type SearchPageProps = {
   searchParams: {
     assetType?: string;
     q?: string;
+    state?: string;
     city?: string;
     priceMin?: string;
     priceMax?: string;
@@ -76,11 +79,15 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const features = asList(searchParams.features);
   const conditions = asList(searchParams.conditions);
   const noAuction = searchParams.noAuction === "1";
+  const state = isBrazilState(searchParams.state) ? searchParams.state!.toUpperCase() : undefined;
+  const stateName = BRAZIL_STATES.find((item) => item.uf === state)?.name;
+  const placeLabel = searchParams.city ? `${searchParams.city}${state ? ` - ${state}` : ""}` : stateName;
 
   const [results, { isAuthenticated, favoriteIds }, popularBrands] = await Promise.all([
     fetchListings({
       assetType,
       q: searchParams.q,
+      state,
       city: searchParams.city || undefined,
       priceMin,
       priceMax,
@@ -114,6 +121,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     const params: SearchParams = {
       assetType: "property",
       q: searchParams.q,
+      state,
       city: searchParams.city || undefined,
       neighborhood: searchParams.neighborhood || undefined,
       priceMin,
@@ -128,7 +136,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <h1 className="font-display text-2xl font-semibold text-ink">
           {typeLabel} {purpose === "rent" ? "para alugar" : purpose === "sale" ? "à venda" : ""}
           {searchParams.neighborhood ? ` no ${searchParams.neighborhood}` : ""}
-          {searchParams.city ? ` em ${searchParams.city}` : ""}
+          {placeLabel ? ` em ${placeLabel}` : ""}
         </h1>
         {searchParams.buscaSalva && (
           <p className="mt-3 rounded-brand bg-brand-green/10 px-4 py-3 text-sm font-semibold text-brand-green">
@@ -144,7 +152,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           {searchParams.q && <input type="hidden" name="q" value={searchParams.q} />}
           <BarSelect name="purpose" label="Negócio" defaultValue={purpose} options={[{ value: "sale", label: "Comprar" }, { value: "rent", label: "Alugar" }]} />
           <BarSelect name="propertyType" label="Tipo" defaultValue={searchParams.propertyType} options={PROPERTY_TYPE_OPTIONS} />
-          <BarInput name="city" label="Cidade" placeholder="Qualquer cidade" defaultValue={searchParams.city} />
+          <StateCityFields variant="bar" defaultState={state} defaultCity={searchParams.city} />
           <BarInput name="neighborhood" label="Bairro" placeholder="Qualquer" defaultValue={searchParams.neighborhood} />
           <BarInput name="priceMin" label="Preço mín." placeholder="R$" defaultValue={searchParams.priceMin} type="number" />
           <BarInput name="priceMax" label="Preço máx." placeholder="R$" defaultValue={searchParams.priceMax} type="number" />
@@ -179,6 +187,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           : assetType === "vehicle"
             ? "Carros"
             : "Todos os anúncios"}
+        {placeLabel ? ` em ${placeLabel}` : ""}
         <span className="ml-2 text-base font-normal text-ink-muted">({results.length} resultados)</span>
       </h1>
 
@@ -272,7 +281,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 />
               </>
             )}
-            <FilterGroup label="Cidade" name="city" placeholder="Qualquer cidade" defaultValue={searchParams.city} />
+            <StateCityFields variant="side" defaultState={state} defaultCity={searchParams.city} />
 
             <button
               type="submit"

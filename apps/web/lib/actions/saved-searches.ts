@@ -28,6 +28,7 @@ export async function saveSearchAction(formData: FormData): Promise<void> {
       assetType,
       filters: {
         q: str(formData, "q"),
+        state: str(formData, "state"),
         city: str(formData, "city"),
         priceMin: num(formData, "priceMin"),
         priceMax: num(formData, "priceMax"),

@@ -18,7 +18,7 @@ function describeFilters(savedSearch: SavedSearch): string {
   const { filters } = savedSearch;
   const parts: string[] = [savedSearch.assetType === "property" ? "Imóveis" : "Carros"];
   if (filters.q) parts.push(`"${filters.q}"`);
-  if (filters.city) parts.push(filters.city);
+  if (filters.city || filters.state) parts.push([filters.city, filters.state].filter(Boolean).join(" - "));
   if (filters.priceMin || filters.priceMax) {
     parts.push(`R$ ${filters.priceMin ?? "0"} — ${filters.priceMax ?? "sem limite"}`);
   }

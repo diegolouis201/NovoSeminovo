@@ -160,6 +160,7 @@ export type SearchFilters = z.infer<typeof SearchFiltersSchema>;
 // deixar salvar um filtro que a busca vai ignorar ao reabrir.
 export const SavedSearchFiltersSchema = z.object({
   q: z.string().optional(),
+  state: z.string().length(2).optional(),
   city: z.string().optional(),
   priceMin: z.number().optional(),
   priceMax: z.number().optional(),

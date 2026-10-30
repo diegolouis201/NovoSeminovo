@@ -105,6 +105,7 @@ function propertyProfileScore(listing: ListingWithDetails, budgetRangeMax: numbe
 export type ListingSearchQuery = {
   assetType?: string;
   q?: string;
+  state?: string;
   city?: string;
   priceMin?: string;
   priceMax?: string;
@@ -299,6 +300,7 @@ export class ListingsService {
       status: "active",
       ...buildListingFilterWhere(assetType, {
         q: query.q,
+        state: query.state,
         city: query.city,
         priceMin: toNumber(query.priceMin),
         priceMax: toNumber(query.priceMax),

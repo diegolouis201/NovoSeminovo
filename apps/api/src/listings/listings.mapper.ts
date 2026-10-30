@@ -39,6 +39,8 @@ export const listingInclude = listingWithDetails.include;
 
 export type ListingFilterValues = {
   q?: string;
+  // Sigla do estado (MG). A busca escolhe o estado e depois a cidade dele.
+  state?: string;
   city?: string;
   priceMin?: number;
   priceMax?: number;
@@ -70,6 +72,7 @@ export function buildListingFilterWhere(
 ): Prisma.ListingWhereInput {
   const {
     q,
+    state,
     city,
     priceMin,
     priceMax,
@@ -117,6 +120,7 @@ export function buildListingFilterWhere(
 
   return {
     ...(assetType ? { type: assetType } : {}),
+    ...(state ? { state: { equals: state, mode: "insensitive" } } : {}),
     ...(city ? { city: { equals: city, mode: "insensitive" } } : {}),
     ...(neighborhood ? { neighborhood: { equals: neighborhood, mode: "insensitive" } } : {}),
     ...(priceMin !== undefined || priceMax !== undefined

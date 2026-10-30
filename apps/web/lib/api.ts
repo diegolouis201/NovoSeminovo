@@ -151,6 +151,7 @@ async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 400
 export type SearchParams = {
   assetType?: "vehicle" | "property";
   q?: string;
+  state?: string;
   city?: string;
   priceMin?: number;
   priceMax?: number;
