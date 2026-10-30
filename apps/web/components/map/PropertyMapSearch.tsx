@@ -42,6 +42,8 @@ export function PropertyMapSearch({
   searchOnMoveRef.current = searchOnMove;
   const latest = useRef(0);
   const favorites = new Set(favoriteIds);
+  // Estável entre renders: o mapa só usa na primeira abertura.
+  const [focus] = useState(() => ({ state: params.state, city: params.city }));
 
   const onBoundsChange = useCallback(
     (bbox: string) => {
@@ -94,7 +96,7 @@ export function PropertyMapSearch({
 
         <section className={`${mobileView === "list" ? "hidden" : ""} lg:block`}>
           <div className="relative isolate h-[70vh] overflow-hidden rounded-brand-lg border border-border lg:sticky lg:top-4 lg:h-[calc(100vh-8rem)]">
-            <PropertyMap tiles={tiles} listings={listings} hoveredId={hoveredId} onBoundsChange={onBoundsChange} />
+            <PropertyMap tiles={tiles} listings={listings} hoveredId={hoveredId} focus={focus} onBoundsChange={onBoundsChange} />
             <label className="absolute left-1/2 top-3 z-[1000] flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-white px-4 py-2 text-xs font-semibold text-[#20261b] shadow-card sm:text-sm">
               <input type="checkbox" checked={searchOnMove} onChange={(event) => setSearchOnMove(event.target.checked)} />
               Buscar ao mover o mapa

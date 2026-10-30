@@ -15,11 +15,13 @@ import type { MapTiles } from "@/lib/map-tiles";
 // contagem quando estão perto (como no QuintoAndar). Os pontos já chegam
 // aproximados da API.
 
-// Sem anúncios com ponto, o mapa abre no Brasil inteiro (atuação nacional);
-// com resultados, enquadra os pins (fitOnLoad).
+// Sem anúncios com ponto, o mapa abre na cidade ou no estado escolhido na
+// busca (public/dados/coordenadas/<UF>.json) ou, sem filtro de local, no
+// Brasil inteiro; com resultados, enquadra os pins (fitOnLoad).
 const BRASIL: [number, number] = [-14.235, -51.9253];
 
 export type Bbox = string; // "oeste,sul,leste,norte"
+export type MapFocus = { state?: string; city?: string };
 
 function shortPrice(value?: number): string {
   if (!value) return "—";
@@ -45,11 +47,13 @@ function Markers({
   listings,
   hoveredId,
   fitOnLoad,
+  focus,
   onBoundsChange,
 }: {
   listings: ListingSummary[];
   hoveredId?: string;
   fitOnLoad: boolean;
+  focus?: MapFocus;
   onBoundsChange: (bbox: Bbox) => void;
 }) {
   const map = useMap();
@@ -102,8 +106,21 @@ function Markers({
       fitted.current = true;
       programmatic.current = true;
       map.fitBounds(L.latLngBounds(located.map((listing) => [listing.lat!, listing.lng!] as [number, number])), { padding: [40, 40], maxZoom: 15 });
+    } else if (fitOnLoad && !fitted.current && focus?.state) {
+      // Nada para enquadrar: abre no local buscado, pra pessoa arrastar dali.
+      fitted.current = true;
+      const { state, city } = focus;
+      fetch(`/dados/coordenadas/${encodeURIComponent(state.toUpperCase())}.json`)
+        .then((res) => (res.ok ? (res.json() as Promise<Record<string, [number, number]>>) : undefined))
+        .then((coords) => {
+          const point = (city && coords?.[city]) || coords?._estado;
+          if (!point) return;
+          programmatic.current = true;
+          map.setView(point, city && coords?.[city] ? 12 : 6);
+        })
+        .catch(() => undefined);
     }
-  }, [listings, fitOnLoad, map]);
+  }, [listings, fitOnLoad, focus, map]);
 
   useEffect(() => {
     for (const [id, marker] of markersRef.current) marker.getElement()?.classList.toggle("ns-pin-active", id === hoveredId);
@@ -116,12 +133,13 @@ export default function PropertyMap(props: {
   tiles: MapTiles;
   listings: ListingSummary[];
   hoveredId?: string;
+  focus?: MapFocus;
   onBoundsChange: (bbox: Bbox) => void;
 }) {
   return (
     <MapContainer center={BRASIL} zoom={4} scrollWheelZoom className="h-full w-full" attributionControl>
       <TileLayer url={props.tiles.url} attribution={props.tiles.attribution} maxZoom={19} />
-      <Markers listings={props.listings} hoveredId={props.hoveredId} fitOnLoad onBoundsChange={props.onBoundsChange} />
+      <Markers listings={props.listings} hoveredId={props.hoveredId} fitOnLoad focus={props.focus} onBoundsChange={props.onBoundsChange} />
     </MapContainer>
   );
 }
