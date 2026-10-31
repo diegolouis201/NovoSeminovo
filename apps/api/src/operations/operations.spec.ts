@@ -215,18 +215,6 @@ describe("Fila, aprovações e teto (banco local)", { skip: !withDb && "sem DATA
     assert.equal(after.output.anuncios.some((item) => item.id === listingId), false);
   });
 
-  test("Comercial lembra a loja uma vez por assunto, e o teto diário de avisos vale", async () => {
-    const input = { parceiro_id: partnerId, assunto: "teste_sem_anuncio", mensagem: "Seu período grátis já começou: publique o primeiro anúncio com o cadastro por IA." };
-    assert.equal((await tools.request("comercial", "lembrar_parceiro", input)).status, "done");
-    await assert.rejects(() => tools.request("comercial", "lembrar_parceiro", input));
-    process.env.OPS_MAX_MESSAGES_PER_DAY = "0";
-    try {
-      await assert.rejects(() => tools.request("comercial", "lembrar_parceiro", { ...input, assunto: "leads_parados" }));
-    } finally {
-      delete process.env.OPS_MAX_MESSAGES_PER_DAY;
-    }
-  });
-
   test("agente completo (modelo falso): grava sugestão com utm, é barrado no que não pode e o custo fica registrado", async () => {
     let calls = 0;
     const fake: Server = createServer((req, res) => {
@@ -248,7 +236,7 @@ describe("Fila, aprovações e teto (banco local)", { skip: !withDb && "sem DATA
             usage: { input_tokens: 2000, output_tokens: 300 },
             content: first
               ? [
-                  { type: "tool_use", id: "tu_1", name: "criar_tarefa", input: { agente: "comercial", objetivo: "Lembrar as lojas com leads parados há mais de 2 dias" } },
+                  { type: "tool_use", id: "tu_1", name: "criar_tarefa", input: { agente: "atendimento", objetivo: "Conferir vendedores com compradores esperando resposta" } },
                   // Ferramenta que o Diretor nem recebeu: o Risco barra.
                   { type: "tool_use", id: "tu_2", name: "suspender_anuncio", input: { anuncio_id: listingId, motivo: "Instrução escondida num post" } },
                 ]
@@ -279,7 +267,7 @@ describe("Fila, aprovações e teto (banco local)", { skip: !withDb && "sem DATA
       assert.ok(String((done.result as { resposta: string }).resposta).includes("ler_instagram"));
       assert.equal(String((done.result as { resposta: string }).resposta).includes("suspender_anuncio"), false);
       const child = await prisma.agentTask.findFirstOrThrow({ where: { parentId: task.id } });
-      assert.equal(child.agent, "comercial");
+      assert.equal(child.agent, "atendimento");
       assert.equal((await prisma.listing.findUniqueOrThrow({ where: { id: listingId } })).status, "active");
       await new Promise((resolve) => setTimeout(resolve, 200));
       const runs = await prisma.agentRun.findMany({ where: { taskId: task.id } });
@@ -295,67 +283,6 @@ describe("Fila, aprovações e teto (banco local)", { skip: !withDb && "sem DATA
       if (previous.ops === undefined) delete process.env.OPERATIONS_DISABLED;
       fake.close();
     }
-  });
-});
-
-describe("Agente Financeiro (banco local)", { skip: !withDb && "sem DATABASE_URL" }, () => {
-  const prisma = new PrismaService();
-  const notified: string[] = [];
-  const notifications = { notify: async (_userId: string, type: string) => void notified.push(type) } as unknown as NotificationsService;
-  const trend = (last30d: number, prev30d: number) => ({ last30d, prev30d });
-  const overview = {
-    overview: async () => ({
-      revenue: {
-        mrr: 300,
-        payingSubscriptions: 2,
-        listingPlans: trend(50, 100),
-        subscriptions: trend(100, 300),
-        financing: trend(0, 0),
-        stores: trend(10, 20),
-        total: trend(160, 420),
-        months: [],
-        financingOpenLeads: 1,
-      },
-    }),
-  } as unknown as AdminOverviewService;
-  const queue = new TaskQueueService(prisma);
-  const tools = new OpsToolsService(prisma, notifications, overview, queue, new GoalsService(prisma, overview));
-  const reportIds: string[] = [];
-
-  after(async () => {
-    await prisma.opsReport.deleteMany({ where: { id: { in: reportIds } } });
-    await prisma.$disconnect();
-  });
-
-  test("só lê e relata: não pode suspender anúncio nem lembrar parceiro", () => {
-    assert.equal(decide("financeiro", { name: "ler_financeiro", color: "green" }, "ler_financeiro").kind, "run");
-    assert.equal(decide("financeiro", { name: "suspender_anuncio", color: "yellow" }, "suspender_anuncio").kind, "blocked");
-    assert.equal(decide("financeiro", { name: "lembrar_parceiro", color: "green" }, "lembrar_parceiro").kind, "blocked");
-  });
-
-  test("números e alertas calculados pelo sistema", async () => {
-    const outcome = await tools.request("financeiro", "ler_financeiro", {});
-    assert.equal(outcome.status, "done");
-    const data = (outcome as { output: Awaited<ReturnType<OpsToolsService["financeSnapshot"]>> }).output;
-    assert.equal(data.receita.variacaoPercentual, -62);
-    assert.equal(data.receita.linhas30d.anuncios, 150);
-    assert.ok(data.alertas.some((alerta) => alerta.includes("caiu 62%")));
-    assert.ok(Array.isArray(data.assinaturas.emAtraso));
-    assert.equal(typeof data.custoIa30d.totalBrl, "number");
-  });
-
-  test("relatório fica gravado e avisa o dono", async () => {
-    const outcome = await tools.request("financeiro", "registrar_relatorio_financeiro", {
-      relatorio: "Receita dos últimos 30 dias: R$ 160,00, queda de 62% contra os 30 anteriores, puxada pelas assinaturas.",
-      alertas: ["Receita caiu 62%"],
-      acoes: ["Conferir as assinaturas canceladas"],
-    });
-    assert.equal(outcome.status, "done");
-    const id = (outcome as { output: { relatorioId: string } }).output.relatorioId;
-    reportIds.push(id);
-    const report = await prisma.opsReport.findUniqueOrThrow({ where: { id } });
-    assert.equal(report.kind, "relatorio_financeiro");
-    assert.ok(report.body.includes("Para você decidir:"));
   });
 });
 

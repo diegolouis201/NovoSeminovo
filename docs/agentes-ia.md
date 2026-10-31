@@ -43,7 +43,10 @@ Variáveis (todas opcionais):
 4. Agendamento em `SCHEDULES` (ex.: Diretor às 8h).
 5. Teste na `operations.spec.ts` cobrindo o que ele não pode fazer.
 
-## Fases 2 a 4 (no ar)
+## Fases 2 a 4
+
+> Agentes no ar hoje: **Diretor, Operações e Atendimento**. Comercial, Financeiro e Marketing foram retirados em 30–31/10/2026.
+
 
 O Diego pediu para rodar todas as fases de uma vez, porque o site ainda está em beta.
 
@@ -64,7 +67,10 @@ O Diego pediu para rodar todas as fases de uma vez, porque o site ainda está em
   - WhatsApp aguarda a verificação da Meta; a Credihome aguarda as credenciais.
 - **Testes:** 20, incluindo um agente completo contra um modelo falso que tenta usar uma ferramenta proibida.
 
-## Agente Financeiro (Fase 4, 25/10/2026)
+## Agente Financeiro (Fase 4, 25/10/2026) — REMOVIDO em 31/10/2026
+
+> Saiu do site junto com o Comercial e o Marketing (pedido do Diego, para o site ficar mais leve). A gestão de vendas e financeiro passou para a pasta/sessão "Gestão NovoSeminovo". Na subida, `OperationsService.retireRemovedRoutines` apaga o sinal de vida dessas rotinas e cancela tarefas pendentes delas. O texto abaixo fica como histórico.
+
 
 - Roda às segundas, às 7h. Também pode ser disparado pelo botão "Rodar agora" em `/admin/operacao`.
 - Ferramentas (`operations/policy.ts`): `ler_painel`, `ler_metas`, `ler_financeiro`, `criar_tarefa` e `registrar_relatorio_financeiro`. Todas são verdes.

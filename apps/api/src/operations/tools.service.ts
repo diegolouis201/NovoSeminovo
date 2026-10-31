@@ -38,10 +38,6 @@ const SEGMENTS = ["all", "vehicle", "property"] as const;
 const segment = z.enum(SEGMENTS).optional();
 const segmentSchema = { type: "string", enum: SEGMENTS, description: "all = site todo, vehicle = carros, property = imóveis" };
 const LISTING_PROBLEMS = ["sem_fotos", "poucas_fotos", "descricao_curta", "preco_fora_fipe", "parado", "duplicado"] as const;
-const PARTNER_SUBJECTS = {
-  leads_parados: { title: "Tem cliente esperando a sua resposta", link: "/parceiro/leads" },
-  teste_sem_anuncio: { title: "Seu período grátis já começou — publique o primeiro anúncio", link: "/anunciar" },
-} as const;
 
 function normalizeTitle(title: string): string {
   return title.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -63,7 +59,6 @@ export class OpsToolsService {
   ) {
     this.registerReadTools();
     this.registerActionTools();
-    this.registerFinanceTools();
     this.registerSupportTools();
   }
 
@@ -169,23 +164,6 @@ export class OpsToolsService {
       run: async ({ segmento, limite }) => this.listingProblems(segmento ?? "all", limite ?? 20),
     });
 
-    this.register({
-      name: "listar_leads_parados",
-      color: "green",
-      description: "Lojas e imobiliárias com leads sem andamento no kanban (novo ou contatado) há mais de N dias. Só contagens, sem dados dos clientes.",
-      input: z.object({ dias: z.number().int().min(1).max(30).optional() }),
-      schema: { type: "object", properties: { dias: { type: "integer", minimum: 1, maximum: 30 } } },
-      run: async ({ dias }) => this.staleLeads(dias ?? 3),
-    });
-
-    this.register({
-      name: "listar_lojas_em_teste_sem_anuncio",
-      color: "green",
-      description: "Lojas, imobiliárias, corretores e construtoras no período grátis que ainda não publicaram nenhum anúncio.",
-      input: z.object({}),
-      schema: { type: "object", properties: {} },
-      run: async () => this.trialWithoutListings(),
-    });
   }
 
   // ---------------- Ações ----------------
@@ -194,7 +172,7 @@ export class OpsToolsService {
     this.register({
       name: "criar_tarefa",
       color: "green",
-      description: "Cria uma tarefa para outro agente da operação (diretor, operacoes, comercial, financeiro ou atendimento).",
+      description: "Cria uma tarefa para outro agente da operação (diretor, operacoes ou atendimento).",
       input: z.object({
         agente: z.enum(Object.keys(AGENT_TOOL_ALLOWLIST) as [string, ...string[]]),
         objetivo: z.string().trim().min(5).max(500),
@@ -243,39 +221,6 @@ export class OpsToolsService {
         if (recent) throw new Error("Este anúncio já recebeu um aviso nos últimos 7 dias");
         await this.notifications.notify(listing.ownerUserId, "listing_tip", { listingId: listing.id, listingTitle: listing.title, problem: problema, message: mensagem });
         return { avisado: anuncio_id };
-      },
-    });
-
-    this.register({
-      name: "lembrar_parceiro",
-      color: "green",
-      description:
-        "Manda à loja/imobiliária um lembrete curto (notificação e e-mail): leads esperando resposta ou período grátis sem anúncio. No máximo 1 por loja e assunto a cada 7 dias.",
-      input: z.object({ parceiro_id: z.string().min(5).max(40), assunto: z.enum(["leads_parados", "teste_sem_anuncio"]), mensagem: z.string().trim().min(20).max(400) }),
-      schema: {
-        type: "object",
-        properties: {
-          parceiro_id: { type: "string" },
-          assunto: { type: "string", enum: ["leads_parados", "teste_sem_anuncio"] },
-          mensagem: { type: "string", description: "Até 400 caracteres, tom de ajuda e direto ao ponto." },
-        },
-        required: ["parceiro_id", "assunto", "mensagem"],
-      },
-      run: async ({ parceiro_id, assunto, mensagem }) => {
-        const partner = await this.prisma.partner.findUnique({ where: { id: parceiro_id } });
-        if (!partner) throw new Error("Parceiro não encontrado");
-        await this.checkDailyMessageCap();
-        const recent = await this.prisma.notification.count({
-          where: {
-            type: "partner_tip",
-            createdAt: { gte: new Date(Date.now() - TIP_COOLDOWN_DAYS * DAY_MS) },
-            AND: [{ payload: { path: ["partnerId"], equals: parceiro_id } }, { payload: { path: ["subject"], equals: assunto } }],
-          },
-        });
-        if (recent) throw new Error("Esta loja já recebeu este lembrete nos últimos 7 dias");
-        const subject = PARTNER_SUBJECTS[assunto];
-        await this.notifications.notify(partner.ownerUserId, "partner_tip", { partnerId: partner.id, subject: assunto, title: subject.title, message: mensagem, link: subject.link });
-        return { lembrado: parceiro_id };
       },
     });
 
@@ -339,53 +284,6 @@ export class OpsToolsService {
         const admins = await this.prisma.user.findMany({ where: { role: "admin", status: "active" }, select: { id: true } });
         for (const admin of admins) await this.notifications.notify(admin.id, "ops_daily_summary", { dayLabel, body, report: visual }).catch(() => undefined);
         return { resumoId: report.id };
-      },
-    });
-  }
-
-  // ---------------- Financeiro ----------------
-
-  private registerFinanceTools(): void {
-    this.register({
-      name: "ler_financeiro",
-      color: "green",
-      description:
-        "Saúde financeira: receita dos últimos 30 dias contra os 30 anteriores e os últimos meses por linha (anúncios, financiamento, afiliados/lojas); assinaturas pagantes, em atraso e canceladas; lojas com período grátis vencendo; comissões de afiliados e cashback de financiamento a pagar aos clientes; gasto com IA. Traz também alertas calculados pelo sistema.",
-      input: z.object({}),
-      schema: { type: "object", properties: {} },
-      run: async () => this.financeSnapshot(),
-    });
-
-    this.register({
-      name: "registrar_relatorio_financeiro",
-      color: "green",
-      description: "Grava o relatório financeiro para o dono (aparece em /admin/operacao e vai por e-mail). Use uma vez, no fim da análise.",
-      input: z.object({
-        relatorio: z.string().trim().min(50).max(4000),
-        alertas: z.array(z.string().max(250)).max(10).optional(),
-        acoes: z.array(z.string().max(250)).max(5).optional(),
-      }),
-      schema: {
-        type: "object",
-        properties: {
-          relatorio: { type: "string", description: "Texto corrido, até 4000 caracteres, só com números lidos nas ferramentas." },
-          alertas: { type: "array", items: { type: "string" }, description: "O que fugiu do normal e precisa de atenção." },
-          acoes: { type: "array", items: { type: "string" }, description: "Até 5 ações que só o dono pode fazer (ex.: pagar comissões disponíveis)." },
-        },
-        required: ["relatorio"],
-      },
-      run: async ({ relatorio, alertas, acoes }, context) => {
-        const lines = [relatorio];
-        if (alertas?.length) lines.push("", "Alertas:", ...alertas.map((item) => `• ${item}`));
-        if (acoes?.length) lines.push("", "Para você decidir:", ...acoes.map((item, index) => `${index + 1}. ${item}`));
-        const body = lines.join("\n");
-        const report = await this.prisma.opsReport.create({
-          data: { agent: context.agent, kind: "relatorio_financeiro", body, data: { alertas, acoes } as Prisma.InputJsonValue, taskId: context.taskId },
-        });
-        const periodLabel = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
-        const admins = await this.prisma.user.findMany({ where: { role: "admin", status: "active" }, select: { id: true } });
-        for (const admin of admins) await this.notifications.notify(admin.id, "ops_finance_report", { periodLabel, body }).catch(() => undefined);
-        return { relatorioId: report.id };
       },
     });
   }
@@ -523,100 +421,6 @@ export class OpsToolsService {
     };
   }
 
-  // Números financeiros calculados pelo sistema (o agente não informa nenhum).
-  async financeSnapshot(now = new Date()) {
-    const since30 = new Date(now.getTime() - 30 * DAY_MS);
-    const [overview, pastDueSubs, canceled30d, trialPartners, commissions, paid30d, deals, aiRuns] = await Promise.all([
-      this.overview.overview("all"),
-      this.prisma.subscription.findMany({
-        where: { status: "past_due" },
-        select: { statusChangedAt: true, plan: { select: { name: true, priceMonth: true } }, partner: { select: { legalName: true, type: true } } },
-      }),
-      this.prisma.subscription.count({ where: { status: "canceled", statusChangedAt: { gte: since30 } } }),
-      this.prisma.partner.findMany({
-        where: {
-          type: { in: [...PLAN_REQUIRED_PARTNER_TYPES] },
-          createdAt: { gt: new Date(now.getTime() - PARTNER_TRIAL_DAYS * DAY_MS), lte: new Date(now.getTime() - (PARTNER_TRIAL_DAYS - 7) * DAY_MS) },
-          subscriptions: { none: { status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } } },
-        },
-        select: { legalName: true, type: true, createdAt: true, _count: { select: { listings: true } } },
-        take: 30,
-      }),
-      this.prisma.affiliateCommission.groupBy({ by: ["status"], where: { status: { in: ["pending", "available"] } }, _sum: { amount: true }, _count: { _all: true } }),
-      this.prisma.affiliateCommission.aggregate({ where: { status: "paid", paidAt: { gte: since30 } }, _sum: { amount: true } }),
-      this.prisma.financingDeal.aggregate({ where: { status: "registered" }, _sum: { commissionAmount: true, rebateAmount: true }, _count: { _all: true } }),
-      this.prisma.agentRun.groupBy({ by: ["feature"], where: { createdAt: { gte: since30 } }, _sum: { costBrl: true }, _count: { _all: true } }),
-    ]);
-    const money = (value: unknown) => Math.round(Number(value ?? 0) * 100) / 100;
-    const revenue = overview.revenue;
-    const commission = (status: string) => commissions.find((row) => row.status === status);
-    const aiTotal = money(aiRuns.reduce((sum, row) => sum + Number(row._sum.costBrl ?? 0), 0));
-    const change = revenue.total.prev30d > 0 ? Math.round(((revenue.total.last30d - revenue.total.prev30d) / revenue.total.prev30d) * 100) : undefined;
-    const available = commission("available");
-
-    const alertas: string[] = [];
-    if (pastDueSubs.length) alertas.push(`${pastDueSubs.length} assinatura(s) com pagamento em atraso`);
-    if (change !== undefined && change <= -30) alertas.push(`Receita dos últimos 30 dias caiu ${Math.abs(change)}% contra os 30 anteriores`);
-    if (available && Number(available._sum.amount ?? 0) > 0) alertas.push(`Comissões de afiliados disponíveis para pagar: R$ ${money(available._sum.amount).toFixed(2)}`);
-    if (deals._count._all) alertas.push(`${deals._count._all} negócio(s) de financiamento registrados e ainda não pagos`);
-    if (revenue.total.last30d > 0 && aiTotal > revenue.total.last30d * 0.5) alertas.push("Gasto com IA passou de metade da receita dos últimos 30 dias");
-    if (trialPartners.length) alertas.push(`${trialPartners.length} loja(s)/imobiliária(s) com período grátis acabando nos próximos 7 dias`);
-
-    return {
-      receita: {
-        ultimos30d: revenue.total.last30d,
-        anteriores30d: revenue.total.prev30d,
-        variacaoPercentual: change,
-        linhas30d: {
-          anuncios: money(revenue.listingPlans.last30d + revenue.subscriptions.last30d),
-          planosDeAnuncioPF: revenue.listingPlans.last30d,
-          assinaturasDeLojas: revenue.subscriptions.last30d,
-          financiamento: revenue.financing.last30d,
-          afiliadosELojasParceiras: revenue.stores.last30d,
-        },
-        meses: revenue.months.slice(-4),
-        receitaRecorrenteMensal: revenue.mrr,
-      },
-      assinaturas: {
-        pagantes: revenue.payingSubscriptions,
-        emAtraso: pastDueSubs.map((sub) => ({
-          loja: sub.partner.legalName,
-          tipo: sub.partner.type,
-          plano: sub.plan.name,
-          valorMensal: money(sub.plan.priceMonth),
-          diasEmAtraso: Math.floor((now.getTime() - sub.statusChangedAt.getTime()) / DAY_MS),
-        })),
-        canceladas30d: canceled30d,
-        periodoGratisAcabandoEm7Dias: trialPartners.map((partner) => ({
-          nome: partner.legalName,
-          tipo: partner.type,
-          venceEmDias: Math.max(0, PARTNER_TRIAL_DAYS - Math.floor((now.getTime() - partner.createdAt.getTime()) / DAY_MS)),
-          anuncios: partner._count.listings,
-        })),
-      },
-      afiliados: {
-        comissoesDisponiveisParaPagar: { valor: money(available?._sum.amount), quantidade: available?._count._all ?? 0 },
-        comissoesEmCarencia: { valor: money(commission("pending")?._sum.amount), quantidade: commission("pending")?._count._all ?? 0 },
-        pagas30d: money(paid30d._sum.amount),
-      },
-      financiamento: {
-        negociosComCashbackNaoPago: deals._count._all,
-        comissaoAReceberOuRecebidaNaoRepassada: money(deals._sum.commissionAmount),
-        cashbackAPagarAosClientes: money(deals._sum.rebateAmount),
-        leadsEmAberto: revenue.financingOpenLeads,
-      },
-      custoIa30d: {
-        totalBrl: aiTotal,
-        observacao: "Só chamadas aos modelos Claude; as imagens do Gemini não entram nesta conta.",
-        porUso: aiRuns
-          .map((row) => ({ uso: row.feature, chamadas: row._count._all, brl: money(row._sum.costBrl) }))
-          .sort((a, b) => b.brl - a.brl)
-          .slice(0, 8),
-      },
-      alertas,
-    };
-  }
-
   // Números do relatório visual do resumo do dia: sempre do banco, nunca do agente.
   async dailyReport(text: { metas_em_risco?: string[]; prioridades?: string[]; destaques?: string[] }, now = new Date()): Promise<DailyReport> {
     const since = { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) };
@@ -723,50 +527,6 @@ export class OpsToolsService {
       if (found.length >= limit) break;
     }
     return { total: found.length, anuncios: found };
-  }
-
-  private async staleLeads(days: number) {
-    const before = new Date(Date.now() - days * DAY_MS);
-    const leads = await this.prisma.lead.findMany({
-      where: { status: { in: ["new", "contacted"] }, statusChangedAt: { lt: before } },
-      select: { partnerId: true, statusChangedAt: true, partner: { select: { legalName: true, type: true } } },
-    });
-    const reminded = await this.recentlyTipped("partner_tip", "partnerId", "leads_parados");
-    const byPartner = new Map<string, { parceiroId: string; nome: string; tipo: string; leadsParados: number; maisAntigoDias: number }>();
-    for (const lead of leads) {
-      if (reminded.has(lead.partnerId)) continue;
-      const row = byPartner.get(lead.partnerId) ?? { parceiroId: lead.partnerId, nome: lead.partner.legalName, tipo: lead.partner.type, leadsParados: 0, maisAntigoDias: 0 };
-      row.leadsParados += 1;
-      row.maisAntigoDias = Math.max(row.maisAntigoDias, Math.floor((Date.now() - lead.statusChangedAt.getTime()) / DAY_MS));
-      byPartner.set(lead.partnerId, row);
-    }
-    return { diasSemAndamento: days, parceiros: [...byPartner.values()].sort((a, b) => b.leadsParados - a.leadsParados).slice(0, 30) };
-  }
-
-  private async trialWithoutListings() {
-    const now = Date.now();
-    const partners = await this.prisma.partner.findMany({
-      where: {
-        type: { in: [...PLAN_REQUIRED_PARTNER_TYPES] },
-        createdAt: { gt: new Date(now - PARTNER_TRIAL_DAYS * DAY_MS), lt: new Date(now - 2 * DAY_MS) },
-        subscriptions: { none: { status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } } },
-        listings: { none: {} },
-      },
-      select: { id: true, legalName: true, type: true, createdAt: true },
-      take: 50,
-    });
-    const reminded = await this.recentlyTipped("partner_tip", "partnerId", "teste_sem_anuncio");
-    return {
-      diasDeTeste: PARTNER_TRIAL_DAYS,
-      parceiros: partners
-        .filter((partner) => !reminded.has(partner.id))
-        .map((partner) => ({
-          parceiroId: partner.id,
-          nome: partner.legalName,
-          tipo: partner.type,
-          diasDesdeOCadastro: Math.floor((now - partner.createdAt.getTime()) / DAY_MS),
-        })),
-    };
   }
 
   // ---------------- Registro, pedido e aprovação ----------------
