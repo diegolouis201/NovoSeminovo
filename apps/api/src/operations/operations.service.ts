@@ -39,10 +39,12 @@ const SCHEDULES: { key: string; agent: string; hourBrt: number; weekday?: number
   { key: "kpi-snapshot", agent: "sistema:kpi", hourBrt: 6, objective: "Guardar a foto diária dos KPIs (geral, carros e imóveis)" },
   { key: "diretor", agent: "diretor", hourBrt: 8, usesAi: true, objective: "Resumo diário: metas, números do mês e prioridades" },
   { key: "operacoes", agent: "operacoes", hourBrt: 9, usesAi: true, objective: "Revisar anúncios com problema e avisar os donos" },
+  { key: "comercial", agent: "comercial", hourBrt: 10, usesAi: true, objective: "Lembrar lojas com leads parados ou sem anúncio no período grátis" },
   { key: "atendimento", agent: "atendimento", hourBrt: 14, usesAi: true, objective: "Garantir que nenhum comprador fique sem resposta e avisar o dono das pendências de atendimento" },
+  { key: "financeiro", agent: "financeiro", hourBrt: 7, weekday: 1, usesAi: true, objective: "Relatório financeiro da semana: receita, assinaturas, valores a pagar e gasto com IA" },
 ];
 
-const RETIRED_ROUTINES = ["marketing", "comercial", "financeiro"];
+const RETIRED_ROUTINES = ["marketing"];
 
 function brtWeekday(now: Date): number {
   return new Date(now.getTime() - 3 * 60 * 60 * 1000).getUTCDay();
@@ -86,7 +88,7 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
     this.timers.push(setInterval(() => void this.monitor().catch((error) => this.logger.warn(`Monitor falhou: ${error}`)), MONITOR_MS));
   }
 
-  // Rotinas e agentes que saíram do site (marketing, comercial e financeiro, em 10/2026): sem isso o
+  // Rotinas e agentes que saíram do site (o marketing, em 10/2026): sem isso o
   // monitor acharia o último sinal de vida velho e avisaria "Marketing parou".
   async retireRemovedRoutines(): Promise<void> {
     await this.prisma.routineHeartbeat.deleteMany({ where: { name: { in: RETIRED_ROUTINES } } });
@@ -250,7 +252,10 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
       this.prisma.routineHeartbeat.findMany({ orderBy: { name: "asc" } }),
       this.goals.list(now),
     ]);
-    const latestSummary = await this.prisma.opsReport.findFirst({ where: { kind: "resumo_diario" }, orderBy: { createdAt: "desc" } });
+    const [latestSummary, latestFinance] = await Promise.all([
+      this.prisma.opsReport.findFirst({ where: { kind: "resumo_diario" }, orderBy: { createdAt: "desc" } }),
+      this.prisma.opsReport.findFirst({ where: { kind: "relatorio_financeiro" }, orderBy: { createdAt: "desc" } }),
+    ]);
 
     const approvalView = (row: (typeof pending)[number]): OpsApprovalView => ({
       id: row.id,
@@ -302,6 +307,9 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
         healthy: now.getTime() - routine.lastRunAt.getTime() <= routine.intervalMs * STALE_FACTOR && routine.failures < FAILURES_ALERT,
       })),
       goals,
+      latestFinanceReport: latestFinance
+        ? { id: latestFinance.id, agent: latestFinance.agent, kind: latestFinance.kind, body: latestFinance.body, createdAt: latestFinance.createdAt.toISOString() }
+        : undefined,
       latestSummary: latestSummary
         ? { id: latestSummary.id, agent: latestSummary.agent, kind: latestSummary.kind, body: latestSummary.body, createdAt: latestSummary.createdAt.toISOString() }
         : undefined,

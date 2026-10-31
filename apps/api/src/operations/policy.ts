@@ -25,8 +25,11 @@ export type OpsTool<Input = unknown> = {
 // Ferramentas que cada agente pode chamar. Agente fora da lista ou ferramenta
 // fora da lista dele = bloqueado, mesmo que a ferramenta exista.
 export const AGENT_TOOL_ALLOWLIST: Record<string, readonly string[]> = {
-  diretor: ["ler_painel", "ler_metas", "ler_trafego_site", "ler_instagram", "criar_tarefa", "registrar_resumo_diario"],
+  diretor: ["ler_painel", "ler_metas", "ler_trafego_site", "ler_instagram", "ler_financeiro", "criar_tarefa", "registrar_resumo_diario"],
   operacoes: ["ler_painel", "listar_anuncios_com_problema", "avisar_dono_anuncio", "suspender_anuncio", "criar_tarefa"],
+  comercial: ["ler_painel", "ler_metas", "listar_leads_parados", "listar_lojas_em_teste_sem_anuncio", "lembrar_parceiro", "criar_tarefa"],
+  // Financeiro só lê e relata: pagar, estornar ou mudar preço é vermelho (ninguém tem a ferramenta).
+  financeiro: ["ler_painel", "ler_metas", "ler_financeiro", "criar_tarefa", "registrar_relatorio_financeiro"],
   // Atendimento: ninguém fica sem resposta. Só lembra vendedores e avisa o dono.
   atendimento: ["ler_painel", "listar_conversas_sem_resposta", "lembrar_resposta", "listar_pendencias_atendimento", "avisar_dono_atendimento", "criar_tarefa"],
 };

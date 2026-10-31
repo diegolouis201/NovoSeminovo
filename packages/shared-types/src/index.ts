@@ -2551,7 +2551,7 @@ export type OpsRoutineView = {
 };
 export type OpsReportView = { id: string; agent: string; kind: string; body: string; createdAt: string };
 // Agentes que o admin pode mandar rodar na hora (botão "Rodar agora").
-export const OPS_RUNNABLE_AGENTS = ["diretor", "operacoes", "atendimento"] as const;
+export const OPS_RUNNABLE_AGENTS = ["diretor", "operacoes", "comercial", "financeiro", "atendimento"] as const;
 export type OpsGoalView = { id: string; metric: string; segment: string; period: string; target: number; agent: string; note?: string; current?: number };
 export type OpsSummary = {
   generatedAt: string;
@@ -2563,6 +2563,7 @@ export type OpsSummary = {
   routines: OpsRoutineView[];
   goals: OpsGoalView[];
   latestSummary?: OpsReportView;
+  latestFinanceReport?: OpsReportView;
   windsorEnabled: boolean;
   agentsEnabled: boolean;
 };

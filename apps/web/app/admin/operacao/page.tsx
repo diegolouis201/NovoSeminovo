@@ -401,7 +401,7 @@ function Goals({ data }: { data: OpsSummary }) {
         <label className="flex flex-col gap-1 text-xs font-semibold text-ink">
           Responsável
           <select name="agent" className="rounded-brand border border-border bg-surface-page px-3 py-2 text-sm font-normal">
-            {OPS_RUNNABLE_AGENTS.map((value) => (
+            {["diretor", "operacoes", "comercial", "financeiro", "atendimento"].map((value) => (
               <option key={value} value={value}>
                 {OPS_AGENT_LABELS[value]}
               </option>
@@ -423,13 +423,17 @@ function Goals({ data }: { data: OpsSummary }) {
 const AGENT_SCHEDULE: Record<string, string> = {
   diretor: "todo dia às 8h",
   operacoes: "todo dia às 9h",
+  comercial: "todo dia às 10h",
+  financeiro: "segundas às 7h",
   atendimento: "todo dia às 14h",
 };
 
 const AGENT_JOB: Record<string, string> = {
   diretor: "Lê metas e números, aponta o que está em risco, distribui tarefas e manda o resumo do dia por e-mail.",
   operacoes: "Acha anúncios com problema e manda dicas aos donos; pede sua aprovação para suspender casos suspeitos.",
+  comercial: "Lembra lojas com clientes esperando resposta e lojas no período grátis que ainda não anunciaram.",
   atendimento: "Lembra vendedores (PF e lojas) de responder compradores que esperam há mais de 24h e avisa você sobre financiamentos sem contato e denúncias abertas.",
+  financeiro: "Relatório semanal: receita por linha, assinaturas em atraso, comissões e cashback a pagar e gasto com IA. Só lê; não paga nada.",
 };
 
 function AgentsPanel({ data }: { data: OpsSummary }) {
@@ -450,6 +454,12 @@ function AgentsPanel({ data }: { data: OpsSummary }) {
         <article className="rounded-brand-lg border-2 border-brand-blue bg-surface-raised p-4">
           <p className="text-xs font-bold uppercase tracking-wide text-brand-blue">Resumo do Diretor · {dateTime(data.latestSummary.createdAt)}</p>
           <p className="mt-2 whitespace-pre-line text-sm text-ink">{data.latestSummary.body}</p>
+        </article>
+      )}
+      {data.latestFinanceReport && (
+        <article id="financeiro" className="scroll-mt-24 rounded-brand-lg border-2 border-brand-green bg-surface-raised p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-brand-green">Relatório Financeiro · {dateTime(data.latestFinanceReport.createdAt)}</p>
+          <p className="mt-2 whitespace-pre-line text-sm text-ink">{data.latestFinanceReport.body}</p>
         </article>
       )}
       <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
