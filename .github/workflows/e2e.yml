@@ -54,6 +54,7 @@ jobs:
       - name: Banco de teste
         run: |
           pnpm --filter @novoseminovo/db generate
+          pnpm --filter @novoseminovo/db build
           pnpm --filter @novoseminovo/db exec prisma db push --accept-data-loss --skip-generate
           pnpm --filter @novoseminovo/shared-types build
           pnpm db:seed
