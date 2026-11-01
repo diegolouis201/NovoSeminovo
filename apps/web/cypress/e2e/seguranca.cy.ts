@@ -80,11 +80,9 @@ describe("SQL injection", () => {
 
 describe("CORS: só o próprio site chama a API pelo navegador", () => {
   it("origem do site recebe permissão", () => {
-    cy.location("origin").then(() => {
-      const origin = Cypress.config("baseUrl") as string;
-      cy.request({ method: "OPTIONS", url: `${apiUrl()}/listings`, headers: { Origin: origin, "Access-Control-Request-Method": "GET" } }).then((res) => {
-        expect(res.headers["access-control-allow-origin"]).to.eq(origin);
-      });
+    const origin = Cypress.config("baseUrl") as string;
+    cy.request({ method: "OPTIONS", url: `${apiUrl()}/listings`, headers: { Origin: origin, "Access-Control-Request-Method": "GET" } }).then((res) => {
+      expect(res.headers["access-control-allow-origin"]).to.eq(origin);
     });
   });
 
