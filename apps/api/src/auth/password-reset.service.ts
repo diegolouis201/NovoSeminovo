@@ -1,13 +1,12 @@
 import { createHash, randomBytes } from "node:crypto";
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
-import { hash } from "bcryptjs";
+import { hashPassword } from "./password";
 import { PrismaService } from "../prisma/prisma.service";
 import { EmailService } from "../email/email.service";
 import { renderNotificationEmail } from "../email/email-template";
 import { forgetUserStatus } from "./jwt-auth.guard";
 
 const TOKEN_TTL_MINUTES = 60;
-const SALT_ROUNDS = 10;
 
 function tokenHash(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -55,7 +54,7 @@ export class PasswordResetService {
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        passwordHash: await hash(password, SALT_ROUNDS),
+        passwordHash: await hashPassword(password),
         passwordResetTokenHash: null,
         passwordResetExpiresAt: null,
         passwordChangedAt: new Date(),

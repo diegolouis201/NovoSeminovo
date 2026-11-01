@@ -1,8 +1,8 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import sharp from "sharp";
 import { readPhotoBytes } from "../common/storage";
 import { PrismaService } from "../prisma/prisma.service";
 import { listingInclude, mimeTypeFromUrl, toListingSummary, type ListingWithDetails } from "./listings.mapper";
+import { safeSharp } from "../common/image-safety";
 
 const FEED_SIZE = { width: 1080, height: 1080 };
 const STORY_SIZE = { width: 1080, height: 1920 };
@@ -61,7 +61,7 @@ export class SocialAssetsService {
     // os três formatos aceitos no upload (jpeg/png/webp) são suportados.
     mimeTypeFromUrl(photoUrl);
 
-    const background = await sharp(photoBuffer)
+    const background = await safeSharp(photoBuffer)
       .resize(size.width, size.height, { fit: "cover", position: "attention" })
       .jpeg({ quality: 90 })
       .toBuffer();
@@ -69,7 +69,7 @@ export class SocialAssetsService {
     const summary = toListingSummary(listing);
     const overlay = this.buildOverlaySvg(size, summary);
 
-    return sharp(background)
+    return safeSharp(background)
       .composite([{ input: Buffer.from(overlay), top: 0, left: 0 }])
       .jpeg({ quality: 92 })
       .toBuffer();

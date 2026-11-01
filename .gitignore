@@ -9,3 +9,6 @@ dist-test
 .DS_Store
 *.tsbuildinfo
 apps/api/uploads
+
+# Chaves secretas: só no servidor de produção, nunca no GitHub (ver DEPLOY.md, "Chaves secretas")
+secrets/

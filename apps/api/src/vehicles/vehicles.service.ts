@@ -13,6 +13,7 @@ import { NotificationsService } from "../notifications/notifications.service";
 import { getPhotoStorage } from "../common/storage";
 import { hashPlate, maskPlate } from "./plate.util";
 import { toVehicleEvent, toVehicleProfile, vehicleInclude } from "./vehicles.mapper";
+import { sanitizeUpload } from "../common/image-safety";
 
 export type ResolveVehicleForListingInput = {
   plate: string;
@@ -230,8 +231,9 @@ export class VehiclesService {
     }
 
     const storage = getPhotoStorage();
+    const safeFiles = await Promise.all(files.map((file) => sanitizeUpload(file)));
     const photoUrls = await Promise.all(
-      files.map((file) => storage.save(file.buffer, file.originalname, file.mimetype)),
+      safeFiles.map((file) => storage.save(file.buffer, file.originalname, file.mimetype)),
     );
 
     const event = await this.prisma.vehicleEvent.create({

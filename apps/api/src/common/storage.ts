@@ -3,6 +3,7 @@ import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import { Logger } from "@nestjs/common";
 import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { sniffFileType } from "./image-safety";
 
 // Nunca derivar a extensão do nome de arquivo que a pessoa mandou — esse
 // nome é escolhido por quem faz o upload, e o Express serve /uploads por
@@ -17,6 +18,12 @@ const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
   "image/png": ".png",
   "image/webp": ".webp",
 };
+
+// Segunda conferência, já na hora de gravar: os bytes têm de ser do tipo
+// declarado (a primeira é sanitizeUpload, em image-safety.ts).
+export function assertStoredTypeMatches(buffer: Buffer, contentType: string): void {
+  if (sniffFileType(buffer) !== contentType) throw new Error(`Conteúdo do arquivo não confere com o tipo "${contentType}".`);
+}
 
 function extensionForContentType(contentType: string): string {
   const extension = EXTENSION_BY_CONTENT_TYPE[contentType];
@@ -60,6 +67,7 @@ export const UPLOADS_URL_PREFIX = "/uploads";
 
 class LocalDiskStorage implements PhotoStorage {
   async save(buffer: Buffer, _originalName: string, contentType: string): Promise<string> {
+    assertStoredTypeMatches(buffer, contentType);
     const filename = `${randomUUID()}${extensionForContentType(contentType)}`;
     await mkdir(UPLOADS_DIR, { recursive: true });
     await writeFile(join(UPLOADS_DIR, filename), buffer);
@@ -109,6 +117,7 @@ class S3PhotoStorage implements PhotoStorage {
   }
 
   async save(buffer: Buffer, _originalName: string, contentType: string): Promise<string> {
+    assertStoredTypeMatches(buffer, contentType);
     const key = `${randomUUID()}${extensionForContentType(contentType)}`;
     await this.client.send(
       new PutObjectCommand({

@@ -20,7 +20,6 @@ services:
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: postgresql://novoseminovo:${POSTGRES_PASSWORD}@postgres:5432/novoseminovo?schema=public
-      JWT_SECRET: ${JWT_SECRET}
       WEB_ORIGIN: https://${DOMAIN}
       # Vazias por padrão: sem isso, cada integração cai sozinha pro modo
       # simulado de sempre (ver PaymentsService/EmailService) — preencha no
@@ -28,6 +27,8 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Antivírus dos arquivos enviados (ver DEPLOY.md, "Antivírus"): vazio = desligado.
+      CLAMAV_HOST: ${CLAMAV_HOST:-}
       AGENT_HUMAN_WHATSAPP: ${AGENT_HUMAN_WHATSAPP:-5531936187896}
       AGENT_DAILY_MESSAGE_LIMIT: ${AGENT_DAILY_MESSAGE_LIMIT:-3000}
       WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
@@ -84,6 +85,8 @@ services:
       # Sem isso, foto enviada sumiria a cada "docker compose up --build"
       # (ver common/storage.ts) — só dispensável se configurar S3_BUCKET.
       - uploads_data:/app/apps/api/uploads
+      # Chaves secretas lidas de arquivo (ver DEPLOY.md, "Chaves secretas").
+      - ./secrets:/run/secrets:ro
 
   web:
     build:
@@ -95,7 +98,6 @@ services:
     depends_on:
       - api
     environment:
-      AUTH_SECRET: ${AUTH_SECRET}
       AUTH_URL: https://${DOMAIN}
       NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
       MAPTILER_KEY: ${MAPTILER_KEY:-}
@@ -103,6 +105,9 @@ services:
       # App do celular: links do site abrindo no app (mobile/README.md).
       ANDROID_CERT_SHA256: ${ANDROID_CERT_SHA256:-}
       APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+    volumes:
+      # Chave do login do site (AUTH_SECRET) lida de arquivo (ver DEPLOY.md).
+      - ./secrets:/run/secrets:ro
 
   caddy:
     image: caddy:2
@@ -120,7 +125,18 @@ services:
       - api
       - web
 
+  # Antivírus (ClamAV) dos arquivos enviados. Só sobe com
+  # COMPOSE_PROFILES=antivirus no .env (usa ~1,5 GB de memória) — e a API só
+  # usa com CLAMAV_HOST=clamav. Ver DEPLOY.md, "Antivírus".
+  clamav:
+    image: clamav/clamav:1.4
+    profiles: ["antivirus"]
+    restart: unless-stopped
+    volumes:
+      - clamav_data:/var/lib/clamav
+
 volumes:
+  clamav_data:
   postgres_data:
   uploads_data:
   caddy_data:

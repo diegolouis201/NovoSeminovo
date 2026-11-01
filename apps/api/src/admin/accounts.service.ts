@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from "@nestjs/common";
-import { compare } from "bcryptjs";
+import { verifyPassword } from "../auth/password";
 import type { AdminDeleteInput, AdminUserProfile } from "@novoseminovo/shared-types";
 import { getPhotoStorage } from "../common/storage";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -254,7 +254,7 @@ export class AdminAccountsService {
     const admin = await this.prisma.user.findUnique({ where: { id: adminId }, select: { passwordHash: true, role: true } });
     if (!admin || (requireAdmin && admin.role !== "admin")) throw new ForbiddenException("Só administradores podem excluir.");
     if (!admin.passwordHash) throw new BadRequestException("Sua conta não tem senha cadastrada; crie uma senha em Meus dados.");
-    if (!(await compare(password, admin.passwordHash))) {
+    if (!(await verifyPassword(password, admin.passwordHash))) {
       fails.push(now);
       this.failedPasswords.set(adminId, fails);
       throw new UnauthorizedException("Senha incorreta.");

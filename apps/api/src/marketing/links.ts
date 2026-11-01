@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { currentSecret } from "../auth/secret-file";
 
 // O marketing (posts, campanhas, sequências) saiu do site em 10/2026 e passou
 // a ser feito fora dele. Daqui só ficou o que e-mails já enviados e o
@@ -9,10 +10,10 @@ export function webOrigin(): string {
 }
 
 function linkSecret(): string {
-  // Sem fallback hardcoded (ver require-strong-secret.ts) — MARKETING_LINK_SECRET
+  // Sem fallback hardcoded (ver auth/secret-file.ts) — MARKETING_LINK_SECRET
   // é opcional, mas cai pro JWT_SECRET (que o boot da API já garante forte),
   // nunca pra um valor conhecido no código-fonte.
-  const secret = process.env.MARKETING_LINK_SECRET || process.env.JWT_SECRET;
+  const secret = process.env.MARKETING_LINK_SECRET || currentSecret("JWT_SECRET");
   if (!secret) {
     throw new Error("MARKETING_LINK_SECRET ou JWT_SECRET precisa estar configurado pra assinar links de marketing.");
   }

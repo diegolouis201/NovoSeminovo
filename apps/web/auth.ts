@@ -1,13 +1,17 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { AuthUser, LoginResponse } from "@novoseminovo/shared-types";
+import { readSecret } from "@/lib/secret-file";
 
 // A sessão é gerenciada aqui (cookie do NextAuth), mas quem valida a senha e
 // possui os dados do usuário é sempre apps/api — o site nunca fala com o
 // banco diretamente, pelo mesmo motivo de lib/api.ts.
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+// Config preguiçosa: a chave secreta é lida do arquivo do servidor na hora
+// da requisição (ver lib/secret-file.ts), não durante o build.
+export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
+  secret: readSecret("AUTH_SECRET"),
   session: { strategy: "jwt" },
   pages: { signIn: "/entrar" },
   // Necessário fora da Vercel (self-host): sem isso o Auth.js rejeita o
@@ -55,4 +59,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
   },
-});
+}));

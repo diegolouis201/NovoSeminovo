@@ -45,5 +45,11 @@ de outro site, resposta de API externa e texto que a IA gera.
   (`apps/api/src/common/cors.ts`, comparação exata com `WEB_ORIGIN`). Não
   abrir para `*` nem para outros domínios. Arquivos de `/uploads` saem com
   `Cross-Origin-Resource-Policy: same-site`.
+- **Segredos**: chave nunca no código, no `.env` versionado nem no GitHub;
+  em produção só em arquivo (`readSecret`/`currentSecret`, pasta `secrets/`).
+  Senha só com `hashPassword`/`verifyPassword` (bcrypt 12).
+- **Imagens e arquivos enviados**: todo upload passa por `sanitizeUpload`
+  (ou `assertNoMalware` para PDF); todo `sharp` é `safeSharp`. Tipo do
+  arquivo é decidido pelos bytes, nunca pela extensão/cabeçalho.
 - Cada regra acima tem teste. Mudou algo nessas áreas, o teste correspondente
   precisa continuar passando (ou ganhar um caso novo).

@@ -1,6 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
-import sharp from "sharp";
 import {
   ArchitectShoppingItemSchema,
   formatBRL,
@@ -17,6 +16,7 @@ import { GeminiImageService } from "./gemini-image.service";
 import { storeSearchUrl } from "./affiliate";
 import { trackedAnthropic } from "../operations/ai-usage";
 import { insideTag } from "../common/untrusted";
+import { safeSharp } from "../common/image-safety";
 
 // Arquiteto NovoSeminovo: o comprador logado conversa com a IA sobre como
 // reformar o imóvel do anúncio; a IA olha as fotos (Claude), gera a imagem
@@ -211,7 +211,7 @@ export class ArchitectService {
         run: async (input) => {
           const photo = photos.find((item) => item.id === String(input.foto_id));
           if (!photo) throw new Error("Foto não encontrada neste anúncio.");
-          const jpeg = await sharp(await readPhotoBytes(photo.url)).rotate().resize(1024, 1024, { fit: "inside" }).jpeg({ quality: 80 }).toBuffer();
+          const jpeg = await safeSharp(await readPhotoBytes(photo.url)).rotate().resize(1024, 1024, { fit: "inside" }).jpeg({ quality: 80 }).toBuffer();
           return {
             contentBlocks: [
               { type: "text", text: `Foto ${photo.id}${photo.caption ? ` (${photo.caption})` : ""}:` },
@@ -324,9 +324,9 @@ Como conversar:
     summary: string,
     used: number,
   ) {
-    const source = await sharp(await readPhotoBytes(photo.url)).rotate().resize(1536, 1536, { fit: "inside" }).jpeg({ quality: 88 }).toBuffer();
+    const source = await safeSharp(await readPhotoBytes(photo.url)).rotate().resize(1536, 1536, { fit: "inside" }).jpeg({ quality: 88 }).toBuffer();
     const result = await this.gemini.renovate(source, "image/jpeg", instructions);
-    const jpeg = await sharp(result.image).jpeg({ quality: 85 }).toBuffer();
+    const jpeg = await safeSharp(result.image).jpeg({ quality: 85 }).toBuffer();
     const url = await getPhotoStorage().save(jpeg, "reforma.jpg", "image/jpeg");
     const image = await this.prisma.architectImage.create({
       data: { sessionId: session.id, userId, photoId: photo.id, sourceUrl: photo.url, instructions: summary.slice(0, 300), resultUrl: url },

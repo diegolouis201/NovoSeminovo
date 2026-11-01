@@ -44,10 +44,12 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - name: Segredos de teste
+      - name: Segredos de teste (em arquivo, como no servidor)
         run: |
-          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-          echo "AUTH_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/secrets"
+          (umask 077; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/jwt_secret"; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/auth_secret")
+          echo "JWT_SECRET_FILE=$RUNNER_TEMP/secrets/jwt_secret" >> "$GITHUB_ENV"
+          echo "AUTH_SECRET_FILE=$RUNNER_TEMP/secrets/auth_secret" >> "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
       - name: Programa do Cypress
         run: pnpm --filter @novoseminovo/web exec cypress install

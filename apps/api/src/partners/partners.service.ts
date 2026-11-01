@@ -43,6 +43,7 @@ import { getPhotoStorage } from "../common/storage";
 import { NotificationsService } from "../notifications/notifications.service";
 import { CnpjService } from "./cnpj.service";
 import { trackRoutine } from "../operations/routine-health";
+import { sanitizeUpload } from "../common/image-safety";
 
 // Quantas vagas de anúncio um plano "ocupa": tudo que não é um estado final
 // (vendido/recusado/expirado) conta contra o limite, porque senão dava pra
@@ -443,7 +444,8 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
     if (!partner) throw new NotFoundException("Você ainda não tem uma loja/imobiliária cadastrada.");
 
     const storage = getPhotoStorage();
-    const url = await storage.save(file.buffer, file.originalname, file.mimetype);
+    const safe = await sanitizeUpload(file);
+    const url = await storage.save(safe.buffer, safe.originalname, safe.mimetype);
 
     if (partner.logoUrl) await storage.remove(partner.logoUrl);
     await this.prisma.partner.update({ where: { id: partner.id }, data: { logoUrl: url } });

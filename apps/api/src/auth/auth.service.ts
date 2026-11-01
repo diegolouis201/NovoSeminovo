@@ -1,13 +1,12 @@
 import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { compare, hash } from "bcryptjs";
 import { Prisma } from "@novoseminovo/db";
 import type { Acquisition, AuthUser, LoginInput, LoginResponse, RegisterInput } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { ContactsService } from "../marketing/contacts.service";
 import { normalizeAffiliateCode } from "../affiliates/affiliates.service";
+import { hashPassword, needsRehash, verifyPassword } from "./password";
 
-const SALT_ROUNDS = 10;
 
 @Injectable()
 export class AuthService {
@@ -18,7 +17,7 @@ export class AuthService {
   ) {}
 
   async register(input: RegisterInput, acquisition?: Acquisition): Promise<AuthUser> {
-    const passwordHash = await hash(input.password, SALT_ROUNDS);
+    const passwordHash = await hashPassword(input.password);
     const cpf = input.cpf.replace(/\D/g, "");
     const affiliateId = await this.referringAffiliate(input.referralCode, cpf);
     // Indicado por afiliado conta como origem "afiliado", mesmo que o cookie diga outra coisa.
@@ -82,10 +81,12 @@ export class AuthService {
 
   async login(input: LoginInput): Promise<LoginResponse> {
     const user = await this.prisma.user.findUnique({ where: { email: input.email } });
-    if (!user?.passwordHash) throw new UnauthorizedException("E-mail ou senha inválidos.");
-
-    const valid = await compare(input.password, user.passwordHash);
-    if (!valid) throw new UnauthorizedException("E-mail ou senha inválidos.");
+    // Mesmo tempo de resposta com ou sem conta (ver password.ts).
+    const valid = await verifyPassword(input.password, user?.passwordHash);
+    if (!user?.passwordHash || !valid) throw new UnauthorizedException("E-mail ou senha inválidos.");
+    if (needsRehash(user.passwordHash)) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(input.password) } }).catch(() => undefined);
+    }
     if (user.status === "suspended") throw new UnauthorizedException("Esta conta está suspensa.");
 
     const authUser: AuthUser = { id: user.id, name: user.name, email: user.email, role: user.role };

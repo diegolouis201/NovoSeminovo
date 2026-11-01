@@ -44,6 +44,7 @@ import { ListingsService, MAX_LISTING_PHOTOS, type ListingSearchQuery } from "./
 import { FipeService } from "../vehicles/fipe.service";
 import { mergeBrandNames, mergeModelNames } from "../vehicles/search-catalog";
 import { SocialAssetsService } from "./social-assets.service";
+import { assertNoMalware, sanitizeUpload, sniffFileType } from "../common/image-safety";
 
 const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -107,9 +108,16 @@ export class ListingsController {
   @UseGuards(JwtAuthGuard)
   @Post("crlv-extract")
   @UseInterceptors(crlvInterceptor)
-  extractCrlv(@UploadedFile() file: Express.Multer.File, @Body() body: { plateStart?: string }) {
+  async extractCrlv(@UploadedFile() file: Express.Multer.File, @Body() body: { plateStart?: string }) {
     if (!file) throw new BadRequestException("Envie o CRLV em imagem ou PDF.");
-    return this.aiService.extractCrlvData(file.buffer, file.mimetype, body.plateStart?.trim() || undefined);
+    const plateStart = typeof body.plateStart === "string" ? body.plateStart.trim().slice(0, 8) || undefined : undefined;
+    // Tipo real pelos bytes e antivírus; imagem ainda é redesenhada do zero.
+    if (sniffFileType(file.buffer) === "application/pdf") {
+      await assertNoMalware(file.buffer);
+      return this.aiService.extractCrlvData(file.buffer, "application/pdf", plateStart);
+    }
+    const clean = await sanitizeUpload(file);
+    return this.aiService.extractCrlvData(clean.buffer, clean.mimetype, plateStart);
   }
 
   @Get()

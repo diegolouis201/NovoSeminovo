@@ -72,6 +72,45 @@ docker compose exec api pnpm --filter @novoseminovo/db seed   # opcional — cri
 
 Acesse `https://seudominio.com.br` — deve carregar o site; `https://api.seudominio.com.br/listings` deve devolver uma lista (vazia ou com os anúncios do seed) em JSON.
 
+## Chaves secretas (arquivos `secrets/`, só no servidor)
+
+O site usa duas mensagens secretas: `jwt_secret` (assina o "crachá" de login da
+API) e `auth_secret` (criptografa o cookie de sessão do site). Elas ficam em
+arquivos na pasta `~/NovoSeminovo/secrets/`, que **nunca vai para o GitHub**
+(está no `.gitignore`). O docker monta essa pasta só para leitura em
+`/run/secrets` e a API e o site leem o arquivo sempre que precisam (releitura a
+cada minuto). Em produção a variável `JWT_SECRET`/`AUTH_SECRET` do `.env` é
+ignorada: sem o arquivo, o sistema não sobe.
+
+- **Criar (uma vez, antes do deploy)**: `sh scripts/criar-segredos.sh`. Gera
+  64 caracteres aleatórios por arquivo (`openssl rand -base64 48`), com
+  permissão `600` (só o dono lê). Rodar de novo não troca as chaves existentes.
+- **Gerar à mão** (mesmo resultado):
+  `mkdir -p secrets && chmod 700 secrets && openssl rand -base64 48 | tr -d '\n' > secrets/jwt_secret && chmod 600 secrets/jwt_secret`
+  (idem para `auth_secret`). Mínimo de 32 caracteres; nunca inventar "de cabeça".
+- **Trocar as chaves** (ex.: suspeita de vazamento): `sh scripts/criar-segredos.sh --trocar`
+  e `docker compose restart api web`. Todo mundo precisa entrar de novo.
+- Arquivo com permissão aberta para outros usuários é recusado (mensagem
+  pede `chmod 600`).
+- Nunca colar o conteúdo dos arquivos em chat, e-mail ou print. O backup do
+  servidor não leva a pasta: se o VPS for perdido, basta gerar novas (só obriga
+  todos a entrar de novo).
+
+## Antivírus (opcional, ClamAV)
+
+Toda imagem enviada já é conferida pelo tipo real (bytes, não pela extensão),
+limitada a 40 megapixels e 12.000 px de lado (contra "bomba" de imagem),
+recusada se animada e **refeita do zero** (vira um JPEG/WebP novo, sem
+metadados nem nada escondido). Para também passar tudo no antivírus ClamAV
+(fotos, logos, PDF do CRLV):
+
+1. Conferir memória: `free -h` — o ClamAV usa ~1,5 GB de RAM.
+2. No `.env`: `COMPOSE_PROFILES=antivirus` e `CLAMAV_HOST=clamav`.
+3. `docker compose up -d` (a primeira subida baixa a base de vírus, ~2 minutos).
+
+Com `CLAMAV_HOST` preenchido e o antivírus fora do ar, o envio é recusado
+(melhor recusar do que aceitar sem conferir).
+
 ## Manutenção
 
 - **Atualizar depois de um novo commit**: `git pull && docker compose up --build -d`.

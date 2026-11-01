@@ -7,7 +7,7 @@ import { EmailModule } from "../email/email.module";
 import { PasswordResetService } from "./password-reset.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "./optional-jwt-auth.guard";
-import { requireStrongSecret } from "./require-strong-secret";
+import { currentSecret } from "./secret-file";
 
 @Module({
   imports: [
@@ -15,10 +15,11 @@ import { requireStrongSecret } from "./require-strong-secret";
       global: true,
       // Nunca um valor padrão aqui — um segredo conhecido no código-fonte
       // deixaria qualquer pessoa forjar um token de admin pra qualquer
-      // usuário. requireStrongSecret derruba o boot da API se a variável
-      // de ambiente não estiver configurada (ou for curta demais pra
-      // resistir a força bruta).
-      secret: requireStrongSecret("JWT_SECRET"),
+      // usuário. A chave vem do ARQUIVO do servidor (ver secret-file.ts),
+      // relida a cada minuto; a primeira leitura já no boot derruba a API
+      // se o arquivo faltar ou a chave for fraca.
+      secret: currentSecret("JWT_SECRET"),
+      secretOrKeyProvider: () => currentSecret("JWT_SECRET"),
       signOptions: { expiresIn: "30d" },
     }),
     ContactsModule,

@@ -34,7 +34,10 @@ export const NewPasswordSchema = z
   .string()
   .min(8, "A senha precisa ter pelo menos 8 caracteres")
   .max(200)
-  .refine(hasSpecialChar, "A senha precisa ter pelo menos um caractere especial (ex.: ! @ # $ %)");
+  .refine(hasSpecialChar, "A senha precisa ter pelo menos um caractere especial (ex.: ! @ # $ %)")
+  // O bcrypt só considera os primeiros 72 bytes: acima disso, duas senhas
+  // diferentes valeriam como a mesma.
+  .refine((value) => new TextEncoder().encode(value).length <= 72, "A senha pode ter no máximo 72 caracteres");
 
 export const RegisterInputSchema = z.object({
   name: z.string().trim().min(2, "Nome muito curto").max(120, "Nome muito longo (máx. 120 caracteres)"),

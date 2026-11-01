@@ -1,6 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
-import sharp from "sharp";
 import { formatBRL } from "@novoseminovo/shared-types";
 import type { Prisma } from "@novoseminovo/db";
 import { listingEvents } from "../common/listing-events";
@@ -10,6 +9,7 @@ import { AGENT_MODEL } from "../agents/agent-engine";
 import { AdminService } from "./admin.service";
 import { trackedAnthropic } from "../operations/ai-usage";
 import { trackRoutine } from "../operations/routine-health";
+import { safeSharp } from "../common/image-safety";
 
 // Moderação automática: a IA olha cada anúncio novo (texto + fotos) e
 // aprova o que está normal, recusa o que é claramente irregular (com um
@@ -245,7 +245,7 @@ export class AutoModerationService implements OnModuleInit, OnModuleDestroy {
     // pulada; nenhuma abrindo = uma pessoa confere.
     for (const photo of listing.photos.slice(0, MAX_PHOTOS)) {
       try {
-        const jpeg = await sharp(await readPhotoBytes(photo.url)).rotate().resize(768, 768, { fit: "inside" }).jpeg({ quality: 75 }).toBuffer();
+        const jpeg = await safeSharp(await readPhotoBytes(photo.url)).rotate().resize(768, 768, { fit: "inside" }).jpeg({ quality: 75 }).toBuffer();
         images.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: jpeg.toString("base64") } });
       } catch (error) {
         this.logger.warn(`Foto ${photo.id} do anúncio ${listing.id} não abriu: ${(error as Error).message}`);

@@ -60,6 +60,7 @@ import {
   type ListingWithDetails,
 } from "./listings.mapper";
 import { AffiliatesService } from "../affiliates/affiliates.service";
+import { sanitizeUpload } from "../common/image-safety";
 
 // Não existe campo de "tipo de carroceria" (SUV/hatch/sedã) no schema (ver
 // comentário em popularBrands acima) — esses atributos de VehicleDetails são
@@ -1105,7 +1106,10 @@ export class ListingsService {
     const alreadyHasCover = listing.photos.some((photo) => photo.isCover);
 
     const storage = getPhotoStorage();
-    const prepared = listing.type === "vehicle" ? await Promise.all(files.map((file) => this.blurPlates(file))) : files;
+    // Antivírus, tipo real e foto redesenhada do zero antes de qualquer outro
+    // processamento (ver common/image-safety.ts).
+    const safe = await Promise.all(files.map((file) => sanitizeUpload(file)));
+    const prepared = listing.type === "vehicle" ? await Promise.all(safe.map((file) => this.blurPlates(file as Express.Multer.File))) : safe;
     const urls = await Promise.all(prepared.map((file) => storage.save(file.buffer, file.originalname, file.mimetype)));
 
     await this.prisma.photo.createMany({
