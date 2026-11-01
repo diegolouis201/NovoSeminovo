@@ -12,6 +12,7 @@ import type { Server, Socket } from "socket.io";
 import type { RealtimeMessage } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { canAccessConversation } from "./access";
+import { allowedOrigins } from "../common/cors";
 
 // Só cobre o lado de "receber ao vivo" — enviar continua sendo o POST
 // /conversations/:id/messages de sempre (ConversationsService chama
@@ -19,7 +20,7 @@ import { canAccessConversation } from "./access";
 // hora porque o formulário recarrega a página (revalidatePath); o socket
 // existe pra quem está do outro lado da conversa, sem precisar atualizar.
 @Injectable()
-@WebSocketGateway({ cors: { origin: process.env.WEB_ORIGIN ?? "http://localhost:3000" } })
+@WebSocketGateway({ cors: { origin: allowedOrigins(), credentials: false } })
 export class ConversationsGateway implements OnGatewayConnection {
   @WebSocketServer() private server!: Server;
 

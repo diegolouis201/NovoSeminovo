@@ -9,6 +9,8 @@ O Diego não lê código. Tudo que você entregar precisa estar testado de verda
 
 ## Fluxo obrigatório
 
+0. **TDD e segurança** (regras completas no `CLAUDE.md` da raiz): escreva o teste antes do código e veja ele falhar; toda entrada de dados é validada e testada contra SQL injection, script injection (XSS) e prompt injection; o CORS da API fica restrito à origem do site.
+
 1. Mudou `packages/db/prisma/schema.prisma` → `pnpm db:generate` e `pnpm --filter @novoseminovo/db exec prisma db push --accept-data-loss` no banco local.
 2. Mudou `packages/shared-types` → `pnpm --filter @novoseminovo/shared-types build` (API e site consomem o `dist/`).
 3. Antes de commitar: `pnpm exec tsc --noEmit` em `apps/api` **e** em `apps/web`.

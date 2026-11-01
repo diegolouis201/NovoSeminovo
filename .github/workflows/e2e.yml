@@ -1,0 +1,88 @@
+# Testes do site a cada envio: testes da API (node:test) e testes de ponta a
+# ponta no navegador (Cypress), com banco PostgreSQL de teste populado pelo
+# seed. Nada aqui toca o servidor de produção nem usa chaves reais.
+name: Testes do site
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/vehicle-marketplace-platform-lmif9s, main]
+    paths: ["apps/api/**", "apps/web/**", "packages/**", ".github/workflows/e2e.yml", "pnpm-lock.yaml"]
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: novoseminovo
+          POSTGRES_PASSWORD: novoseminovo
+          POSTGRES_DB: novoseminovo
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U novoseminovo"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://novoseminovo:novoseminovo@localhost:5432/novoseminovo?schema=public
+      # Segredos só de teste, gerados a cada execução (nunca os de produção).
+      WEB_ORIGIN: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      PUBLIC_API_URL: http://localhost:4000
+      API_URL: http://localhost:4000
+      AUTH_URL: http://localhost:3000
+      AUTH_TRUST_HOST: "true"
+      OPERATIONS_DISABLED: "1"
+      AUTO_MODERATION_DISABLED: "1"
+      GEOCODING_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Segredos de teste
+        run: |
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "AUTH_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - run: pnpm install --frozen-lockfile
+      - name: Programa do Cypress
+        run: pnpm --filter @novoseminovo/web exec cypress install
+      - name: Banco de teste
+        run: |
+          pnpm --filter @novoseminovo/db generate
+          pnpm --filter @novoseminovo/db exec prisma db push --accept-data-loss --skip-generate
+          pnpm --filter @novoseminovo/shared-types build
+          pnpm db:seed
+      - name: Testes da API
+        run: pnpm --filter @novoseminovo/api test
+      - name: Tipos (API e site)
+        run: |
+          pnpm --filter @novoseminovo/api exec tsc --noEmit
+          pnpm --filter @novoseminovo/web exec tsc --noEmit
+          pnpm --filter @novoseminovo/web exec tsc --noEmit -p cypress/tsconfig.json
+      - name: Sobe API e site
+        run: |
+          pnpm --filter @novoseminovo/api build
+          pnpm --filter @novoseminovo/web build
+          (cd apps/api && nohup node dist/main.js > ../../api.log 2>&1 &)
+          (cd apps/web && nohup pnpm start > ../../web.log 2>&1 &)
+          for i in $(seq 1 90); do curl -sf http://localhost:4000/health >/dev/null && curl -sf http://localhost:3000/ >/dev/null && break; sleep 2; done
+      - name: Cypress
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: apps/web
+          install: false
+          browser: chrome
+      - name: Logs se falhar
+        if: failure()
+        run: tail -n 120 api.log web.log || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-prints
+          path: apps/web/cypress/screenshots
+          if-no-files-found: ignore

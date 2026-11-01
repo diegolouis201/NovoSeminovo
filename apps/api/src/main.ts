@@ -11,6 +11,7 @@ import { mkdirSync } from "node:fs";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
+import { corsOptions, STATIC_FILE_HEADERS } from "./common/cors";
 import { UPLOADS_DIR, UPLOADS_URL_PREFIX } from "./common/storage";
 
 async function bootstrap() {
@@ -25,8 +26,14 @@ async function bootstrap() {
   // Padrão do Express é 100kb — pouco pro envio em lote da API de
   // integração (até 100 anúncios com descrição, ver IntegrationsController).
   app.useBodyParser("json", { limit: "5mb" });
-  app.enableCors({ origin: process.env.WEB_ORIGIN ?? "http://localhost:3000" });
-  app.useStaticAssets(UPLOADS_DIR, { prefix: UPLOADS_URL_PREFIX });
+  // Só o próprio site fala com a API pelo navegador (ver common/cors.ts).
+  app.enableCors(corsOptions());
+  app.useStaticAssets(UPLOADS_DIR, {
+    prefix: UPLOADS_URL_PREFIX,
+    setHeaders: (res) => {
+      for (const [name, value] of Object.entries(STATIC_FILE_HEADERS)) res.setHeader(name, value);
+    },
+  });
   const port = process.env.PORT ? Number(process.env.PORT) : 4000;
   await app.listen(port);
   // eslint-disable-next-line no-console
