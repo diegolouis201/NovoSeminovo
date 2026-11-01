@@ -1,5 +1,5 @@
 import { ListingCard } from "@/components/ListingCard";
-import { fetchListings, fetchPopularBrands, type SearchParams } from "@/lib/api";
+import { fetchListings, fetchSearchBrands, type SearchParams } from "@/lib/api";
 import { BrandLogoStrip } from "@/components/BrandLogoStrip";
 import { PropertyMapSearch } from "@/components/map/PropertyMapSearch";
 import { mapTiles } from "@/lib/map-tiles";
@@ -9,6 +9,7 @@ import { VEHICLE_BODY_TYPE_OPTIONS, VEHICLE_CONDITION_OPTIONS, VEHICLE_FEATURE_O
 import { FUEL_OPTIONS, PROPERTY_TYPE_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
 import { MarkVertical } from "@/components/ActiveVertical";
 import { StateCityFields } from "@/components/StateCityFields";
+import { BrandModelFields } from "@/components/BrandModelFields";
 import { BRAZIL_STATES, isBrazilState } from "@/lib/brazil-states";
 
 type SearchPageProps = {
@@ -23,6 +24,7 @@ type SearchPageProps = {
     yearMax?: string;
     bedroomsMin?: string;
     brand?: string;
+    model?: string;
     transmission?: string;
     fuelType?: string;
     mileageMax?: string;
@@ -102,6 +104,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             yearMin,
             yearMax,
             brand: searchParams.brand,
+            model: searchParams.model || undefined,
             transmission: searchParams.transmission,
             fuelType: searchParams.fuelType,
             mileageMax,
@@ -112,7 +115,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           }),
     }),
     getFavoriteContext(),
-    isProperty ? Promise.resolve([]) : fetchPopularBrands(),
+    isProperty ? Promise.resolve([]) : fetchSearchBrands(),
   ]);
 
   if (isProperty) {
@@ -183,7 +186,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       <MarkVertical value={assetType} />
       <h1 className="font-display text-2xl font-semibold text-ink">
         {searchParams.brand
-          ? `${searchParams.brand} — Carros`
+          ? `${searchParams.brand}${searchParams.model ? ` ${searchParams.model}` : ""} — Carros`
           : assetType === "vehicle"
             ? "Carros"
             : "Todos os anúncios"}
@@ -222,12 +225,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 defaultValue={searchParams.propertyType}
               />
             ) : (
-              <SelectGroup
-                label="Marca"
-                name="brand"
-                options={popularBrands.map((brand) => ({ value: brand, label: brand }))}
-                defaultValue={searchParams.brand}
-              />
+              <BrandModelFields brands={popularBrands} defaultBrand={searchParams.brand} defaultModel={searchParams.model} />
             )}
 
             <RangeGroup

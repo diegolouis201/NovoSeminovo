@@ -28,6 +28,7 @@ import {
   type VehicleRecommendation,
   type Acquisition,
 } from "@novoseminovo/shared-types";
+import { vehicleBrandVariants } from "@novoseminovo/shared-types";
 import { leadOrigin } from "../common/acquisition";
 import { PrismaService } from "../prisma/prisma.service";
 import { listingEvents } from "../common/listing-events";
@@ -383,6 +384,24 @@ export class ListingsService {
       listings: listings.map((listing) => ({ id: listing.id, updatedAt: listing.updatedAt.toISOString() })),
       storefronts: partners,
     };
+  }
+
+  // Marcas e modelos que já aparecem em anúncio (filtro da busca; ver
+  // search-catalog.ts, que junta com a FIPE).
+  async listingBrandNames(): Promise<string[]> {
+    const brands = await this.prisma.vehicleBrand.findMany({ where: { details: { some: {} } }, select: { name: true } });
+    return brands.map((brand) => brand.name);
+  }
+
+  async listingModelNames(brand: string): Promise<string[]> {
+    const models = await this.prisma.vehicleModel.findMany({
+      where: {
+        details: { some: {} },
+        brand: { OR: vehicleBrandVariants(brand).map((name) => ({ name: { equals: name, mode: "insensitive" as const } })) },
+      },
+      select: { name: true },
+    });
+    return models.map((model) => model.name);
   }
 
   async popularBrands(limit = 8): Promise<string[]> {

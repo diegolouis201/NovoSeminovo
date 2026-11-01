@@ -42,6 +42,7 @@ import { StartBoostInputSchema } from "@novoseminovo/shared-types";
 import { AiService } from "./ai.service";
 import { ListingsService, MAX_LISTING_PHOTOS, type ListingSearchQuery } from "./listings.service";
 import { FipeService } from "../vehicles/fipe.service";
+import { mergeBrandNames, mergeModelNames } from "../vehicles/search-catalog";
 import { SocialAssetsService } from "./social-assets.service";
 
 const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -176,6 +177,28 @@ export class ListingsController {
     const year = Number(query.yearModel);
     if (!query.brand || !Number.isInteger(code) || !Number.isInteger(year)) return null;
     return (await this.fipe.priceForVersion(query.brand, code, year)) ?? null;
+  }
+
+  // Filtro "Marca" e "Modelo" da busca de carros: FIPE + o que já tem
+  // anúncio. FIPE fora do ar não derruba a busca (fica só o dos anúncios).
+  @Get("search-brands")
+  async searchBrands(): Promise<string[]> {
+    const [fipe, fromListings] = await Promise.all([
+      this.fipe.listBrands().then((brands) => brands.map((brand) => brand.name)).catch(() => [] as string[]),
+      this.listingsService.listingBrandNames(),
+    ]);
+    return mergeBrandNames(fipe, fromListings);
+  }
+
+  @Get("search-models")
+  async searchModels(@Query("brand") rawBrand: unknown): Promise<string[]> {
+    const brand = typeof rawBrand === "string" ? rawBrand.trim().slice(0, 60) : "";
+    if (!brand) return [];
+    const [fipe, fromListings] = await Promise.all([
+      this.fipe.listModels(brand).then((models) => models.map((model) => model.name)).catch(() => [] as string[]),
+      this.listingsService.listingModelNames(brand),
+    ]);
+    return mergeModelNames(fipe, fromListings);
   }
 
   // Botão "qual carro é ideal pra mim?" — público (não exige login) porque é

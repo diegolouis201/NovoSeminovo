@@ -149,6 +149,7 @@ export type SearchParams = {
   q?: string;
   state?: string;
   city?: string;
+  model?: string;
   priceMin?: number;
   priceMax?: number;
   yearMin?: number;
@@ -205,6 +206,17 @@ export async function fetchFeaturedPartners(forAssetType?: "vehicle" | "property
 }
 
 const MOCK_POPULAR_BRANDS = ["Toyota", "Honda", "Volkswagen", "Hyundai", "Jeep", "Chevrolet"];
+
+// Todas as marcas para o filtro da busca (FIPE + as que têm anúncio).
+export async function fetchSearchBrands(): Promise<string[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/listings/search-brands`, { next: { revalidate: 3600 } }, 10000);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as string[];
+  } catch {
+    return fetchPopularBrands();
+  }
+}
 
 export async function fetchPopularBrands(): Promise<string[]> {
   try {

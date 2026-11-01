@@ -20,6 +20,18 @@ describe("Navegação de quem compra", () => {
     cy.contains("h1", "Belo Horizonte - MG");
   });
 
+  it("busca de carros: escolher a marca carrega os modelos dela", () => {
+    cy.visit("/busca?assetType=vehicle");
+    cy.get('aside select[name="brand"] option').should("have.length.greaterThan", 2);
+    cy.get('aside select[name="model"]').should("be.disabled");
+    cy.get('aside select[name="brand"]').select("Toyota");
+    cy.get('aside select[name="model"]').should("not.be.disabled");
+    cy.get('aside select[name="model"]').select("Corolla");
+    cy.get("aside").contains("button", "Filtrar").click();
+    cy.location("search").should("include", "brand=Toyota").and("include", "model=Corolla");
+    cy.contains("a", "Corolla XEi 2020").should("be.visible");
+  });
+
   it("busca de imóveis por outro estado não mostra anúncio de MG", () => {
     cy.visit("/busca?assetType=property&state=SP");
     cy.contains("Nenhum imóvel encontrado").should("be.visible");
