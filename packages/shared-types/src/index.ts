@@ -2552,7 +2552,28 @@ export type OpsRoutineView = {
   failures: number;
   healthy: boolean;
 };
-export type OpsReportView = { id: string; agent: string; kind: string; body: string; createdAt: string };
+// Relatório dos agentes em formato de painel (fácil de ler): uma frase
+// principal, números em destaque e listas curtas por assunto.
+export const OpsReportNumberSchema = z.object({
+  rotulo: z.string().trim().min(1).max(40),
+  valor: z.string().trim().min(1).max(30),
+  tom: z.enum(["bom", "atencao", "neutro"]).optional(),
+});
+export const OpsReportBlockSchema = z.object({
+  titulo: z.string().trim().min(1).max(60),
+  tipo: z.enum(["bom", "atencao", "acao", "info"]),
+  itens: z.array(z.string().trim().min(1).max(250)).max(10),
+});
+export const OpsReportLayoutSchema = z.object({
+  manchete: z.string().trim().min(10).max(200),
+  numeros: z.array(OpsReportNumberSchema).max(8),
+  blocos: z.array(OpsReportBlockSchema).max(6),
+  detalhes: z.string().trim().max(4000).optional(),
+});
+export type OpsReportNumber = z.infer<typeof OpsReportNumberSchema>;
+export type OpsReportBlock = z.infer<typeof OpsReportBlockSchema>;
+export type OpsReportLayout = z.infer<typeof OpsReportLayoutSchema>;
+export type OpsReportView = { id: string; agent: string; kind: string; body: string; createdAt: string; layout?: OpsReportLayout };
 // Agentes que o admin pode mandar rodar na hora (botão "Rodar agora").
 export const OPS_RUNNABLE_AGENTS = ["diretor", "operacoes", "comercial", "financeiro", "atendimento"] as const;
 export type OpsGoalView = { id: string; metric: string; segment: string; period: string; target: number; agent: string; note?: string; current?: number };

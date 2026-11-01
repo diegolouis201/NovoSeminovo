@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { readReportLayout } from "./report-layout";
 import type { AgentTask, Prisma } from "@novoseminovo/db";
 import {
   OPS_ROUTINE_LABELS,
@@ -308,10 +309,10 @@ export class OperationsService implements OnModuleInit, OnModuleDestroy {
       })),
       goals,
       latestFinanceReport: latestFinance
-        ? { id: latestFinance.id, agent: latestFinance.agent, kind: latestFinance.kind, body: latestFinance.body, createdAt: latestFinance.createdAt.toISOString() }
+        ? { id: latestFinance.id, agent: latestFinance.agent, kind: latestFinance.kind, body: latestFinance.body, createdAt: latestFinance.createdAt.toISOString(), layout: readReportLayout(latestFinance.data) }
         : undefined,
       latestSummary: latestSummary
-        ? { id: latestSummary.id, agent: latestSummary.agent, kind: latestSummary.kind, body: latestSummary.body, createdAt: latestSummary.createdAt.toISOString() }
+        ? { id: latestSummary.id, agent: latestSummary.agent, kind: latestSummary.kind, body: latestSummary.body, createdAt: latestSummary.createdAt.toISOString(), layout: readReportLayout(latestSummary.data) }
         : undefined,
       windsorEnabled: windsorEnabled(),
       agentsEnabled: aiAgentsEnabled(),

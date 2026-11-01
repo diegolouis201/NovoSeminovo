@@ -13,6 +13,7 @@ import {
 } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
+import { OpsReportCard } from "@/components/admin/OpsReportCard";
 import { opsDecisionAction, opsDeleteGoalAction, opsRunAgentAction, opsSaveGoalAction, opsTaskActionForm } from "@/lib/actions/operations";
 import { fetchOpsSummary } from "@/lib/api";
 
@@ -450,18 +451,8 @@ function AgentsPanel({ data }: { data: OpsSummary }) {
           </p>
         )}
       </div>
-      {data.latestSummary && (
-        <article className="rounded-brand-lg border-2 border-brand-blue bg-surface-raised p-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-brand-blue">Resumo do Diretor · {dateTime(data.latestSummary.createdAt)}</p>
-          <p className="mt-2 whitespace-pre-line text-sm text-ink">{data.latestSummary.body}</p>
-        </article>
-      )}
-      {data.latestFinanceReport && (
-        <article id="financeiro" className="scroll-mt-24 rounded-brand-lg border-2 border-brand-green bg-surface-raised p-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-brand-green">Relatório Financeiro · {dateTime(data.latestFinanceReport.createdAt)}</p>
-          <p className="mt-2 whitespace-pre-line text-sm text-ink">{data.latestFinanceReport.body}</p>
-        </article>
-      )}
+      {data.latestSummary && <OpsReportCard title="Resumo do Diretor" report={data.latestSummary} accent="blue" />}
+      {data.latestFinanceReport && <OpsReportCard id="financeiro" title="Relatório Financeiro" report={data.latestFinanceReport} accent="green" />}
       <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {OPS_RUNNABLE_AGENTS.map((agent) => (
           <li key={agent} className="flex flex-col gap-2 rounded-brand-lg border border-border bg-surface-raised p-4">

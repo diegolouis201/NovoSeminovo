@@ -1,7 +1,8 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { buildReportLayout, reportLayoutText } from "./report-layout";
 import { z } from "zod";
 import type { Prisma } from "@novoseminovo/db";
-import { OPS_AGENT_LABELS, OPS_GOAL_METRICS, PARTNER_TRIAL_DAYS, PLAN_REQUIRED_PARTNER_TYPES } from "@novoseminovo/shared-types";
+import { OPS_AGENT_LABELS, OpsReportNumberSchema, OPS_GOAL_METRICS, PARTNER_TRIAL_DAYS, PLAN_REQUIRED_PARTNER_TYPES } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { AdminOverviewService } from "../admin/overview.service";
@@ -326,6 +327,8 @@ export class OpsToolsService {
       color: "green",
       description: "Grava o resumo do dia para o dono da empresa (aparece no painel e vai por e-mail). Use uma vez, no fim da análise.",
       input: z.object({
+        manchete: z.string().trim().min(10).max(200).optional(),
+        numeros: z.array(OpsReportNumberSchema).max(8).optional(),
         resumo: z.string().trim().min(50).max(4000),
         metas_em_risco: z.array(z.string().max(200)).max(10).optional(),
         prioridades: z.array(z.string().max(200)).max(5).optional(),
@@ -334,20 +337,37 @@ export class OpsToolsService {
       schema: {
         type: "object",
         properties: {
-          resumo: { type: "string", description: "Texto corrido, até 4000 caracteres, só com números lidos nas ferramentas." },
+          manchete: { type: "string", description: "UMA frase (até 200 caracteres) com a mensagem principal. É a primeira coisa que o Diego lê." },
+          numeros: {
+            type: "array",
+            description: "Até 8 números principais, cada um com rótulo curto e valor já formatado (ex.: { rotulo: \"Receita 30 dias\", valor: \"R$ 0,00\", tom: \"atencao\" }).",
+            items: {
+              type: "object",
+              properties: { rotulo: { type: "string" }, valor: { type: "string" }, tom: { type: "string", enum: ["bom", "atencao", "neutro"] } },
+              required: ["rotulo", "valor"],
+            },
+          },
+          resumo: { type: "string", description: "Detalhes em 2 a 4 frases curtas, só com números lidos nas ferramentas (fica recolhido na tela)." },
           metas_em_risco: { type: "array", items: { type: "string" } },
           prioridades: { type: "array", items: { type: "string" }, description: "Até 5 ações recomendadas para hoje." },
           destaques: { type: "array", items: { type: "string" }, description: "Até 5 frases curtas (uma linha cada) com o que foi bem ou mudou desde ontem." },
         },
-        required: ["resumo"],
+        required: ["manchete", "numeros", "resumo"],
       },
-      run: async ({ resumo, metas_em_risco, prioridades, destaques }, context) => {
-        const lines = [resumo];
-        if (metas_em_risco?.length) lines.push("", "Metas em risco:", ...metas_em_risco.map((item) => `• ${item}`));
-        if (prioridades?.length) lines.push("", "Prioridades sugeridas:", ...prioridades.map((item, index) => `${index + 1}. ${item}`));
-        const body = lines.join("\n");
+      run: async ({ manchete, numeros, resumo, metas_em_risco, prioridades, destaques }, context) => {
+        const layout = buildReportLayout({
+          manchete: manchete ?? firstSentence(resumo),
+          numeros,
+          detalhes: resumo,
+          blocos: [
+            { titulo: "O que foi bem", tipo: "bom", itens: destaques ?? [] },
+            { titulo: "Metas em risco", tipo: "atencao", itens: metas_em_risco ?? [] },
+            { titulo: "Prioridades de hoje", tipo: "acao", itens: prioridades ?? [] },
+          ],
+        });
+        const body = reportLayoutText(layout);
         const report = await this.prisma.opsReport.create({
-          data: { agent: context.agent, kind: "resumo_diario", body, data: { metas_em_risco, prioridades, destaques } as Prisma.InputJsonValue, taskId: context.taskId },
+          data: { agent: context.agent, kind: "resumo_diario", body, data: { layout, metas_em_risco, prioridades, destaques } as Prisma.InputJsonValue, taskId: context.taskId },
         });
         const dayLabel = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
         const visual = await this.dailyReport({ metas_em_risco, prioridades, destaques });
@@ -376,6 +396,8 @@ export class OpsToolsService {
       color: "green",
       description: "Grava o relatório financeiro para o dono (aparece em /admin/operacao e vai por e-mail). Use uma vez, no fim da análise.",
       input: z.object({
+        manchete: z.string().trim().min(10).max(200).optional(),
+        numeros: z.array(OpsReportNumberSchema).max(8).optional(),
         relatorio: z.string().trim().min(50).max(4000),
         alertas: z.array(z.string().max(250)).max(10).optional(),
         acoes: z.array(z.string().max(250)).max(5).optional(),
@@ -383,19 +405,35 @@ export class OpsToolsService {
       schema: {
         type: "object",
         properties: {
-          relatorio: { type: "string", description: "Texto corrido, até 4000 caracteres, só com números lidos nas ferramentas." },
+          manchete: { type: "string", description: "UMA frase (até 200 caracteres) com a mensagem principal. É a primeira coisa que o Diego lê." },
+          numeros: {
+            type: "array",
+            description: "Até 8 números principais, cada um com rótulo curto e valor já formatado (ex.: { rotulo: \"Receita 30 dias\", valor: \"R$ 0,00\", tom: \"atencao\" }).",
+            items: {
+              type: "object",
+              properties: { rotulo: { type: "string" }, valor: { type: "string" }, tom: { type: "string", enum: ["bom", "atencao", "neutro"] } },
+              required: ["rotulo", "valor"],
+            },
+          },
+          relatorio: { type: "string", description: "Detalhes em frases curtas, só com números lidos nas ferramentas (fica recolhido na tela)." },
           alertas: { type: "array", items: { type: "string" }, description: "O que fugiu do normal e precisa de atenção." },
           acoes: { type: "array", items: { type: "string" }, description: "Até 5 ações que só o dono pode fazer (ex.: pagar comissões disponíveis)." },
         },
-        required: ["relatorio"],
+        required: ["manchete", "numeros", "relatorio"],
       },
-      run: async ({ relatorio, alertas, acoes }, context) => {
-        const lines = [relatorio];
-        if (alertas?.length) lines.push("", "Alertas:", ...alertas.map((item) => `• ${item}`));
-        if (acoes?.length) lines.push("", "Para você decidir:", ...acoes.map((item, index) => `${index + 1}. ${item}`));
-        const body = lines.join("\n");
+      run: async ({ manchete, numeros, relatorio, alertas, acoes }, context) => {
+        const layout = buildReportLayout({
+          manchete: manchete ?? firstSentence(relatorio),
+          numeros,
+          detalhes: relatorio,
+          blocos: [
+            { titulo: "Atenção", tipo: "atencao", itens: alertas ?? [] },
+            { titulo: "Para você decidir", tipo: "acao", itens: acoes ?? [] },
+          ],
+        });
+        const body = reportLayoutText(layout);
         const report = await this.prisma.opsReport.create({
-          data: { agent: context.agent, kind: "relatorio_financeiro", body, data: { alertas, acoes } as Prisma.InputJsonValue, taskId: context.taskId },
+          data: { agent: context.agent, kind: "relatorio_financeiro", body, data: { layout, alertas, acoes } as Prisma.InputJsonValue, taskId: context.taskId },
         });
         const periodLabel = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
         const admins = await this.prisma.user.findMany({ where: { role: "admin", status: "active" }, select: { id: true } });
@@ -911,4 +949,10 @@ export class OpsToolsService {
       data: { status: "completed", completedAt: new Date() },
     });
   }
+}
+
+// Relatório sem manchete (modelo esqueceu): usa a primeira frase do texto.
+function firstSentence(text: string): string {
+  const sentence = text.split(/(?<=[.!?])\s/)[0] ?? text;
+  return sentence.length > 200 ? `${sentence.slice(0, 197)}...` : sentence.padEnd(10, ".");
 }

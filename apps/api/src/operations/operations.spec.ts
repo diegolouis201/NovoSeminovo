@@ -1,3 +1,4 @@
+import { readReportLayout } from "./report-layout";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, describe, test } from "node:test";
@@ -356,6 +357,40 @@ describe("Agente Financeiro (banco local)", { skip: !withDb && "sem DATABASE_URL
     const report = await prisma.opsReport.findUniqueOrThrow({ where: { id } });
     assert.equal(report.kind, "relatorio_financeiro");
     assert.ok(report.body.includes("Para você decidir:"));
+  });
+
+  test("relatório sai em formato de painel: manchete, números e listas", async () => {
+    const outcome = await tools.request("financeiro", "registrar_relatorio_financeiro", {
+      manchete: "Receita caiu 62% no mês, puxada pelas assinaturas.",
+      numeros: [{ rotulo: "Receita 30 dias", valor: "R$ 160,00", tom: "atencao" }],
+      relatorio: "Receita dos últimos 30 dias: R$ 160,00, queda de 62% contra os 30 anteriores.",
+      alertas: ["Receita caiu 62%"],
+      acoes: ["Conferir as assinaturas canceladas"],
+    });
+    const id = (outcome as { output: { relatorioId: string } }).output.relatorioId;
+    reportIds.push(id);
+    const report = await prisma.opsReport.findUniqueOrThrow({ where: { id } });
+    const layout = readReportLayout(report.data);
+    assert.equal(layout?.manchete, "Receita caiu 62% no mês, puxada pelas assinaturas.");
+    assert.equal(layout?.numeros[0].valor, "R$ 160,00");
+    assert.deepEqual(layout?.blocos.map((b) => [b.tipo, b.itens.length]), [["atencao", 1], ["acao", 1]]);
+    assert.ok(layout?.detalhes?.includes("queda de 62%"));
+  });
+
+  test("resumo do Diretor também sai em formato de painel", async () => {
+    const outcome = await tools.request("diretor", "registrar_resumo_diario", {
+      manchete: "Mês começou sem receita; 8 leads para acompanhar.",
+      numeros: [{ rotulo: "Leads", valor: "8" }],
+      resumo: "Hoje é dia 1 de 30 e não há metas cadastradas para novembro, então não dá para medir ritmo.",
+      destaques: ["94 visualizações"],
+      metas_em_risco: [],
+      prioridades: ["Cadastrar as metas de novembro"],
+    });
+    assert.equal(outcome.status, "done");
+    const id = (outcome as { output: { resumoId: string } }).output.resumoId;
+    reportIds.push(id);
+    const layout = readReportLayout((await prisma.opsReport.findUniqueOrThrow({ where: { id } })).data);
+    assert.deepEqual(layout?.blocos.map((b) => b.titulo), ["O que foi bem", "Prioridades de hoje"]);
   });
 });
 
