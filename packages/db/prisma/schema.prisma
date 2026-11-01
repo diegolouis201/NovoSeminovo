@@ -181,7 +181,10 @@ model User {
   id           String       @id @default(cuid())
   name         String
   email        String       @unique
+  // CPF e telefone: criptografados (AES-256-GCM, ver
+  // apps/api/src/common/field-encryption.ts); *_hash = índice cego para busca.
   phone        String?
+  phoneHash    String?      @map("phone_hash")
   passwordHash String?      @map("password_hash")
   authProvider AuthProvider @default(email) @map("auth_provider")
   role         Role         @default(buyer)
@@ -192,7 +195,8 @@ model User {
   // Perfil completo (ver tela "Minha conta") — tudo opcional porque o
   // cadastro inicial continua mínimo (nome/e-mail/senha); CPF em especial é
   // o que falta pra poder pagar o rebate de PF via Pix (ver RebatesService).
-  cpf       String?   @unique
+  cpf       String?
+  cpfHash   String?   @unique @map("cpf_hash")
   gender    Gender?
   birthDate DateTime? @map("birth_date")
   zipCode   String?   @map("zip_code")
@@ -701,6 +705,7 @@ model Lead {
   // Lead manual (sem conta no site): nome e telefone digitados pela loja.
   contactName     String?    @map("contact_name")
   contactPhone    String?    @map("contact_phone")
+  contactPhoneHash String?   @map("contact_phone_hash")
   contactEmail    String?    @map("contact_email")
   notes           String?
   proposalValue   Decimal?   @map("proposal_value") @db.Decimal(12, 2)
@@ -727,6 +732,7 @@ model ListingContact {
   name         String
   email        String
   phone        String
+  phoneHash    String?  @map("phone_hash")
   message      String
   wantsSimilar Boolean  @default(false) @map("wants_similar")
   createdAt    DateTime @default(now()) @map("created_at")
@@ -866,6 +872,7 @@ model FinancingDeal {
   buyerName            String              @default("") @map("buyer_name")
   buyerEmail           String?             @map("buyer_email")
   buyerPhone           String?             @map("buyer_phone")
+  buyerPhoneHash       String?             @map("buyer_phone_hash")
   // Data em que o banco/Credihome pagou a comissão ao NovoSeminovo — só
   // depois disso o cashback pode ser pago.
   commissionReceivedAt DateTime?           @map("commission_received_at")
@@ -967,6 +974,7 @@ model FinancingLead {
   channel            AgentChannel
   name               String
   phone              String
+  phoneHash          String?             @map("phone_hash")
   email              String?
   assetType          String              @map("asset_type")
   assetValue         Decimal?            @map("asset_value") @db.Decimal(12, 2)
@@ -1449,6 +1457,7 @@ model MarketingContact {
   id               String               @id @default(cuid())
   email            String?              @unique
   phone            String?
+  phoneHash        String?              @map("phone_hash")
   name             String?
   userId           String?              @unique @map("user_id")
   interest         String               @default("geral")
@@ -1467,7 +1476,7 @@ model MarketingContact {
   sends            EmailSend[]
   enrollments      SequenceEnrollment[]
 
-  @@index([phone])
+  @@index([phoneHash])
   @@index([interest, consent, status])
   @@map("marketing_contacts")
 }

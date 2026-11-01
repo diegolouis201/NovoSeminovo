@@ -47,7 +47,10 @@ de outro site, resposta de API externa e texto que a IA gera.
   `Cross-Origin-Resource-Policy: same-site`.
 - **Segredos**: chave nunca no código, no `.env` versionado nem no GitHub;
   em produção só em arquivo (`readSecret`/`currentSecret`, pasta `secrets/`).
-  Senha só com `hashPassword`/`verifyPassword` (bcrypt 12).
+  Senha só com `hashPassword`/`verifyPassword` (bcrypt 12). Dado pessoal
+  novo (CPF, telefone, documento, conta bancária) entra em `ENCRYPTED_FIELDS`
+  (`apps/api/src/common/field-encryption.ts`) com coluna `*Hash` se precisar
+  de busca; nunca acessar o banco sem o `PrismaService`.
 - **Imagens e arquivos enviados**: todo upload passa por `sanitizeUpload`
   (ou `assertNoMalware` para PDF); todo `sharp` é `safeSharp`. Tipo do
   arquivo é decidido pelos bytes, nunca pela extensão/cabeçalho.

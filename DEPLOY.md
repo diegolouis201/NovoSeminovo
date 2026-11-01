@@ -74,8 +74,9 @@ Acesse `https://seudominio.com.br` — deve carregar o site; `https://api.seudom
 
 ## Chaves secretas (arquivos `secrets/`, só no servidor)
 
-O site usa duas mensagens secretas: `jwt_secret` (assina o "crachá" de login da
-API) e `auth_secret` (criptografa o cookie de sessão do site). Elas ficam em
+O site usa três mensagens secretas: `jwt_secret` (assina o "crachá" de login da
+API), `auth_secret` (criptografa o cookie de sessão do site) e `data_key`
+(criptografa CPF, telefones e chave Pix guardados no banco). Elas ficam em
 arquivos na pasta `~/NovoSeminovo/secrets/`, que **nunca vai para o GitHub**
 (está no `.gitignore`). O docker monta essa pasta só para leitura em
 `/run/secrets` e a API e o site leem o arquivo sempre que precisam (releitura a
@@ -90,11 +91,19 @@ ignorada: sem o arquivo, o sistema não sobe.
   (idem para `auth_secret`). Mínimo de 32 caracteres; nunca inventar "de cabeça".
 - **Trocar as chaves** (ex.: suspeita de vazamento): `sh scripts/criar-segredos.sh --trocar`
   e `docker compose restart api web`. Todo mundo precisa entrar de novo.
+  O `--trocar` **não** mexe na `data_key`.
+- **`data_key` é a única que não pode ser perdida nem trocada**: com outra
+  chave, os CPFs e telefones já gravados viram texto ilegível para sempre.
+  Guarde uma cópia fora do servidor (gerenciador de senhas, ex.: Bitwarden),
+  nunca junto com o backup do banco: `cat secrets/data_key; echo` mostra para
+  copiar. Para restaurar o site em outro servidor: banco do backup + esta
+  chave em `secrets/data_key`.
 - Arquivo com permissão aberta para outros usuários é recusado (mensagem
   pede `chmod 600`).
 - Nunca colar o conteúdo dos arquivos em chat, e-mail ou print. O backup do
-  servidor não leva a pasta: se o VPS for perdido, basta gerar novas (só obriga
-  todos a entrar de novo).
+  servidor não leva a pasta: se o VPS for perdido, `jwt_secret` e `auth_secret`
+  podem ser geradas de novo (só obriga todos a entrar de novo); a `data_key`
+  vem da sua cópia.
 
 ## Antivírus (opcional, ClamAV)
 

@@ -43,7 +43,7 @@ export class ProfileService {
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<Profile> {
     if (input.cpf) {
       const cpfDigits = input.cpf.replace(/\D/g, "");
-      const existing = await this.prisma.user.findUnique({ where: { cpf: cpfDigits } });
+      const existing = await this.prisma.user.findFirst({ where: { cpf: cpfDigits } });
       if (existing && existing.id !== userId) {
         throw new BadRequestException("Esse CPF já está cadastrado em outra conta.");
       }

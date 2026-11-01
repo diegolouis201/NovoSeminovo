@@ -13,11 +13,16 @@ import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
 import { corsOptions, STATIC_FILE_HEADERS } from "./common/cors";
 import { UPLOADS_DIR, UPLOADS_URL_PREFIX } from "./common/storage";
+import { currentDataKeys } from "./common/field-encryption";
+import { PrismaService } from "./prisma/prisma.service";
 
 async function bootstrap() {
   // O multer não cria o diretório de destino sozinho — sem isso, o primeiro
   // upload falha com ENOENT.
   mkdirSync(UPLOADS_DIR, { recursive: true });
+  // Sem a chave dos dados (secrets/data_key) a API não sobe: melhor parar
+  // aqui do que gravar CPF/telefone sem criptografia.
+  currentDataKeys();
 
   // rawBody: true preserva req.rawBody em todas as rotas — precisamos dele
   // só no webhook do Stripe (WebhooksController), pra verificar a assinatura
@@ -38,6 +43,13 @@ async function bootstrap() {
   await app.listen(port);
   // eslint-disable-next-line no-console
   console.log(`API rodando em http://localhost:${port}`);
+  // Depois de subir (no deploy o banco ganha as colunas novas logo após):
+  // erro aqui só fica no log e a próxima subida tenta de novo.
+  app
+    .get(PrismaService)
+    .encryptLegacyRows()
+    // eslint-disable-next-line no-console
+    .catch((error) => console.error("Criptografia dos dados antigos falhou:", error));
 }
 
 bootstrap();

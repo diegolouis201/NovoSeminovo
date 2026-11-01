@@ -47,9 +47,10 @@ jobs:
       - name: Segredos de teste (em arquivo, como no servidor)
         run: |
           mkdir -p "$RUNNER_TEMP/secrets"
-          (umask 077; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/jwt_secret"; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/auth_secret")
+          (umask 077; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/jwt_secret"; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/auth_secret"; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/data_key")
           echo "JWT_SECRET_FILE=$RUNNER_TEMP/secrets/jwt_secret" >> "$GITHUB_ENV"
           echo "AUTH_SECRET_FILE=$RUNNER_TEMP/secrets/auth_secret" >> "$GITHUB_ENV"
+          echo "DATA_KEY_FILE=$RUNNER_TEMP/secrets/data_key" >> "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
       - name: Programa do Cypress
         run: pnpm --filter @novoseminovo/web exec cypress install
