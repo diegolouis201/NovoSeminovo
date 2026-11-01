@@ -8,6 +8,7 @@ import type { AgentChatMessage, AgentKind, ListingSummary } from "@novoseminovo/
 import { resolveMediaUrl } from "@/lib/api";
 import { HIDE_TAB_BAR_PREFIXES } from "@/components/AppTabBar";
 import { agentStatusAction, loadAgentConversationAction, sendAgentMessageAction } from "@/lib/actions/agents";
+import { isTrustedExternalLink, safeInternalPath } from "@novoseminovo/shared-types";
 
 type AgentConfig = {
   kind: AgentKind;
@@ -99,13 +100,13 @@ function renderInline(text: string): ReactNode[] {
     if (match.index > last) parts.push(text.slice(last, match.index));
     if (match[1] !== undefined) {
       const href = match[2] ?? "";
-      if (href.startsWith("/")) {
+      if (safeInternalPath(href, "") === href) {
         parts.push(
           <Link key={match.index} href={href} className="font-bold text-brand-blue underline">
             {match[1]}
           </Link>,
         );
-      } else if (href.startsWith("https://")) {
+      } else if (isTrustedExternalLink(href)) {
         parts.push(
           <a key={match.index} href={href} target="_blank" rel="noopener noreferrer" className="font-bold text-brand-blue underline">
             {match[1]}

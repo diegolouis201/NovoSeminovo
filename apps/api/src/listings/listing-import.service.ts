@@ -221,11 +221,20 @@ export class ListingImportService {
   async fetchPhoto(url: string): Promise<{ buffer: Buffer; contentType: string }> {
     try {
       const photo = await this.fetcher(url, PHOTO_LIMITS);
-      const contentType = (photo.contentType ?? "").split(";")[0]!.trim().toLowerCase();
-      if (!contentType.startsWith("image/") || contentType.includes("svg")) throw new Error(`tipo ${contentType}`);
+      const contentType = safeImageType(photo.contentType);
+      if (!contentType) throw new Error(`tipo ${photo.contentType}`);
       return { buffer: photo.buffer, contentType };
     } catch {
       throw new BadRequestException("Não foi possível baixar esta foto.");
     }
   }
+}
+
+// Tipos de imagem aceitos na foto importada. Lista fechada: "image/" vazio
+// ou svg passariam por "começa com image/" e o navegador poderia tratar a
+// resposta como página (script injection).
+const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"]);
+export function safeImageType(raw: string | undefined | null): string | undefined {
+  const type = String(raw ?? "").split(";")[0]!.trim().toLowerCase();
+  return IMAGE_TYPES.has(type) ? type : undefined;
 }

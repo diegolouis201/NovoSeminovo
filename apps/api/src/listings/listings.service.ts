@@ -35,7 +35,7 @@ import { assertNotImportedYet } from "./import-origin";
 import { NotificationsService } from "../notifications/notifications.service";
 import { VehiclesService } from "../vehicles/vehicles.service";
 import { FipeService } from "../vehicles/fipe.service";
-import { contactInfoMessage, findContactInfo } from "../common/contact-filter";
+import { assertNoContactInfo, contactInfoMessage, findContactInfo } from "../common/contact-filter";
 import { GeocodingService } from "./geocoding.service";
 import { PaymentsService } from "../payments/payments.service";
 import { blurRegions, previewForVision } from "../common/plate-blur";
@@ -128,6 +128,21 @@ export type ListingSearchQuery = {
   noAuction?: string;
   bodyType?: string;
 };
+
+// Query vinda da URL: o Express transforma "?a[x]=1" em objeto e "?a=1&a=2"
+// em lista. Campo de texto só aceita texto (até 200 caracteres); features e
+// conditions aceitam lista. O resto é descartado em vez de virar erro 500.
+const LIST_FIELDS = new Set(["features", "conditions"]);
+export function normalizeSearchQuery(raw: Record<string, unknown>): ListingSearchQuery {
+  const query: Record<string, string | string[]> = {};
+  for (const [key, value] of Object.entries(raw ?? {})) {
+    if (typeof value === "string") query[key] = value.slice(0, 200);
+    else if (LIST_FIELDS.has(key) && Array.isArray(value) && value.every((item) => typeof item === "string")) {
+      query[key] = (value as string[]).slice(0, 30).map((item) => item.slice(0, 60));
+    }
+  }
+  return query as ListingSearchQuery;
+}
 
 function toNumber(value: string | undefined): number | undefined {
   if (!value) return undefined;
@@ -294,7 +309,8 @@ export class ListingsService {
     listingEvents.emit("pagamento-confirmado", purchase.listingId);
   }
 
-  async search(query: ListingSearchQuery): Promise<ListingSummary[]> {
+  async search(rawQuery: ListingSearchQuery): Promise<ListingSummary[]> {
+    const query = normalizeSearchQuery(rawQuery);
     const assetType = query.assetType === "vehicle" || query.assetType === "property" ? query.assetType : undefined;
     const where: Prisma.ListingWhereInput = {
       status: "active",
@@ -1244,6 +1260,7 @@ export class ListingsService {
       throw new NotFoundException(`Foto ${photoId} não encontrada`);
     }
 
+    assertNoContactInfo(caption, "na legenda da foto");
     await this.prisma.photo.update({ where: { id: photoId }, data: { caption } });
   }
 }

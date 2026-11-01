@@ -32,6 +32,7 @@ import { SafeFetchError, assertPublicHttpUrl, safeFetch } from "../common/safe-f
 import { FeedFormatError, parseNovoSeminovoJson, parseVrsync, type ParsedFeedItem } from "./feed-parsers";
 import { parseVehicleCatalog } from "./vehicle-catalog-parser";
 import { trackRoutine } from "../operations/routine-health";
+import { findContactInfo, scrubContactInline, stripContactInfo } from "../common/contact-filter";
 
 export type IntegrationPartner = { id: string; ownerUserId: string; verified: boolean; type: string };
 
@@ -179,7 +180,15 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
       seen.add(parsed.data.externalId);
-      valid.push({ input: parsed.data, hash: hashOf(parsed.data) });
+      // Contato no texto do CRM (telefone, link, e-mail) sai, como em
+      // anúncio digitado: o contato acontece pelo site.
+      const cleanTitle = scrubContactInline(parsed.data.title);
+      const input = { ...parsed.data, title: cleanTitle.length >= 3 ? cleanTitle : parsed.data.title, description: stripContactInfo(parsed.data.description) };
+      if (findContactInfo(input.title)) {
+        record({ externalId: input.externalId, action: "error", message: "O título traz telefone, link ou e-mail — o contato acontece pelo site. Ajuste o título no seu sistema." });
+        continue;
+      }
+      valid.push({ input, hash: hashOf(input) });
     }
 
     if (options.fullSync && valid.length === 0) {

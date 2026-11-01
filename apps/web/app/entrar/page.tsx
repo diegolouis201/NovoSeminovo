@@ -4,11 +4,12 @@ import { AuthError } from "next-auth";
 import { auth, signIn } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField } from "@/components/FormField";
+import { safeInternalPath } from "@novoseminovo/shared-types";
 
 // "?voltar=/caminho" (ex.: Arquiteto NovoSeminovo, que exige login) — só
 // caminho interno, nunca outro site.
 function safeReturnPath(value: string | undefined): string {
-  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/conta";
+  return safeInternalPath(value, "/conta");
 }
 
 export default async function LoginPage({ searchParams }: { searchParams: { error?: string; voltar?: string; senha?: string } }) {

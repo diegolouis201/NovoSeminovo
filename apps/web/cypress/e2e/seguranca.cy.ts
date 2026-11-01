@@ -96,3 +96,18 @@ describe("CORS: só o próprio site chama a API pelo navegador", () => {
     });
   });
 });
+
+describe("Cabeçalhos de segurança do site", () => {
+  it("toda página sai com proteção contra MIME sniffing, iframe de outro site e vazamento de referência", () => {
+    cy.request("/").then((res) => {
+      expect(res.headers["x-content-type-options"]).to.eq("nosniff");
+      expect(res.headers["x-frame-options"]).to.eq("DENY");
+      expect(res.headers["referrer-policy"]).to.eq("strict-origin-when-cross-origin");
+      expect(String(res.headers["content-security-policy"])).to.include("frame-ancestors 'none'");
+    });
+  });
+
+  it("proxy de fotos importadas exige login", () => {
+    cy.request({ url: "/api/importar-foto?url=https://exemplo.com/x.jpg", failOnStatusCode: false }).its("status").should("eq", 401);
+  });
+});

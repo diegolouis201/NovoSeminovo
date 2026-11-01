@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
-import type { PartnerType } from "@novoseminovo/shared-types";
+import { safeInternalPath, type PartnerType } from "@novoseminovo/shared-types";
 import { signIn } from "@/auth";
 import { acquisitionHeaders } from "@/lib/acquisition";
 import { signupCompany } from "@/lib/api";
@@ -15,7 +15,7 @@ export type RegisterState = { error?: string };
 
 // Volta pra onde a pessoa estava (ex.: Arquiteto NovoSeminovo) — só caminho interno.
 function returnPath(value: string): string {
-  return value.startsWith("/") && !value.startsWith("//") ? value : "/conta";
+  return safeInternalPath(value, "/conta");
 }
 
 // /cadastro: pessoa física cria a conta; empresa cria a conta do responsável

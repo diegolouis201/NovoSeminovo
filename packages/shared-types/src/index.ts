@@ -37,7 +37,7 @@ export const NewPasswordSchema = z
   .refine(hasSpecialChar, "A senha precisa ter pelo menos um caractere especial (ex.: ! @ # $ %)");
 
 export const RegisterInputSchema = z.object({
-  name: z.string().min(2, "Nome muito curto"),
+  name: z.string().trim().min(2, "Nome muito curto").max(120, "Nome muito longo (máx. 120 caracteres)"),
   email: EmailSchema,
   password: NewPasswordSchema,
   // Opcional: sem ele o botão "Chamar no WhatsApp" não aparece nos anúncios
@@ -337,8 +337,8 @@ export type MyListingSummary = z.infer<typeof MyListingSummarySchema>;
 // veículo (ver VehicleProfileSchema) — sem consultar Detran ainda, só pra
 // reconhecer "é o mesmo carro de um anúncio anterior".
 const listingCoreFields = {
-  title: z.string().min(5, "Escreva um título com pelo menos 5 caracteres"),
-  description: z.string().min(20, "Descreva o anúncio com pelo menos 20 caracteres"),
+  title: z.string().min(5, "Escreva um título com pelo menos 5 caracteres").max(150, "Título muito longo (máx. 150 caracteres)"),
+  description: z.string().min(20, "Descreva o anúncio com pelo menos 20 caracteres").max(10_000, "Descrição muito longa (máx. 10.000 caracteres)"),
   price: z.number().positive("Informe um preço válido"),
   city: z.string().min(2, "Informe a cidade"),
   state: z.string().length(2, "Use a sigla do estado (ex.: MG)"),
@@ -594,8 +594,8 @@ export type VehicleProfile = z.infer<typeof VehicleProfileSchema>;
 // um arquivo" neste schema de metadados.
 export const CreateVehicleEventInputSchema = z.object({
   type: z.enum(["revision", "repair", "inspection", "other"]),
-  title: z.string().min(3, "Dê um título pro evento"),
-  description: z.string().optional(),
+  title: z.string().min(3, "Dê um título pro evento").max(120),
+  description: z.string().max(2_000).optional(),
   mileageAtEvent: z.number().int().min(0).optional(),
   occurredAt: z.string().optional(),
   // Oficina cadastrada (ver PartnerType.workshop) marcada como responsável
@@ -656,7 +656,7 @@ export type PriceSuggestion = z.infer<typeof PriceSuggestionSchema>;
 // RESEND_API_KEY: funcionalidade opcional, nunca quebra sem a chave).
 export const GenerateListingDraftInputSchema = z.object({
   assetType: AssetType,
-  freeText: z.string().min(10, "Descreva em pelo menos algumas palavras"),
+  freeText: z.string().min(10, "Descreva em pelo menos algumas palavras").max(3_000, "Texto muito longo (máx. 3.000 caracteres)"),
 });
 export type GenerateListingDraftInput = z.infer<typeof GenerateListingDraftInputSchema>;
 
@@ -986,10 +986,10 @@ export const SetPartnerTypeInputSchema = z.object({ type: PartnerType });
 // quando a consulta não identifica o ramo ou está fora do ar.
 export const CreatePartnerInputSchema = z.object({
   type: PartnerType.optional(),
-  legalName: z.string().min(3, "Informe a razão social ou nome fantasia").optional(),
+  legalName: z.string().min(3, "Informe a razão social ou nome fantasia").max(200).optional(),
   document: z.string().refine((value) => isValidCnpj(value), "CNPJ inválido"),
-  description: z.string().optional(),
-  address: z.string().optional(),
+  description: z.string().max(3_000).optional(),
+  address: z.string().max(300).optional(),
 });
 export type CreatePartnerInput = z.infer<typeof CreatePartnerInputSchema>;
 
@@ -1017,7 +1017,7 @@ export const RegisterCompanyInputSchema = RegisterInputSchema.extend({
   cnpj: z.string().refine((value) => isValidCnpj(value), "CNPJ inválido"),
   partnerType: PartnerType.optional(),
   // Só quando a consulta do CNPJ está fora do ar.
-  legalName: z.string().min(3).optional(),
+  legalName: z.string().min(3).max(200).optional(),
 });
 export type RegisterCompanyInput = z.infer<typeof RegisterCompanyInputSchema>;
 
@@ -1536,7 +1536,7 @@ export const ReportStatus = z.enum(["open", "reviewed", "dismissed"]);
 export type ReportStatus = z.infer<typeof ReportStatus>;
 
 export const CreateReportInputSchema = z.object({
-  reason: z.string().trim().min(10, "Descreva o motivo com pelo menos 10 caracteres"),
+  reason: z.string().trim().min(10, "Descreva o motivo com pelo menos 10 caracteres").max(1_000, "Motivo muito longo (máx. 1.000 caracteres)"),
 });
 export type CreateReportInput = z.infer<typeof CreateReportInputSchema>;
 
@@ -2601,3 +2601,24 @@ export const NewsletterSubscribeInputSchema = z.object({
   consent: z.literal(true, { errorMap: () => ({ message: "Marque a caixa para autorizar o envio." }) }),
 });
 export type NewsletterSubscribeInput = z.infer<typeof NewsletterSubscribeInputSchema>;
+
+// ---------------- Links seguros ----------------
+// Caminho do próprio site (redirecionar depois do login, link do chat).
+// "//x.com" e "/\x.com" o navegador abre como outro site; "%2F%2F" idem.
+export function safeInternalPath(value: string | undefined | null, fallback: string): string {
+  const path = String(value ?? "");
+  if (!/^\/(?![\/\\])/.test(path)) return fallback;
+  if (/[\\\s]/.test(path) || /%2f|%5c/i.test(path.split(/[?#]/)[0]!)) return fallback;
+  return path;
+}
+
+// Link para fora que o chat dos assistentes pode mostrar como clicável.
+const TRUSTED_LINK_HOSTS = /^(?:[a-z0-9-]+\.)*novoseminovo\.com\.br$/;
+export function isTrustedExternalLink(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password && TRUSTED_LINK_HOSTS.test(url.hostname);
+  } catch {
+    return false;
+  }
+}

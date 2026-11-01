@@ -226,6 +226,7 @@ export function buildAdminAgent(
           required: ["anuncio_id", "acao", "confirmado"],
         },
       },
+      needsConfirmation: true,
       run: async (input) => {
         const id = str(input.anuncio_id);
         const action = str(input.acao);
@@ -249,6 +250,7 @@ export function buildAdminAgent(
           required: ["loja_id", "confirmado"],
         },
       },
+      needsConfirmation: true,
       run: async (input) => {
         const id = str(input.loja_id);
         if (!id) throw new Error("loja_id obrigatório");
@@ -319,6 +321,7 @@ export function buildAdminAgent(
           required: ["id", "status", "confirmado"],
         },
       },
+      needsConfirmation: true,
       run: async (input) => {
         const id = str(input.id);
         const status = str(input.status) as FinancingLeadStatus | undefined;

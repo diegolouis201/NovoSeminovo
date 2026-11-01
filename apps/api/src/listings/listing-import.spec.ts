@@ -227,3 +227,19 @@ describe("Importar anúncio pelo link (página e modelo falsos)", () => {
     await assert.rejects(service.importFromUrl("outra-pessoa", "https://x.com/a"), /não deixa a gente ler/, "o limite é de cada um");
   });
 });
+
+describe("Foto importada: só tipos de imagem conhecidos (script injection)", () => {
+  test("aceita jpeg, png, webp, gif e avif", async () => {
+    const { safeImageType } = await import("./listing-import.service");
+    for (const type of ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "IMAGE/JPEG; charset=binary"]) {
+      assert.ok(safeImageType(type), type);
+    }
+  });
+
+  test("recusa svg, html disfarçado e tipo vazio", async () => {
+    const { safeImageType } = await import("./listing-import.service");
+    for (const type of ["image/svg+xml", "image/", "image", "text/html", "image/jpeg/../html", "", undefined]) {
+      assert.equal(safeImageType(type), undefined, String(type));
+    }
+  });
+});

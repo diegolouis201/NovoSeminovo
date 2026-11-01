@@ -288,3 +288,12 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
 - Todos os 4 itens da visão original do Diego pro painel do parceiro ("logo → landing page com IA → posts pro Instagram → CRM de estoque e vendas") estão **completos e no ar** — não há item em progresso no momento em que este handoff foi escrito.
 
 - **Selo de verificada automático (30/10/2026, pedido do Diego)**: no cadastro de empresa, `PartnersService.resolveCompany` devolve `autoVerified` quando a consulta à Receita deu certo, o CNPJ está ativo e o tipo de conta saiu da atividade **principal** (e a pessoa não escolheu outro tipo); `createPartnerRow` grava `verifiedAt` na hora. Consulta fora do ar, tipo vindo de atividade secundária ou escolhido à mão: nasce sem selo e fica em Moderação para o admin. Teste: `partners/auto-verify.spec.ts`.
+- **Segurança e TDD (01/11/2026, pedido do Diego)**: regras em `CLAUDE.md` (TDD obrigatório; validação; SQL/script/prompt injection; CORS). Feito com teste antes:
+  - CORS só da origem do site (`common/cors.ts`, comparação exata com `WEB_ORIGIN`; produção sem `WEB_ORIGIN` não sobe); `/uploads` com `Cross-Origin-Resource-Policy: same-site`; Socket.IO idem.
+  - Assistentes (admin, parceiro, comprador, Arquiteto, agentes da operação): resultado de ferramenta vai em `<dado_de_terceiro>`; ação com `needsConfirmation` só roda depois de um "sim" da PESSOA conferido pelo servidor (`agent-engine.ts`, `isAffirmative`), o `confirmado` do modelo é ignorado.
+  - Moderação automática: anúncio delimitado no prompt; texto que tenta mandar na moderação vai direto para revisão humana (`suspiciousInstructions`).
+  - Mensagens dos agentes a usuários sem link/telefone/e-mail/pedido de pagamento (`agentMessageToUser`).
+  - CRM: contato tirado do título/descrição (`scrubContactInline`/`stripContactInfo`); legenda de foto com contato é recusada.
+  - Foto importada só jpeg/png/webp/gif/avif (`safeImageType`) e rota do site com `nosniff`; site manda nosniff, X-Frame-Options, CSP `frame-ancestors 'none'` etc. em `next.config.js`.
+  - Redirecionamento e links do chat via `safeInternalPath`/`isTrustedExternalLink` (shared-types); limites de tamanho nos textos; busca com parâmetro malformado não dá mais 500 (`normalizeSearchQuery`); CSV de comissões trata `\r`.
+  - Cypress em `apps/web/cypress` (`pnpm --filter @novoseminovo/web e2e`) roda no GitHub (`.github/workflows/e2e.yml`). No ambiente do Claude o download do Cypress (download.cypress.io / cdn.cypress.io) está bloqueado pela rede.

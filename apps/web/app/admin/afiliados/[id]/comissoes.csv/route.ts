@@ -15,7 +15,7 @@ function neutralizeFormula(text: string): string {
 
 function cell(value: string | number | undefined): string {
   const text = typeof value === "number" ? value.toFixed(2).replace(".", ",") : neutralizeFormula(value ?? "");
-  return /[;"\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  return /[;"\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 function date(iso?: string): string {

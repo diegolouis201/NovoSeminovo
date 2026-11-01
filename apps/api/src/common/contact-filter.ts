@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 // Título e descrição de anúncio não podem levar contato (telefone, e-mail,
 // link, @ de rede social) — o contato acontece pelo chat e pelo botão de
 // WhatsApp do site, que geram lead e protegem contra golpe. Mesma regra da
@@ -33,4 +34,22 @@ export function stripContactInfo(text: string): string {
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+// Título vindo de fora (CRM): tira só o trecho com contato e o separador que
+// sobrar ("Casa 3 quartos - WhatsApp 31 9…" → "Casa 3 quartos").
+export function scrubContactInline(text: string): string {
+  let result = text;
+  for (const { regex } of PATTERNS) result = result.replace(new RegExp(regex.source, regex.flags.includes("g") ? regex.flags : `${regex.flags}g`), " ");
+  return result
+    .replace(/\b(?:whats(?:app)?|zap|wpp|fone|tel(?:efone)?|ligue|contato|e-?mail)\s*[:\-]?\s*$/i, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/[\s|\-–—:,;/]+$/g, "")
+    .trim();
+}
+
+// Campo digitado pela pessoa (ex.: legenda da foto): com contato, recusa.
+export function assertNoContactInfo(text: string, field: string): void {
+  const kind = findContactInfo(text);
+  if (kind) throw new BadRequestException(contactInfoMessage(kind, field));
 }

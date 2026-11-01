@@ -11,6 +11,7 @@ import { TaskQueueService } from "./task-queue.service";
 import { windsorEnabled, windsorRows } from "./windsor";
 import type { DailyReport } from "../email/daily-report";
 import { AGENT_TOOL_ALLOWLIST, APPROVAL_TTL_MS, actionHash, decide, type OpsTool, type OpsToolContext } from "./policy";
+import { findContactInfo } from "../common/contact-filter";
 
 export type ToolOutcome =
   | { status: "done"; output: unknown }
@@ -35,6 +36,20 @@ function maxMessagesPerDay(): number {
 }
 
 const SEGMENTS = ["all", "vehicle", "property"] as const;
+
+// Texto que o agente manda a um usuário pelo e-mail oficial do site: sem
+// link, telefone, e-mail nem pedido de pagamento (proteção extra contra
+// prompt injection vinda de anúncio ou nome de loja).
+const PAYMENT_REQUEST = /\b(pix|chave\s+pix|transfer[eê]ncia|dep[oó]sito|boleto|pagamento|pague|pagar|dados\s+banc[aá]rios|senha)\b/i;
+export function agentMessageToUser(max: number) {
+  return z
+    .string()
+    .trim()
+    .min(20)
+    .max(max)
+    .refine((text) => !findContactInfo(text), "A mensagem não pode ter link, telefone, e-mail ou @ — o contato acontece pelo site.")
+    .refine((text) => !PAYMENT_REQUEST.test(text), "A mensagem não pode falar de pagamento, Pix ou dados bancários.");
+}
 const segment = z.enum(SEGMENTS).optional();
 const segmentSchema = { type: "string", enum: SEGMENTS, description: "all = site todo, vehicle = carros, property = imóveis" };
 const LISTING_PROBLEMS = ["sem_fotos", "poucas_fotos", "descricao_curta", "preco_fora_fipe", "parado", "duplicado"] as const;
@@ -223,7 +238,7 @@ export class OpsToolsService {
       color: "green",
       description:
         "Manda ao dono do anúncio uma dica curta e educada para melhorar o anúncio (notificação no site e e-mail). No máximo 1 aviso por anúncio a cada 7 dias.",
-      input: z.object({ anuncio_id: z.string().min(5).max(40), problema: z.enum(LISTING_PROBLEMS), mensagem: z.string().trim().min(20).max(400) }),
+      input: z.object({ anuncio_id: z.string().min(5).max(40), problema: z.enum(LISTING_PROBLEMS), mensagem: agentMessageToUser(400) }),
       schema: {
         type: "object",
         properties: {
@@ -251,7 +266,7 @@ export class OpsToolsService {
       color: "green",
       description:
         "Manda à loja/imobiliária um lembrete curto (notificação e e-mail): leads esperando resposta ou período grátis sem anúncio. No máximo 1 por loja e assunto a cada 7 dias.",
-      input: z.object({ parceiro_id: z.string().min(5).max(40), assunto: z.enum(["leads_parados", "teste_sem_anuncio"]), mensagem: z.string().trim().min(20).max(400) }),
+      input: z.object({ parceiro_id: z.string().min(5).max(40), assunto: z.enum(["leads_parados", "teste_sem_anuncio"]), mensagem: agentMessageToUser(400) }),
       schema: {
         type: "object",
         properties: {
@@ -408,7 +423,7 @@ export class OpsToolsService {
       color: "green",
       description:
         "Manda ao vendedor um lembrete curto e educado de que um comprador está esperando resposta (notificação e e-mail, com link para a conversa). No máximo 1 por conversa a cada 3 dias; conta no teto diário de avisos.",
-      input: z.object({ conversa_id: z.string().min(5).max(40), mensagem: z.string().trim().min(20).max(300) }),
+      input: z.object({ conversa_id: z.string().min(5).max(40), mensagem: agentMessageToUser(300) }),
       schema: {
         type: "object",
         properties: {

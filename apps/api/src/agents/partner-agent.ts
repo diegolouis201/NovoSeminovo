@@ -298,6 +298,7 @@ export function buildPartnerAgent(
           required: ["lead_id", "status", "confirmado"],
         },
       },
+      needsConfirmation: true,
       run: async (input) => {
         const leadId = str(input.lead_id);
         const status = str(input.status) as LeadStatus | undefined;
@@ -326,6 +327,7 @@ export function buildPartnerAgent(
           required: ["anuncio_id", "acao", "confirmado"],
         },
       },
+      needsConfirmation: true,
       run: async (input) => {
         const listing = await ownListing(input.anuncio_id);
         const action = str(input.acao);
