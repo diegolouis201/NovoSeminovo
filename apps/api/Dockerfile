@@ -19,6 +19,9 @@ COPY . .
 # Precisa vir ANTES do install: o postinstall do próprio @prisma/client já
 # roda "prisma generate" sozinho nesse passo, antes do RUN db:generate abaixo.
 ENV DATABASE_URL="postgresql://user:password@localhost:5432/db"
+# O programa do Cypress (testes no navegador, ~500 MB) só roda no GitHub;
+# no servidor não precisa baixar.
+ENV CYPRESS_INSTALL_BINARY=0
 RUN pnpm install --frozen-lockfile
 RUN pnpm db:generate
 # "turbo run build" (não "pnpm --filter ... build" direto) é essencial aqui:

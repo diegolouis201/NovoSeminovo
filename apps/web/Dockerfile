@@ -13,6 +13,9 @@ ENV DATABASE_URL="postgresql://user:password@localhost:5432/db"
 RUN corepack enable
 WORKDIR /app
 COPY . .
+# O programa do Cypress (testes no navegador, ~500 MB) só roda no GitHub;
+# no servidor não precisa baixar.
+ENV CYPRESS_INSTALL_BINARY=0
 RUN pnpm install --frozen-lockfile
 # "turbo run build" compila @novoseminovo/shared-types (TS -> dist/*.js)
 # antes do site — ver o comentário equivalente no Dockerfile da API.
