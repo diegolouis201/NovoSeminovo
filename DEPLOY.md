@@ -76,7 +76,9 @@ Acesse `https://seudominio.com.br` — deve carregar o site; `https://api.seudom
 
 O site usa três mensagens secretas: `jwt_secret` (assina o "crachá" de login da
 API), `auth_secret` (criptografa o cookie de sessão do site) e `data_key`
-(criptografa CPF, telefones e chave Pix guardados no banco). Elas ficam em
+(criptografa CPF, telefones e chave Pix guardados no banco). Há ainda a
+`marketing_feed_key`, que libera a consulta de empresas cadastradas pelo CRM
+de marketing (docs/crm-conversoes.md). Elas ficam em
 arquivos na pasta `~/NovoSeminovo/secrets/`, que **nunca vai para o GitHub**
 (está no `.gitignore`). O docker monta essa pasta só para leitura em
 `/run/secrets` e a API e o site leem o arquivo sempre que precisam (releitura a

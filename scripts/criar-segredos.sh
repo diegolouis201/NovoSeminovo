@@ -3,7 +3,8 @@
 # (que nunca vai para o GitHub). Rodar dentro de ~/NovoSeminovo:
 #   sh scripts/criar-segredos.sh          -> cria só o que estiver faltando
 #   sh scripts/criar-segredos.sh --trocar -> gera NOVAS jwt_secret e auth_secret
-#                                             (todo mundo precisa entrar de novo)
+#                                             e marketing_feed_key (todo mundo precisa
+#                                             entrar de novo; o CRM recebe a chave nova)
 # data_key (criptografa CPF, telefones e Pix no banco) NUNCA é trocada por
 # este script: chave nova = dados antigos ilegíveis. Guarde uma cópia dela
 # fora do servidor (ver DEPLOY.md, "Chaves secretas").
@@ -13,7 +14,7 @@ umask 077
 mkdir -p secrets
 chmod 700 secrets
 
-for nome in jwt_secret auth_secret data_key; do
+for nome in jwt_secret auth_secret data_key marketing_feed_key; do
   arquivo="secrets/$nome"
   if [ -s "$arquivo" ] && { [ "${1:-}" != "--trocar" ] || [ "$nome" = "data_key" ]; }; then
     echo "OK  $arquivo já existe (mantido)"
