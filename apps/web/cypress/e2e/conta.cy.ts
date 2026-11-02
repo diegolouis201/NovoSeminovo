@@ -35,6 +35,7 @@ describe("Conta", () => {
 describe("Campanhas no admin", () => {
   it("filtro de campanha mostra o resumo e permite limpar", () => {
     cy.login("admin@novoseminovo.com.br", "senha1234");
+    cy.location("pathname").should("not.eq", "/entrar");
     cy.visit("/admin/leads?periodo=30&campanha=sugestao-ia&canal=whatsapp");
     cy.contains("h2", "Campanha: sugestao-ia").should("be.visible");
     cy.contains("vieram por esta campanha").should("be.visible");
