@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
+  ACQUISITION_SOURCES,
   DeleteMyAccountInputSchema,
   AdminDeleteInputSchema,
   AdminListingActionInputSchema,
@@ -37,6 +38,8 @@ export class AdminController {
       source: query.origem,
       assetType: query.tipo === "vehicle" || query.tipo === "property" ? query.tipo : undefined,
       search: query.busca?.slice(0, 100),
+      campaign: query.campanha?.slice(0, 100),
+      acquisitionSource: query.canal && query.canal in ACQUISITION_SOURCES ? query.canal : undefined,
       page: Math.max(1, Number(query.pagina) || 1),
     });
   }

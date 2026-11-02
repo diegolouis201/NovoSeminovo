@@ -6,7 +6,7 @@ import { fetchAdminLeads } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-type Params = { periodo?: string; etapa?: string; origem?: string; tipo?: string; busca?: string; pagina?: string };
+type Params = { periodo?: string; etapa?: string; origem?: string; tipo?: string; busca?: string; campanha?: string; canal?: string; pagina?: string };
 type Key = keyof Params;
 
 const PERIODS = [
@@ -53,6 +53,8 @@ export default async function AdminLeadsPageView({ searchParams }: { searchParam
     origem: searchParams.origem ?? "",
     tipo: searchParams.tipo === "vehicle" || searchParams.tipo === "property" ? searchParams.tipo : "",
     busca: searchParams.busca ?? "",
+    campanha: (searchParams.campanha ?? "").slice(0, 100),
+    canal: (searchParams.canal ?? "").slice(0, 40),
     pagina: String(Math.max(1, Number(searchParams.pagina) || 1)),
   };
   const data = await fetchAdminLeads(current, session.accessToken);
@@ -97,7 +99,7 @@ export default async function AdminLeadsPageView({ searchParams }: { searchParam
           </Link>
         ))}
         <form action="/admin/leads" className="ml-auto flex gap-2">
-          {(["periodo", "etapa", "origem", "tipo"] as const).map((key) => (
+          {(["periodo", "etapa", "origem", "tipo", "campanha", "canal"] as const).map((key) => (
             <input key={key} type="hidden" name={key} value={current[key]} />
           ))}
           <input
@@ -111,6 +113,41 @@ export default async function AdminLeadsPageView({ searchParams }: { searchParam
           </button>
         </form>
       </div>
+
+      {current.campanha && (
+        <section aria-label="Campanha" className="flex flex-col gap-2 rounded-brand-lg border-2 border-brand-blue bg-surface-raised p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-lg font-semibold text-ink">
+              Campanha: {current.campanha}
+              {data?.campaignSignups?.[0]?.acqSourceLabel || data?.items[0]?.acqSourceLabel ? (
+                <span className="font-normal text-ink-muted"> · {data?.campaignSignups?.[0]?.acqSourceLabel ?? data?.items[0]?.acqSourceLabel}</span>
+              ) : null}
+            </h2>
+            <Link href={href({ campanha: "", canal: "" })} className="text-sm font-semibold text-brand-blue hover:underline">
+              Limpar filtro de campanha
+            </Link>
+          </div>
+          <p className="text-sm text-ink-muted">
+            {data?.total ?? 0} {data?.total === 1 ? "lead" : "leads"} e {data?.campaignSignups?.length ?? 0}{" "}
+            {data?.campaignSignups?.length === 1 ? "cadastro" : "cadastros"} vieram por esta campanha no período.
+          </p>
+          {data?.campaignSignups && data.campaignSignups.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-ink">Cadastros por esta campanha</h3>
+              <ul className="mt-1 flex flex-wrap gap-2 text-sm">
+                {data.campaignSignups.map((user) => (
+                  <li key={user.id}>
+                    <Link href={`/admin/usuarios/${user.id}`} className="inline-flex gap-1 rounded-full border border-border px-3 py-1 text-ink hover:bg-surface-sober">
+                      <span className="font-semibold">{user.name}</span>
+                      <span className="text-ink-muted">{when(user.createdAt)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
 
       {!data ? (
         <p className="rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">Não foi possível carregar os leads agora.</p>
@@ -207,7 +244,17 @@ export default async function AdminLeadsPageView({ searchParams }: { searchParam
                       {LEAD_SOURCE_LABELS[lead.source]}
                       {lead.hasConversation && <p className="text-xs text-ink-muted">conversa no chat</p>}
                       {lead.acqSource && (
-                        <p className="text-xs text-ink-muted">{lead.acqSource === "direto" ? "acesso direto ao site" : `veio de: ${lead.acqSource}`}</p>
+                        <p className="text-xs text-ink-muted">
+                          {lead.acqSource === "direto" ? "acesso direto ao site" : `veio de: ${lead.acqSourceLabel ?? lead.acqSource}`}
+                        </p>
+                      )}
+                      {lead.acqCampaign && (
+                        <Link
+                          href={href({ campanha: lead.acqCampaign, canal: lead.acqSource ?? "" })}
+                          className="text-xs font-semibold text-brand-blue hover:underline"
+                        >
+                          campanha {lead.acqCampaign}
+                        </Link>
                       )}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">

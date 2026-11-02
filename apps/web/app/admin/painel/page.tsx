@@ -441,7 +441,7 @@ function OriginsSection({ data }: { data: AdminOverview }) {
       {data.campaigns.length > 0 && (
         <div className="overflow-x-auto rounded-brand-lg border border-border">
           <table className="w-full min-w-[480px] text-left text-sm">
-            <caption className="bg-surface-sober px-3 py-2 text-left text-sm font-semibold text-ink">Campanhas (utm_campaign)</caption>
+            <caption className="bg-surface-sober px-3 py-2 text-left text-sm font-semibold text-ink">Campanhas (utm_campaign) · clique na campanha para ver os leads e cadastros</caption>
             <thead className="bg-surface-sober text-xs uppercase text-ink-muted">
               <tr>
                 <th className="px-3 py-2">Origem</th>
@@ -454,7 +454,14 @@ function OriginsSection({ data }: { data: AdminOverview }) {
               {data.campaigns.map((row) => (
                 <tr key={`${row.source}-${row.campaign}`} className="border-t border-border">
                   <td className="px-3 py-2">{row.source}</td>
-                  <td className="px-3 py-2 font-semibold text-ink">{row.campaign}</td>
+                  <td className="px-3 py-2">
+                    <Link
+                      href={`/admin/leads?${new URLSearchParams({ periodo: "30", campanha: row.campaign, canal: row.sourceKey })}`}
+                      className="font-semibold text-brand-blue hover:underline"
+                    >
+                      {row.campaign} →
+                    </Link>
+                  </td>
                   <td className="px-3 py-2 text-right">{int(row.signups)}</td>
                   <td className="px-3 py-2 text-right">{int(row.leads)}</td>
                 </tr>

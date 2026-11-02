@@ -1448,7 +1448,11 @@ export type AdminLeadRow = {
   // Já existe conversa no chat do site entre o comprador e a loja.
   hasConversation: boolean;
   acqSource?: string;
+  // De onde veio (canal da campanha) e a campanha (utm_campaign).
+  acqSourceLabel?: string;
+  acqCampaign?: string;
 };
+export type AdminCampaignSignup = { id: string; name: string; createdAt: string; acqSourceLabel?: string };
 export type AdminLeadsPage = {
   items: AdminLeadRow[];
   total: number;
@@ -1458,6 +1462,8 @@ export type AdminLeadsPage = {
   funnel: Record<z.infer<typeof LeadStatus>, number>;
   // Leads em "Novo" há mais de 24h — ninguém atendeu ainda.
   waitingOver24h: number;
+  // Só quando o filtro de campanha está ligado: quem se cadastrou por ela.
+  campaignSignups?: AdminCampaignSignup[];
 };
 
 export const AdminListingActionInputSchema = z.object({
@@ -2413,7 +2419,7 @@ export type AdminOverviewRevenueMonth = {
   stores: number;
 };
 export type AdminOverviewOriginRow = { key: string; label: string; signups: number; leads: number; financingLeads: number };
-export type AdminOverviewCampaignRow = { source: string; campaign: string; signups: number; leads: number };
+export type AdminOverviewCampaignRow = { sourceKey: string; source: string; campaign: string; signups: number; leads: number };
 export type AdminOverview = {
   scope: AdminOverviewScope;
   generatedAt: string;

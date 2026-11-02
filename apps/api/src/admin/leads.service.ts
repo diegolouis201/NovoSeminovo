@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { Prisma } from "@novoseminovo/db";
-import { LeadSource, LeadStatus, type AdminLeadRow, type AdminLeadsPage } from "@novoseminovo/shared-types";
+import { ACQUISITION_SOURCES, LeadSource, LeadStatus, type AdminLeadRow, type AdminLeadsPage } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { conversationsForLeads } from "../conversations/access";
 
@@ -12,8 +12,14 @@ export type AdminLeadFilters = {
   source?: string;
   assetType?: "vehicle" | "property";
   search?: string;
+  // Campanha (utm_campaign) e, opcional, o canal dela (utm_source).
+  campaign?: string;
+  acquisitionSource?: string;
   page: number;
 };
+
+const sourceLabel = (source: string | null) =>
+  source ? (ACQUISITION_SOURCES[source as keyof typeof ACQUISITION_SOURCES] ?? source) : undefined;
 
 // Todos os leads do site (chat, WhatsApp e os cadastrados à mão pelas lojas):
 // quando chegou, de quem, para qual loja/imobiliária e em que etapa está.
@@ -23,7 +29,12 @@ export class AdminLeadsService {
 
   async list(filters: AdminLeadFilters): Promise<AdminLeadsPage> {
     const search = filters.search?.trim();
+    const campaign = filters.campaign?.trim().slice(0, 100) || undefined;
+    const acquisition = campaign
+      ? { acqCampaign: campaign, ...(filters.acquisitionSource ? { acqSource: filters.acquisitionSource.slice(0, 40) } : {}) }
+      : {};
     const base: Prisma.LeadWhereInput = {
+      ...acquisition,
       ...(filters.days ? { createdAt: { gte: new Date(Date.now() - filters.days * 86_400_000) } } : {}),
       ...(LeadSource.safeParse(filters.source).success ? { source: filters.source as AdminLeadRow["source"] } : {}),
       ...(filters.assetType ? { listing: { type: filters.assetType } } : {}),
@@ -83,7 +94,19 @@ export class AdminLeadsService {
       proposalValue: lead.proposalValue != null ? Number(lead.proposalValue) : undefined,
       hasConversation: conversations.has(`${lead.listingId}:${lead.buyerId}`),
       acqSource: lead.acqSource ?? undefined,
+      acqSourceLabel: sourceLabel(lead.acqSource),
+      acqCampaign: lead.acqCampaign ?? undefined,
     }));
-    return { items, total, page: filters.page, pageSize: PAGE_SIZE, funnel, waitingOver24h };
+    const campaignSignups = campaign
+      ? (
+          await this.prisma.user.findMany({
+            where: { ...acquisition, ...(filters.days ? { createdAt: base.createdAt as Prisma.DateTimeFilter } : {}) },
+            orderBy: { createdAt: "desc" },
+            take: 100,
+            select: { id: true, name: true, createdAt: true, acqSource: true },
+          })
+        ).map((user) => ({ id: user.id, name: user.name, createdAt: user.createdAt.toISOString(), acqSourceLabel: sourceLabel(user.acqSource) }))
+      : undefined;
+    return { items, total, page: filters.page, pageSize: PAGE_SIZE, funnel, waitingOver24h, campaignSignups };
   }
 }

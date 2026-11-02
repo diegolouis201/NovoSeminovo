@@ -290,7 +290,7 @@ export class AdminOverviewService {
     const campaign = (source: string | null, name: string | null) => {
       if (!source || !name) return undefined;
       const key = `${source}|${name}`;
-      const row = campaigns.get(key) ?? { source: ACQUISITION_SOURCES[source as keyof typeof ACQUISITION_SOURCES] ?? source, campaign: name, signups: 0, leads: 0 };
+      const row = campaigns.get(key) ?? { sourceKey: source, source: ACQUISITION_SOURCES[source as keyof typeof ACQUISITION_SOURCES] ?? source, campaign: name, signups: 0, leads: 0 };
       campaigns.set(key, row);
       return row;
     };

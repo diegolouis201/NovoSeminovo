@@ -109,4 +109,25 @@ describe("Leads: identificação, chat da equipe e painel do admin (banco local)
     assert.equal(onlyNew.total, 0);
     assert.equal(onlyNew.funnel.contacted, 1);
   });
+
+  test("admin filtra leads e cadastros por campanha", async () => {
+    const campaign = `camp-${tag}`.slice(0, 60);
+    await prisma.user.update({ where: { id: ids.outsider }, data: { acqSource: "whatsapp", acqCampaign: campaign } });
+    await prisma.lead.create({
+      data: { partnerId: ids.partner, listingId: ids.listing, buyerId: ids.outsider, source: "chat", acqSource: "whatsapp", acqCampaign: campaign },
+    });
+    await prisma.lead.create({
+      data: { partnerId: ids.partner, listingId: ids.listing, buyerId: ids.buyer, source: "chat", acqSource: "instagram", acqCampaign: campaign },
+    });
+
+    const page = await adminLeads.list({ page: 1, campaign, acquisitionSource: "whatsapp" });
+    assert.equal(page.items.length, 1);
+    assert.equal(page.items[0].acqCampaign, campaign);
+    assert.equal(page.items[0].acqSourceLabel, "WhatsApp");
+    assert.deepEqual(page.campaignSignups?.map((u) => u.id), [ids.outsider]);
+
+    const allSources = await adminLeads.list({ page: 1, campaign });
+    assert.equal(allSources.items.length, 2);
+    assert.equal((await adminLeads.list({ page: 1 })).campaignSignups, undefined);
+  });
 });

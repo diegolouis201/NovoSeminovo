@@ -31,3 +31,14 @@ describe("Conta", () => {
     cy.location("pathname").should("eq", "/entrar");
   });
 });
+
+describe("Campanhas no admin", () => {
+  it("filtro de campanha mostra o resumo e permite limpar", () => {
+    cy.login("admin@novoseminovo.com.br", "senha1234");
+    cy.visit("/admin/leads?periodo=30&campanha=sugestao-ia&canal=whatsapp");
+    cy.contains("h2", "Campanha: sugestao-ia").should("be.visible");
+    cy.contains("vieram por esta campanha").should("be.visible");
+    cy.contains("a", "Limpar filtro de campanha").click();
+    cy.location("search").should("not.include", "campanha=");
+  });
+});
