@@ -78,7 +78,8 @@ O site usa três mensagens secretas: `jwt_secret` (assina o "crachá" de login d
 API), `auth_secret` (criptografa o cookie de sessão do site) e `data_key`
 (criptografa CPF, telefones e chave Pix guardados no banco). Há ainda a
 `marketing_feed_key`, que libera a consulta de empresas cadastradas pelo CRM
-de marketing (docs/crm-conversoes.md). Elas ficam em
+de marketing (docs/crm-conversoes.md), e a `finance_feed_key`, do CRM financeiro
+(docs/crm-financeiro.md). Elas ficam em
 arquivos na pasta `~/NovoSeminovo/secrets/`, que **nunca vai para o GitHub**
 (está no `.gitignore`). O docker monta essa pasta só para leitura em
 `/run/secrets` e a API e o site leem o arquivo sempre que precisam (releitura a

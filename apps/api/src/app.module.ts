@@ -22,6 +22,7 @@ import { IntegrationsModule } from "./integrations/integrations.module";
 import { ArchitectModule } from "./architect/architect.module";
 import { OperationsModule } from "./operations/operations.module";
 import { NewsletterModule } from "./marketing/newsletter.module";
+import { FinanceFeedModule } from "./finance-feed/finance-feed.module";
 import { HealthController } from "./common/health.controller";
 
 @Module({
@@ -52,6 +53,7 @@ import { HealthController } from "./common/health.controller";
     ArchitectModule,
     OperationsModule,
     NewsletterModule,
+    FinanceFeedModule,
     AffiliatesModule,
   ],
   controllers: [HealthController],
