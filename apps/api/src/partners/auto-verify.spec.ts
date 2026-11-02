@@ -61,6 +61,37 @@ describe("Cadastro de empresa: selo de verificada automático", { skip: !withDb 
     assert.equal(result.autoVerified, false);
   });
 
+  test("cidade e UF vêm do endereço do CNPJ", async () => {
+    const result = await service(async () => ({ ...base, city: "Belo Horizonte", state: "MG" }), prisma).resolveCompany({ document });
+    assert.equal(result.city, "Belo Horizonte");
+    assert.equal(result.state, "MG");
+  });
+
+  test("empresas antigas sem cidade ganham a cidade do CNPJ", async () => {
+    const tag = `cidade-${Date.now()}`;
+    const owner = await prisma.user.create({ data: { name: "Dono", email: `${tag}@teste.local` } });
+    const partner = await prisma.partner.create({
+      data: { ownerUserId: owner.id, type: "dealership", legalName: `Loja ${tag}`, document: "11222333000181", slug: tag },
+    });
+    try {
+      let calls = 0;
+      const lookup = async () => {
+        calls++;
+        return { ...base, city: "Contagem", state: "MG" };
+      };
+      await service(lookup, prisma).fillMissingCities();
+      const saved = await prisma.partner.findUniqueOrThrow({ where: { id: partner.id } });
+      assert.equal(saved.city, "Contagem");
+      assert.equal(saved.state, "MG");
+      const before = calls;
+      await service(lookup, prisma).fillMissingCities();
+      assert.equal(calls, before, "quem já tem cidade não é consultado de novo");
+    } finally {
+      await prisma.partner.delete({ where: { id: partner.id } });
+      await prisma.user.delete({ where: { id: owner.id } });
+    }
+  });
+
   test("CNPJ inativo continua recusado", async () => {
     await assert.rejects(service(async () => ({ ...base, active: false, situation: "Baixada" }), prisma).resolveCompany({ document }), /só aceitamos empresas ativas/);
   });

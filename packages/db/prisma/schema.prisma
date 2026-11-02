@@ -271,6 +271,9 @@ model Partner {
   logoUrl            String?     @map("logo_url")
   description        String?
   address            String?
+  // Cidade/UF do endereço do CNPJ (Receita) — região da empresa no CRM.
+  city               String?
+  state              String?
   // Reaproveitado entre tentativas de checkout — sem isso, cada contratação
   // criaria um Customer novo no Stripe pra mesma loja.
   stripeCustomerId   String?     @map("stripe_customer_id")

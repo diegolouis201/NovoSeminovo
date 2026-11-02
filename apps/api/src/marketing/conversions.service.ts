@@ -54,6 +54,8 @@ export class ConversionsService {
         document: true,
         verifiedAt: true,
         createdAt: true,
+        city: true,
+        state: true,
         owner: { select: { email: true, city: true, state: true } },
         subscriptions: { where: { status: { in: ["active", "past_due"] } }, select: { plan: { select: { name: true } } }, take: 1 },
         listings: { select: { city: true, state: true }, orderBy: { createdAt: "desc" }, take: 1 },
@@ -63,7 +65,7 @@ export class ConversionsService {
     const empresas = partners.map((partner): ConversionCompany => {
       const subscription = partner.subscriptions[0];
       const active = partner._count.listings;
-      const place = partner.owner.city ? partner.owner : partner.listings[0];
+      const place = partner.city ? partner : partner.owner.city ? partner.owner : partner.listings[0];
       const city = [place?.city, place?.state].filter(Boolean).join(" - ");
       return {
         id: partner.id,

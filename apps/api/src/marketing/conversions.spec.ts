@@ -77,6 +77,13 @@ describe("Feed de conversões para o CRM (banco local)", { skip: !withDb && "sem
     assert.ok(!/passwordHash|cpf/i.test(text));
   });
 
+  test("cidade da empresa (endereço do CNPJ) vem antes da do anúncio", async () => {
+    await prisma.partner.update({ where: { id: ids.p1 }, data: { city: "Contagem", state: "MG" } });
+    const feed = await service.feed(new Date(Date.now() - 86_400_000));
+    assert.equal(feed.empresas.find((e) => e.id === ids.p1)?.cidade, "Contagem - MG");
+    await prisma.partner.update({ where: { id: ids.p1 }, data: { city: null, state: null } });
+  });
+
   test("respeita a data de corte", async () => {
     const recent = await service.feed(new Date(Date.now() - 86_400_000));
     assert.ok(!recent.empresas.some((e) => e.id === ids.p2));

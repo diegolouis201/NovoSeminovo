@@ -198,6 +198,12 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
   // 1 minuto depois de subir) quem precisa de aviso ou de sair do ar.
   onModuleInit(): void {
     void this.ensurePlanCatalog().catch((error) => this.logger.error(`Falha ao conferir o catálogo de planos: ${error}`));
+    // Cidade das empresas antigas (endereço do CNPJ), uma vez, 90 s após subir.
+    setTimeout(() => {
+      void this.fillMissingCities()
+        .then((filled) => filled && this.logger.log(`Cidade preenchida em ${filled} empresa(s) pelo CNPJ.`))
+        .catch((error) => this.logger.error(`Falha ao preencher a cidade das empresas: ${error}`));
+    }, 90 * 1000).unref();
     if (process.env.TRIAL_SWEEP_DISABLED === "1") return;
     const run = () =>
       void trackRoutine("periodo-gratis", 6 * 60 * 60 * 1000, () =>
@@ -305,7 +311,24 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
     const legalName = company ? company.tradeName || company.legalName : input.legalName;
     if (!legalName || legalName.length < 3) throw new BadRequestException("Informe a razão social ou nome fantasia.");
     const autoVerified = Boolean(company?.active && company.detectedType && !company.detectedFromSecondary && company.detectedType === type);
-    return { cnpj, type, legalName, address: input.address ?? company?.address, autoVerified };
+    return { cnpj, type, legalName, address: input.address ?? company?.address, city: company?.city, state: company?.state, autoVerified };
+  }
+
+  // Empresas cadastradas antes de a cidade ser guardada: busca a cidade no
+  // CNPJ (até 20 por vez, uma consulta por empresa). Roda na subida da API.
+  async fillMissingCities(): Promise<number> {
+    const missing = await this.prisma.partner.findMany({ where: { city: null }, select: { id: true, document: true }, take: 20 });
+    let filled = 0;
+    for (const partner of missing) {
+      const company = await this.cnpj.lookup(partner.document.replace(/\D/g, "")).catch(() => undefined);
+      if (!company?.city) continue;
+      await this.prisma.partner.update({
+        where: { id: partner.id },
+        data: { city: company.city.slice(0, 80), state: company.state?.slice(0, 2).toUpperCase() },
+      });
+      filled++;
+    }
+    return filled;
   }
 
   async create(ownerUserId: string, input: CreatePartnerInput): Promise<Partner> {
@@ -321,7 +344,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
 
   async createPartnerRow(
     ownerUserId: string,
-    company: { cnpj: string; type: PartnerType; legalName: string; address?: string; autoVerified?: boolean },
+    company: { cnpj: string; type: PartnerType; legalName: string; address?: string; city?: string; state?: string; autoVerified?: boolean },
     description?: string,
   ): Promise<void> {
     const slug = await this.uniqueSlug(company.legalName);
@@ -334,6 +357,8 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
           document: company.cnpj,
           description,
           address: company.address,
+          city: company.city?.slice(0, 80),
+          state: company.state?.slice(0, 2).toUpperCase(),
           slug,
           verifiedAt: company.autoVerified ? new Date() : null,
         },
