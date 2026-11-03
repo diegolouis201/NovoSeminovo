@@ -27,5 +27,24 @@ conclui, a ordem fica "feita" com o resumo. Texto da ordem vai como dado
 - `Partner.foundedAt` e `PartnerSocio` (sócios): Receita via BrasilAPI/CNPJ.ws
   (`fillCompanyFacts`, ao subir a API e a cada 6 h, 20 empresas por vez).
 - Aniversário do sócio (DD/MM) e sócios extras: ficha da empresa em /comercial.
+- Perfil (Receita): `Partner.mainActivity` (setor/CNAE), `companySize` (porte),
+  `shareCapital`. Perfil manual no card: `contactRole` (cargo),
+  `employeesRange`, `revenueRange` (faixas em shared-types).
+- Interações por tipo (`SalesNote.kind`: ligação, WhatsApp, e-mail, reunião,
+  dor, objeção, preferência), próximo contato com tipo (`nextContactKind`),
+  etapa `proposta`, motivo de perda/cancelamento por categoria
+  (`lostCategory`, `LOSS_CATEGORIES`).
+- Comportamento: `User.lastActiveAt` (gravado pelo `JwtAuthGuard` no máximo
+  1x/hora), visualizações dos anúncios, ticket médio dos pagamentos, origem de
+  marketing do dono (`acqSource/acqMedium/acqCampaign`).
+- Pós-venda: `CrmTicket` (chamados por card, abrir/resolver em /comercial,
+  tempo médio de resolução no feed) e `NpsResponse` (pesquisa 0–10 no painel
+  do parceiro: empresa com 30+ dias, uma vez a cada 90 dias;
+  `GET/POST /partners/mine/nps`).
+
+No pacote do CRM: avisos `nps_detrator`, `nps_promotor`, `chamado_parado`,
+`risco_cancelamento`; `scripts/higiene.mjs` (duplicados, dados faltando,
+cards esquecidos) e filtros novos em `campanha.mjs` (porte, NPS, origem,
+funcionários).
 
 Não sai no feed: CPF, senha, cartão, dados de compradores.

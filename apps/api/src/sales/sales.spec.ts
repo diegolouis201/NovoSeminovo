@@ -131,8 +131,11 @@ describe("Funil comercial (banco local)", { skip: !withDb && "sem DATABASE_URL" 
     const extra = await service.createProspect(ids.seller, { name: `Imob Perdida ${tag}`, segment: "property", city: "BH", state: "MG" });
     ids.prospects.push(extra.id);
     await assert.rejects(service.move(ids.seller, extra.id, { stage: "perdida" }), /motivo/i);
-    await service.move(ids.seller, extra.id, { stage: "perdida", lostReason: "Já anuncia em outro lugar e não quer trocar." });
-    assert.equal((await cardOf((c) => c.id === extra.id))?.stage, "perdida");
+    await assert.rejects(service.move(ids.seller, extra.id, { stage: "perdida", lostReason: "Sem categoria" }), /motivo/i);
+    await service.move(ids.seller, extra.id, { stage: "perdida", lostCategory: "concorrencia", lostReason: "Já anuncia em outro lugar e não quer trocar." });
+    const lost = await cardOf((c) => c.id === extra.id);
+    assert.equal(lost?.stage, "perdida");
+    assert.equal(lost?.lostCategory, "concorrencia");
   });
 
   test("empresa que se cadastra com o mesmo CNPJ cai no card do vendedor e anda sozinha", async () => {
@@ -203,6 +206,44 @@ describe("Funil comercial (banco local)", { skip: !withDb && "sem DATABASE_URL" 
     await assert.rejects(service.addSocio(ids.seller, ids.prospects[1]!, { name: "Sem empresa" }), /cadastr/i);
   });
 
+  test("perfil da empresa e contato: cargo, funcionários, faturamento", async () => {
+    const id = ids.prospects[0]!;
+    await service.updateProfile(ids.seller, id, { contactName: "Carlos Lima", contactRole: "Gerente comercial", employeesRange: "6-20", revenueRange: "ate_360mil" });
+    const card = await cardOf((c) => c.id === id);
+    assert.equal(card?.contactName, "Carlos Lima");
+    assert.equal(card?.contactRole, "Gerente comercial");
+    assert.equal(card?.employeesRange, "6-20");
+    assert.equal(card?.revenueRange, "ate_360mil");
+    await assert.rejects(service.updateProfile(ids.seller, id, { employeesRange: "muitos" as never }), /faixa/i);
+  });
+
+  test("interações por canal, reunião agendada e etapa Proposta", async () => {
+    const id = ids.prospects[1]!;
+    await service.move(ids.seller, id, { stage: "a_abordar" });
+    await service.addNote(ids.seller, id, "Liguei, gostou da integração do estoque.", "ligacao");
+    await service.addNote(ids.seller, id, "Acha o plano caro para 30 carros.", "objecao");
+    await assert.rejects(service.addNote(ids.seller, id, "x", "fofoca" as never), /tipo/i);
+    await service.setNextContact(ids.seller, id, new Date("2026-11-12T14:00:00Z"), "reuniao");
+    await service.move(ids.seller, id, { stage: "proposta" });
+    const detail = await service.detail(id);
+    assert.equal(detail.card.stage, "proposta");
+    assert.equal(detail.card.nextContactKind, "reuniao");
+    assert.ok(detail.notes.some((n) => n.kind === "ligacao" && /integração/.test(n.body)));
+    assert.ok(detail.notes.some((n) => n.kind === "objecao"));
+  });
+
+  test("motivo do cancelamento fica registrado no card da empresa que cancelou", async () => {
+    const partner = ids.partners[0]!;
+    const card = (await cardOf((c) => c.partnerId === partner))!;
+    await assert.rejects(service.setCancelReason(ids.seller, card.id, { category: "preco", reason: "Achou caro" }), /cancel/i);
+    await prisma.subscription.updateMany({ where: { partnerId: partner }, data: { status: "canceled" } });
+    if ((await cardOf((c) => c.partnerId === partner))?.stage !== "cancelou") return;
+    await service.setCancelReason(ids.seller, card.id, { category: "preco", reason: "Achou caro para o estoque que tem." });
+    const after = await cardOf((c) => c.partnerId === partner);
+    assert.equal(after?.lostCategory, "preco");
+    await prisma.subscription.updateMany({ where: { partnerId: partner }, data: { status: "active" } });
+  });
+
   test("anotação, próximo contato e assumir o card", async () => {
     const id = ids.prospects[1]!;
     await service.addNote(ids.other, id, "Liguei, pediu retorno semana que vem.");
@@ -217,7 +258,8 @@ describe("Funil comercial (banco local)", { skip: !withDb && "sem DATABASE_URL" 
   test("metas do mês do vendedor", async () => {
     const goals = await service.goals(ids.seller, new Date());
     // Saiu de "a abordar" (para em contato, interessada ou perdida) = abordagem.
-    assert.equal(goals.approaches, 2, "a Auto Center (em contato) e a imobiliária (perdida)");
+    // Auto Center (em contato), a imobiliária (perdida) e a mesma imobiliária reaberta (a abordar → proposta).
+    assert.equal(goals.approaches, 3);
     assert.equal(goals.signups, 2, "duas empresas da carteira se cadastraram no mês");
     if (ids.plan) assert.equal(goals.newSubscribers, 1);
   });

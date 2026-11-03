@@ -1,5 +1,6 @@
 import type {
   CrmOrderView,
+  ProspectProfileInput,
   SalesCard,
   SalesDetail,
   SalesGoals,
@@ -2144,16 +2145,16 @@ export function createSalesProspect(input: CreateProspectInput, accessToken: str
   return sendJson("/sales/prospects", "POST", input, accessToken);
 }
 
-export function moveSalesProspect(id: string, input: { stage: string; lostReason?: string }, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+export function moveSalesProspect(id: string, input: { stage: string; lostReason?: string; lostCategory?: string }, accessToken: string): Promise<ApiResult<{ ok: true }>> {
   return sendJson(`/sales/prospects/${encodeURIComponent(id)}/move`, "POST", input, accessToken);
 }
 
-export function addSalesNote(id: string, body: string, accessToken: string): Promise<ApiResult<{ ok: true }>> {
-  return sendJson(`/sales/prospects/${encodeURIComponent(id)}/notes`, "POST", { body }, accessToken);
+export function addSalesNote(id: string, body: string, accessToken: string, kind = "note"): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/sales/prospects/${encodeURIComponent(id)}/notes`, "POST", { body, kind }, accessToken);
 }
 
-export function setSalesNextContact(id: string, at: string | null, accessToken: string): Promise<ApiResult<{ ok: true }>> {
-  return sendJson(`/sales/prospects/${encodeURIComponent(id)}/next-contact`, "POST", { at }, accessToken);
+export function setSalesNextContact(id: string, at: string | null, accessToken: string, kind?: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/sales/prospects/${encodeURIComponent(id)}/next-contact`, "POST", { at, kind }, accessToken);
 }
 
 export function assignSalesProspect(id: string, accessToken: string): Promise<ApiResult<{ ok: true }>> {
@@ -2186,4 +2187,28 @@ export function fetchSalesOrders(accessToken: string) {
 
 export function completeSalesOrder(id: string, resultado: string, accessToken: string): Promise<ApiResult<{ ok: true }>> {
   return sendJson(`/sales/orders/${encodeURIComponent(id)}/done`, "POST", { resultado }, accessToken);
+}
+
+export function updateSalesProfile(id: string, input: ProspectProfileInput, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/sales/prospects/${encodeURIComponent(id)}/profile`, "POST", input, accessToken);
+}
+
+export function setSalesCancelReason(id: string, input: { category: string; reason?: string }, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/sales/prospects/${encodeURIComponent(id)}/cancel-reason`, "POST", input, accessToken);
+}
+
+export function openSalesTicket(id: string, input: { subject: string; channel: string; description?: string }, accessToken: string): Promise<ApiResult<{ id: string }>> {
+  return sendJson(`/sales/prospects/${encodeURIComponent(id)}/tickets`, "POST", input, accessToken);
+}
+
+export function resolveSalesTicket(id: string, resolution: string, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/sales/tickets/${encodeURIComponent(id)}/resolve`, "POST", { resolution }, accessToken);
+}
+
+export function fetchNpsStatus(accessToken: string) {
+  return getJson<{ ask: boolean }>("/partners/mine/nps", accessToken);
+}
+
+export function answerNps(input: { score: number; comment?: string }, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson("/partners/mine/nps", "POST", input, accessToken);
 }

@@ -103,6 +103,25 @@ describe("Área Comercial", () => {
     cy.get('form[aria-label="Nova empresa"] input[name="name"]').should("have.attr", "required");
   });
 
+  it("ficha da empresa: perfil, registro por canal, motivo de perda e chamados", () => {
+    cy.loginAs("admin@novoseminovo.com.br", "senha1234");
+    cy.visit("/comercial/novo");
+    cy.get('form[aria-label="Nova empresa"] input[name="name"]').type(`Loja Cypress ${Date.now()}`);
+    cy.get('form[aria-label="Nova empresa"] button[type="submit"]').click();
+    cy.location("pathname").should("match", /^\/comercial\/[a-z0-9]+$/);
+    cy.get('form[aria-label="Perfil da empresa"] select[name="employeesRange"]').should("exist");
+    cy.get('form[aria-label="Nova anotação"] select[name="kind"]').should("contain", "Ligação").and("contain", "Objeção");
+    cy.get('form[aria-label="Mudar etapa"] select[name="lostCategory"]').should("exist");
+    cy.get('form[aria-label="Mudar etapa"] select[name="stage"]').should("contain", "Proposta enviada");
+    cy.contains("h2", "Chamados de suporte").should("be.visible");
+    cy.get('form[aria-label="Abrir chamado"] input[name="subject"]').type("Fotos não sobem");
+    cy.get('form[aria-label="Abrir chamado"] button[type="submit"]').click();
+    cy.contains("Chamado aberto.").should("be.visible");
+    cy.contains("li", "Fotos não sobem").should("contain", "aberto");
+    // Depois de abrir, o formulário volta vazio (sem repetir o assunto).
+    cy.get('form[aria-label="Abrir chamado"] input[name="subject"]').should("have.value", "");
+  });
+
   it("admin convida alguém para o comercial", () => {
     cy.loginAs("admin@novoseminovo.com.br", "senha1234");
     cy.visit("/admin/equipe");

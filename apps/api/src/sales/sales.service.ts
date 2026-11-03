@@ -3,7 +3,18 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import type { Prisma } from "@novoseminovo/db";
 import {
   AddSocioInputSchema,
+  CancelReasonInputSchema,
   CreateProspectInputSchema,
+  INTERACTION_KINDS,
+  InteractionKindSchema,
+  LOSS_CATEGORIES,
+  NEXT_CONTACT_KINDS,
+  ProspectProfileInputSchema,
+  TicketInputSchema,
+  type InteractionKind,
+  type LossCategory,
+  type NextContactKind,
+  type ProspectProfileInput,
   isValidBirthday,
   SALES_CODE_PATTERN,
   SALES_STAGE_LABEL,
@@ -204,7 +215,12 @@ export class SalesService {
       phone: row.phone ?? row.partner?.owner.phone ?? undefined,
       email: row.email ?? row.partner?.owner.email ?? undefined,
       nextContactAt: row.nextContactAt?.toISOString(),
+      nextContactKind: (row.nextContactKind as NextContactKind | null) ?? undefined,
       lostReason: row.lostReason ?? undefined,
+      lostCategory: (row.lostCategory as LossCategory | null) ?? undefined,
+      contactRole: row.contactRole ?? undefined,
+      employeesRange: row.employeesRange ?? undefined,
+      revenueRange: row.revenueRange ?? undefined,
       planName: sub?.plan.name,
       monthlyValue: sub ? Number(sub.plan.priceMonth) : undefined,
       subscriptionStatus: sub?.status as SalesCard["subscriptionStatus"],
@@ -232,28 +248,48 @@ export class SalesService {
     const [socios, partner] = row.partnerId
       ? await Promise.all([
           this.prisma.partnerSocio.findMany({ where: { partnerId: row.partnerId }, orderBy: { createdAt: "asc" } }),
-          this.prisma.partner.findUnique({ where: { id: row.partnerId }, select: { foundedAt: true } }),
+          this.prisma.partner.findUnique({ where: { id: row.partnerId }, select: { foundedAt: true, mainActivity: true, companySize: true, shareCapital: true } }),
         ])
       : [[], null];
+    const [tickets, lastNps] = await Promise.all([
+      this.prisma.crmTicket.findMany({ where: { prospectId: id }, orderBy: { openedAt: "desc" }, take: 50 }),
+      row.partnerId ? this.prisma.npsResponse.findFirst({ where: { partnerId: row.partnerId }, orderBy: { createdAt: "desc" } }) : null,
+    ]);
     return {
+      tickets: tickets.map((t) => ({
+        id: t.id,
+        subject: t.subject,
+        channel: t.channel,
+        description: t.description ?? undefined,
+        status: t.status as "aberto" | "resolvido",
+        resolution: t.resolution ?? undefined,
+        openedAt: t.openedAt.toISOString(),
+        resolvedAt: t.resolvedAt?.toISOString(),
+      })),
+      nps: lastNps ? { score: lastNps.score, comment: lastNps.comment ?? undefined, createdAt: lastNps.createdAt.toISOString() } : undefined,
       foundedAt: partner?.foundedAt?.toISOString(),
+      company: partner ? { activity: partner.mainActivity ?? undefined, size: partner.companySize ?? undefined, shareCapital: partner.shareCapital ? Number(partner.shareCapital) : undefined } : undefined,
       socios: socios.map((s) => ({ id: s.id, name: s.name, role: s.role ?? undefined, birthday: s.birthday ?? undefined, source: s.source as "receita" | "manual" })),
       card: this.toCard(row, new Date()),
-      notes: notes.map((n) => ({ id: n.id, kind: n.kind as "note" | "stage" | "contact", body: n.body, authorName: n.author?.name, createdAt: n.createdAt.toISOString() })),
+      notes: notes.map((n) => ({ id: n.id, kind: n.kind as InteractionKind | "stage" | "contact", body: n.body, authorName: n.author?.name, createdAt: n.createdAt.toISOString() })),
     };
   }
 
-  async move(userId: string, id: string, input: { stage: SalesManualStage; lostReason?: string }): Promise<void> {
+  async move(userId: string, id: string, input: { stage: SalesManualStage; lostReason?: string; lostCategory?: LossCategory }): Promise<void> {
     const row = await this.load(id);
     if (row.partnerId) throw new BadRequestException("Esta empresa já se cadastrou: a etapa agora anda sozinha pelo site.");
-    if (!["a_abordar", "em_contato", "interessada", "perdida"].includes(input.stage)) {
+    if (!["a_abordar", "em_contato", "interessada", "proposta", "perdida"].includes(input.stage)) {
       throw new BadRequestException("Esta etapa anda sozinha pelo site quando a empresa se cadastra.");
     }
-    const reason = input.lostReason?.trim();
-    if (input.stage === "perdida" && !reason) throw new BadRequestException("Informe o motivo da perda.");
+    const category = input.lostCategory && input.lostCategory in LOSS_CATEGORIES ? input.lostCategory : undefined;
+    const reason = [category ? LOSS_CATEGORIES[category] : undefined, input.lostReason?.trim()].filter(Boolean).join(" — ");
+    if (input.stage === "perdida" && !category) throw new BadRequestException("Escolha o motivo da perda.");
     if (row.stage === input.stage) return;
     await this.prisma.$transaction([
-      this.prisma.salesProspect.update({ where: { id }, data: { stage: input.stage, lostReason: input.stage === "perdida" ? reason : null } }),
+      this.prisma.salesProspect.update({
+        where: { id },
+        data: { stage: input.stage, lostReason: input.stage === "perdida" ? input.lostReason?.trim() || null : null, lostCategory: input.stage === "perdida" ? category : null },
+      }),
       this.prisma.salesNote.create({
         data: {
           prospectId: id,
@@ -267,20 +303,48 @@ export class SalesService {
     ]);
   }
 
-  async addNote(userId: string, id: string, body: string): Promise<void> {
+  async addNote(userId: string, id: string, body: string, kind: InteractionKind = "note"): Promise<void> {
+    if (!InteractionKindSchema.safeParse(kind).success) throw new BadRequestException("Tipo de registro inválido.");
     await this.load(id);
     await this.prisma.$transaction([
-      this.prisma.salesNote.create({ data: { prospectId: id, authorId: userId, kind: "note", body: body.trim().slice(0, 2000) } }),
+      this.prisma.salesNote.create({ data: { prospectId: id, authorId: userId, kind, body: body.trim().slice(0, 2000) } }),
       this.prisma.salesProspect.update({ where: { id }, data: { updatedAt: new Date() } }),
     ]);
   }
 
-  async setNextContact(userId: string, id: string, at: Date | null): Promise<void> {
+  async setNextContact(userId: string, id: string, at: Date | null, kind?: NextContactKind): Promise<void> {
     await this.load(id);
     const label = at ? at.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "sem data";
+    const type = kind && kind in NEXT_CONTACT_KINDS ? kind : undefined;
     await this.prisma.$transaction([
-      this.prisma.salesProspect.update({ where: { id }, data: { nextContactAt: at } }),
-      this.prisma.salesNote.create({ data: { prospectId: id, authorId: userId, kind: "contact", body: `Próximo contato: ${label}` } }),
+      this.prisma.salesProspect.update({ where: { id }, data: { nextContactAt: at, nextContactKind: at ? (type ?? null) : null } }),
+      this.prisma.salesNote.create({
+        data: { prospectId: id, authorId: userId, kind: "contact", body: `${type === "reuniao" ? "Reunião agendada" : "Próximo contato"}${type && type !== "reuniao" ? ` (${NEXT_CONTACT_KINDS[type]})` : ""}: ${label}` },
+      }),
+    ]);
+  }
+
+  async updateProfile(userId: string, id: string, raw: ProspectProfileInput): Promise<void> {
+    const parsed = ProspectProfileInputSchema.safeParse(raw);
+    if (!parsed.success) throw new BadRequestException(parsed.error.issues[0]?.message ?? "Dados inválidos.");
+    await this.load(id);
+    const data = Object.fromEntries(Object.entries(parsed.data).filter(([, v]) => v !== undefined).map(([k, v]) => [k, v === "" ? null : v]));
+    if (!Object.keys(data).length) return;
+    await this.prisma.$transaction([
+      this.prisma.salesProspect.update({ where: { id }, data }),
+      this.prisma.salesNote.create({ data: { prospectId: id, authorId: userId, kind: "note", body: "Dados da empresa e do contato atualizados." } }),
+    ]);
+  }
+
+  async setCancelReason(userId: string, id: string, raw: { category: LossCategory; reason?: string }): Promise<void> {
+    const input = CancelReasonInputSchema.parse(raw);
+    const row = await this.load(id);
+    if (this.toCard(row, new Date()).stage !== "cancelou") throw new BadRequestException("Só dá para registrar motivo de cancelamento em empresa que cancelou.");
+    await this.prisma.$transaction([
+      this.prisma.salesProspect.update({ where: { id }, data: { lostCategory: input.category, lostReason: input.reason || null } }),
+      this.prisma.salesNote.create({
+        data: { prospectId: id, authorId: userId, kind: "note", body: `Motivo do cancelamento: ${LOSS_CATEGORIES[input.category]}${input.reason ? ` — ${input.reason}` : ""}` },
+      }),
     ]);
   }
 
@@ -289,6 +353,27 @@ export class SalesService {
     await this.prisma.$transaction([
       this.prisma.salesProspect.update({ where: { id }, data: { ownerId: userId } }),
       this.prisma.salesNote.create({ data: { prospectId: id, authorId: userId, kind: "note", body: "Assumiu o card." } }),
+    ]);
+  }
+
+  // ---------------- Chamados de suporte (pós-venda) ----------------
+
+  async openTicket(userId: string, prospectId: string, raw: { subject: string; channel: string; description?: string }): Promise<{ id: string }> {
+    const parsed = TicketInputSchema.safeParse(raw);
+    if (!parsed.success) throw new BadRequestException(parsed.error.issues[0]?.message ?? "Dados inválidos.");
+    await this.load(prospectId);
+    const ticket = await this.prisma.crmTicket.create({ data: { ...parsed.data, prospectId, openedById: userId } });
+    await this.prisma.salesNote.create({ data: { prospectId, authorId: userId, kind: "note", body: `Chamado aberto: ${parsed.data.subject}` } });
+    return { id: ticket.id };
+  }
+
+  async resolveTicket(userId: string, ticketId: string, resolution: string): Promise<void> {
+    const ticket = await this.prisma.crmTicket.findUnique({ where: { id: ticketId } });
+    if (!ticket) throw new NotFoundException("Chamado não encontrado.");
+    if (ticket.status === "resolvido") throw new BadRequestException("Este chamado já foi resolvido.");
+    await this.prisma.$transaction([
+      this.prisma.crmTicket.update({ where: { id: ticketId }, data: { status: "resolvido", resolution: resolution.trim().slice(0, 2000), resolvedById: userId, resolvedAt: new Date() } }),
+      this.prisma.salesNote.create({ data: { prospectId: ticket.prospectId, authorId: userId, kind: "note", body: `Chamado resolvido: ${ticket.subject}. ${resolution.trim()}`.slice(0, 2000) } }),
     ]);
   }
 

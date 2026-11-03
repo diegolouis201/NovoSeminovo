@@ -6,7 +6,7 @@ import { compare, hash } from "bcryptjs";
 import { PrismaService } from "../prisma/prisma.service";
 import type { EmailService } from "../email/email.service";
 import { PasswordResetService } from "./password-reset.service";
-import { JwtAuthGuard } from "./jwt-auth.guard";
+import { JwtAuthGuard, forgetUserStatus } from "./jwt-auth.guard";
 
 // "Esqueci minha senha": link por e-mail, uso único, derruba sessões antigas.
 // Precisa do PostgreSQL local (DATABASE_URL).
@@ -76,5 +76,18 @@ describe("Troca de senha pelo e-mail (banco local)", { skip: !withDb && "sem DAT
     const hours = (stored.passwordResetExpiresAt!.getTime() - Date.now()) / 3_600_000;
     assert.ok(hours > 71 && hours <= 72, "vale 72 horas");
     await service.reset(token!, "senha-nova-da-equipe!");
+  });
+
+  test("último acesso: gravado ao usar o site, no máximo uma vez por hora", async () => {
+    await prisma.user.update({ where: { id: userId }, data: { lastActiveAt: null } });
+    forgetUserStatus(userId);
+    const token = await jwt.signAsync({ sub: userId, role: "buyer" });
+    await guard.canActivate(contextWith(token));
+    const first = (await prisma.user.findUniqueOrThrow({ where: { id: userId } })).lastActiveAt;
+    assert.ok(first, "gravou o acesso");
+    forgetUserStatus(userId);
+    await guard.canActivate(contextWith(token));
+    const second = (await prisma.user.findUniqueOrThrow({ where: { id: userId } })).lastActiveAt;
+    assert.equal(second?.getTime(), first!.getTime(), "não regrava dentro da mesma hora");
   });
 });

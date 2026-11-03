@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Headers, HttpException, HttpStatus, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { z } from "zod";
-import { CrmOrderDoneInputSchema, CrmOrderInputSchema } from "@novoseminovo/shared-types";
+import { CrmOrderDoneInputSchema, CrmOrderInputSchema, NpsInputSchema } from "@novoseminovo/shared-types";
 import { currentSecret } from "../auth/secret-file";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -10,6 +10,7 @@ import { feedKeyCheck } from "../marketing/conversions.service";
 import { SalesGuard } from "../sales/sales.guard";
 import { CrmOrdersService } from "./crm-orders.service";
 import { CrmService } from "./crm.service";
+import { NpsService } from "./nps.service";
 
 function secret(name: string): string | undefined {
   try {
@@ -107,6 +108,24 @@ export class SalesOrdersController {
   @Post(":id/done")
   async done(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
     await this.orders.completeBySales(user.id, id, parseOrBadRequest(CrmOrderDoneInputSchema, body).resultado);
+    return { ok: true };
+  }
+}
+
+// Pesquisa NPS no painel do parceiro (dono da empresa).
+@UseGuards(JwtAuthGuard)
+@Controller("partners/mine/nps")
+export class NpsController {
+  constructor(private readonly nps: NpsService) {}
+
+  @Get()
+  status(@CurrentUser() user: { id: string }) {
+    return this.nps.status(user.id);
+  }
+
+  @Post()
+  async answer(@CurrentUser() user: { id: string }, @Body() body: unknown) {
+    await this.nps.answer(user.id, parseOrBadRequest(NpsInputSchema, body));
     return { ok: true };
   }
 }

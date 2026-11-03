@@ -7,6 +7,10 @@ import {
   SalesNoteInputSchema,
   SocioBirthdayInputSchema,
   AddSocioInputSchema,
+  CancelReasonInputSchema,
+  ProspectProfileInputSchema,
+  TicketInputSchema,
+  TicketResolveInputSchema,
 } from "@novoseminovo/shared-types";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -58,14 +62,15 @@ export class SalesController {
 
   @Post("prospects/:id/notes")
   async note(@CurrentUser() user: Me, @Param("id") id: string, @Body() body: unknown) {
-    await this.sales.addNote(user.id, id, parseOrBadRequest(SalesNoteInputSchema, body).body);
+    const input = parseOrBadRequest(SalesNoteInputSchema, body);
+    await this.sales.addNote(user.id, id, input.body, input.kind);
     return { ok: true };
   }
 
   @Post("prospects/:id/next-contact")
   async nextContact(@CurrentUser() user: Me, @Param("id") id: string, @Body() body: unknown) {
-    const { at } = parseOrBadRequest(NextContactInputSchema, body);
-    await this.sales.setNextContact(user.id, id, at ? new Date(at) : null);
+    const { at, kind } = parseOrBadRequest(NextContactInputSchema, body);
+    await this.sales.setNextContact(user.id, id, at ? new Date(at) : null, kind);
     return { ok: true };
   }
 
@@ -78,6 +83,29 @@ export class SalesController {
   @Post("socios/:id/birthday")
   async birthday(@CurrentUser() user: Me, @Param("id") id: string, @Body() body: unknown) {
     await this.sales.setSocioBirthday(user.id, id, parseOrBadRequest(SocioBirthdayInputSchema, body).birthday);
+    return { ok: true };
+  }
+
+  @Post("prospects/:id/profile")
+  async profile(@CurrentUser() user: Me, @Param("id") id: string, @Body() body: unknown) {
+    await this.sales.updateProfile(user.id, id, parseOrBadRequest(ProspectProfileInputSchema, body));
+    return { ok: true };
+  }
+
+  @Post("prospects/:id/cancel-reason")
+  async cancelReason(@CurrentUser() user: Me, @Param("id") id: string, @Body() body: unknown) {
+    await this.sales.setCancelReason(user.id, id, parseOrBadRequest(CancelReasonInputSchema, body));
+    return { ok: true };
+  }
+
+  @Post("prospects/:id/tickets")
+  openTicket(@CurrentUser() user: Me, @Param("id") id: string, @Body() body: unknown) {
+    return this.sales.openTicket(user.id, id, parseOrBadRequest(TicketInputSchema, body));
+  }
+
+  @Post("tickets/:id/resolve")
+  async resolveTicket(@CurrentUser() user: Me, @Param("id") id: string, @Body() body: unknown) {
+    await this.sales.resolveTicket(user.id, id, parseOrBadRequest(TicketResolveInputSchema, body).resolution);
     return { ok: true };
   }
 

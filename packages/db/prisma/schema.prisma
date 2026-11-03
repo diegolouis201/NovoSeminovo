@@ -231,6 +231,8 @@ model User {
   moderationHoldReason String?   @map("moderation_hold_reason")
   // Equipe comercial: código do link de indicação do vendedor (?vendedor=).
   salesCode            String?   @unique @map("sales_code")
+  // Último uso do site com login (gravado no máximo 1x por hora) — CRM: risco de cancelamento.
+  lastActiveAt         DateTime? @map("last_active_at")
 
   ownedPartners            Partner[]             @relation("PartnerOwner")
   salesProspects           SalesProspect[]       @relation("SalesOwner")
@@ -299,6 +301,9 @@ model Partner {
   // Receita (dado público do CNPJ): data de abertura e quando foi conferido.
   foundedAt          DateTime?   @map("founded_at")
   receitaCheckedAt   DateTime?   @map("receita_checked_at")
+  mainActivity       String?     @map("main_activity")
+  companySize        String?     @map("company_size")
+  shareCapital       Decimal?    @map("share_capital") @db.Decimal(14, 2)
   createdAt          DateTime    @default(now()) @map("created_at")
 
   members               PartnerMember[]
@@ -311,6 +316,7 @@ model Partner {
   apiKeys               PartnerApiKey[]
   salesProspect         SalesProspect?
   socios                PartnerSocio[]
+  npsResponses          NpsResponse[]
 
   @@map("partners")
 }
@@ -1629,34 +1635,43 @@ enum SalesStage {
   a_abordar
   em_contato
   interessada
+  proposta
   perdida
 }
 
 model SalesProspect {
-  id            String      @id @default(cuid())
-  name          String
+  id              String      @id @default(cuid())
+  name            String
   // vehicle = lojas de veículos; property = imobiliárias, corretores, construtoras.
-  segment       String
-  cnpj          String?     @unique
-  city          String?
-  state         String?
-  contactName   String?     @map("contact_name")
+  segment         String
+  cnpj            String?     @unique
+  city            String?
+  state           String?
+  contactName     String?     @map("contact_name")
+  contactRole     String?     @map("contact_role")
+  // Faixas (perfil B2B): EMPLOYEE_RANGES / REVENUE_RANGES em shared-types.
+  employeesRange  String?     @map("employees_range")
+  revenueRange    String?     @map("revenue_range")
   // Criptografado (ENCRYPTED_FIELDS); phoneHash = índice cego.
-  phone         String?
-  phoneHash     String?     @map("phone_hash")
-  email         String?
-  stage         SalesStage  @default(a_abordar)
-  lostReason    String?     @map("lost_reason")
-  nextContactAt DateTime?   @map("next_contact_at")
+  phone           String?
+  phoneHash       String?     @map("phone_hash")
+  email           String?
+  stage           SalesStage  @default(a_abordar)
+  lostReason      String?     @map("lost_reason")
+  // Categoria do motivo de perda ou de cancelamento (LOSS_CATEGORIES).
+  lostCategory    String?     @map("lost_category")
+  nextContactAt   DateTime?   @map("next_contact_at")
+  nextContactKind String?     @map("next_contact_kind")
   // manual = vendedor cadastrou; site = empresa se cadastrou sozinha; link = pelo link do vendedor.
-  source        String      @default("manual")
-  ownerId       String?     @map("owner_id")
-  owner         User?       @relation("SalesOwner", fields: [ownerId], references: [id])
-  partnerId     String?     @unique @map("partner_id")
-  partner       Partner?    @relation(fields: [partnerId], references: [id])
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
-  notes         SalesNote[]
+  source          String      @default("manual")
+  ownerId         String?     @map("owner_id")
+  owner           User?       @relation("SalesOwner", fields: [ownerId], references: [id])
+  partnerId       String?     @unique @map("partner_id")
+  partner         Partner?    @relation(fields: [partnerId], references: [id])
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  notes           SalesNote[]
+  CrmTicket       CrmTicket[]
 
   @@index([segment])
   @@index([ownerId])
@@ -1721,4 +1736,39 @@ model CrmOrder {
 
   @@index([area, status])
   @@map("crm_orders")
+}
+
+// Chamados de suporte por empresa (pós-venda): registrados pela equipe na
+// ficha do Comercial; o CRM mede o tempo de resolução.
+model CrmTicket {
+  id           String        @id @default(cuid())
+  prospectId   String        @map("prospect_id")
+  prospect     SalesProspect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  subject      String
+  channel      String
+  description  String?
+  status       String        @default("aberto")
+  resolution   String?
+  openedById   String?       @map("opened_by_id")
+  resolvedById String?       @map("resolved_by_id")
+  openedAt     DateTime      @default(now()) @map("opened_at")
+  resolvedAt   DateTime?     @map("resolved_at")
+
+  @@index([prospectId, status])
+  @@map("crm_tickets")
+}
+
+// Pesquisa NPS no painel do parceiro (0 a 10): após 30 dias de cadastro e a
+// cada 90 dias.
+model NpsResponse {
+  id        String   @id @default(cuid())
+  partnerId String   @map("partner_id")
+  partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  score     Int
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([partnerId, createdAt])
+  @@map("nps_responses")
 }

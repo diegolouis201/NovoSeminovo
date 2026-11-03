@@ -2696,7 +2696,7 @@ export function isTrustedExternalLink(value: string): boolean {
 
 // ---------------- Área Comercial (/comercial) ----------------
 // Funil das empresas: etapas manuais até o cadastro; depois o site move sozinho.
-export const SALES_MANUAL_STAGES = ["a_abordar", "em_contato", "interessada", "perdida"] as const;
+export const SALES_MANUAL_STAGES = ["a_abordar", "em_contato", "interessada", "proposta", "perdida"] as const;
 export const SalesManualStage = z.enum(SALES_MANUAL_STAGES);
 export type SalesManualStage = z.infer<typeof SalesManualStage>;
 export type SalesStageId = SalesManualStage | "cadastrou" | "publicou" | "assinante" | "cancelou";
@@ -2704,6 +2704,7 @@ export const SALES_STAGES: { id: SalesStageId; label: string; manual: boolean }[
   { id: "a_abordar", label: "A abordar", manual: true },
   { id: "em_contato", label: "Em contato", manual: true },
   { id: "interessada", label: "Interessada", manual: true },
+  { id: "proposta", label: "Proposta enviada", manual: true },
   { id: "cadastrou", label: "Cadastrou (período grátis)", manual: false },
   { id: "publicou", label: "Publicou anúncio", manual: false },
   { id: "assinante", label: "Assinante", manual: false },
@@ -2712,6 +2713,49 @@ export const SALES_STAGES: { id: SalesStageId; label: string; manual: boolean }[
 ];
 export const SALES_STAGE_LABEL = Object.fromEntries(SALES_STAGES.map((s) => [s.id, s.label])) as Record<SalesStageId, string>;
 export type SalesSegment = "vehicle" | "property";
+
+// Motivo de perda / cancelamento por categoria (relatório de por que não fechou).
+export const LOSS_CATEGORIES = {
+  preco: "Preço",
+  concorrencia: "Prefere outro portal",
+  timing: "Não é o momento",
+  sem_interesse: "Sem interesse",
+  sem_resposta: "Não respondeu",
+  pouco_estoque: "Pouco estoque",
+  resultado: "Não teve resultado (poucos leads)",
+  outro: "Outro",
+} as const;
+export type LossCategory = keyof typeof LOSS_CATEGORIES;
+export const LossCategorySchema = z.enum(Object.keys(LOSS_CATEGORIES) as [LossCategory, ...LossCategory[]]);
+
+// Tipo de cada registro no histórico (centralizar o que acontece no WhatsApp, telefone, e-mail).
+export const INTERACTION_KINDS = {
+  note: "Anotação",
+  ligacao: "Ligação",
+  whatsapp: "WhatsApp",
+  email: "E-mail",
+  reuniao: "Reunião",
+  dor: "Dor / necessidade",
+  objecao: "Objeção",
+  preferencia: "Preferência",
+} as const;
+export type InteractionKind = keyof typeof INTERACTION_KINDS;
+export const InteractionKindSchema = z.enum(Object.keys(INTERACTION_KINDS) as [InteractionKind, ...InteractionKind[]]);
+export const NEXT_CONTACT_KINDS = { ligacao: "Ligação", whatsapp: "WhatsApp", email: "E-mail", reuniao: "Reunião" } as const;
+export type NextContactKind = keyof typeof NEXT_CONTACT_KINDS;
+
+export const EMPLOYEE_RANGES = { "1-5": "1 a 5", "6-20": "6 a 20", "21-50": "21 a 50", "51+": "Mais de 50" } as const;
+export const REVENUE_RANGES = { ate_360mil: "Até R$ 360 mil por ano", ate_4_8mi: "R$ 360 mil a R$ 4,8 milhões por ano", acima_4_8mi: "Acima de R$ 4,8 milhões por ano" } as const;
+export const ProspectProfileInputSchema = z.object({
+  contactName: z.string().trim().max(120).optional(),
+  contactRole: z.string().trim().max(80).optional(),
+  phone: z.string().transform((v) => v.replace(/\D/g, "")).refine((v) => v === "" || (v.length >= 10 && v.length <= 13), "Telefone com DDD").optional(),
+  email: z.string().trim().toLowerCase().max(200).email("E-mail inválido").optional().or(z.literal("")),
+  employeesRange: z.enum(Object.keys(EMPLOYEE_RANGES) as [string, ...string[]], { errorMap: () => ({ message: "Escolha uma faixa de funcionários" }) }).optional(),
+  revenueRange: z.enum(Object.keys(REVENUE_RANGES) as [string, ...string[]], { errorMap: () => ({ message: "Escolha uma faixa de faturamento" }) }).optional(),
+});
+export type ProspectProfileInput = z.input<typeof ProspectProfileInputSchema>;
+export const CancelReasonInputSchema = z.object({ category: LossCategorySchema, reason: z.string().trim().max(500).optional() });
 
 export type SalesCard = {
   id: string;
@@ -2730,7 +2774,12 @@ export type SalesCard = {
   phone?: string;
   email?: string;
   nextContactAt?: string;
+  nextContactKind?: NextContactKind;
   lostReason?: string;
+  lostCategory?: LossCategory;
+  contactRole?: string;
+  employeesRange?: string;
+  revenueRange?: string;
   planName?: string;
   monthlyValue?: number;
   subscriptionStatus?: "active" | "past_due" | "canceled";
@@ -2738,9 +2787,27 @@ export type SalesCard = {
   activeListings?: number;
   updatedAt: string;
 };
-export type SalesNoteView = { id: string; kind: "note" | "stage" | "contact"; body: string; authorName?: string; createdAt: string };
+export type SalesNoteView = { id: string; kind: InteractionKind | "stage" | "contact"; body: string; authorName?: string; createdAt: string };
 export type SalesSocio = { id: string; name: string; role?: string; birthday?: string; source: "receita" | "manual" };
-export type SalesDetail = { card: SalesCard; notes: SalesNoteView[]; socios: SalesSocio[]; foundedAt?: string };
+export type SalesTicket = { id: string; subject: string; channel: string; description?: string; status: "aberto" | "resolvido"; resolution?: string; openedAt: string; resolvedAt?: string };
+export type SalesDetail = {
+  card: SalesCard;
+  notes: SalesNoteView[];
+  socios: SalesSocio[];
+  foundedAt?: string;
+  company?: { activity?: string; size?: string; shareCapital?: number };
+  tickets: SalesTicket[];
+  nps?: { score: number; comment?: string; createdAt: string };
+};
+export const TICKET_CHANNELS = { whatsapp: "WhatsApp", telefone: "Telefone", email: "E-mail", site: "Site / painel" } as const;
+export const TicketInputSchema = z.object({
+  subject: z.string().trim().min(3, "Descreva o assunto").max(160),
+  channel: z.enum(Object.keys(TICKET_CHANNELS) as [keyof typeof TICKET_CHANNELS, ...(keyof typeof TICKET_CHANNELS)[]]),
+  description: z.string().trim().max(2000).optional(),
+});
+export const TicketResolveInputSchema = z.object({ resolution: z.string().trim().min(2, "Conte como foi resolvido").max(2000) });
+// NPS no painel do parceiro.
+export const NpsInputSchema = z.object({ score: z.number().int().min(0).max(10), comment: z.string().trim().max(1000).optional() });
 
 // Aniversário "DD/MM" (sem ano): dia válido para o mês (29/02 aceito).
 export function isValidBirthday(value: string): boolean {
@@ -2775,6 +2842,7 @@ export const CreateProspectInputSchema = z.object({
   city: z.string().trim().max(80).optional(),
   state: z.string().trim().toUpperCase().length(2, "UF com 2 letras").optional().or(z.literal("").transform(() => undefined)),
   contactName: z.string().trim().max(120).optional(),
+  contactRole: z.string().trim().max(80).optional(),
   phone: z
     .string()
     .transform(digitsOnly)
@@ -2787,9 +2855,13 @@ export type CreateProspectInput = z.input<typeof CreateProspectInputSchema>;
 export const MoveProspectInputSchema = z.object({
   stage: SalesManualStage,
   lostReason: z.string().trim().max(500).optional(),
+  lostCategory: LossCategorySchema.optional(),
 });
-export const SalesNoteInputSchema = z.object({ body: z.string().trim().min(1, "Escreva a anotação").max(2000) });
-export const NextContactInputSchema = z.object({ at: z.string().datetime({ offset: true }).nullable() });
+export const SalesNoteInputSchema = z.object({ body: z.string().trim().min(1, "Escreva a anotação").max(2000), kind: InteractionKindSchema.default("note") });
+export const NextContactInputSchema = z.object({
+  at: z.string().datetime({ offset: true }).nullable(),
+  kind: z.enum(["ligacao", "whatsapp", "email", "reuniao"]).optional(),
+});
 export const CreateSalesMemberInputSchema = z.object({
   name: z.string().trim().min(2).max(120),
   email: z.string().trim().toLowerCase().max(200).email("E-mail inválido"),

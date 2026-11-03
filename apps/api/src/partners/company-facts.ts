@@ -16,7 +16,10 @@ export async function fillCompanyFacts(prisma: PrismaService, cnpj: CnpjService,
     if (!facts) continue; // Receita fora do ar: tenta na próxima rodada
     const opened = facts.openedAt ? new Date(`${facts.openedAt}T12:00:00Z`) : undefined;
     await prisma.$transaction([
-      prisma.partner.update({ where: { id: partner.id }, data: { foundedAt: opened, receitaCheckedAt: new Date() } }),
+      prisma.partner.update({
+        where: { id: partner.id },
+        data: { foundedAt: opened, mainActivity: facts.activity, companySize: facts.size, shareCapital: facts.shareCapital, receitaCheckedAt: new Date() },
+      }),
       prisma.partnerSocio.createMany({
         data: facts.partners.map((socio) => ({ partnerId: partner.id, name: socio.name, role: socio.role, source: "receita" })),
         skipDuplicates: true,

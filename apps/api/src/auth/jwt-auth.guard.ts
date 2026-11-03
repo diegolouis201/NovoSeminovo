@@ -8,6 +8,7 @@ import { PrismaService } from "../prisma/prisma.service";
 // vale 30 dias). Situação guardada por 1 minuto para não consultar o banco a
 // cada requisição.
 const STATUS_TTL_MS = 60 * 1000;
+const LAST_ACTIVE_EVERY_MS = 60 * 60 * 1000;
 const statusCache = new Map<string, { status: string; passwordChangedAt?: number; at: number }>();
 
 // Troca de senha / suspensão: esquece o que estava guardado para valer já.
@@ -55,7 +56,11 @@ export class JwtAuthGuard implements CanActivate {
   private async userState(userId: string): Promise<{ status: string; passwordChangedAt?: number }> {
     const cached = statusCache.get(userId);
     if (cached && Date.now() - cached.at < STATUS_TTL_MS) return cached;
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true, passwordChangedAt: true } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true, passwordChangedAt: true, lastActiveAt: true } });
+    // Último acesso (CRM): no máximo uma gravação por hora por pessoa, sem travar a requisição.
+    if (user && (!user.lastActiveAt || Date.now() - user.lastActiveAt.getTime() > LAST_ACTIVE_EVERY_MS)) {
+      await this.prisma.user.update({ where: { id: userId }, data: { lastActiveAt: new Date() } }).catch(() => undefined);
+    }
     const state = { status: user?.status ?? "missing", passwordChangedAt: user?.passwordChangedAt?.getTime(), at: Date.now() };
     statusCache.set(userId, state);
     if (statusCache.size > 10000) statusCache.clear();

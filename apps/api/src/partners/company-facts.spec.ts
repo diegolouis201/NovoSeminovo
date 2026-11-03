@@ -34,6 +34,18 @@ describe("Leitura dos dados da Receita", () => {
     assert.deepEqual(facts.partners, [{ name: "ANA LIMA", role: "Administrador" }]);
   });
 
+  test("perfil da empresa: setor, porte e capital social", () => {
+    const brasil = factsFromBrasilApi({ cnae_fiscal_descricao: "Comércio a varejo de automóveis", porte: "MICRO EMPRESA", capital_social: 150000 });
+    assert.deepEqual([brasil.activity, brasil.size, brasil.shareCapital], ["Comércio a varejo de automóveis", "Microempresa", 150000]);
+    const ws = factsFromCnpjWs({
+      capital_social: "500000.00",
+      porte: { descricao: "Empresa de Pequeno Porte" },
+      estabelecimento: { atividade_principal: { descricao: "Corretagem de imóveis" } },
+    });
+    assert.deepEqual([ws.activity, ws.size, ws.shareCapital], ["Corretagem de imóveis", "Empresa de pequeno porte", 500000]);
+    assert.equal(factsFromBrasilApi({ porte: "DEMAIS" }).size, "Média ou grande");
+  });
+
   test("data inválida não entra", () => {
     assert.equal(factsFromBrasilApi({ data_inicio_atividade: "nada" }).openedAt, undefined);
   });
@@ -49,7 +61,13 @@ describe("Preenchimento dos sócios (banco local)", { skip: !withDb && "sem DATA
   const cnpj = {
     companyFacts: async () => {
       calls++;
-      return { openedAt: "2015-03-20", partners: [{ name: "MARIA DA SILVA", role: "Sócio-Administrador" }] };
+      return {
+        openedAt: "2015-03-20",
+        partners: [{ name: "MARIA DA SILVA", role: "Sócio-Administrador" }],
+        activity: "Comércio a varejo de automóveis",
+        size: "Microempresa",
+        shareCapital: 150000,
+      };
     },
   } as unknown as CnpjService;
 
@@ -72,6 +90,9 @@ describe("Preenchimento dos sócios (banco local)", { skip: !withDb && "sem DATA
     const partner = await prisma.partner.findUniqueOrThrow({ where: { id: ids.partner }, include: { socios: true } });
     assert.equal(partner.foundedAt?.toISOString().slice(0, 10), "2015-03-20");
     assert.ok(partner.receitaCheckedAt);
+    assert.equal(partner.mainActivity, "Comércio a varejo de automóveis");
+    assert.equal(partner.companySize, "Microempresa");
+    assert.equal(Number(partner.shareCapital), 150000);
     assert.deepEqual(
       partner.socios.map((s) => [s.name, s.role, s.source]),
       [["MARIA DA SILVA", "Sócio-Administrador", "receita"]],

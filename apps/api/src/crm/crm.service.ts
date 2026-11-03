@@ -1,5 +1,13 @@
 import { Injectable } from "@nestjs/common";
-import { PARTNER_TRIAL_DAYS, PARTNER_TYPE_LABELS, SALES_STAGE_LABEL, type SalesStageId } from "@novoseminovo/shared-types";
+import {
+  EMPLOYEE_RANGES,
+  LOSS_CATEGORIES,
+  PARTNER_TRIAL_DAYS,
+  PARTNER_TYPE_LABELS,
+  REVENUE_RANGES,
+  SALES_STAGE_LABEL,
+  type SalesStageId,
+} from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { SalesService, cardStage, segmentOf } from "../sales/sales.service";
 
@@ -10,6 +18,20 @@ const DAY_MS = 86_400_000;
 const SUB_STATUS: Record<string, "ativa" | "em_atraso" | "cancelada"> = { active: "ativa", past_due: "em_atraso", canceled: "cancelada" };
 const money = (value: unknown) => Math.round(Number(value ?? 0) * 100) / 100;
 const day = (date?: Date | null) => date?.toISOString().slice(0, 10);
+const byPartnerOf = <T extends { partnerId: string | null }>(rows: T[]) => new Map(rows.map((r) => [r.partnerId as string, r]));
+const label = <T extends Record<string, string>>(map: T, key?: string | null) => (key && key in map ? map[key as keyof T] : undefined);
+function chamadosResumo(list: { status: string; subject: string; openedAt: Date; resolvedAt: Date | null }[]) {
+  const resolved = list.filter((t) => t.resolvedAt);
+  const hours = resolved.map((t) => (t.resolvedAt!.getTime() - t.openedAt.getTime()) / 3_600_000);
+  return {
+    total: list.length,
+    abertos: list.filter((t) => t.status === "aberto").length,
+    abertoDesde: list.filter((t) => t.status === "aberto").map((t) => t.openedAt).sort((a, b) => a.getTime() - b.getTime())[0]?.toISOString(),
+    tempoMedioResolucaoHoras: hours.length ? Math.round((hours.reduce((a, b) => a + b, 0) / hours.length) * 10) / 10 : undefined,
+    ultimoAssunto: list[0]?.subject,
+  };
+}
+const npsClass = (score: number) => (score >= 9 ? "promotor" : score >= 7 ? "neutro" : "detrator") as "promotor" | "neutro" | "detrator";
 
 export type CrmEmpresa = {
   id: string;
@@ -24,14 +46,25 @@ export type CrmEmpresa = {
   abertaEm?: string;
   periodoGratisAte: string;
   verificada: boolean;
-  responsavel: { nome: string; email: string; telefone?: string };
+  setor?: string;
+  porte?: string;
+  capitalSocial?: number;
+  pais: "Brasil";
+  perfil: { funcionarios?: string; faturamento?: string };
+  responsavel: { nome: string; cargo?: string; email: string; telefone?: string };
+  origemMarketing?: { canal: string; meio?: string; campanha?: string };
+  uso: { ultimoAcesso?: string; diasSemAcesso?: number; visualizacoes: number };
+  chamados: { total: number; abertos: number; abertoDesde?: string; tempoMedioResolucaoHoras?: number; ultimoAssunto?: string };
+  nps?: { nota: number; data: string; comentario?: string; classificacao: "promotor" | "neutro" | "detrator" };
+  motivoPerda?: { categoria?: string; texto?: string };
   socios: { nome: string; cargo?: string; aniversario?: string }[];
   etapa: { id: SalesStageId; nome: string };
   vendedor?: string;
   origem?: string;
   proximoContato?: string;
+  proximoContatoTipo?: string;
   plano?: { nome: string; valorMensal: number; status: "ativa" | "em_atraso" | "cancelada"; mudouEm: string; periodoAte: string };
-  pagamentos: { quantidade: number; totalPago: number; primeiro?: string; ultimo?: string };
+  pagamentos: { quantidade: number; totalPago: number; ticketMedio?: number; primeiro?: string; ultimo?: string };
   anuncios: { noAr: number; total: number };
   leads: { total: number; ultimos30Dias: number; vendidos: number; paradosMais3Dias: number };
   ultimasAnotacoes: { data: string; tipo: string; texto: string; autor?: string }[];
@@ -44,12 +77,15 @@ export type CrmProspeccao = {
   cidade?: string;
   uf?: string;
   contato?: string;
+  cargo?: string;
   telefone?: string;
   email?: string;
+  perfil: { funcionarios?: string; faturamento?: string };
   etapa: { id: SalesStageId; nome: string };
   vendedor?: string;
   proximoContato?: string;
-  motivoPerda?: string;
+  proximoContatoTipo?: string;
+  motivoPerda?: { categoria?: string; texto?: string };
   criadoEm: string;
 };
 export type CrmFeed = { geradoEm: string; empresas: CrmEmpresa[]; prospeccao: CrmProspeccao[] };
@@ -69,7 +105,7 @@ export class CrmService {
         take: 5000,
         orderBy: { createdAt: "asc" },
         include: {
-          owner: { select: { name: true, email: true, phone: true } },
+          owner: { select: { name: true, email: true, phone: true, acqSource: true, acqMedium: true, acqCampaign: true, lastActiveAt: true } },
           socios: { orderBy: { createdAt: "asc" } },
           subscriptions: { orderBy: { statusChangedAt: "desc" }, take: 1, include: { plan: { select: { name: true, priceMonth: true } } } },
           salesProspect: {
@@ -96,8 +132,16 @@ export class CrmService {
         _max: { paidAt: true },
       }),
     ]);
-    const activeListings = await this.prisma.listing.groupBy({ by: ["partnerId"], where: { status: "active", partnerId: { not: null } }, _count: { _all: true } });
-    const byPartner = <T extends { partnerId: string | null }>(rows: T[]) => new Map(rows.map((r) => [r.partnerId as string, r]));
+    const [activeListings, views, tickets, npsRows] = await Promise.all([
+      this.prisma.listing.groupBy({ by: ["partnerId"], where: { status: "active", partnerId: { not: null } }, _count: { _all: true } }),
+      this.prisma.listing.groupBy({ by: ["partnerId"], where: { partnerId: { not: null } }, _sum: { viewsCount: true } }),
+      this.prisma.crmTicket.findMany({ select: { prospectId: true, status: true, subject: true, openedAt: true, resolvedAt: true }, orderBy: { openedAt: "desc" } }),
+      this.prisma.npsResponse.findMany({ orderBy: { createdAt: "desc" }, distinct: ["partnerId"], select: { partnerId: true, score: true, comment: true, createdAt: true } }),
+    ]);
+    const viewsBy = byPartnerOf(views);
+    const npsBy = new Map(npsRows.map((n) => [n.partnerId, n]));
+    const ticketsOf = (prospectId?: string) => (prospectId ? tickets.filter((t) => t.prospectId === prospectId) : []);
+    const byPartner = byPartnerOf;
     const active = byPartner(activeListings);
     const stale = byPartner(staleRows);
     const recent = byPartner(recentRows);
@@ -123,12 +167,29 @@ export class CrmService {
         abertaEm: day(p.foundedAt),
         periodoGratisAte: day(new Date(p.createdAt.getTime() + PARTNER_TRIAL_DAYS * DAY_MS))!,
         verificada: Boolean(p.verifiedAt),
-        responsavel: { nome: p.owner.name, email: p.owner.email, telefone: p.owner.phone ?? undefined },
+        setor: p.mainActivity ?? undefined,
+        porte: p.companySize ?? undefined,
+        capitalSocial: p.shareCapital ? money(p.shareCapital) : undefined,
+        pais: "Brasil",
+        perfil: { funcionarios: label(EMPLOYEE_RANGES, prospect?.employeesRange), faturamento: label(REVENUE_RANGES, prospect?.revenueRange) },
+        responsavel: { nome: p.owner.name, cargo: prospect?.contactRole ?? undefined, email: p.owner.email, telefone: p.owner.phone ?? undefined },
+        origemMarketing: p.owner.acqSource ? { canal: p.owner.acqSource, meio: p.owner.acqMedium ?? undefined, campanha: p.owner.acqCampaign ?? undefined } : undefined,
+        uso: {
+          ultimoAcesso: p.owner.lastActiveAt?.toISOString(),
+          diasSemAcesso: p.owner.lastActiveAt ? Math.floor((now - p.owner.lastActiveAt.getTime()) / DAY_MS) : undefined,
+          visualizacoes: viewsBy.get(p.id)?._sum.viewsCount ?? 0,
+        },
+        chamados: chamadosResumo(ticketsOf(prospect?.id)),
+        nps: npsBy.get(p.id)
+          ? { nota: npsBy.get(p.id)!.score, data: npsBy.get(p.id)!.createdAt.toISOString(), comentario: npsBy.get(p.id)!.comment ?? undefined, classificacao: npsClass(npsBy.get(p.id)!.score) }
+          : undefined,
+        motivoPerda: prospect?.lostCategory || prospect?.lostReason ? { categoria: label(LOSS_CATEGORIES, prospect.lostCategory), texto: prospect.lostReason ?? undefined } : undefined,
         socios: p.socios.map((s) => ({ nome: s.name, ...(s.role ? { cargo: s.role } : {}), ...(s.birthday ? { aniversario: s.birthday } : {}) })),
         etapa: { id: stage, nome: SALES_STAGE_LABEL[stage] },
         vendedor: prospect?.owner?.name,
         origem: prospect?.source,
         proximoContato: prospect?.nextContactAt?.toISOString(),
+        proximoContatoTipo: prospect?.nextContactKind ?? undefined,
         plano: sub
           ? {
               nome: sub.plan.name,
@@ -141,6 +202,7 @@ export class CrmService {
         pagamentos: {
           quantidade: pay?._count._all ?? 0,
           totalPago: money(Number(pay?._sum.amount ?? 0) - Number(pay?._sum.refundedAmount ?? 0)),
+          ticketMedio: pay?._count._all ? money((Number(pay._sum.amount ?? 0) - Number(pay._sum.refundedAmount ?? 0)) / pay._count._all) : undefined,
           primeiro: day(pay?._min.paidAt),
           ultimo: day(pay?._max.paidAt),
         },
@@ -170,12 +232,15 @@ export class CrmService {
         cidade: r.city ?? undefined,
         uf: r.state ?? undefined,
         contato: r.contactName ?? undefined,
+        cargo: r.contactRole ?? undefined,
         telefone: r.phone ?? undefined,
         email: r.email ?? undefined,
+        perfil: { funcionarios: label(EMPLOYEE_RANGES, r.employeesRange), faturamento: label(REVENUE_RANGES, r.revenueRange) },
         etapa: { id: r.stage as SalesStageId, nome: SALES_STAGE_LABEL[r.stage as SalesStageId] },
         vendedor: r.owner?.name,
         proximoContato: r.nextContactAt?.toISOString(),
-        motivoPerda: r.lostReason ?? undefined,
+        proximoContatoTipo: r.nextContactKind ?? undefined,
+        motivoPerda: r.lostCategory || r.lostReason ? { categoria: label(LOSS_CATEGORIES, r.lostCategory), texto: r.lostReason ?? undefined } : undefined,
         criadoEm: r.createdAt.toISOString(),
       }),
     );

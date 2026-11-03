@@ -65,7 +65,28 @@ export function classifyCompany(
   return undefined;
 }
 
-export type CompanyFacts = { openedAt?: string; partners: { name: string; role?: string }[] };
+export type CompanyFacts = {
+  openedAt?: string;
+  partners: { name: string; role?: string }[];
+  // Perfil (CRM): atividade principal, porte e capital social declarados na Receita.
+  activity?: string;
+  size?: string;
+  shareCapital?: number;
+};
+
+// Porte da Receita em português simples.
+function sizeLabel(value: unknown): string | undefined {
+  const text = String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  if (!text.trim()) return undefined;
+  if (text.includes("MICRO")) return "Microempresa";
+  if (text.includes("PEQUENO")) return "Empresa de pequeno porte";
+  if (text.includes("DEMAIS")) return "Média ou grande";
+  return clean(value);
+}
+function capital(value: unknown): number | undefined {
+  const n = Number(String(value ?? "").replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : undefined;
+}
 
 const isoDate = (value: unknown) => {
   const text = String(value ?? "").trim();
@@ -81,6 +102,9 @@ export function factsFromBrasilApi(data: Record<string, unknown>): CompanyFacts 
   const qsa = Array.isArray(data.qsa) ? (data.qsa as Record<string, unknown>[]) : [];
   return {
     openedAt: isoDate(data.data_inicio_atividade),
+    activity: clean(data.cnae_fiscal_descricao)?.slice(0, 200),
+    size: sizeLabel(data.porte ?? data.descricao_porte),
+    shareCapital: capital(data.capital_social),
     partners: qsa.map((item) => socio(item.nome_socio, item.qualificacao_socio)).filter((item): item is NonNullable<typeof item> => Boolean(item)),
   };
 }
@@ -89,8 +113,12 @@ export function factsFromBrasilApi(data: Record<string, unknown>): CompanyFacts 
 export function factsFromCnpjWs(data: Record<string, unknown>): CompanyFacts {
   const place = (data.estabelecimento ?? {}) as Record<string, unknown>;
   const list = Array.isArray(data.socios) ? (data.socios as Record<string, unknown>[]) : [];
+  const main = (place.atividade_principal ?? {}) as Record<string, unknown>;
   return {
     openedAt: isoDate(place.data_inicio_atividade),
+    activity: clean(main.descricao)?.slice(0, 200),
+    size: sizeLabel((data.porte as Record<string, unknown> | undefined)?.descricao),
+    shareCapital: capital(data.capital_social),
     partners: list
       .map((item) => socio(item.nome, (item.qualificacao_socio as Record<string, unknown> | undefined)?.descricao))
       .filter((item): item is NonNullable<typeof item> => Boolean(item)),

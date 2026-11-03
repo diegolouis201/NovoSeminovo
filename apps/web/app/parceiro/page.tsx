@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { Button } from "@/components/Button";
 import { FormField, TextAreaField } from "@/components/FormField";
 import { CompanyCnpjFields } from "@/components/CompanyCnpjFields";
+import { NpsCard } from "@/components/NpsCard";
 import { fetchMyPartner, resolveMediaUrl } from "@/lib/api";
 import { createPartnerAction, uploadPartnerLogoAction } from "@/lib/actions/partners";
 
@@ -17,7 +18,7 @@ const PARTNER_TYPE_LABEL: Record<string, string> = {
   workshop: "Oficina mecânica",
 };
 
-export default async function PartnerHomePage({ searchParams }: { searchParams: { error?: string } }) {
+export default async function PartnerHomePage({ searchParams }: { searchParams: { error?: string; nps?: string } }) {
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");
 
@@ -53,6 +54,7 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-12">
+      <NpsCard accessToken={session.accessToken} thanks={searchParams.nps === "obrigado"} />
       {searchParams.error && (
         <p className="mb-6 rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">
           {searchParams.error}

@@ -1,14 +1,34 @@
 import Link from "next/link";
-import { SALES_STAGES, SALES_STAGE_LABEL } from "@novoseminovo/shared-types";
+import {
+  EMPLOYEE_RANGES,
+  INTERACTION_KINDS,
+  LOSS_CATEGORIES,
+  NEXT_CONTACT_KINDS,
+  REVENUE_RANGES,
+  SALES_STAGES,
+  SALES_STAGE_LABEL,
+  TICKET_CHANNELS,
+} from "@novoseminovo/shared-types";
 import { fetchSalesProspect } from "@/lib/api";
-import { addNoteAction, addSocioAction, assignAction, moveProspectAction, nextContactAction, socioBirthdayAction } from "@/lib/actions/sales";
+import {
+  addNoteAction,
+  addSocioAction,
+  assignAction,
+  cancelReasonAction,
+  moveProspectAction,
+  nextContactAction,
+  openTicketAction,
+  profileAction,
+  resolveTicketAction,
+  socioBirthdayAction,
+} from "@/lib/actions/sales";
 import { Flash, SalesDenied, money, salesSession, whatsappHref } from "@/components/sales/SalesAccess";
 
 export const dynamic = "force-dynamic";
 
 const input = "rounded-brand border border-border bg-surface-page px-3 py-2 text-sm text-ink";
 const STATUS_LABEL: Record<string, string> = { active: "Em dia", past_due: "Pagamento atrasado", canceled: "Cancelada" };
-const KIND_LABEL: Record<string, string> = { note: "Anotação", stage: "Etapa", contact: "Contato" };
+const KIND_LABEL: Record<string, string> = { ...INTERACTION_KINDS, stage: "Etapa", contact: "Agenda" };
 
 function when(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
@@ -31,7 +51,7 @@ export default async function ProspectPage({ params, searchParams }: { params: {
       </main>
     );
   }
-  const { card, notes, socios, foundedAt } = detail;
+  const { card, notes, socios, foundedAt, company, tickets, nps } = detail;
   const wa = whatsappHref(card.phone);
   const mine = card.ownerId === session.user.id;
 
@@ -57,7 +77,10 @@ export default async function ProspectPage({ params, searchParams }: { params: {
               </>
             )}
             <dt className="text-ink-muted">Contato</dt>
-            <dd className="text-ink">{card.contactName ?? "—"}</dd>
+            <dd className="text-ink">
+              {card.contactName ?? "—"}
+              {card.contactRole ? <span className="text-ink-muted"> · {card.contactRole}</span> : null}
+            </dd>
             <dt className="text-ink-muted">Telefone</dt>
             <dd className="text-ink">
               {card.phone ?? "—"}
@@ -101,12 +124,69 @@ export default async function ProspectPage({ params, searchParams }: { params: {
           ) : (
             <p className="mt-2 text-ink-muted">Ainda não se cadastrou no site. Mande o seu link de indicação para ela entrar na sua carteira.</p>
           )}
+          {company && (company.activity || company.size || company.shareCapital) && (
+            <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 border-t border-border pt-3">
+              {company.activity && (
+                <>
+                  <dt className="text-ink-muted">Setor</dt>
+                  <dd className="text-ink">{company.activity}</dd>
+                </>
+              )}
+              {company.size && (
+                <>
+                  <dt className="text-ink-muted">Porte</dt>
+                  <dd className="text-ink">{company.size}</dd>
+                </>
+              )}
+              {company.shareCapital !== undefined && (
+                <>
+                  <dt className="text-ink-muted">Capital social</dt>
+                  <dd className="text-ink">{money(company.shareCapital)}</dd>
+                </>
+              )}
+            </dl>
+          )}
+          {nps && (
+            <p className="mt-3 rounded-brand bg-surface-sober px-3 py-2 text-ink">
+              NPS: <strong>{nps.score}</strong> em {new Date(nps.createdAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+              {nps.comment ? ` · "${nps.comment}"` : ""}
+            </p>
+          )}
           {card.partnerSlug && (
             <Link href={`/lojas/${card.partnerSlug}`} className="mt-3 inline-block font-semibold text-brand-blue hover:underline">
               Ver página pública da empresa →
             </Link>
           )}
         </div>
+      </section>
+
+      <section className="rounded-brand-lg border border-border bg-surface-raised p-5 text-sm">
+        <h2 className="font-display text-lg font-semibold text-ink">Perfil da empresa e contato</h2>
+        <form aria-label="Perfil da empresa" action={profileAction.bind(null, card.id)} className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
+          <input name="contactName" defaultValue={card.contactName} maxLength={120} placeholder="Nome do contato" className={input} />
+          <input name="contactRole" defaultValue={card.contactRole} maxLength={80} placeholder="Cargo (ex.: gerente comercial)" className={input} />
+          <input name="phone" defaultValue={card.phone} inputMode="tel" maxLength={20} placeholder="Telefone com DDD" className={input} />
+          <input name="email" type="email" defaultValue={card.email} maxLength={200} placeholder="E-mail" className={input} />
+          <select name="employeesRange" defaultValue={card.employeesRange ?? ""} className={input}>
+            <option value="">Funcionários: não sei</option>
+            {Object.entries(EMPLOYEE_RANGES).map(([key, label]) => (
+              <option key={key} value={key}>
+                Funcionários: {label}
+              </option>
+            ))}
+          </select>
+          <select name="revenueRange" defaultValue={card.revenueRange ?? ""} className={input}>
+            <option value="">Faturamento: não sei</option>
+            {Object.entries(REVENUE_RANGES).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className="rounded-brand border border-border px-3 py-2 font-semibold text-ink hover:bg-surface-sober md:col-span-3 md:justify-self-start">
+            Salvar dados
+          </button>
+        </form>
       </section>
 
       {card.partnerId && (
@@ -151,7 +231,25 @@ export default async function ProspectPage({ params, searchParams }: { params: {
         <div className="rounded-brand-lg border border-border bg-surface-raised p-5 text-sm">
           <h2 className="font-display text-lg font-semibold text-ink">Etapa</h2>
           {card.partnerId ? (
-            <p className="mt-2 text-ink-muted">A empresa já se cadastrou: a etapa anda sozinha pelo site (cadastrou → publicou → assinante).</p>
+            <>
+              <p className="mt-2 text-ink-muted">A empresa já se cadastrou: a etapa anda sozinha pelo site (cadastrou → publicou → assinante).</p>
+              {card.stage === "cancelou" && (
+                <form aria-label="Motivo do cancelamento" action={cancelReasonAction.bind(null, card.id)} className="mt-2 flex flex-col gap-2">
+                  <select name="category" required defaultValue={card.lostCategory ?? ""} className={input}>
+                    <option value="">Motivo do cancelamento</option>
+                    {Object.entries(LOSS_CATEGORIES).map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <textarea name="reason" rows={2} maxLength={500} defaultValue={card.lostReason} placeholder="O que a empresa disse" className={input} />
+                  <button type="submit" className="rounded-brand bg-brand-blue px-3 py-2 font-semibold text-on-blue hover:opacity-90">
+                    Registrar motivo
+                  </button>
+                </form>
+              )}
+            </>
           ) : (
             <form aria-label="Mudar etapa" action={moveProspectAction.bind(null, card.id)} className="mt-2 flex flex-col gap-2">
               <select name="stage" defaultValue={searchParams.perder ? "perdida" : card.stage} className={input}>
@@ -161,7 +259,15 @@ export default async function ProspectPage({ params, searchParams }: { params: {
                   </option>
                 ))}
               </select>
-              <textarea name="lostReason" rows={2} maxLength={500} defaultValue={card.lostReason} placeholder="Motivo (obrigatório se perdida)" className={input} />
+              <select name="lostCategory" defaultValue={card.lostCategory ?? ""} className={input}>
+                <option value="">Motivo da perda (obrigatório se perdida)</option>
+                {Object.entries(LOSS_CATEGORIES).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <textarea name="lostReason" rows={2} maxLength={500} defaultValue={card.lostReason} placeholder="Detalhe do motivo (opcional)" className={input} />
               <button type="submit" className="rounded-brand bg-brand-blue px-3 py-2 font-semibold text-on-blue hover:opacity-90">
                 Salvar etapa
               </button>
@@ -172,6 +278,13 @@ export default async function ProspectPage({ params, searchParams }: { params: {
           <h2 className="font-display text-lg font-semibold text-ink">Próximo contato</h2>
           <form aria-label="Próximo contato" action={nextContactAction.bind(null, card.id)} className="mt-2 flex flex-col gap-2">
             <input type="datetime-local" name="at" defaultValue={localValue(card.nextContactAt)} className={input} />
+            <select name="kind" defaultValue={card.nextContactKind ?? "ligacao"} className={input}>
+              {Object.entries(NEXT_CONTACT_KINDS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {key === "reuniao" ? "Reunião agendada" : label}
+                </option>
+              ))}
+            </select>
             <button type="submit" className="rounded-brand border border-border px-3 py-2 font-semibold text-ink hover:bg-surface-sober">
               Salvar data
             </button>
@@ -179,10 +292,61 @@ export default async function ProspectPage({ params, searchParams }: { params: {
         </div>
       </section>
 
+      <section aria-label="Chamados de suporte" className="rounded-brand-lg border border-border bg-surface-raised p-5 text-sm">
+        <h2 className="font-display text-lg font-semibold text-ink">Chamados de suporte</h2>
+        <ul className="mt-2 flex flex-col gap-2">
+          {tickets.length === 0 && <li className="text-ink-muted">Nenhum chamado.</li>}
+          {tickets.map((ticket) => (
+            <li key={ticket.id} className="rounded-brand bg-surface-sober px-3 py-2">
+              <p className="font-semibold text-ink">
+                {ticket.subject}{" "}
+                <span className={ticket.status === "aberto" ? "text-status-danger" : "text-ink-muted"}>({ticket.status})</span>
+              </p>
+              <p className="text-xs text-ink-muted">
+                {TICKET_CHANNELS[ticket.channel as keyof typeof TICKET_CHANNELS] ?? ticket.channel} · aberto em {when(ticket.openedAt)}
+                {ticket.resolvedAt ? ` · resolvido em ${when(ticket.resolvedAt)}` : ""}
+              </p>
+              {ticket.description && <p className="whitespace-pre-wrap text-ink">{ticket.description}</p>}
+              {ticket.resolution && <p className="whitespace-pre-wrap text-ink">Solução: {ticket.resolution}</p>}
+              {ticket.status === "aberto" && (
+                <form action={resolveTicketAction.bind(null, card.id, ticket.id)} className="mt-2 flex flex-wrap gap-2">
+                  <input name="resolution" required minLength={2} maxLength={2000} placeholder="Como foi resolvido" className={`${input} min-w-0 flex-1`} />
+                  <button type="submit" className="rounded-brand bg-brand-green px-3 py-2 font-semibold text-on-green hover:opacity-90">
+                    Resolver
+                  </button>
+                </form>
+              )}
+            </li>
+          ))}
+        </ul>
+        <form key={tickets.length} aria-label="Abrir chamado" action={openTicketAction.bind(null, card.id)} className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[1fr_12rem]">
+          <input name="subject" required minLength={3} maxLength={160} placeholder="Assunto (ex.: integração do estoque parou)" className={input} />
+          <select name="channel" defaultValue="whatsapp" className={input}>
+            {Object.entries(TICKET_CHANNELS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <textarea name="description" rows={2} maxLength={2000} placeholder="Detalhes" className={`${input} md:col-span-2`} />
+          <button type="submit" className="rounded-brand border border-border px-3 py-2 font-semibold text-ink hover:bg-surface-sober md:justify-self-start">
+            Abrir chamado
+          </button>
+        </form>
+      </section>
+
       <section className="rounded-brand-lg border border-border bg-surface-raised p-5 text-sm">
-        <h2 className="font-display text-lg font-semibold text-ink">Histórico</h2>
+        <h2 className="font-display text-lg font-semibold text-ink">Histórico de interações</h2>
+        <p className="text-ink-muted">Tudo o que acontece no WhatsApp, telefone, e-mail ou reunião fica aqui. Se não está no CRM, não existe para a empresa.</p>
         <form key={notes.length} aria-label="Nova anotação" action={addNoteAction.bind(null, card.id)} className="mt-2 flex flex-col gap-2">
-          <textarea name="body" required rows={2} maxLength={2000} placeholder="Ex.: falei com o Carlos, pediu retorno na segunda." className={input} />
+          <select name="kind" defaultValue="ligacao" className={`${input} md:w-60`}>
+            {Object.entries(INTERACTION_KINDS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <textarea name="body" required rows={2} maxLength={2000} placeholder="Ex.: liguei para o Carlos; achou o plano caro, pediu retorno na segunda." className={input} />
           <button type="submit" className="self-start rounded-brand bg-brand-green px-3 py-2 font-semibold text-on-green hover:opacity-90">
             Salvar anotação
           </button>

@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
   addSalesNote,
+  openSalesTicket,
+  resolveSalesTicket,
+  setSalesCancelReason,
+  updateSalesProfile,
   completeSalesOrder,
   addSalesSocio,
   setSocioBirthday,
@@ -59,12 +63,16 @@ export async function quickMoveAction(id: string, returnTo: string, formData: Fo
 }
 
 export async function moveProspectAction(id: string, formData: FormData): Promise<void> {
-  const result = await moveSalesProspect(id, { stage: text(formData, "stage"), lostReason: text(formData, "lostReason") || undefined }, await token());
+  const result = await moveSalesProspect(
+    id,
+    { stage: text(formData, "stage"), lostReason: text(formData, "lostReason") || undefined, lostCategory: text(formData, "lostCategory") || undefined },
+    await token(),
+  );
   back(`/comercial/${id}`, result, "Etapa atualizada.");
 }
 
 export async function addNoteAction(id: string, formData: FormData): Promise<void> {
-  const result = await addSalesNote(id, text(formData, "body"), await token());
+  const result = await addSalesNote(id, text(formData, "body"), await token(), text(formData, "kind") || "note");
   back(`/comercial/${id}`, result, "Anotação salva.");
 }
 
@@ -72,7 +80,7 @@ export async function nextContactAction(id: string, formData: FormData): Promise
   const raw = text(formData, "at");
   // O campo datetime-local vem sem fuso: horário de Brasília (-03:00).
   const at = raw ? `${raw}:00-03:00` : null;
-  const result = await setSalesNextContact(id, at, await token());
+  const result = await setSalesNextContact(id, at, await token(), text(formData, "kind") || undefined);
   back(`/comercial/${id}`, result, at ? "Próximo contato marcado." : "Próximo contato removido.");
 }
 
@@ -112,4 +120,35 @@ export async function addSocioAction(prospectId: string, formData: FormData): Pr
 export async function completeOrderAction(id: string, formData: FormData): Promise<void> {
   const result = await completeSalesOrder(id, text(formData, "resultado"), await token());
   back("/comercial", result, "Ordem concluída. O CRM já vê o resultado.");
+}
+
+export async function profileAction(id: string, formData: FormData): Promise<void> {
+  const result = await updateSalesProfile(
+    id,
+    {
+      contactName: text(formData, "contactName"),
+      contactRole: text(formData, "contactRole"),
+      phone: text(formData, "phone"),
+      email: text(formData, "email"),
+      employeesRange: text(formData, "employeesRange") || undefined,
+      revenueRange: text(formData, "revenueRange") || undefined,
+    },
+    await token(),
+  );
+  back(`/comercial/${id}`, result, "Dados da empresa salvos.");
+}
+
+export async function cancelReasonAction(id: string, formData: FormData): Promise<void> {
+  const result = await setSalesCancelReason(id, { category: text(formData, "category"), reason: text(formData, "reason") || undefined }, await token());
+  back(`/comercial/${id}`, result, "Motivo do cancelamento registrado.");
+}
+
+export async function openTicketAction(id: string, formData: FormData): Promise<void> {
+  const result = await openSalesTicket(id, { subject: text(formData, "subject"), channel: text(formData, "channel"), description: text(formData, "description") || undefined }, await token());
+  back(`/comercial/${id}`, result, "Chamado aberto.");
+}
+
+export async function resolveTicketAction(prospectId: string, ticketId: string, formData: FormData): Promise<void> {
+  const result = await resolveSalesTicket(ticketId, text(formData, "resolution"), await token());
+  back(`/comercial/${prospectId}`, result, "Chamado resolvido.");
 }
