@@ -25,6 +25,7 @@ import type {
   AdminOverviewScope,
   CrmOverview,
   CrmOverviewScope,
+  CrmRevenue,
   OpsGoalInput,
   OpsSummary,
   AdminListingsPage,
@@ -1978,6 +1979,16 @@ export async function fetchAdminAffiliateDetail(id: string, accessToken: string)
     const res = await fetchWithTimeout(`${API_URL}/admin/affiliates/${encodeURIComponent(id)}`, { headers: authHeaders(accessToken) });
     if (!res.ok) return undefined;
     return (await res.json()) as AdminAffiliateDetail;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function fetchCrmRevenue(accessToken: string): Promise<CrmRevenue | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/crm/receitas`, { headers: authHeaders(accessToken), cache: "no-store" }, 30000);
+    if (!res.ok) return undefined;
+    return (await res.json()) as CrmRevenue;
   } catch {
     return undefined;
   }

@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import {
   type CrmOverview,
+  type CrmRevenue,
   type CrmOverviewScope,
   EMPLOYEE_RANGES,
   LOSS_CATEGORIES,
@@ -13,6 +14,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { SalesService, cardStage, segmentOf } from "../sales/sales.service";
 import { buildCrmOverview } from "./crm-overview";
+import { buildCrmRevenue } from "./crm-revenue";
 
 // Feed do CRM geral (repositório "CRM NovoSeminovo" no Claude): a jornada de
 // cada empresa num lugar só. Sem CPF, senha, cartão ou dado de comprador.
@@ -259,5 +261,43 @@ export class CrmService {
       this.prisma.subscriptionPayment.findMany({ where: { paidAt: { gte: since } }, select: { paidAt: true, amount: true, refundedAmount: true, partnerType: true } }),
     ]);
     return buildCrmOverview(feed, payments, hoje, recorte);
+  }
+
+  // Receitas por categoria: planos e lojas parceiras (faturamento),
+  // financiamentos (só acompanhamento) e o programa de afiliados.
+  async receitas(): Promise<CrmRevenue> {
+    const hoje = new Date();
+    const since = new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth() - 11, 1));
+    const last30 = new Date(hoje.getTime() - 30 * DAY_MS);
+    const [subscriptionPayments, listingPlans, subscriptions, deals, leadsAbertos, storeEarnings, storeClicks30d, affiliates, clickDays, commissions] = await Promise.all([
+      this.prisma.subscriptionPayment.findMany({ where: { paidAt: { gte: since } }, select: { paidAt: true, amount: true, refundedAmount: true } }),
+      this.prisma.listingBoostPurchase.findMany({ where: { status: "paid", paidAt: { gte: since } }, select: { paidAt: true, amount: true } }),
+      this.prisma.subscription.findMany({ where: { status: { in: ["active", "past_due"] } }, select: { partnerId: true, plan: { select: { priceMonth: true } } } }),
+      this.prisma.financingDeal.findMany({ select: { createdAt: true, financedAmount: true, commissionAmount: true, rebateAmount: true, status: true, commissionReceivedAt: true } }),
+      this.prisma.financingLead.count({ where: { status: { notIn: ["converted", "lost"] } } }),
+      this.prisma.storeEarning.findMany({ select: { month: true, store: true, amount: true } }),
+      this.prisma.affiliateClick.count({ where: { createdAt: { gte: last30 } } }),
+      this.prisma.affiliate.findMany({ select: { id: true, code: true, status: true, user: { select: { name: true } }, _count: { select: { referrals: true } } } }),
+      this.prisma.affiliateClickDay.findMany({ where: { day: { gte: day(last30)! } }, select: { affiliateId: true, count: true } }),
+      this.prisma.affiliateCommission.findMany({ select: { affiliateId: true, baseAmount: true, amount: true, status: true, createdAt: true } }),
+    ]);
+    const clicks = new Map<string, number>();
+    for (const row of clickDays) clicks.set(row.affiliateId, (clicks.get(row.affiliateId) ?? 0) + row.count);
+    const subscribers = new Set(subscriptions.map((sub) => sub.partnerId));
+    return buildCrmRevenue(
+      {
+        subscriptionPayments,
+        listingPlans,
+        mrr: subscriptions.reduce((acc, sub) => acc + Number(sub.plan.priceMonth), 0),
+        assinantes: subscribers.size,
+        deals,
+        leadsAbertos,
+        storeEarnings,
+        storeClicks30d,
+        affiliates: affiliates.map((a) => ({ id: a.id, code: a.code, name: a.user.name, status: a.status, referrals: a._count.referrals, clicks30d: clicks.get(a.id) ?? 0 })),
+        commissions,
+      },
+      hoje,
+    );
   }
 }

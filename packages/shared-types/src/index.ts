@@ -2926,3 +2926,43 @@ export type CrmOverview = {
   vendedores: { nome: string; cards: number; cadastradas: number; assinantes: number; mrr: number }[];
   atencao: { empresa: string; cardId?: string; motivo: string; nivel: "urgente" | "acompanhar" }[];
 };
+
+// ---------------- Receitas por categoria (CRM) ----------------
+// Faturamento = planos (assinaturas de lojas/imobiliárias + planos de anúncio
+// de PF) + comissões das lojas parceiras (links de afiliado de Amazon, Mercado
+// Livre…). Financiamento é só acompanhamento: não entra no faturamento.
+export type CrmRevenue = {
+  geradoEm: string;
+  consolidado: { porMes: { mes: string; planos: number; lojas: number; total: number }[]; total12m: number; esteMes: number; mesPassado: number };
+  planos: {
+    porMes: { mes: string; assinaturas: number; anuncios: number; total: number }[];
+    total12m: number;
+    esteMes: number;
+    mesPassado: number;
+    estornos12m: number;
+    mrr: number;
+    assinantes: number;
+  };
+  financiamentos: {
+    porMes: { mes: string; negocios: number; comissao: number; cashback: number; liquido: number }[];
+    negocios12m: number;
+    valorFinanciado12m: number;
+    liquido12m: number;
+    comissaoRecebida: number;
+    comissaoAReceber: number;
+    cashbackAPagar: number;
+    leadsAbertos: number;
+  };
+  afiliados: {
+    lojas: { porMes: { mes: string; valor: number }[]; porLoja: { loja: string; valor12m: number }[]; total12m: number; cliques30d: number };
+    programa: {
+      ativos: number;
+      pendentes: number;
+      indicados: number;
+      cliques30d: number;
+      receitaGerada12m: number;
+      comissoes: { aConfirmar: number; disponivel: number; paga: number; cancelada: number };
+      ranking: { codigo: string; nome: string; indicados: number; receitaGerada: number; comissao: number }[];
+    };
+  };
+};

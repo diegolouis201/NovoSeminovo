@@ -24,6 +24,8 @@ const config: Config = {
         "brand-green": "var(--brand-green)",
         "brand-blue": "var(--brand-blue)",
         "brand-orange": "var(--brand-orange)",
+        "chart-1": "var(--chart-1)",
+        "chart-2": "var(--chart-2)",
         "brand-purple": "var(--brand-purple)",
         "brand-pink": "var(--brand-pink)",
         "on-green": "var(--on-green)",

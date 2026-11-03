@@ -31,6 +31,7 @@ const StatusQuery = z.object({ status: z.enum(["aberta", "feita", "cancelada"]).
 
 // Repositório "CRM NovoSeminovo" (sessão do Claude) com a chave de secrets/crm_feed_key:
 //   GET  /crm/clientes      jornada de todas as empresas
+//   GET  /crm/receitas      receitas por categoria (planos, lojas, financiamentos, afiliados)
 //   GET  /crm/ordens        ordens e o que cada área fez
 //   POST /crm/ordens        manda uma ordem para uma área
 @Controller("crm")
@@ -45,6 +46,13 @@ export class CrmController {
   async clientes(@Headers("authorization") authorization: string | undefined) {
     assertKey(authorization, "CRM_FEED_KEY", "Feed do CRM");
     return this.crm.clientes();
+  }
+
+  @Get("receitas")
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  async receitas(@Headers("authorization") authorization: string | undefined) {
+    assertKey(authorization, "CRM_FEED_KEY", "Feed do CRM");
+    return this.crm.receitas();
   }
 
   @Get("ordens")
@@ -140,5 +148,10 @@ export class AdminCrmController {
   @Get("overview")
   overview(@Query() query: unknown) {
     return this.crm.overview(parseOrBadRequest(CrmOverviewQuerySchema, query).tipo ?? "all");
+  }
+
+  @Get("receitas")
+  receitas() {
+    return this.crm.receitas();
   }
 }

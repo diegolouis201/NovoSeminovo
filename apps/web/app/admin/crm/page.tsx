@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { formatBRL, type CrmOverview, type CrmOverviewScope } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
+import { CrmSectionNav, Card, HBars, int, monthShort, pct } from "@/components/crm/CrmUi";
 import { fetchCrmOverview } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -27,49 +28,6 @@ const CHANNEL_LABEL: Record<string, string> = {
   indicacao: "Indicação",
 };
 const channel = (canal: string) => CHANNEL_LABEL[canal] ?? canal.replace(/_/g, " ");
-const int = (value: number) => value.toLocaleString("pt-BR");
-const pct = (part: number, total: number) => (total ? Math.round((part / total) * 100) : 0);
-
-function monthShort(month: string): string {
-  const label = new Date(`${month}-15T12:00:00Z`).toLocaleDateString("pt-BR", { month: "short", timeZone: "UTC" }).replace(".", "");
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
-
-function Card({ title, note, children, className = "" }: { title: string; note?: string; children: React.ReactNode; className?: string }) {
-  return (
-    <section className={`flex flex-col gap-3 rounded-brand-lg border border-border bg-surface-raised p-5 ${className}`}>
-      <div>
-        <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
-        {note && <p className="text-xs text-ink-muted">{note}</p>}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-// Barras horizontais de uma série só (mesma cor): o título nomeia, o número
-// fica ao lado de cada barra.
-function HBars({ label, rows, muted }: { label: string; rows: { name: string; value: number; display?: string; dim?: boolean }[]; muted?: string }) {
-  const max = Math.max(1, ...rows.map((r) => r.value));
-  if (rows.length === 0) return <p className="text-sm text-ink-muted">{muted ?? "Ainda sem dados."}</p>;
-  return (
-    <ul aria-label={label} className="flex flex-col gap-2">
-      {rows.map((row) => (
-        <li key={row.name} className="grid grid-cols-[minmax(7rem,11rem)_1fr_4.5rem] items-center gap-3 text-sm" title={`${row.name}: ${row.display ?? int(row.value)}`}>
-          <span className={row.dim ? "text-ink-muted" : "text-ink"}>{row.name}</span>
-          <span className="h-3 rounded-r-[4px] bg-surface-sober">
-            <span
-              className={`block h-3 rounded-r-[4px] ${row.dim ? "bg-ink-muted opacity-50" : "bg-brand-blue"}`}
-              style={{ width: `${row.value === 0 ? 0 : Math.max(2, (row.value / max) * 100)}%` }}
-            />
-          </span>
-          <span className="text-right font-semibold text-ink [font-variant-numeric:tabular-nums]">{row.display ?? int(row.value)}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function RevenueChart({ months }: { months: CrmOverview["receitaPorMes"] }) {
   const max = Math.max(1, ...months.map((m) => m.valor));
   const total = months.reduce((sum, m) => sum + m.valor, 0);
@@ -150,6 +108,7 @@ export default async function AdminCrmPage({ searchParams }: { searchParams: { t
           {data && ` Atualizado em ${new Date(data.geradoEm).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`}
         </p>
       </div>
+      <CrmSectionNav current="geral" />
       <nav className="flex w-fit gap-1 rounded-full bg-surface-sober p-1" aria-label="Recorte da visão geral">
         {SCOPES.map((item) => (
           <Link

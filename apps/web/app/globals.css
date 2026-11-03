@@ -19,6 +19,9 @@
   --brand-green: #76b82a;
   --brand-blue: #006aa4;
   --brand-orange: #f18e29;
+  /* Cores das séries nos gráficos (validadas para daltonismo, claro e escuro). */
+  --chart-1: #006aa4;
+  --chart-2: #f18e29;
   --brand-purple: #783b8f;
   --brand-pink: #fc056e;
 
@@ -40,6 +43,8 @@
 }
 
 :root[data-theme="dark"] {
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
   --surface-page: #14170f;
   --surface-raised: #1e2317;
   --surface-sober: #101922;

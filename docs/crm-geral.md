@@ -59,3 +59,23 @@ dias, chamados abertos e tempo médio, assinantes em risco, funil por etapa,
 receita recebida por mês (12 meses, sem estornos), motivos de perda, origem dos
 cadastros, desempenho por vendedor e lista "Precisa de atenção" com link para a
 ficha em /comercial.
+
+## Receitas por categoria (/admin/crm/receitas e `GET /crm/receitas`)
+
+`buildCrmRevenue` (`apps/api/src/crm/crm-revenue.ts`), mesma conta para a tela
+do admin (`GET /admin/crm/receitas`, só admin) e para o repositório do CRM
+(`GET /crm/receitas`, chave `crm_feed_key`):
+
+- **Faturamento** = planos (SubscriptionPayment sem estornos +
+  ListingBoostPurchase pagos) + lojas parceiras (StoreEarning, links de
+  afiliado de Amazon/Mercado Livre, lançado à mão em /admin/painel).
+- **Financiamentos**: só acompanhamento, fora do faturamento. Comissão
+  (FinancingDeal.commissionAmount) menos cashback (rebateAmount), comissão a
+  receber (sem commissionReceivedAt), cashback a pagar (status ≠ paid) e
+  pedidos em andamento (FinancingLead fora de converted/lost).
+- **Programa de afiliados**: custo. Indicados, cliques, o que os indicados
+  pagaram (baseAmount das comissões não canceladas) e comissões por situação.
+
+No pacote do CRM: `scripts/receitas.mjs` (relatório em
+`relatorios/receitas-AAAA-MM.md`), `sincronizar.mjs` também baixa
+`dados/receitas.json`; regras no CLAUDE.md do pacote.

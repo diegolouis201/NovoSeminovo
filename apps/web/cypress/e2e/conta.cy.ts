@@ -146,6 +146,20 @@ describe("Área Comercial", () => {
     cy.location("search").should("eq", "?tipo=property");
   });
 
+  it("admin vê as receitas por categoria: planos, financiamentos (fora do faturamento) e afiliados", () => {
+    cy.loginAs("admin@novoseminovo.com.br", "senha1234");
+    cy.visit("/admin/crm");
+    cy.get('nav[aria-label="Seções do CRM"]').contains("a", "Receitas").click();
+    cy.location("pathname").should("eq", "/admin/crm/receitas");
+    cy.contains("h1", "Receitas").should("be.visible");
+    cy.contains("h2", "Faturamento consolidado").should("be.visible");
+    cy.contains("h2", "Receita de planos").should("be.visible");
+    cy.contains("h2", "Financiamentos").should("be.visible");
+    cy.contains("Não entra no caixa nem no faturamento").should("be.visible");
+    cy.contains("h2", "Lojas parceiras (links de afiliado)").should("be.visible");
+    cy.contains("h2", "Programa de afiliados").should("be.visible");
+  });
+
   it("quem não é admin não entra na visão geral do CRM", () => {
     cy.loginAs("comprador@novoseminovo.com.br", "senha1234");
     cy.visit("/admin/crm");
