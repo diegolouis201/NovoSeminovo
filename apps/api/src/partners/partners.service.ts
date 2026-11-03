@@ -42,6 +42,7 @@ import { listingInclude, toListingSummary } from "../listings/listings.mapper";
 import { AiService } from "../listings/ai.service";
 import { getPhotoStorage } from "../common/storage";
 import { NotificationsService } from "../notifications/notifications.service";
+import { fillCompanyFacts } from "./company-facts";
 import { CnpjService } from "./cnpj.service";
 import { trackRoutine } from "../operations/routine-health";
 import { sanitizeUpload } from "../common/image-safety";
@@ -204,8 +205,13 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
       void this.fillMissingCities()
         .then((filled) => filled && this.logger.log(`Cidade preenchida em ${filled} empresa(s) pelo CNPJ.`))
         .catch((error) => this.logger.error(`Falha ao preencher a cidade das empresas: ${error}`));
+      void fillCompanyFacts(this.prisma, this.cnpj)
+        .then((filled) => filled && this.logger.log(`Sócios e abertura preenchidos em ${filled} empresa(s).`))
+        .catch((error) => this.logger.error(`Falha ao preencher sócios das empresas: ${error}`));
     }, 90 * 1000).unref();
     if (process.env.TRIAL_SWEEP_DISABLED === "1") return;
+    // CRM: sócios e data de abertura das empresas novas (Receita), a cada 6 h.
+    setInterval(() => void fillCompanyFacts(this.prisma, this.cnpj).catch(() => undefined), 6 * 60 * 60 * 1000).unref();
     const run = () =>
       void trackRoutine("periodo-gratis", 6 * 60 * 60 * 1000, () =>
         this.trialSweep().catch((error) => {

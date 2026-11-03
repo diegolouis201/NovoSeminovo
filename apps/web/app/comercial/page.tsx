@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SALES_STAGES, type SalesCard, type SalesSegment } from "@novoseminovo/shared-types";
-import { fetchSalesBoard, fetchSalesGoals, fetchSalesMe } from "@/lib/api";
-import { quickMoveAction } from "@/lib/actions/sales";
+import { fetchSalesBoard, fetchSalesGoals, fetchSalesMe, fetchSalesOrders } from "@/lib/api";
+import { completeOrderAction, quickMoveAction } from "@/lib/actions/sales";
 import { QuickMove } from "@/components/sales/QuickMove";
 import { Flash, SalesDenied, money, salesSession } from "@/components/sales/SalesAccess";
 import { SITE_URL } from "@/lib/company";
@@ -26,7 +26,12 @@ export default async function SalesBoardPage({ searchParams }: { searchParams: {
 
   const tab = TABS.find((t) => t.key === searchParams.aba) ?? TABS[0]!;
   const mine = searchParams.meus === "1";
-  const [board, goals, me] = await Promise.all([fetchSalesBoard({ segment: tab.segment, mine }, token), fetchSalesGoals(token), fetchSalesMe(token)]);
+  const [board, goals, me, orders] = await Promise.all([
+    fetchSalesBoard({ segment: tab.segment, mine }, token),
+    fetchSalesGoals(token),
+    fetchSalesMe(token),
+    fetchSalesOrders(token),
+  ]);
   const cards = board?.cards ?? [];
   const query = (next: { aba?: string; meus?: boolean }) => {
     const params = new URLSearchParams({ aba: next.aba ?? tab.key });
@@ -64,6 +69,47 @@ export default async function SalesBoardPage({ searchParams }: { searchParams: {
             Seu link de indicação: <span className="select-all break-all font-semibold">{link}</span>
             <span className="block text-xs text-ink-muted">Empresa que se cadastrar por ele entra na sua carteira.</span>
           </p>
+        )}
+      </section>
+
+      <section aria-label="Ordens do CRM" className="flex flex-col gap-2">
+        <h2 className="font-display text-lg font-semibold text-ink">
+          Ordens do CRM <span className="text-base font-normal text-ink-muted">({orders?.length ?? 0})</span>
+        </h2>
+        {(orders ?? []).length === 0 ? (
+          <p className="text-sm text-ink-muted">Nenhuma ordem aberta para o Comercial.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {orders!.map((order) => (
+              <li key={order.id} className="rounded-brand-lg border border-border bg-surface-raised p-4 text-sm">
+                <p className="font-semibold text-ink">
+                  {order.prioridade === "alta" && <span className="mr-2 rounded-full bg-status-danger/10 px-2 py-0.5 text-xs font-bold text-status-danger">Alta</span>}
+                  {order.titulo}
+                </p>
+                <p className="text-xs text-ink-muted">
+                  {order.empresa ? (
+                    order.cardId ? (
+                      <Link href={`/comercial/${order.cardId}`} className="text-brand-blue hover:underline">
+                        {order.empresa}
+                      </Link>
+                    ) : (
+                      order.empresa
+                    )
+                  ) : (
+                    "Sem empresa"
+                  )}
+                  {order.prazo ? ` · prazo ${new Date(order.prazo).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}
+                </p>
+                {order.detalhes && <p className="mt-1 whitespace-pre-wrap text-ink">{order.detalhes}</p>}
+                <form action={completeOrderAction.bind(null, order.id)} className="mt-2 flex flex-wrap gap-2">
+                  <input name="resultado" required minLength={2} maxLength={2000} placeholder="O que foi feito" className="min-w-0 flex-1 rounded-brand border border-border bg-surface-page px-3 py-1.5 text-sm text-ink" />
+                  <button type="submit" className="rounded-brand bg-brand-green px-3 py-1.5 text-sm font-semibold text-on-green hover:opacity-90">
+                    Concluir
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 

@@ -81,6 +81,7 @@ describe("Funil comercial (banco local)", { skip: !withDb && "sem DATABASE_URL" 
   });
 
   after(async () => {
+    await prisma.partnerSocio.deleteMany({ where: { partnerId: { in: ids.partners } } });
     await prisma.salesNote.deleteMany({ where: { prospect: { OR: [{ id: { in: ids.prospects } }, { partnerId: { in: ids.partners } }] } } });
     await prisma.salesProspect.deleteMany({ where: { OR: [{ id: { in: ids.prospects } }, { partnerId: { in: ids.partners } }] } });
     await prisma.subscriptionPayment.deleteMany({ where: { partnerId: { in: ids.partners } } });
@@ -184,6 +185,22 @@ describe("Funil comercial (banco local)", { skip: !withDb && "sem DATABASE_URL" 
     await prisma.partner.delete({ where: { id: partner } });
     ids.partners.splice(ids.partners.indexOf(partner), 1);
     assert.equal(await cardOf((c) => c.id === card!.id), undefined);
+  });
+
+  test("sócios na ficha: aniversário preenchido à mão (DD/MM) e sócio novo", async () => {
+    const partner = ids.partners[0]!;
+    await prisma.partnerSocio.create({ data: { partnerId: partner, name: "MARIA DA SILVA", role: "Sócio-Administrador" } });
+    const card = (await cardOf((c) => c.partnerId === partner))!;
+    let detail = await service.detail(card.id);
+    const maria = detail.socios.find((s) => s.name === "MARIA DA SILVA");
+    assert.ok(maria);
+    await assert.rejects(service.setSocioBirthday(ids.seller, maria!.id, "31/02"), /data/i);
+    await service.setSocioBirthday(ids.seller, maria!.id, "07/09");
+    await service.addSocio(ids.seller, card.id, { name: "Pedro Gerente", birthday: "15/03" });
+    detail = await service.detail(card.id);
+    assert.equal(detail.socios.find((s) => s.name === "MARIA DA SILVA")?.birthday, "07/09");
+    assert.equal(detail.socios.find((s) => s.name === "Pedro Gerente")?.source, "manual");
+    await assert.rejects(service.addSocio(ids.seller, ids.prospects[1]!, { name: "Sem empresa" }), /cadastr/i);
   });
 
   test("anotação, próximo contato e assumir o card", async () => {

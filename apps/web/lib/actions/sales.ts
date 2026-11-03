@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
   addSalesNote,
+  completeSalesOrder,
+  addSalesSocio,
+  setSocioBirthday,
   assignSalesProspect,
   createSalesMember,
   createSalesProspect,
@@ -90,4 +93,23 @@ export async function resendInviteAction(id: string): Promise<void> {
   const result = await resendSalesInvite(id, await token());
   if (!result.ok) redirect(`/admin/equipe?erro=${encodeURIComponent(result.error)}`);
   redirect(`/admin/equipe?sucesso=${encodeURIComponent("Convite reenviado.")}`);
+}
+
+export async function socioBirthdayAction(prospectId: string, socioId: string, formData: FormData): Promise<void> {
+  const result = await setSocioBirthday(socioId, text(formData, "birthday"), await token());
+  back(`/comercial/${prospectId}`, result, "Aniversário salvo.");
+}
+
+export async function addSocioAction(prospectId: string, formData: FormData): Promise<void> {
+  const result = await addSalesSocio(
+    prospectId,
+    { name: text(formData, "name"), role: text(formData, "role") || undefined, birthday: text(formData, "birthday") || undefined },
+    await token(),
+  );
+  back(`/comercial/${prospectId}`, result, "Sócio/contato adicionado.");
+}
+
+export async function completeOrderAction(id: string, formData: FormData): Promise<void> {
+  const result = await completeSalesOrder(id, text(formData, "resultado"), await token());
+  back("/comercial", result, "Ordem concluída. O CRM já vê o resultado.");
 }

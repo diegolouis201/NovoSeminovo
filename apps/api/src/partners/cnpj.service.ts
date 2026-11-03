@@ -65,6 +65,38 @@ export function classifyCompany(
   return undefined;
 }
 
+export type CompanyFacts = { openedAt?: string; partners: { name: string; role?: string }[] };
+
+const isoDate = (value: unknown) => {
+  const text = String(value ?? "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : undefined;
+};
+const socio = (name: unknown, role: unknown) => {
+  const cleanName = clean(name)?.slice(0, 160);
+  return cleanName ? { name: cleanName, ...(clean(role) ? { role: clean(role)!.slice(0, 120) } : {}) } : undefined;
+};
+
+// Receita pela BrasilAPI: data_inicio_atividade e qsa (quadro de sócios).
+export function factsFromBrasilApi(data: Record<string, unknown>): CompanyFacts {
+  const qsa = Array.isArray(data.qsa) ? (data.qsa as Record<string, unknown>[]) : [];
+  return {
+    openedAt: isoDate(data.data_inicio_atividade),
+    partners: qsa.map((item) => socio(item.nome_socio, item.qualificacao_socio)).filter((item): item is NonNullable<typeof item> => Boolean(item)),
+  };
+}
+
+// Receita pelo CNPJ.ws.
+export function factsFromCnpjWs(data: Record<string, unknown>): CompanyFacts {
+  const place = (data.estabelecimento ?? {}) as Record<string, unknown>;
+  const list = Array.isArray(data.socios) ? (data.socios as Record<string, unknown>[]) : [];
+  return {
+    openedAt: isoDate(place.data_inicio_atividade),
+    partners: list
+      .map((item) => socio(item.nome, (item.qualificacao_socio as Record<string, unknown> | undefined)?.descricao))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+  };
+}
+
 @Injectable()
 export class CnpjService {
   private readonly logger = new Logger(CnpjService.name);
@@ -111,6 +143,27 @@ export class CnpjService {
   }
 
   // undefined = CNPJ não existe; exceção = serviço fora do ar.
+  // Abertura e sócios (CRM). Fora do cadastro público: não sai na consulta da tela.
+  async companyFacts(rawCnpj: string): Promise<CompanyFacts | undefined> {
+    const cnpj = onlyDigits(rawCnpj);
+    if (cnpj.length !== 14) return undefined;
+    const sources: [string, (data: Record<string, unknown>) => CompanyFacts][] = [
+      [`${BRASILAPI_URL}/${cnpj}`, factsFromBrasilApi],
+      [`${CNPJWS_URL}/${cnpj}`, factsFromCnpjWs],
+    ];
+    for (const [url, parse] of sources) {
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+        if (res.status === 404 || res.status === 400) return { partners: [] };
+        if (!res.ok) continue;
+        return parse((await res.json()) as Record<string, unknown>);
+      } catch (error) {
+        this.logger.warn(`Consulta de sócios do CNPJ falhou: ${(error as Error).message}`);
+      }
+    }
+    return undefined;
+  }
+
   private async fromBrasilApi(cnpj: string): Promise<RawCompany | undefined> {
     const res = await fetch(`${BRASILAPI_URL}/${cnpj}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (res.status === 404 || res.status === 400) return undefined;

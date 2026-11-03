@@ -2739,7 +2739,26 @@ export type SalesCard = {
   updatedAt: string;
 };
 export type SalesNoteView = { id: string; kind: "note" | "stage" | "contact"; body: string; authorName?: string; createdAt: string };
-export type SalesDetail = { card: SalesCard; notes: SalesNoteView[] };
+export type SalesSocio = { id: string; name: string; role?: string; birthday?: string; source: "receita" | "manual" };
+export type SalesDetail = { card: SalesCard; notes: SalesNoteView[]; socios: SalesSocio[]; foundedAt?: string };
+
+// Aniversário "DD/MM" (sem ano): dia válido para o mês (29/02 aceito).
+export function isValidBirthday(value: string): boolean {
+  const match = /^(\d{2})\/(\d{2})$/.exec(value.trim());
+  if (!match) return false;
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const days = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  return Boolean(days) && day >= 1 && day <= days!;
+}
+export const SocioBirthdayInputSchema = z.object({
+  birthday: z.string().trim().refine(isValidBirthday, "Use o formato DD/MM com uma data que existe"),
+});
+export const AddSocioInputSchema = z.object({
+  name: z.string().trim().min(2).max(160),
+  role: z.string().trim().max(120).optional(),
+  birthday: z.string().trim().refine(isValidBirthday, "Use o formato DD/MM com uma data que existe").optional().or(z.literal("").transform(() => undefined)),
+});
 export type SalesGoals = { month: string; approaches: number; signups: number; newSubscribers: number; activeSubscribers: number; mrr: number };
 export type SalesMember = { id: string; name: string; email: string; salesCode: string; status: string };
 
@@ -2776,3 +2795,36 @@ export const CreateSalesMemberInputSchema = z.object({
   email: z.string().trim().toLowerCase().max(200).email("E-mail inválido"),
 });
 export const SALES_CODE_PATTERN = /^[A-Z0-9]{6,12}$/;
+
+// ---------------- Ordens do CRM geral ----------------
+export const CRM_AREAS = ["comercial", "atendimento", "financeiro", "marketing", "operacoes"] as const;
+export type CrmArea = (typeof CRM_AREAS)[number];
+export const CrmOrderInputSchema = z.object({
+  area: z.enum(CRM_AREAS),
+  titulo: z.string().trim().min(3, "Escreva o que precisa ser feito").max(200),
+  detalhes: z.string().trim().max(3000).optional(),
+  prioridade: z.enum(["normal", "alta"]).default("normal"),
+  prazo: z.string().datetime({ offset: true }).optional(),
+  empresaId: z.string().trim().max(40).optional(),
+  cardId: z.string().trim().max(40).optional(),
+});
+export type CrmOrderInput = z.input<typeof CrmOrderInputSchema>;
+export const CrmOrderDoneInputSchema = z.object({ resultado: z.string().trim().min(2, "Conte o que foi feito").max(2000) });
+export type CrmOrderView = {
+  id: string;
+  area: CrmArea;
+  titulo: string;
+  detalhes?: string;
+  prioridade: "normal" | "alta";
+  status: "aberta" | "feita" | "cancelada";
+  prazo?: string;
+  empresa?: string;
+  empresaId?: string;
+  cardId?: string;
+  agentTaskId?: string;
+  agenteStatus?: string;
+  resultado?: string;
+  feitaPor?: string;
+  feitaEm?: string;
+  criadaEm: string;
+};

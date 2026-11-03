@@ -98,6 +98,7 @@ describe("Área Comercial", () => {
     cy.contains("a", "Imóveis").should("be.visible");
     cy.contains("a", "Consolidado").should("be.visible");
     cy.contains("h2", "Metas do mês").should("be.visible");
+    cy.contains("h2", "Ordens do CRM").should("be.visible");
     cy.contains("a", "Nova empresa").click();
     cy.get('form[aria-label="Nova empresa"] input[name="name"]').should("have.attr", "required");
   });

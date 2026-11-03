@@ -296,6 +296,9 @@ model Partner {
   adminNotes         String?     @map("admin_notes")
   // Aviso de "faltam 7 dias pro fim do período grátis" já enviado (uma vez só).
   trialWarningSentAt DateTime?   @map("trial_warning_sent_at")
+  // Receita (dado público do CNPJ): data de abertura e quando foi conferido.
+  foundedAt          DateTime?   @map("founded_at")
+  receitaCheckedAt   DateTime?   @map("receita_checked_at")
   createdAt          DateTime    @default(now()) @map("created_at")
 
   members               PartnerMember[]
@@ -307,6 +310,7 @@ model Partner {
   integrationFeeds      IntegrationFeed[]
   apiKeys               PartnerApiKey[]
   salesProspect         SalesProspect?
+  socios                PartnerSocio[]
 
   @@map("partners")
 }
@@ -1675,4 +1679,46 @@ model SalesNote {
   @@index([prospectId])
   @@index([authorId, createdAt])
   @@map("sales_notes")
+}
+
+// Sócios da empresa (Receita, dado público) — CRM: campanhas com o nome dos
+// sócios e aniversário. birthday = "DD/MM", preenchido à mão (a Receita não informa).
+model PartnerSocio {
+  id        String   @id @default(cuid())
+  partnerId String   @map("partner_id")
+  partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  name      String
+  role      String?
+  birthday  String?
+  // receita | manual
+  source    String   @default("receita")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([partnerId, name])
+  @@map("partner_socios")
+}
+
+// Ordens do CRM geral (repositório "CRM NovoSeminovo") para as áreas.
+// comercial/atendimento/financeiro/operacoes: viram tarefa do agente de IA da
+// área (agentTaskId); comercial também aparece para a equipe em /comercial;
+// marketing e financeiro: as sessões dessas áreas pegam pelo feed e concluem.
+model CrmOrder {
+  id          String    @id @default(cuid())
+  area        String
+  title       String
+  details     String?
+  priority    String    @default("normal")
+  status      String    @default("aberta")
+  dueAt       DateTime? @map("due_at")
+  partnerId   String?   @map("partner_id")
+  prospectId  String?   @map("prospect_id")
+  agentTaskId String?   @unique @map("agent_task_id")
+  result      String?
+  doneBy      String?   @map("done_by")
+  doneAt      DateTime? @map("done_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([area, status])
+  @@map("crm_orders")
 }

@@ -1,4 +1,5 @@
 import type {
+  CrmOrderView,
   SalesCard,
   SalesDetail,
   SalesGoals,
@@ -2169,4 +2170,20 @@ export function createSalesMember(input: { name: string; email: string }, access
 
 export function resendSalesInvite(id: string, accessToken: string): Promise<ApiResult<{ ok: true }>> {
   return sendJson(`/admin/sales-team/${encodeURIComponent(id)}/invite`, "POST", {}, accessToken);
+}
+
+export function setSocioBirthday(socioId: string, birthday: string, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/sales/socios/${encodeURIComponent(socioId)}/birthday`, "POST", { birthday }, accessToken);
+}
+
+export function addSalesSocio(prospectId: string, input: { name: string; role?: string; birthday?: string }, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/sales/prospects/${encodeURIComponent(prospectId)}/socios`, "POST", input, accessToken);
+}
+
+export function fetchSalesOrders(accessToken: string) {
+  return getJson<CrmOrderView[]>("/sales/orders", accessToken);
+}
+
+export function completeSalesOrder(id: string, resultado: string, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/sales/orders/${encodeURIComponent(id)}/done`, "POST", { resultado }, accessToken);
 }

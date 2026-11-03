@@ -2,7 +2,9 @@ import { randomInt } from "node:crypto";
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@novoseminovo/db";
 import {
+  AddSocioInputSchema,
   CreateProspectInputSchema,
+  isValidBirthday,
   SALES_CODE_PATTERN,
   SALES_STAGE_LABEL,
   PARTNER_TRIAL_DAYS,
@@ -227,7 +229,15 @@ export class SalesService {
       take: 200,
       include: { author: { select: { name: true } } },
     });
+    const [socios, partner] = row.partnerId
+      ? await Promise.all([
+          this.prisma.partnerSocio.findMany({ where: { partnerId: row.partnerId }, orderBy: { createdAt: "asc" } }),
+          this.prisma.partner.findUnique({ where: { id: row.partnerId }, select: { foundedAt: true } }),
+        ])
+      : [[], null];
     return {
+      foundedAt: partner?.foundedAt?.toISOString(),
+      socios: socios.map((s) => ({ id: s.id, name: s.name, role: s.role ?? undefined, birthday: s.birthday ?? undefined, source: s.source as "receita" | "manual" })),
       card: this.toCard(row, new Date()),
       notes: notes.map((n) => ({ id: n.id, kind: n.kind as "note" | "stage" | "contact", body: n.body, authorName: n.author?.name, createdAt: n.createdAt.toISOString() })),
     };
@@ -280,6 +290,29 @@ export class SalesService {
       this.prisma.salesProspect.update({ where: { id }, data: { ownerId: userId } }),
       this.prisma.salesNote.create({ data: { prospectId: id, authorId: userId, kind: "note", body: "Assumiu o card." } }),
     ]);
+  }
+
+  // ---------------- Sócios (aniversário à mão) ----------------
+
+  async setSocioBirthday(userId: string, socioId: string, birthday: string): Promise<void> {
+    if (!isValidBirthday(birthday)) throw new BadRequestException("Use o formato DD/MM com uma data que existe.");
+    const socio = await this.prisma.partnerSocio.findUnique({ where: { id: socioId }, include: { partner: { select: { salesProspect: { select: { id: true } } } } } });
+    if (!socio) throw new NotFoundException("Sócio não encontrado.");
+    await this.prisma.partnerSocio.update({ where: { id: socioId }, data: { birthday: birthday.trim() } });
+    const prospectId = socio.partner.salesProspect?.id;
+    if (prospectId) await this.prisma.salesNote.create({ data: { prospectId, authorId: userId, kind: "note", body: `Aniversário de ${socio.name}: ${birthday.trim()}` } });
+  }
+
+  async addSocio(userId: string, prospectId: string, raw: { name: string; role?: string; birthday?: string }): Promise<void> {
+    const input = AddSocioInputSchema.parse(raw);
+    const row = await this.load(prospectId);
+    if (!row.partnerId) throw new BadRequestException("Sócios ficam disponíveis depois que a empresa se cadastra no site.");
+    await this.prisma.partnerSocio.upsert({
+      where: { partnerId_name: { partnerId: row.partnerId, name: input.name } },
+      create: { partnerId: row.partnerId, name: input.name, role: input.role, birthday: input.birthday, source: "manual" },
+      update: { role: input.role, birthday: input.birthday },
+    });
+    await this.prisma.salesNote.create({ data: { prospectId, authorId: userId, kind: "note", body: `Sócio/contato adicionado: ${input.name}` } });
   }
 
   // ---------------- Metas do mês ----------------

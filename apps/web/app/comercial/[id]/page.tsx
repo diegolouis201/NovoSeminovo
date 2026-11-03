@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SALES_STAGES, SALES_STAGE_LABEL } from "@novoseminovo/shared-types";
 import { fetchSalesProspect } from "@/lib/api";
-import { addNoteAction, assignAction, moveProspectAction, nextContactAction } from "@/lib/actions/sales";
+import { addNoteAction, addSocioAction, assignAction, moveProspectAction, nextContactAction, socioBirthdayAction } from "@/lib/actions/sales";
 import { Flash, SalesDenied, money, salesSession, whatsappHref } from "@/components/sales/SalesAccess";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ export default async function ProspectPage({ params, searchParams }: { params: {
       </main>
     );
   }
-  const { card, notes } = detail;
+  const { card, notes, socios, foundedAt } = detail;
   const wa = whatsappHref(card.phone);
   const mine = card.ownerId === session.user.id;
 
@@ -108,6 +108,44 @@ export default async function ProspectPage({ params, searchParams }: { params: {
           )}
         </div>
       </section>
+
+      {card.partnerId && (
+        <section aria-label="Sócios e datas" className="rounded-brand-lg border border-border bg-surface-raised p-5 text-sm">
+          <h2 className="font-display text-lg font-semibold text-ink">Sócios e datas</h2>
+          <p className="mt-1 text-ink-muted">
+            {foundedAt ? `Empresa aberta em ${new Date(foundedAt).toLocaleDateString("pt-BR", { timeZone: "UTC" })}. ` : ""}
+            Os sócios vêm da Receita; o aniversário você preenche quando souber (DD/MM).
+          </p>
+          <ul className="mt-3 flex flex-col gap-2">
+            {socios.length === 0 && <li className="text-ink-muted">Sócios ainda não carregados da Receita.</li>}
+            {socios.map((socio) => (
+              <li key={socio.id} className="flex flex-wrap items-center justify-between gap-2 rounded-brand bg-surface-sober px-3 py-2">
+                <span>
+                  <span className="font-semibold text-ink">{socio.name}</span>
+                  {socio.role && <span className="text-ink-muted"> · {socio.role}</span>}
+                </span>
+                <form action={socioBirthdayAction.bind(null, card.id, socio.id)} className="flex items-center gap-2">
+                  <label className="text-xs text-ink-muted" htmlFor={`aniv-${socio.id}`}>
+                    Aniversário
+                  </label>
+                  <input id={`aniv-${socio.id}`} name="birthday" defaultValue={socio.birthday} placeholder="DD/MM" pattern="\d{2}/\d{2}" maxLength={5} className="w-20 rounded-brand border border-border bg-surface-page px-2 py-1 text-sm text-ink" />
+                  <button type="submit" className="rounded-brand border border-border px-2 py-1 text-xs font-semibold text-ink hover:bg-surface-page">
+                    Salvar
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+          <form aria-label="Adicionar sócio ou contato" action={addSocioAction.bind(null, card.id)} className="mt-3 flex flex-wrap items-end gap-2">
+            <input name="name" required minLength={2} maxLength={160} placeholder="Nome" className={input} />
+            <input name="role" maxLength={120} placeholder="Cargo (opcional)" className={input} />
+            <input name="birthday" placeholder="Aniversário DD/MM" pattern="\d{2}/\d{2}" maxLength={5} className={`${input} w-40`} />
+            <button type="submit" className="rounded-brand border border-border px-3 py-2 font-semibold text-ink hover:bg-surface-sober">
+              Adicionar
+            </button>
+          </form>
+        </section>
+      )}
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="rounded-brand-lg border border-border bg-surface-raised p-5 text-sm">
