@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import {
+  type CrmOverview,
+  type CrmOverviewScope,
   EMPLOYEE_RANGES,
   LOSS_CATEGORIES,
   PARTNER_TRIAL_DAYS,
@@ -10,6 +12,7 @@ import {
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { SalesService, cardStage, segmentOf } from "../sales/sales.service";
+import { buildCrmOverview } from "./crm-overview";
 
 // Feed do CRM geral (repositório "CRM NovoSeminovo" no Claude): a jornada de
 // cada empresa num lugar só. Sem CPF, senha, cartão ou dado de comprador.
@@ -245,5 +248,16 @@ export class CrmService {
       }),
     );
     return { geradoEm: new Date().toISOString(), empresas, prospeccao };
+  }
+
+  // Visão geral (/admin/crm): mesmo feed do repositório do CRM + receita dos últimos 12 meses.
+  async overview(recorte: CrmOverviewScope): Promise<CrmOverview> {
+    const hoje = new Date();
+    const since = new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth() - 11, 1));
+    const [feed, payments] = await Promise.all([
+      this.clientes(),
+      this.prisma.subscriptionPayment.findMany({ where: { paidAt: { gte: since } }, select: { paidAt: true, amount: true, refundedAmount: true, partnerType: true } }),
+    ]);
+    return buildCrmOverview(feed, payments, hoje, recorte);
   }
 }

@@ -1,7 +1,8 @@
 import { Body, Controller, Get, Headers, HttpException, HttpStatus, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { z } from "zod";
-import { CrmOrderDoneInputSchema, CrmOrderInputSchema, NpsInputSchema } from "@novoseminovo/shared-types";
+import { CrmOrderDoneInputSchema, CrmOrderInputSchema, CrmOverviewQuerySchema, NpsInputSchema } from "@novoseminovo/shared-types";
+import { AdminGuard } from "../admin/admin.guard";
 import { currentSecret } from "../auth/secret-file";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -127,5 +128,17 @@ export class NpsController {
   async answer(@CurrentUser() user: { id: string }, @Body() body: unknown) {
     await this.nps.answer(user.id, parseOrBadRequest(NpsInputSchema, body));
     return { ok: true };
+  }
+}
+
+// Visão geral do CRM no admin (/admin/crm): só administrador ativo.
+@Controller("admin/crm")
+@UseGuards(JwtAuthGuard, AdminGuard)
+export class AdminCrmController {
+  constructor(private readonly crm: CrmService) {}
+
+  @Get("overview")
+  overview(@Query() query: unknown) {
+    return this.crm.overview(parseOrBadRequest(CrmOverviewQuerySchema, query).tipo ?? "all");
   }
 }

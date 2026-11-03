@@ -128,4 +128,27 @@ describe("Área Comercial", () => {
     cy.contains("h1", "Equipe comercial").should("be.visible");
     cy.get('form[aria-label="Convidar para o comercial"] input[name="email"]').should("have.attr", "type", "email");
   });
+
+  it("admin vê a visão geral do CRM com funil, receita, NPS e atenção", () => {
+    cy.loginAs("admin@novoseminovo.com.br", "senha1234");
+    cy.visit("/admin/crm");
+    cy.contains("h1", "Visão geral do CRM").should("be.visible");
+    cy.contains("Mensalidades (MRR)").should("be.visible");
+    cy.contains("h2", "Funil de empresas").should("be.visible");
+    cy.get('[aria-label="Funil de empresas"]').should("contain", "Proposta enviada").and("contain", "Assinante");
+    cy.contains("h2", "Receita recebida por mês").should("be.visible");
+    cy.contains("h2", "Satisfação (NPS)").should("be.visible");
+    cy.contains("h2", "Motivos de perda e cancelamento").should("be.visible");
+    cy.contains("h2", "Origem dos cadastros").should("be.visible");
+    cy.contains("h2", "Desempenho por vendedor").should("be.visible");
+    cy.contains("h2", "Precisa de atenção").should("be.visible");
+    cy.get('nav[aria-label="Recorte da visão geral"]').contains("a", "Imóveis").click();
+    cy.location("search").should("eq", "?tipo=property");
+  });
+
+  it("quem não é admin não entra na visão geral do CRM", () => {
+    cy.loginAs("comprador@novoseminovo.com.br", "senha1234");
+    cy.visit("/admin/crm");
+    cy.location("pathname").should("not.eq", "/admin/crm");
+  });
 });

@@ -48,3 +48,14 @@ cards esquecidos) e filtros novos em `campanha.mjs` (porte, NPS, origem,
 funcionários).
 
 Não sai no feed: CPF, senha, cartão, dados de compradores.
+
+## Visão geral no admin (/admin/crm)
+
+Tela só para administrador (`GET /admin/crm/overview?tipo=all|vehicle|property`,
+`JwtAuthGuard` + `AdminGuard`). Calcula a partir do mesmo feed `clientes()`
+(`buildCrmOverview` em `apps/api/src/crm/crm-overview.ts`): mensalidades (MRR) e
+ticket médio, assinantes, novas assinaturas e cancelamentos do mês, NPS de 90
+dias, chamados abertos e tempo médio, assinantes em risco, funil por etapa,
+receita recebida por mês (12 meses, sem estornos), motivos de perda, origem dos
+cadastros, desempenho por vendedor e lista "Precisa de atenção" com link para a
+ficha em /comercial.

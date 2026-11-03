@@ -2900,3 +2900,29 @@ export type CrmOrderView = {
   feitaEm?: string;
   criadaEm: string;
 };
+
+// ---------------- Visão geral do CRM (/admin/crm) ----------------
+export type CrmOverviewScope = "all" | "vehicle" | "property";
+export const CrmOverviewQuerySchema = z.object({ tipo: z.enum(["all", "vehicle", "property"]).default("all") });
+export type CrmOverview = {
+  geradoEm: string;
+  recorte: CrmOverviewScope;
+  numeros: {
+    empresas: number;
+    assinantes: number;
+    mrr: number;
+    ticketMedio?: number;
+    novasAssinaturasMes: number;
+    cancelamentosMes: number;
+    emRisco: number;
+    chamadosAbertos: number;
+    tempoMedioResolucaoHoras?: number;
+    nps: { score?: number; respostas: number; promotores: number; neutros: number; detratores: number };
+  };
+  funil: { etapa: SalesStageId; nome: string; quantidade: number }[];
+  receitaPorMes: { mes: string; valor: number }[];
+  motivos: { categoria: string; quantidade: number }[];
+  origem: { canal: string; quantidade: number }[];
+  vendedores: { nome: string; cards: number; cadastradas: number; assinantes: number; mrr: number }[];
+  atencao: { empresa: string; cardId?: string; motivo: string; nivel: "urgente" | "acompanhar" }[];
+};

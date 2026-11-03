@@ -23,6 +23,8 @@ import type {
   FipeModelSuggestion,
   AdminOverview,
   AdminOverviewScope,
+  CrmOverview,
+  CrmOverviewScope,
   OpsGoalInput,
   OpsSummary,
   AdminListingsPage,
@@ -1976,6 +1978,17 @@ export async function fetchAdminAffiliateDetail(id: string, accessToken: string)
     const res = await fetchWithTimeout(`${API_URL}/admin/affiliates/${encodeURIComponent(id)}`, { headers: authHeaders(accessToken) });
     if (!res.ok) return undefined;
     return (await res.json()) as AdminAffiliateDetail;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function fetchCrmOverview(scope: CrmOverviewScope, accessToken: string): Promise<CrmOverview | undefined> {
+  try {
+    const query = scope === "all" ? "" : `?tipo=${scope}`;
+    const res = await fetchWithTimeout(`${API_URL}/admin/crm/overview${query}`, { headers: authHeaders(accessToken), cache: "no-store" }, 30000);
+    if (!res.ok) return undefined;
+    return (await res.json()) as CrmOverview;
   } catch {
     return undefined;
   }
