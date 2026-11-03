@@ -19,6 +19,8 @@ enum Role {
   partner_agent
   partner_owner
   admin
+  // Equipe comercial (área /comercial): vende os planos para as empresas.
+  sales
 }
 
 enum AuthProvider {
@@ -227,8 +229,12 @@ model User {
   blockedReason        String?   @map("blocked_reason")
   moderationHoldAt     DateTime? @map("moderation_hold_at")
   moderationHoldReason String?   @map("moderation_hold_reason")
+  // Equipe comercial: código do link de indicação do vendedor (?vendedor=).
+  salesCode            String?   @unique @map("sales_code")
 
   ownedPartners            Partner[]             @relation("PartnerOwner")
+  salesProspects           SalesProspect[]       @relation("SalesOwner")
+  salesNotes               SalesNote[]
   partnerMemberships       PartnerMember[]
   listings                 Listing[]             @relation("ListingOwner")
   favorites                Favorite[]
@@ -300,6 +306,7 @@ model Partner {
   verifiedVehicleEvents VehicleEvent[]
   integrationFeeds      IntegrationFeed[]
   apiKeys               PartnerApiKey[]
+  salesProspect         SalesProspect?
 
   @@map("partners")
 }
@@ -704,30 +711,30 @@ model Message {
 }
 
 model Lead {
-  id              String     @id @default(cuid())
+  id               String     @id @default(cuid())
   // Opcional: lead cadastrado à mão pode ser "procura SUV até 80 mil", sem
   // anúncio específico.
-  listingId       String?    @map("listing_id")
-  listing         Listing?   @relation(fields: [listingId], references: [id])
-  partnerId       String     @map("partner_id")
-  partner         Partner    @relation(fields: [partnerId], references: [id])
-  buyerId         String?    @map("buyer_id")
-  buyer           User?      @relation(fields: [buyerId], references: [id])
-  source          LeadSource
-  status          LeadStatus @default(new)
+  listingId        String?    @map("listing_id")
+  listing          Listing?   @relation(fields: [listingId], references: [id])
+  partnerId        String     @map("partner_id")
+  partner          Partner    @relation(fields: [partnerId], references: [id])
+  buyerId          String?    @map("buyer_id")
+  buyer            User?      @relation(fields: [buyerId], references: [id])
+  source           LeadSource
+  status           LeadStatus @default(new)
   // Lead manual (sem conta no site): nome e telefone digitados pela loja.
-  contactName     String?    @map("contact_name")
-  contactPhone    String?    @map("contact_phone")
-  contactPhoneHash String?   @map("contact_phone_hash")
-  contactEmail    String?    @map("contact_email")
-  notes           String?
-  proposalValue   Decimal?   @map("proposal_value") @db.Decimal(12, 2)
+  contactName      String?    @map("contact_name")
+  contactPhone     String?    @map("contact_phone")
+  contactPhoneHash String?    @map("contact_phone_hash")
+  contactEmail     String?    @map("contact_email")
+  notes            String?
+  proposalValue    Decimal?   @map("proposal_value") @db.Decimal(12, 2)
   // Origem de quem gerou o lead (cookie do site ou cadastro do comprador).
-  acqSource       String?    @map("acq_source")
-  acqCampaign     String?    @map("acq_campaign")
-  statusChangedAt DateTime   @default(now()) @map("status_changed_at")
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
+  acqSource        String?    @map("acq_source")
+  acqCampaign      String?    @map("acq_campaign")
+  statusChangedAt  DateTime   @default(now()) @map("status_changed_at")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
 
   @@index([partnerId, status])
   @@map("leads")
@@ -772,15 +779,15 @@ model FinancingSimulation {
 }
 
 model Review {
-  id                String   @id @default(cuid())
-  reviewerId        String   @map("reviewer_id")
-  reviewer          User     @relation("ReviewAuthor", fields: [reviewerId], references: [id])
-  reviewedUserId    String?  @map("reviewed_user_id")
-  reviewedUser      User?    @relation("ReviewTarget", fields: [reviewedUserId], references: [id])
-  reviewedPartnerId String?  @map("reviewed_partner_id")
-  reviewedPartner   Partner? @relation("ReviewPartnerTarget", fields: [reviewedPartnerId], references: [id])
-  listingId         String?  @map("listing_id")
-  listing           Listing? @relation(fields: [listingId], references: [id])
+  id                String    @id @default(cuid())
+  reviewerId        String    @map("reviewer_id")
+  reviewer          User      @relation("ReviewAuthor", fields: [reviewerId], references: [id])
+  reviewedUserId    String?   @map("reviewed_user_id")
+  reviewedUser      User?     @relation("ReviewTarget", fields: [reviewedUserId], references: [id])
+  reviewedPartnerId String?   @map("reviewed_partner_id")
+  reviewedPartner   Partner?  @relation("ReviewPartnerTarget", fields: [reviewedPartnerId], references: [id])
+  listingId         String?   @map("listing_id")
+  listing           Listing?  @relation(fields: [listingId], references: [id])
   rating            Int
   comment           String?
   // Moderação (ver apps/api/src/reviews): pending → approved | rejected;
@@ -1608,4 +1615,64 @@ model SequenceEnrollment {
   @@unique([sequenceId, contactId])
   @@index([status, nextAt])
   @@map("sequence_enrollments")
+}
+
+// ---------------- Funil comercial (área /comercial) ----------------
+// Etapas que o vendedor move à mão, antes de a empresa se cadastrar. Depois
+// do cadastro (partnerId preenchido) a etapa vem do site: cadastrou →
+// publicou → assinante / cancelou (ver SalesService.cardStage).
+enum SalesStage {
+  a_abordar
+  em_contato
+  interessada
+  perdida
+}
+
+model SalesProspect {
+  id            String      @id @default(cuid())
+  name          String
+  // vehicle = lojas de veículos; property = imobiliárias, corretores, construtoras.
+  segment       String
+  cnpj          String?     @unique
+  city          String?
+  state         String?
+  contactName   String?     @map("contact_name")
+  // Criptografado (ENCRYPTED_FIELDS); phoneHash = índice cego.
+  phone         String?
+  phoneHash     String?     @map("phone_hash")
+  email         String?
+  stage         SalesStage  @default(a_abordar)
+  lostReason    String?     @map("lost_reason")
+  nextContactAt DateTime?   @map("next_contact_at")
+  // manual = vendedor cadastrou; site = empresa se cadastrou sozinha; link = pelo link do vendedor.
+  source        String      @default("manual")
+  ownerId       String?     @map("owner_id")
+  owner         User?       @relation("SalesOwner", fields: [ownerId], references: [id])
+  partnerId     String?     @unique @map("partner_id")
+  partner       Partner?    @relation(fields: [partnerId], references: [id])
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  notes         SalesNote[]
+
+  @@index([segment])
+  @@index([ownerId])
+  @@map("sales_prospects")
+}
+
+model SalesNote {
+  id         String        @id @default(cuid())
+  prospectId String        @map("prospect_id")
+  prospect   SalesProspect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  authorId   String?       @map("author_id")
+  author     User?         @relation(fields: [authorId], references: [id])
+  // note = anotação; stage = mudança de etapa (de → para); contact = próximo contato.
+  kind       String        @default("note")
+  fromStage  String?       @map("from_stage")
+  toStage    String?       @map("to_stage")
+  body       String
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  @@index([prospectId])
+  @@index([authorId, createdAt])
+  @@map("sales_notes")
 }

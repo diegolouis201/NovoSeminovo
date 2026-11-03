@@ -1,4 +1,5 @@
 import { AffiliatesModule } from "./affiliates/affiliates.module";
+import { SalesModule } from "./sales/sales.module";
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
@@ -57,6 +58,7 @@ import { HealthController } from "./common/health.controller";
     FinanceFeedModule,
     ReviewsModule,
     AffiliatesModule,
+    SalesModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

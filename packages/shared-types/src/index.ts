@@ -13,7 +13,7 @@ export type SellerType = z.infer<typeof SellerType>;
 export const BadgeTone = z.enum(["green", "blue", "orange", "purple", "pink"]);
 export type BadgeTone = z.infer<typeof BadgeTone>;
 
-export const Role = z.enum(["buyer", "individual_seller", "partner_agent", "partner_owner", "admin"]);
+export const Role = z.enum(["buyer", "individual_seller", "partner_agent", "partner_owner", "admin", "sales"]);
 export type Role = z.infer<typeof Role>;
 
 // Autenticação (apps/api/src/auth) — a senha nunca trafega de volta neste contrato.
@@ -1021,6 +1021,8 @@ export const RegisterCompanyInputSchema = RegisterInputSchema.extend({
   partnerType: PartnerType.optional(),
   // Só quando a consulta do CNPJ está fora do ar.
   legalName: z.string().min(3).max(200).optional(),
+  // Link do vendedor (?vendedor=CODIGO): a empresa entra na carteira dele.
+  salesCode: z.string().trim().toUpperCase().max(20).optional(),
 });
 export type RegisterCompanyInput = z.infer<typeof RegisterCompanyInputSchema>;
 
@@ -2691,3 +2693,86 @@ export function isTrustedExternalLink(value: string): boolean {
     return false;
   }
 }
+
+// ---------------- Área Comercial (/comercial) ----------------
+// Funil das empresas: etapas manuais até o cadastro; depois o site move sozinho.
+export const SALES_MANUAL_STAGES = ["a_abordar", "em_contato", "interessada", "perdida"] as const;
+export const SalesManualStage = z.enum(SALES_MANUAL_STAGES);
+export type SalesManualStage = z.infer<typeof SalesManualStage>;
+export type SalesStageId = SalesManualStage | "cadastrou" | "publicou" | "assinante" | "cancelou";
+export const SALES_STAGES: { id: SalesStageId; label: string; manual: boolean }[] = [
+  { id: "a_abordar", label: "A abordar", manual: true },
+  { id: "em_contato", label: "Em contato", manual: true },
+  { id: "interessada", label: "Interessada", manual: true },
+  { id: "cadastrou", label: "Cadastrou (período grátis)", manual: false },
+  { id: "publicou", label: "Publicou anúncio", manual: false },
+  { id: "assinante", label: "Assinante", manual: false },
+  { id: "perdida", label: "Perdida", manual: true },
+  { id: "cancelou", label: "Cancelou", manual: false },
+];
+export const SALES_STAGE_LABEL = Object.fromEntries(SALES_STAGES.map((s) => [s.id, s.label])) as Record<SalesStageId, string>;
+export type SalesSegment = "vehicle" | "property";
+
+export type SalesCard = {
+  id: string;
+  name: string;
+  segment: SalesSegment;
+  stage: SalesStageId;
+  source: "manual" | "site" | "link";
+  ownerId?: string;
+  ownerName?: string;
+  partnerId?: string;
+  partnerSlug?: string;
+  cnpj?: string;
+  city?: string;
+  state?: string;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  nextContactAt?: string;
+  lostReason?: string;
+  planName?: string;
+  monthlyValue?: number;
+  subscriptionStatus?: "active" | "past_due" | "canceled";
+  trialDaysLeft?: number;
+  activeListings?: number;
+  updatedAt: string;
+};
+export type SalesNoteView = { id: string; kind: "note" | "stage" | "contact"; body: string; authorName?: string; createdAt: string };
+export type SalesDetail = { card: SalesCard; notes: SalesNoteView[] };
+export type SalesGoals = { month: string; approaches: number; signups: number; newSubscribers: number; activeSubscribers: number; mrr: number };
+export type SalesMember = { id: string; name: string; email: string; salesCode: string; status: string };
+
+const digitsOnly = (value: string) => value.replace(/\D/g, "");
+export const CreateProspectInputSchema = z.object({
+  name: z.string().trim().min(2, "Nome da empresa muito curto").max(160),
+  segment: z.enum(["vehicle", "property"]),
+  cnpj: z
+    .string()
+    .transform(digitsOnly)
+    .refine((v) => v === "" || isValidCnpj(v), "CNPJ inválido")
+    .optional()
+    .transform((v) => v || undefined),
+  city: z.string().trim().max(80).optional(),
+  state: z.string().trim().toUpperCase().length(2, "UF com 2 letras").optional().or(z.literal("").transform(() => undefined)),
+  contactName: z.string().trim().max(120).optional(),
+  phone: z
+    .string()
+    .transform(digitsOnly)
+    .refine((v) => v === "" || (v.length >= 10 && v.length <= 13), "Telefone com DDD")
+    .optional()
+    .transform((v) => v || undefined),
+  email: z.string().trim().toLowerCase().max(200).email("E-mail inválido").optional().or(z.literal("").transform(() => undefined)),
+});
+export type CreateProspectInput = z.input<typeof CreateProspectInputSchema>;
+export const MoveProspectInputSchema = z.object({
+  stage: SalesManualStage,
+  lostReason: z.string().trim().max(500).optional(),
+});
+export const SalesNoteInputSchema = z.object({ body: z.string().trim().min(1, "Escreva a anotação").max(2000) });
+export const NextContactInputSchema = z.object({ at: z.string().datetime({ offset: true }).nullable() });
+export const CreateSalesMemberInputSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  email: z.string().trim().toLowerCase().max(200).email("E-mail inválido"),
+});
+export const SALES_CODE_PATTERN = /^[A-Z0-9]{6,12}$/;

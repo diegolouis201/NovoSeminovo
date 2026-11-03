@@ -7,6 +7,7 @@ import { renderNotificationEmail } from "../email/email-template";
 import { forgetUserStatus } from "./jwt-auth.guard";
 
 const TOKEN_TTL_MINUTES = 60;
+const INVITE_TTL_HOURS = 72;
 
 function tokenHash(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -43,6 +44,27 @@ export class PasswordResetService {
     await this.email
       .send(user.email, "Trocar sua senha — NovoSeminovo", html)
       .catch((error) => this.logger.error(`Falha ao enviar e-mail de troca de senha: ${error}`));
+    return { ok: true };
+  }
+
+  // Convite de quem entra na equipe (ex.: comercial): mesma mecânica do
+  // "esqueci minha senha", com texto de boas-vindas e validade de 3 dias.
+  async invite(userId: string): Promise<{ ok: true }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.status !== "active") throw new BadRequestException("Conta não encontrada ou inativa.");
+    const token = randomBytes(32).toString("base64url");
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordResetTokenHash: tokenHash(token), passwordResetExpiresAt: new Date(Date.now() + INVITE_TTL_HOURS * 3_600_000) },
+    });
+    const html = renderNotificationEmail({
+      userName: user.name,
+      title: "Bem-vindo à equipe NovoSeminovo",
+      body: `Você foi convidado para a área Comercial do NovoSeminovo. Clique no botão abaixo para criar a sua senha — o link vale por ${INVITE_TTL_HOURS / 24} dias e só funciona uma vez.\n\nDepois, entre em novoseminovo.com.br/entrar com este e-mail.`,
+      link: `/redefinir-senha?token=${token}`,
+      linkLabel: "Criar minha senha",
+    });
+    await this.email.send(user.email, "Seu acesso à área Comercial — NovoSeminovo", html);
     return { ok: true };
   }
 

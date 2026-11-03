@@ -28,6 +28,7 @@ export const ENCRYPTED_FIELDS: Record<string, Record<string, string | null>> = {
   FinancingLead: { phone: "phoneHash" },
   MarketingContact: { phone: "phoneHash" },
   Affiliate: { pixKey: null },
+  SalesProspect: { phone: "phoneHash" },
 };
 
 const ENCRYPTED_NAMES = new Set(Object.values(ENCRYPTED_FIELDS).flatMap((f) => Object.keys(f)));

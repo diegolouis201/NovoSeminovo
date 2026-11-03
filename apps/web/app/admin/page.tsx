@@ -25,6 +25,8 @@ const ADMIN_AREAS = [
   { href: "/admin/painel", title: "Painel geral", hint: "Big numbers do site" },
   { href: "/admin/assinaturas", title: "Assinaturas", hint: "Planos dos parceiros" },
   { href: "/admin/afiliados", title: "Afiliados", hint: "Programa de afiliados" },
+  { href: "/comercial", title: "Comercial", hint: "Funil de empresas" },
+  { href: "/admin/equipe", title: "Equipe comercial", hint: "Convidar vendedores" },
 ];
 
 export default async function AdminPage() {

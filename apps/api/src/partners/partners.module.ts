@@ -7,9 +7,10 @@ import { PartnersController } from "./partners.controller";
 import { PartnersService } from "./partners.service";
 import { CnpjService } from "./cnpj.service";
 import { ContactsModule } from "../marketing/contacts.module";
+import { SalesModule } from "../sales/sales.module";
 
 @Module({
-  imports: [AuthModule, PaymentsModule, ListingsModule, NotificationsModule, ContactsModule],
+  imports: [AuthModule, PaymentsModule, ListingsModule, NotificationsModule, ContactsModule, SalesModule],
   controllers: [PartnersController],
   providers: [PartnersService, CnpjService],
   exports: [PartnersService],

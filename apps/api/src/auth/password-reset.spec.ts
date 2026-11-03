@@ -64,4 +64,17 @@ describe("Troca de senha pelo e-mail (banco local)", { skip: !withDb && "sem DAT
     await prisma.user.update({ where: { id: userId }, data: { passwordResetExpiresAt: new Date(Date.now() - 1000) } });
     await assert.rejects(service.reset(token, "senha-nova-789"), /expirou/);
   });
+
+  test("convite da equipe: link de criar senha que vale 3 dias", async () => {
+    sent.length = 0;
+    await service.invite(userId);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0]!.html, /Criar minha senha/);
+    const token = /token=([A-Za-z0-9_-]+)/.exec(sent[0]!.html)?.[1];
+    assert.ok(token);
+    const stored = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const hours = (stored.passwordResetExpiresAt!.getTime() - Date.now()) / 3_600_000;
+    assert.ok(hours > 71 && hours <= 72, "vale 72 horas");
+    await service.reset(token!, "senha-nova-da-equipe!");
+  });
 });

@@ -109,12 +109,16 @@ export async function DashboardShell({ children }: { children: ReactNode }) {
       { label: "Em análise", value: String(count("pending_review")), href: "/conta/anuncios" },
     ];
   }
+  if (session.user.role === "sales") {
+    items = [{ href: "/comercial", label: "Quadro comercial", icon: "chart" }, { href: "/comercial/novo", label: "Nova empresa", icon: "store" }];
+    counters = [];
+  }
   if (session.user.role === "admin") {
-    items = [...items, { href: "/admin/anuncios", label: "Todos os anúncios", icon: "globe" }, { href: "/admin/leads", label: "Todos os leads", icon: "chart" }, { href: "/admin", label: "Administração", icon: "shield" }];
+    items = [...items, { href: "/comercial", label: "Comercial", icon: "team" }, { href: "/admin/anuncios", label: "Todos os anúncios", icon: "globe" }, { href: "/admin/leads", label: "Todos os leads", icon: "chart" }, { href: "/admin", label: "Administração", icon: "shield" }];
   }
 
   const accountLabel =
-    session.user.role === "admin" ? "Administrador" : partner ? ACCOUNT_LABEL[partner.type] ?? "Parceiro" : "Particular";
+    session.user.role === "admin" ? "Administrador" : session.user.role === "sales" ? "Equipe comercial" : partner ? ACCOUNT_LABEL[partner.type] ?? "Parceiro" : "Particular";
 
   async function signOutAction() {
     "use server";

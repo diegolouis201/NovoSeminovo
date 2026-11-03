@@ -1,4 +1,10 @@
 import type {
+  SalesCard,
+  SalesDetail,
+  SalesGoals,
+  SalesMember,
+  SalesSegment,
+  CreateProspectInput,
   AdminAffiliateDetail,
   AdminAffiliateRow,
   AffiliateApplyInput,
@@ -2100,4 +2106,67 @@ export function adminDeleteAccount(
   accessToken: string,
 ): Promise<ApiResult<{ deleted: true; listingsDeleted: number; listingsKept: number }>> {
   return sendJson(`/admin/users/${encodeURIComponent(id)}/delete`, "POST", input, accessToken);
+}
+
+// ---------------- Área Comercial (/comercial) ----------------
+
+async function getJson<T>(path: string, accessToken: string): Promise<T | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}${path}`, { headers: authHeaders(accessToken), cache: "no-store" }, 15000);
+    if (!res.ok) return undefined;
+    return (await res.json()) as T;
+  } catch {
+    return undefined;
+  }
+}
+
+export function fetchSalesMe(accessToken: string) {
+  return getJson<{ name: string; salesCode?: string; role: string }>("/sales/me", accessToken);
+}
+
+export function fetchSalesBoard(filter: { segment?: SalesSegment; mine?: boolean }, accessToken: string) {
+  const params = new URLSearchParams();
+  if (filter.segment) params.set("segmento", filter.segment);
+  if (filter.mine) params.set("meus", "1");
+  return getJson<{ cards: SalesCard[] }>(`/sales/board?${params}`, accessToken);
+}
+
+export function fetchSalesGoals(accessToken: string) {
+  return getJson<SalesGoals>("/sales/goals", accessToken);
+}
+
+export function fetchSalesProspect(id: string, accessToken: string) {
+  return getJson<SalesDetail>(`/sales/prospects/${encodeURIComponent(id)}`, accessToken);
+}
+
+export function createSalesProspect(input: CreateProspectInput, accessToken: string): Promise<ApiResult<{ id: string }>> {
+  return sendJson("/sales/prospects", "POST", input, accessToken);
+}
+
+export function moveSalesProspect(id: string, input: { stage: string; lostReason?: string }, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/sales/prospects/${encodeURIComponent(id)}/move`, "POST", input, accessToken);
+}
+
+export function addSalesNote(id: string, body: string, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/sales/prospects/${encodeURIComponent(id)}/notes`, "POST", { body }, accessToken);
+}
+
+export function setSalesNextContact(id: string, at: string | null, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/sales/prospects/${encodeURIComponent(id)}/next-contact`, "POST", { at }, accessToken);
+}
+
+export function assignSalesProspect(id: string, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/sales/prospects/${encodeURIComponent(id)}/assign`, "POST", {}, accessToken);
+}
+
+export function fetchSalesTeam(accessToken: string) {
+  return getJson<SalesMember[]>("/admin/sales-team", accessToken);
+}
+
+export function createSalesMember(input: { name: string; email: string }, accessToken: string): Promise<ApiResult<SalesMember>> {
+  return sendJson("/admin/sales-team", "POST", input, accessToken);
+}
+
+export function resendSalesInvite(id: string, accessToken: string): Promise<ApiResult<{ ok: true }>> {
+  return sendJson(`/admin/sales-team/${encodeURIComponent(id)}/invite`, "POST", {}, accessToken);
 }

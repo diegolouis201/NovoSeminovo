@@ -27,6 +27,6 @@ import { currentSecret } from "./secret-file";
   ],
   controllers: [AuthController],
   providers: [AuthService, PasswordResetService, JwtAuthGuard, OptionalJwtAuthGuard],
-  exports: [JwtAuthGuard, OptionalJwtAuthGuard, AuthService],
+  exports: [JwtAuthGuard, OptionalJwtAuthGuard, AuthService, PasswordResetService],
 })
 export class AuthModule {}

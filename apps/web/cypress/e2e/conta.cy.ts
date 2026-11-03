@@ -79,3 +79,39 @@ describe("Segurança das contas no admin", () => {
     cy.get('form[aria-label="Bloquear conta"] textarea[name="reason"]').should("have.attr", "required");
   });
 });
+
+// Área Comercial: quadro de empresas por Veículos, Imóveis e Consolidado.
+describe("Área Comercial", () => {
+  it("quem não entrou vai para o login", () => {
+    cy.visit("/comercial");
+    cy.location("pathname").should("eq", "/entrar");
+  });
+
+  it("comprador não acessa", () => {
+    cy.login("comprador@novoseminovo.com.br", "senha1234");
+    cy.location("pathname").should("not.eq", "/entrar");
+    cy.visit("/comercial");
+    cy.contains("h1", "Acesso restrito").should("be.visible");
+  });
+
+  it("admin vê o quadro com as três abas, as metas e o botão de nova empresa", () => {
+    cy.login("admin@novoseminovo.com.br", "senha1234");
+    cy.location("pathname").should("not.eq", "/entrar");
+    cy.visit("/comercial");
+    cy.contains("h1", "Comercial").should("be.visible");
+    cy.contains("a", "Veículos").should("be.visible");
+    cy.contains("a", "Imóveis").should("be.visible");
+    cy.contains("a", "Consolidado").should("be.visible");
+    cy.contains("h2", "Metas do mês").should("be.visible");
+    cy.contains("a", "Nova empresa").click();
+    cy.get('form[aria-label="Nova empresa"] input[name="name"]').should("have.attr", "required");
+  });
+
+  it("admin convida alguém para o comercial", () => {
+    cy.login("admin@novoseminovo.com.br", "senha1234");
+    cy.location("pathname").should("not.eq", "/entrar");
+    cy.visit("/admin/equipe");
+    cy.contains("h1", "Equipe comercial").should("be.visible");
+    cy.get('form[aria-label="Convidar para o comercial"] input[name="email"]').should("have.attr", "type", "email");
+  });
+});

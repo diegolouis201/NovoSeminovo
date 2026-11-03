@@ -9,11 +9,14 @@ const ROLE_LABEL: Record<string, string> = {
   partner_agent: "Corretor/vendedor de loja parceira",
   partner_owner: "Dono de loja/imobiliária parceira",
   admin: "Administrador",
+  sales: "Equipe comercial",
 };
 
 export default async function AccountPage() {
   const session = await auth();
   if (!session?.user) redirect("/entrar");
+  // Equipe comercial trabalha só na área Comercial.
+  if (session.user.role === "sales") redirect("/comercial");
 
   return (
     <main className="mx-auto max-w-lg px-4 py-16">

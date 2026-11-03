@@ -7,7 +7,7 @@ import { safeInternalPath, type PartnerType } from "@novoseminovo/shared-types";
 import { signIn } from "@/auth";
 import { acquisitionHeaders } from "@/lib/acquisition";
 import { signupCompany } from "@/lib/api";
-import { REFERRAL_COOKIE, cleanReferralCode } from "@/lib/referral";
+import { REFERRAL_COOKIE, SALES_COOKIE, cleanReferralCode, cleanSalesCode } from "@/lib/referral";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -37,7 +37,7 @@ export async function registerAction(_prev: RegisterState, formData: FormData): 
 
   if (isCompany) {
     const result = await signupCompany(
-      { ...account, cnpj: field("cnpj"), partnerType: (field("partnerType") || undefined) as PartnerType | undefined, legalName: field("legalName") || undefined },
+      { ...account, cnpj: field("cnpj"), partnerType: (field("partnerType") || undefined) as PartnerType | undefined, legalName: field("legalName") || undefined, salesCode: cleanSalesCode(cookies().get(SALES_COOKIE)?.value) },
       acquisitionHeaders(),
     );
     if (!result.ok) return { error: result.error };

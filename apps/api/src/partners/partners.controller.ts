@@ -16,6 +16,7 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Request } from "express";
 import { acquisitionFrom } from "../common/acquisition";
+import { SalesService } from "../sales/sales.service";
 import { memoryStorage } from "multer";
 import {
   AddPartnerMemberInputSchema,
@@ -59,6 +60,7 @@ export class PartnersController {
     private readonly partnersService: PartnersService,
     private readonly cnpj: CnpjService,
     private readonly auth: AuthService,
+    private readonly sales: SalesService,
   ) {}
 
   // Consulta do CNPJ na tela de cadastro (pública: a pessoa ainda não tem conta).
@@ -81,6 +83,8 @@ export class PartnersController {
       await this.auth.deleteUnusedUser(user.id);
       throw error;
     }
+    // Entra no quadro da área Comercial (na carteira do vendedor, se veio pelo link dele).
+    await this.sales.linkOwnerSignup(user.id, input.salesCode).catch(() => undefined);
     return { ok: true, partnerType: company.type };
   }
 
