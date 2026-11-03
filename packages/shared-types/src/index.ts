@@ -1247,6 +1247,32 @@ export const ReviewSchema = z.object({
 });
 export type Review = z.infer<typeof ReviewSchema>;
 
+// Anúncio recusado: o dono corrige e reenvia para a moderação.
+export const MAX_LISTING_RESUBMITS = 3;
+export const ResubmitListingInputSchema = z.object({
+  title: z.string().trim().min(5, "Escreva um título com pelo menos 5 caracteres").max(150, "Título muito longo (máx. 150 caracteres)"),
+  description: z.string().trim().min(20, "Descreva o anúncio com pelo menos 20 caracteres").max(10_000, "Descrição muito longa (máx. 10.000 caracteres)"),
+  price: z.number().positive("Informe um preço válido").max(1_000_000_000, "Preço inválido"),
+});
+export type ResubmitListingInput = z.infer<typeof ResubmitListingInputSchema>;
+export type ListingModerationInfo = { status: string; reason?: string; resubmitsLeft: number; canResubmit: boolean };
+
+export type AdminReviewQueueItem = {
+  id: string;
+  status: "pending" | "reported";
+  rating: number;
+  comment?: string;
+  reviewerName: string;
+  targetName: string;
+  listingId?: string;
+  listingTitle?: string;
+  moderationNote?: string;
+  reportReason?: string;
+  createdAt: string;
+};
+export const ReportReviewInputSchema = z.object({ reason: z.string().trim().min(5, "Explique o motivo").max(500, "Motivo muito longo") });
+export const AdminReviewDecisionSchema = z.object({ action: z.enum(["approve", "reject"]), note: z.string().trim().max(500).optional() });
+
 export const CreateReviewInputSchema = z.object({
   rating: z.number().int().min(1, "Dê uma nota de 1 a 5").max(5, "Dê uma nota de 1 a 5"),
   comment: z.string().trim().max(500, "Comentário muito longo").optional(),

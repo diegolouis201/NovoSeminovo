@@ -157,6 +157,9 @@ function ReviewCard({ review }: { review: Review }) {
         <span className="text-sm font-bold text-brand-blue">{"★".repeat(review.rating)}</span>
       </div>
       {review.comment && <p className="mt-1 text-sm text-ink">{review.comment}</p>}
+      <a href={`/avaliacoes/${review.id}/denunciar`} rel="nofollow" className="mt-2 inline-block text-xs text-ink-muted hover:underline">
+        É a empresa avaliada? Denunciar esta avaliação
+      </a>
     </li>
   );
 }

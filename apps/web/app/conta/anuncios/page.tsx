@@ -18,7 +18,7 @@ const STATUS_LABEL: Record<string, { label: string; tone: string }> = {
   expired: { label: "Expirado", tone: "text-ink-muted" },
 };
 
-export default async function MyListingsPage() {
+export default async function MyListingsPage({ searchParams }: { searchParams?: { reenviado?: string } }) {
   // Dentro do app não aparece compra de plano (lib/app-context.ts).
   const inApp = isAppRequest();
   const session = await auth();
@@ -29,6 +29,11 @@ export default async function MyListingsPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-16">
+      {searchParams?.reenviado && (
+        <p role="status" className="mb-4 rounded-brand bg-brand-green/10 px-4 py-3 text-sm text-ink">
+          Anúncio reenviado. A moderação analisa em poucos minutos e você recebe um aviso com o resultado.
+        </p>
+      )}
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-semibold text-ink">Meus anúncios</h1>
         <Link
@@ -95,7 +100,12 @@ export default async function MyListingsPage() {
                       </span>
                     )}
                   </p>
-                  {listing.planTier && listing.planTier !== "nitro" && listing.status !== "sold" && !inApp && (
+                  {listing.status === "rejected" && (
+                    <Link href={`/conta/anuncios/${listing.id}/corrigir`} className="text-xs font-bold text-brand-blue hover:underline">
+                      Ver motivo, corrigir e reenviar →
+                    </Link>
+                  )}
+                  {listing.planTier && listing.planTier !== "nitro" && listing.status !== "sold" && listing.status !== "rejected" && !inApp && (
                     <Link href={`/anuncio/${listing.id}/turbinar`} className="text-xs font-bold text-brand-green hover:underline">
                       Turbinar anúncio →
                     </Link>

@@ -32,6 +32,7 @@ import {
   UpdatePhotoCaptionInputSchema,
   VehicleProfileInputSchema,
   type Role,
+  ResubmitListingInputSchema,
 } from "@novoseminovo/shared-types";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -289,6 +290,20 @@ export class ListingsController {
   createReport(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
     const input = parseOrBadRequest(CreateReportInputSchema, body);
     return this.listingsService.createReport(id, user.id, input.reason);
+  }
+
+  // Anúncio recusado: o dono vê o motivo e reenvia corrigido (máx. 3 vezes).
+  @UseGuards(JwtAuthGuard)
+  @Get(":id/moderation")
+  moderationInfo(@CurrentUser() user: { id: string }, @Param("id") id: string) {
+    return this.listingsService.moderationInfo(id, user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(":id/resubmit")
+  resubmit(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
+    const input = parseOrBadRequest(ResubmitListingInputSchema, body);
+    return this.listingsService.resubmit(id, user.id, input);
   }
 
   @UseGuards(JwtAuthGuard)

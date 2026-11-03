@@ -50,9 +50,9 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
       return {
         title: "Anúncio recusado",
         body: payload.reason
-          ? `Seu anúncio "${payload.listingTitle}" foi recusado: ${payload.reason}`
-          : `Seu anúncio "${payload.listingTitle}" foi recusado na moderação.`,
-        link: `/anuncio/${payload.listingId}`,
+          ? `Seu anúncio "${payload.listingTitle}" foi recusado: ${payload.reason} Corrija e reenvie pela sua conta.`
+          : `Seu anúncio "${payload.listingTitle}" foi recusado na moderação. Veja o motivo e reenvie pela sua conta.`,
+        link: `/conta/anuncios/${payload.listingId}/corrigir`,
       };
     case "listing_suspended":
       return {

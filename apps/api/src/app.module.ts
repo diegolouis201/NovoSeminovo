@@ -23,6 +23,7 @@ import { ArchitectModule } from "./architect/architect.module";
 import { OperationsModule } from "./operations/operations.module";
 import { NewsletterModule } from "./marketing/newsletter.module";
 import { FinanceFeedModule } from "./finance-feed/finance-feed.module";
+import { ReviewsModule } from "./reviews/reviews.module";
 import { HealthController } from "./common/health.controller";
 
 @Module({
@@ -54,6 +55,7 @@ import { HealthController } from "./common/health.controller";
     OperationsModule,
     NewsletterModule,
     FinanceFeedModule,
+    ReviewsModule,
     AffiliatesModule,
   ],
   controllers: [HealthController],

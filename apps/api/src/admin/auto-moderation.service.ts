@@ -149,11 +149,14 @@ export class AutoModerationService implements OnModuleInit, OnModuleDestroy {
     this.timer = setInterval(() => void trackRoutine("moderacao", SWEEP_MS, () => this.sweep()), SWEEP_MS);
     this.timer.unref();
     listingEvents.on("pagamento-confirmado", this.onPaid);
+    // Anúncio recusado, corrigido e reenviado pelo dono: analisa já.
+    listingEvents.on("anuncio-reenviado", this.onPaid);
   }
 
   onModuleDestroy(): void {
     if (this.timer) clearInterval(this.timer);
     listingEvents.off("pagamento-confirmado", this.onPaid);
+    listingEvents.off("anuncio-reenviado", this.onPaid);
   }
 
   // Pagamento confirmado: analisa já, sem esperar a carência das fotos (no

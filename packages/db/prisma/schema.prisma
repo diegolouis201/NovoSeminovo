@@ -444,6 +444,8 @@ model Listing {
   // anúncio e, se deixou pra revisão humana, o porquê (aparece no /admin).
   autoReviewedAt   DateTime?     @map("auto_reviewed_at")
   autoReviewNote   String?       @map("auto_review_note")
+  // Quantas vezes o dono corrigiu e reenviou depois de uma recusa (máx. 3).
+  resubmitCount    Int           @default(0) @map("resubmit_count")
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")
 
@@ -773,8 +775,18 @@ model Review {
   listing           Listing? @relation(fields: [listingId], references: [id])
   rating            Int
   comment           String?
-  createdAt         DateTime @default(now()) @map("created_at")
+  // Moderação (ver apps/api/src/reviews): pending → approved | rejected;
+  // approved → reported (denúncia do avaliado) → approved | rejected.
+  // Avaliações antigas nascem aprovadas (o default).
+  status            String    @default("approved")
+  moderationNote    String?   @map("moderation_note")
+  autoReviewedAt    DateTime? @map("auto_reviewed_at")
+  reportReason      String?   @map("report_reason")
+  reportedAt        DateTime? @map("reported_at")
+  moderatedAt       DateTime? @map("moderated_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
 
+  @@index([status])
   @@map("reviews")
 }
 

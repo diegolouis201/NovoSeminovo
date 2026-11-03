@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { ModerationLogEntry, PendingListing, PendingPartner, PendingReport } from "@novoseminovo/shared-types";
+import type { AdminReviewQueueItem, ModerationLogEntry, PendingListing, PendingPartner, PendingReport } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { fetchModerationLog, fetchOpenReports, fetchPendingListings, fetchPendingPartners } from "@/lib/api";
+import { fetchAdminReviews, fetchModerationLog, fetchOpenReports, fetchPendingListings, fetchPendingPartners } from "@/lib/api";
+import { adminReviewDecisionAction } from "@/lib/actions/reviews";
 import { moderateListingAction, setPartnerTypeAction, updateReportStatusAction, verifyPartnerAction } from "@/lib/actions/admin";
 
 const PARTNER_TYPE_LABEL: Record<string, string> = {
@@ -42,11 +43,12 @@ export default async function AdminPage() {
     );
   }
 
-  const [listings, partners, reports, moderationLog] = await Promise.all([
+  const [listings, partners, reports, moderationLog, reviews] = await Promise.all([
     fetchPendingListings(session.accessToken),
     fetchPendingPartners(session.accessToken),
     fetchOpenReports(session.accessToken),
     fetchModerationLog(session.accessToken),
+    fetchAdminReviews(session.accessToken),
   ]);
 
   return (
@@ -113,6 +115,25 @@ export default async function AdminPage() {
           <ul className="mt-3 flex flex-col gap-3">
             {reports.map((report) => (
               <PendingReportCard key={report.id} report={report} />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="mt-10" aria-label="Avaliações para revisar">
+        <h2 className="font-display text-xl font-semibold text-ink">
+          Avaliações para revisar <span className="text-base font-normal text-ink-muted">({reviews.length})</span>
+        </h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Avaliações com texto passam pela IA; aqui ficam as que ela deixou para você e as denunciadas pela empresa avaliada (denunciada continua no
+          ar até a decisão).
+        </p>
+        {reviews.length === 0 ? (
+          <p className="mt-3 text-ink-muted">Nenhuma avaliação esperando decisão.</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-3">
+            {reviews.map((review) => (
+              <ReviewQueueCard key={review.id} review={review} />
             ))}
           </ul>
         )}
@@ -270,6 +291,37 @@ function PendingReportCard({ report }: { report: PendingReport }) {
         </Button>
         <Button type="submit" name="status" value="dismissed" variant="ghost" className="flex-1 justify-center">
           Descartar
+        </Button>
+      </form>
+    </li>
+  );
+}
+
+function ReviewQueueCard({ review }: { review: AdminReviewQueueItem }) {
+  const action = adminReviewDecisionAction.bind(null, review.id);
+  return (
+    <li className="rounded-brand border border-border bg-surface-raised p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm text-ink">
+          <span className="font-semibold">{review.reviewerName}</span> avaliou <span className="font-semibold">{review.targetName}</span>
+          {review.listingTitle && <span className="text-ink-muted"> · {review.listingTitle}</span>}
+        </p>
+        <span className="text-sm font-bold text-brand-blue">{"★".repeat(review.rating)}</span>
+      </div>
+      {review.comment && <p className="mt-2 rounded-brand bg-surface-sober px-3 py-2 text-sm text-ink">{review.comment}</p>}
+      {review.status === "reported" && (
+        <p className="mt-2 text-sm text-status-danger">
+          <span className="font-semibold">Denunciada pela empresa:</span> {review.reportReason}
+        </p>
+      )}
+      {review.moderationNote && <p className="mt-1 text-xs text-ink-muted">Nota da IA: {review.moderationNote}</p>}
+      <form action={action} className="mt-3 flex flex-wrap items-center gap-2">
+        <input name="note" placeholder="Observação (opcional)" maxLength={500} className="min-w-0 flex-1 rounded-brand border border-border bg-surface-page px-3 py-1.5 text-sm text-ink" />
+        <Button type="submit" name="action" value="approve" variant="primary">
+          Manter no ar
+        </Button>
+        <Button type="submit" name="action" value="reject" variant="secondary">
+          Tirar do ar
         </Button>
       </form>
     </li>

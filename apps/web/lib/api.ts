@@ -93,6 +93,9 @@ import type {
   VehicleProfileInput,
   VehicleRecommendation,
   WorkshopOption,
+  ListingModerationInfo,
+  ResubmitListingInput,
+  AdminReviewQueueItem,
 } from "@novoseminovo/shared-types";
 import { getListing, getVehicleProfile, listListings } from "@/lib/mock-data";
 
@@ -597,6 +600,40 @@ async function sendJson<T>(path: string, method: "POST" | "PATCH", body: unknown
   } catch {
     return { ok: false, error: "Não foi possível falar com o servidor agora." };
   }
+}
+
+// Anúncio recusado: motivo, reenvios restantes e reenvio corrigido.
+export async function fetchListingModeration(listingId: string, accessToken: string): Promise<ListingModerationInfo | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/moderation`, { headers: authHeaders(accessToken), cache: "no-store" });
+    if (!res.ok) return undefined;
+    return (await res.json()) as ListingModerationInfo;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function resubmitListing(listingId: string, input: ResubmitListingInput, accessToken: string): Promise<ApiResult<unknown>> {
+  return sendJson(`/listings/${listingId}/resubmit`, "POST", input, accessToken);
+}
+
+// Moderação de avaliações: denúncia do avaliado e fila do admin.
+export async function reportReview(reviewId: string, reason: string, accessToken: string): Promise<ApiResult<unknown>> {
+  return sendJson(`/reviews/${reviewId}/report`, "POST", { reason }, accessToken);
+}
+
+export async function fetchAdminReviews(accessToken: string): Promise<AdminReviewQueueItem[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/reviews`, { headers: authHeaders(accessToken), cache: "no-store" });
+    if (!res.ok) return [];
+    return (await res.json()) as AdminReviewQueueItem[];
+  } catch {
+    return [];
+  }
+}
+
+export async function decideReview(reviewId: string, action: "approve" | "reject", note: string | undefined, accessToken: string): Promise<ApiResult<unknown>> {
+  return sendJson(`/admin/reviews/${reviewId}/decision`, "POST", { action, note }, accessToken);
 }
 
 // "Esqueci minha senha" (sem login). O pedido espera o e-mail sair — 20s.

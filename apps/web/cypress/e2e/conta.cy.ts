@@ -43,3 +43,19 @@ describe("Campanhas no admin", () => {
     cy.location("search").should("not.include", "campanha=");
   });
 });
+
+describe("Moderação: reenvio e avaliações", () => {
+  it("corrigir anúncio e denunciar avaliação exigem login", () => {
+    cy.visit("/conta/anuncios/qualquer/corrigir");
+    cy.location("pathname").should("eq", "/entrar");
+    cy.visit("/avaliacoes/qualquer/denunciar");
+    cy.location("pathname").should("eq", "/entrar");
+  });
+
+  it("admin vê a fila de avaliações para revisar", () => {
+    cy.login("admin@novoseminovo.com.br", "senha1234");
+    cy.location("pathname").should("not.eq", "/entrar");
+    cy.visit("/admin");
+    cy.contains("h2", "Avaliações para revisar").should("be.visible");
+  });
+});

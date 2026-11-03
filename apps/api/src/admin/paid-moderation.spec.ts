@@ -46,4 +46,30 @@ describe("Moderação na hora do pagamento", () => {
       service.onModuleDestroy();
     }
   });
+
+  test("anúncio corrigido e reenviado também é analisado na hora", async () => {
+    process.env.ANTHROPIC_API_KEY = "chave-de-teste";
+    delete process.env.AUTO_MODERATION_DISABLED;
+    const listing = { id: "r1", status: "pending_review", autoReviewedAt: null, photos: [{ url: "/uploads/a.jpg" }] };
+    const applied: Array<[string, string]> = [];
+    const prisma = {
+      listing: {
+        updateMany: async () => ({ count: 0 }),
+        findFirst: async ({ where }: { where: { id: string } }) => (where.id === listing.id ? listing : null),
+        findMany: async () => [],
+        update: async () => listing,
+      },
+    } as unknown as PrismaService;
+    const admin = { applyModeration: async (id: string, decision: string) => void applied.push([id, decision]) } as unknown as AdminService;
+    const service = new AutoModerationService(prisma, admin);
+    (service as unknown as { decide: () => Promise<unknown> }).decide = async () => ({ decision: "approve" });
+    service.onModuleInit();
+    try {
+      listingEvents.emit("anuncio-reenviado", "r1");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      assert.deepEqual(applied, [["r1", "approve"]]);
+    } finally {
+      service.onModuleDestroy();
+    }
+  });
 });

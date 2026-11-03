@@ -27,6 +27,9 @@ import {
   type VehicleProfileInput,
   type VehicleRecommendation,
   type Acquisition,
+  MAX_LISTING_RESUBMITS,
+  type ListingModerationInfo,
+  type ResubmitListingInput,
 } from "@novoseminovo/shared-types";
 import { vehicleBrandVariants } from "@novoseminovo/shared-types";
 import { leadOrigin } from "../common/acquisition";
@@ -61,6 +64,7 @@ import {
 } from "./listings.mapper";
 import { AffiliatesService } from "../affiliates/affiliates.service";
 import { sanitizeUpload } from "../common/image-safety";
+import { initialReviewStatus, visibleReviewWhere } from "../reviews/review-moderation.service";
 
 // Não existe campo de "tipo de carroceria" (SUV/hatch/sedã) no schema (ver
 // comentário em popularBrands acima) — esses atributos de VehicleDetails são
@@ -711,7 +715,7 @@ export class ListingsService {
   private async sellerStats(partnerId: string | null, ownerUserId: string) {
     const [reviews, activeListings] = await Promise.all([
       this.prisma.review.aggregate({
-        where: partnerId ? { reviewedPartnerId: partnerId } : { reviewedUserId: ownerUserId },
+        where: { ...(partnerId ? { reviewedPartnerId: partnerId } : { reviewedUserId: ownerUserId }), ...visibleReviewWhere },
         _avg: { rating: true },
         _count: true,
       }),
@@ -762,6 +766,9 @@ export class ListingsService {
     const existingReview = await this.prisma.review.findFirst({ where: { listingId, reviewerId } });
     if (existingReview) throw new ConflictException("Você já avaliou este anúncio.");
 
+    // Moderação: nota sem texto entra direto; texto com contato é recusado;
+    // o resto espera a IA ou o admin (ver reviews/review-moderation.service).
+    const moderation = initialReviewStatus(input.comment);
     await this.prisma.review.create({
       data: {
         reviewerId,
@@ -770,8 +777,13 @@ export class ListingsService {
         comment: input.comment,
         reviewedUserId: listing.partnerId ? undefined : listing.ownerUserId,
         reviewedPartnerId: listing.partnerId ?? undefined,
+        status: moderation.status,
+        moderationNote: moderation.note,
+        moderatedAt: moderation.status === "pending" ? undefined : new Date(),
       },
     });
+    if (moderation.status === "pending") listingEvents.emit("avaliacao-nova");
+    if (moderation.status !== "approved") return;
 
     const recipientId = listing.partnerId
       ? (await this.prisma.partner.findUnique({ where: { id: listing.partnerId } }))?.ownerUserId
@@ -1026,6 +1038,58 @@ export class ListingsService {
     if (listing.type === "property") this.geocoding.kick();
 
     return toMyListingSummary(listing);
+  }
+
+  // ---------- Anúncio recusado: corrigir e reenviar ----------
+
+  private async ownedListing(listingId: string, ownerUserId: string) {
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
+    if (listing.ownerUserId !== ownerUserId) throw new ForbiddenException("Você só pode editar os seus próprios anúncios.");
+    return listing;
+  }
+
+  async moderationInfo(listingId: string, ownerUserId: string): Promise<ListingModerationInfo> {
+    const listing = await this.ownedListing(listingId, ownerUserId);
+    const last = await this.prisma.moderationLog.findFirst({
+      where: { listingId, action: { in: ["rejected", "suspended"] } },
+      orderBy: { createdAt: "desc" },
+      select: { reason: true },
+    });
+    const resubmitsLeft = Math.max(0, MAX_LISTING_RESUBMITS - listing.resubmitCount);
+    return {
+      status: listing.status,
+      reason: listing.status === "rejected" ? last?.reason ?? undefined : undefined,
+      resubmitsLeft,
+      canResubmit: listing.status === "rejected" && resubmitsLeft > 0,
+    };
+  }
+
+  async resubmit(listingId: string, ownerUserId: string, input: ResubmitListingInput): Promise<void> {
+    const listing = await this.ownedListing(listingId, ownerUserId);
+    if (listing.status !== "rejected") throw new ConflictException("Só um anúncio recusado pode ser corrigido e reenviado.");
+    if (listing.resubmitCount >= MAX_LISTING_RESUBMITS) {
+      throw new ConflictException(`Este anúncio já foi reenviado ${MAX_LISTING_RESUBMITS} vezes (limite de 3 reenvios). Fale com o suporte.`);
+    }
+    for (const [field, text] of [["no título", input.title], ["na descrição", input.description]] as const) {
+      const kind = findContactInfo(text);
+      if (kind) throw new BadRequestException(contactInfoMessage(kind, field));
+    }
+    const photos = await this.prisma.photo.count({ where: { listingId } });
+    if (photos === 0) throw new BadRequestException("Inclua pelo menos uma foto antes de reenviar.");
+    await this.prisma.listing.update({
+      where: { id: listingId },
+      data: {
+        title: input.title,
+        description: input.description,
+        price: input.price,
+        status: "pending_review",
+        resubmitCount: { increment: 1 },
+        autoReviewedAt: null,
+        autoReviewNote: null,
+      },
+    });
+    listingEvents.emit("anuncio-reenviado", listingId);
   }
 
   async updateStatus(

@@ -1,3 +1,4 @@
+import { visibleReviewWhere } from "../reviews/review-moderation.service";
 import {
   BadRequestException,
   ConflictException,
@@ -604,7 +605,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
         orderBy: [{ highlightedUntil: "desc" }, { publishedAt: "desc" }],
       }),
       this.prisma.review.findMany({
-        where: { reviewedPartnerId: partner.id },
+        where: { reviewedPartnerId: partner.id, ...visibleReviewWhere },
         include: { reviewer: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
         take: 20,

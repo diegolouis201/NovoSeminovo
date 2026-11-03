@@ -20,6 +20,7 @@ import type {
   ReorderPhotosInput,
   VehicleProfileInput,
 } from "@novoseminovo/shared-types";
+import { ResubmitListingInputSchema } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import {
   startListingBoost,
@@ -50,6 +51,7 @@ import {
   updateListingStatus,
   updatePhotoCaption,
   uploadListingPhotos,
+  resubmitListing,
 } from "@/lib/api";
 import { parseListingsCsv } from "@/lib/csv-listings";
 
@@ -531,4 +533,26 @@ export async function importListingFromPageAction(page: Omit<ImportFromPageInput
   if (!session?.accessToken) return { ok: false, error: "Sua sessão expirou. Entre de novo." };
   const result = await importListingFromPage(page, session.accessToken);
   return result.ok ? { ok: true, value: result.value } : result;
+}
+
+// Anúncio recusado: o dono corrige título, descrição e preço e reenvia
+// para a moderação (as fotos são trocadas na página de fotos).
+export async function resubmitListingAction(listingId: string, formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+
+  const rawPrice = String(formData.get("price") ?? "").replace(/[^\d,]/g, "").replace(",", ".");
+  const input = {
+    title: String(formData.get("title") ?? "").trim(),
+    description: String(formData.get("description") ?? "").trim(),
+    price: Number(rawPrice),
+  };
+  const parsed = ResubmitListingInputSchema.safeParse(input);
+  const back = `/conta/anuncios/${listingId}/corrigir`;
+  if (!parsed.success) redirect(`${back}?erro=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Confira os campos.")}`);
+
+  const result = await resubmitListing(listingId, parsed.data, session.accessToken);
+  if (!result.ok) redirect(`${back}?erro=${encodeURIComponent(result.error)}`);
+  revalidatePath("/conta/anuncios");
+  redirect("/conta/anuncios?reenviado=1");
 }
