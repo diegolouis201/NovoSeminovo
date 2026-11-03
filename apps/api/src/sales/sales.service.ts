@@ -153,26 +153,33 @@ export class SalesService {
       return;
     }
     // Cadastro e sincronização podem criar o card ao mesmo tempo: quem perder
-    // a corrida usa o card que já existe (partnerId é único).
-    await this.prisma.salesProspect.create({
-      data: {
-        name: partner.legalName,
-        segment,
-        cnpj: cnpj && !(await this.prisma.salesProspect.findUnique({ where: { cnpj } })) ? cnpj : undefined,
-        city: partner.city,
-        state: partner.state,
-        contactName: partner.owner.name,
-        email: partner.owner.email,
-        partnerId,
-        ownerId: seller?.id,
-        source: seller ? "link" : "site",
-      },
-    }).catch(async (error: unknown) => {
-      if ((error as { code?: string }).code !== "P2002") throw error;
-      const existing = await this.prisma.salesProspect.findUnique({ where: { partnerId } });
-      if (!existing) throw error;
-      await adoptLinked(existing);
-    });
+    // a corrida usa o card que já existe (partnerId é único). Se o CNPJ já
+    // estiver em outro card (outra empresa com o mesmo CNPJ), cria sem ele.
+    const data = {
+      name: partner.legalName,
+      segment,
+      cnpj: cnpj && !(await this.prisma.salesProspect.findUnique({ where: { cnpj } })) ? cnpj : undefined,
+      city: partner.city,
+      state: partner.state,
+      contactName: partner.owner.name,
+      email: partner.owner.email,
+      partnerId,
+      ownerId: seller?.id,
+      source: seller ? "link" : "site",
+    };
+    for (const attempt of [data, { ...data, cnpj: undefined }]) {
+      try {
+        await this.prisma.salesProspect.create({ data: attempt });
+        return;
+      } catch (error) {
+        const code = (error as { code?: string }).code;
+        if (code === "P2003") return; // empresa apagada enquanto isso: nada a ligar
+        if (code !== "P2002") throw error;
+        const existing = await this.prisma.salesProspect.findUnique({ where: { partnerId } });
+        if (existing) return adoptLinked(existing);
+        if (!attempt.cnpj) throw error;
+      }
+    }
   }
 
   // Cadastro de empresa pelo site: acha a empresa recém-criada do dono e liga ao quadro.

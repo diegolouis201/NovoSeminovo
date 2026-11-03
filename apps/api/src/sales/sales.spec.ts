@@ -196,6 +196,40 @@ describe("Funil comercial (banco local)", { skip: !withDb && "sem DATABASE_URL" 
     assert.equal(cards[0]?.ownerId, ids.other, "o link do vendedor vale mesmo com o card já criado");
   });
 
+  test("duas empresas com o mesmo CNPJ ao mesmo tempo: a segunda ganha card sem CNPJ, sem erro", async () => {
+    const shared = cnpj(10);
+    const firstPartner = await partnerSignup("dealership", shared);
+    await service.linkSignup(firstPartner);
+    const secondPartner = await partnerSignup("dealership", shared);
+    // A outra empresa gravou o CNPJ entre a conferência e a criação.
+    const original = prisma.salesProspect.findUnique.bind(prisma.salesProspect);
+    (prisma.salesProspect as { findUnique: unknown }).findUnique = (args: { where: { cnpj?: string } }) =>
+      args.where.cnpj === shared ? Promise.resolve(null) : original(args as Parameters<typeof original>[0]);
+    try {
+      await service.linkSignup(secondPartner);
+    } finally {
+      (prisma.salesProspect as { findUnique: unknown }).findUnique = original;
+    }
+    const card = await prisma.salesProspect.findUnique({ where: { partnerId: secondPartner } });
+    assert.ok(card, "a segunda empresa também tem card");
+    assert.equal(card?.cnpj, null);
+  });
+
+  test("empresa apagada no meio da sincronização: não cria card nem derruba a sincronização", async () => {
+    const partner = await partnerSignup("dealership", cnpj(11));
+    const snapshot = await prisma.partner.findUniqueOrThrow({ where: { id: partner }, include: { owner: { select: { name: true, email: true } } } });
+    await prisma.partner.delete({ where: { id: partner } });
+    const original = prisma.partner.findUnique.bind(prisma.partner);
+    (prisma.partner as { findUnique: unknown }).findUnique = (args: { where: { id?: string } }) =>
+      args.where.id === partner ? Promise.resolve(snapshot) : original(args as Parameters<typeof original>[0]);
+    try {
+      await service.linkSignup(partner);
+    } finally {
+      (prisma.partner as { findUnique: unknown }).findUnique = original;
+    }
+    assert.equal(await prisma.salesProspect.findUnique({ where: { partnerId: partner } }), null);
+  });
+
   test("cadastro direto pelo site aparece sem dono, em Imóveis e no Consolidado", async () => {
     const partner = await partnerSignup("real_estate_agency", cnpj(3));
     const inProperty = await cardOf((c) => c.partnerId === partner, "property");
