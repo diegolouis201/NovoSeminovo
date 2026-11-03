@@ -5,6 +5,7 @@ declare global {
   namespace Cypress {
     interface Chainable {
       login(email: string, password: string): Chainable<void>;
+      loginAs(email: string, password: string): Chainable<void>;
     }
   }
 }
@@ -27,6 +28,20 @@ Cypress.Commands.add("login", (email: string, password: string) => {
     cy.get('input[name="password"]').type(password, { log: false });
     cy.get('button[type="submit"]').click();
   });
+});
+
+// Entra uma vez por conta e reaproveita a sessão nos testes seguintes. O
+// servidor aceita no máximo 8 logins por minuto por endereço (proteção
+// contra robôs), então os testes não devem logar de novo a cada caso.
+Cypress.Commands.add("loginAs", (email: string, password: string) => {
+  cy.session(
+    [email],
+    () => {
+      cy.login(email, password);
+      cy.location("pathname").should("not.eq", "/entrar");
+    },
+    { cacheAcrossSpecs: true },
+  );
 });
 
 export {};

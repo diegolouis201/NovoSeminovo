@@ -34,8 +34,7 @@ describe("Conta", () => {
 
 describe("Campanhas no admin", () => {
   it("filtro de campanha mostra o resumo e permite limpar", () => {
-    cy.login("admin@novoseminovo.com.br", "senha1234");
-    cy.location("pathname").should("not.eq", "/entrar");
+    cy.loginAs("admin@novoseminovo.com.br", "senha1234");
     cy.visit("/admin/leads?periodo=30&campanha=sugestao-ia&canal=whatsapp");
     cy.contains("h2", "Campanha: sugestao-ia").should("be.visible");
     cy.contains("vieram por esta campanha").should("be.visible");
@@ -53,8 +52,7 @@ describe("Moderação: reenvio e avaliações", () => {
   });
 
   it("admin vê a fila de avaliações para revisar", () => {
-    cy.login("admin@novoseminovo.com.br", "senha1234");
-    cy.location("pathname").should("not.eq", "/entrar");
+    cy.loginAs("admin@novoseminovo.com.br", "senha1234");
     cy.visit("/admin");
     cy.contains("h2", "Avaliações para revisar").should("be.visible");
   });
@@ -63,8 +61,7 @@ describe("Moderação: reenvio e avaliações", () => {
 // POP MOD-05: bloquear sem excluir (golpe) e contas em revisão por reincidência.
 describe("Segurança das contas no admin", () => {
   beforeEach(() => {
-    cy.login("admin@novoseminovo.com.br", "senha1234");
-    cy.location("pathname").should("not.eq", "/entrar");
+    cy.loginAs("admin@novoseminovo.com.br", "senha1234");
   });
 
   it("Moderação mostra as contas em revisão por reincidência", () => {
@@ -88,15 +85,13 @@ describe("Área Comercial", () => {
   });
 
   it("comprador não acessa", () => {
-    cy.login("comprador@novoseminovo.com.br", "senha1234");
-    cy.location("pathname").should("not.eq", "/entrar");
+    cy.loginAs("comprador@novoseminovo.com.br", "senha1234");
     cy.visit("/comercial");
     cy.contains("h1", "Acesso restrito").should("be.visible");
   });
 
   it("admin vê o quadro com as três abas, as metas e o botão de nova empresa", () => {
-    cy.login("admin@novoseminovo.com.br", "senha1234");
-    cy.location("pathname").should("not.eq", "/entrar");
+    cy.loginAs("admin@novoseminovo.com.br", "senha1234");
     cy.visit("/comercial");
     cy.contains("h1", "Comercial").should("be.visible");
     cy.contains("a", "Veículos").should("be.visible");
@@ -108,8 +103,7 @@ describe("Área Comercial", () => {
   });
 
   it("admin convida alguém para o comercial", () => {
-    cy.login("admin@novoseminovo.com.br", "senha1234");
-    cy.location("pathname").should("not.eq", "/entrar");
+    cy.loginAs("admin@novoseminovo.com.br", "senha1234");
     cy.visit("/admin/equipe");
     cy.contains("h1", "Equipe comercial").should("be.visible");
     cy.get('form[aria-label="Convidar para o comercial"] input[name="email"]').should("have.attr", "type", "email");
