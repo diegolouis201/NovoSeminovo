@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
+  AdminBlockAccountInputSchema,
+  type HeldAccountItem,
   ACQUISITION_SOURCES,
   DeleteMyAccountInputSchema,
   AdminDeleteInputSchema,
@@ -14,6 +16,8 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { AdminGuard } from "./admin.guard";
 import { AdminService } from "./admin.service";
+import { blockAccount, clearModerationHold, heldAccounts, unblockAccount } from "./account-safety";
+import { PrismaService } from "../prisma/prisma.service";
 import { AdminOverviewService } from "./overview.service";
 import { AdminAccountsService } from "./accounts.service";
 import { AdminLeadsService } from "./leads.service";
@@ -26,6 +30,7 @@ export class AdminController {
     private readonly overviewService: AdminOverviewService,
     private readonly accounts: AdminAccountsService,
     private readonly leads: AdminLeadsService,
+    private readonly prisma: PrismaService,
   ) {}
 
   // Todos os leads do site com o funil (/admin/leads).
@@ -83,6 +88,37 @@ export class AdminController {
   @Get("users/:id")
   userProfile(@Param("id") id: string) {
     return this.accounts.profile(id);
+  }
+
+  // Golpe confirmado: bloqueia sem apagar (POP MOD-05).
+  @Post("users/:id/block")
+  async blockUser(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
+    await blockAccount(this.prisma, id, parseOrBadRequest(AdminBlockAccountInputSchema, body).reason, user.id);
+    return { blocked: true };
+  }
+
+  @Post("users/:id/unblock")
+  async unblockUser(@Param("id") id: string) {
+    await unblockAccount(this.prisma, id);
+    return { blocked: false };
+  }
+
+  // Contas em revisão por reincidência (3 recusas em 30 dias ou 2 denúncias procedentes).
+  @Get("accounts/held")
+  async heldAccounts(): Promise<HeldAccountItem[]> {
+    return (await heldAccounts(this.prisma)).map((a) => ({
+      id: a.id,
+      name: a.name,
+      email: a.email,
+      since: a.moderationHoldAt.toISOString(),
+      reason: a.moderationHoldReason ?? undefined,
+    }));
+  }
+
+  @Post("users/:id/clear-hold")
+  async clearHold(@Param("id") id: string) {
+    await clearModerationHold(this.prisma, id);
+    return { held: false };
   }
 
   @Post("users/:id/delete")

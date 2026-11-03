@@ -3,6 +3,7 @@ import { ForbiddenException, Injectable, Logger, NotFoundException, OnModuleDest
 import type { Prisma } from "@novoseminovo/db";
 import type { AdminReviewQueueItem } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { findContactInfo } from "../common/contact-filter";
 import { listingEvents } from "../common/listing-events";
 import { AGENT_MODEL } from "../agents/agent-engine";
@@ -59,7 +60,27 @@ export class ReviewModerationService implements OnModuleInit, OnModuleDestroy {
   private running = false;
   private readonly onNew = () => void this.moderatePending();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications?: NotificationsService,
+  ) {}
+
+  // Avisa quem foi avaliado (pessoa ou dono da loja/imobiliária) quando a
+  // avaliação vai ao ar. Falha no aviso não desfaz a moderação.
+  private async notifyApproved(reviewId: string): Promise<void> {
+    if (!this.notifications) return;
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+      select: { rating: true, reviewedUserId: true, reviewedPartner: { select: { ownerUserId: true } }, listing: { select: { id: true, title: true } } },
+    });
+    const recipientId = review?.reviewedPartner?.ownerUserId ?? review?.reviewedUserId;
+    if (!review || !recipientId || !review.listing) return;
+    try {
+      await this.notifications.notify(recipientId, "new_review", { listingId: review.listing.id, listingTitle: review.listing.title, rating: review.rating });
+    } catch (error) {
+      this.logger.warn(`Aviso da avaliação ${reviewId} não saiu: ${(error as Error).message}`);
+    }
+  }
 
   enabled(): boolean {
     return Boolean(process.env.ANTHROPIC_API_KEY) && process.env.AUTO_MODERATION_DISABLED !== "1";
@@ -104,6 +125,7 @@ export class ReviewModerationService implements OnModuleInit, OnModuleDestroy {
               ? { autoReviewedAt: now, moderationNote: decision.note ?? "Conferir esta avaliação." }
               : { status: decision.decision === "approve" ? "approved" : "rejected", autoReviewedAt: now, moderatedAt: now, moderationNote: decision.note },
         });
+        if (decision.decision === "approve") await this.notifyApproved(review.id);
       }
     } finally {
       this.running = false;
@@ -176,5 +198,7 @@ export class ReviewModerationService implements OnModuleInit, OnModuleDestroy {
       where: { id: reviewId },
       data: { status: action === "approve" ? "approved" : "rejected", moderatedAt: new Date(), moderationNote: note ?? review.moderationNote },
     });
+    // Denunciada mantida no ar já tinha sido avisada quando foi aprovada.
+    if (action === "approve" && review.status === "pending") await this.notifyApproved(reviewId);
   }
 }

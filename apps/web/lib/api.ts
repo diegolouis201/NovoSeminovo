@@ -23,6 +23,8 @@ import type {
   ImportedListing,
   AdminUserProfile,
   AdminDeleteInput,
+  AdminBlockAccountInput,
+  HeldAccountItem,
   AdminListingActionInput,
   StoreEarningInput,
   FipePrice,
@@ -2068,6 +2070,28 @@ export async function fetchAdminUser(id: string, accessToken: string): Promise<A
 
 export function adminDeleteListing(id: string, input: AdminDeleteInput, accessToken: string): Promise<ApiResult<{ deleted: true }>> {
   return sendJson(`/admin/listings/${encodeURIComponent(id)}/delete`, "POST", input, accessToken);
+}
+
+export function adminBlockAccount(id: string, input: AdminBlockAccountInput, accessToken: string): Promise<ApiResult<{ blocked: true }>> {
+  return sendJson(`/admin/users/${encodeURIComponent(id)}/block`, "POST", input, accessToken);
+}
+
+export function adminUnblockAccount(id: string, accessToken: string): Promise<ApiResult<{ blocked: false }>> {
+  return sendJson(`/admin/users/${encodeURIComponent(id)}/unblock`, "POST", {}, accessToken);
+}
+
+export function adminClearModerationHold(id: string, accessToken: string): Promise<ApiResult<{ held: false }>> {
+  return sendJson(`/admin/users/${encodeURIComponent(id)}/clear-hold`, "POST", {}, accessToken);
+}
+
+export async function fetchHeldAccounts(accessToken: string): Promise<HeldAccountItem[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/accounts/held`, { headers: authHeaders(accessToken), cache: "no-store" });
+    if (!res.ok) return [];
+    return (await res.json()) as HeldAccountItem[];
+  } catch {
+    return [];
+  }
 }
 
 export function adminDeleteAccount(

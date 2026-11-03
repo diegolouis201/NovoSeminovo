@@ -220,6 +220,14 @@ model User {
   // Sessões (JWT de 30 dias) emitidas antes disto deixam de valer.
   passwordChangedAt          DateTime? @map("password_changed_at")
 
+  // Moderação (MOD-05): conta bloqueada por golpe confirmado (status
+  // suspended, nada é apagado) e conta em revisão por reincidência (todo
+  // anúncio novo vai para a fila humana até o admin liberar).
+  blockedAt            DateTime? @map("blocked_at")
+  blockedReason        String?   @map("blocked_reason")
+  moderationHoldAt     DateTime? @map("moderation_hold_at")
+  moderationHoldReason String?   @map("moderation_hold_reason")
+
   ownedPartners            Partner[]             @relation("PartnerOwner")
   partnerMemberships       PartnerMember[]
   listings                 Listing[]             @relation("ListingOwner")

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { ACQUISITION_SOURCES, ADMIN_LISTING_STATUS_LABELS, MARKETING_CONSENT_LABELS, type AdminUserProfile } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { AdminListingsTable } from "@/components/admin/AdminListingsTable";
-import { adminDeleteAccountForm } from "@/lib/actions/admin-listings";
+import { adminBlockAccountForm, adminClearHoldForm, adminDeleteAccountForm, adminUnblockAccountForm } from "@/lib/actions/admin-listings";
 import { fetchAdminListings, fetchAdminUser } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -87,6 +87,7 @@ export default async function AdminUserPage({ params, searchParams }: { params: 
             )}
           </section>
 
+          {!profile.deleted && profile.role !== "admin" && <AccountSafety profile={profile} />}
           {!profile.deleted && <DeleteAccount profile={profile} />}
         </>
       )}
@@ -102,7 +103,10 @@ function Header({ profile }: { profile: AdminUserProfile }) {
         <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">{partner ? "Responsável (PJ)" : "Pessoa física (PF)"}</p>
         <h1 className="mt-1 font-display text-2xl font-semibold text-ink">{profile.name}</h1>
         {profile.deleted && <p className="mt-1 font-semibold text-status-danger">Conta excluída: dados pessoais apagados.</p>}
-        {!profile.deleted && profile.status !== "active" && <p className="mt-1 font-semibold text-status-danger">Conta suspensa</p>}
+        {!profile.deleted && profile.status !== "active" && (
+          <p className="mt-1 font-semibold text-status-danger">{profile.blockedAt ? `Conta bloqueada em ${dateLabel(profile.blockedAt)}` : "Conta suspensa"}</p>
+        )}
+        {profile.moderationHold && <p className="mt-1 font-semibold text-brand-orange">Em revisão por reincidência</p>}
         <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
           <dt className="text-ink-muted">E-mail</dt>
           <dd className="break-all text-ink">
@@ -208,6 +212,72 @@ function DeleteAccount({ profile }: { profile: AdminUserProfile }) {
       <p className="mt-3 text-xs text-ink-muted">
         Situações dos anúncios: {Object.entries(ADMIN_LISTING_STATUS_LABELS).map(([key, label]) => `${label} ${profile.stats.listingsByStatus.filter((row) => row.status === key).reduce((sum, row) => sum + row.count, 0)}`).join(" · ")}
       </p>
+    </section>
+  );
+}
+
+// POP MOD-05: bloquear sem excluir (golpe confirmado) e revisão por reincidência.
+function AccountSafety({ profile }: { profile: AdminUserProfile }) {
+  const hold = profile.moderationHold;
+  return (
+    <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="rounded-brand-lg border border-border bg-surface-raised p-5 text-sm">
+        <h2 className="font-display text-lg font-semibold text-ink">Revisão por reincidência</h2>
+        {hold ? (
+          <>
+            <p className="mt-1 text-ink">
+              Desde {dateLabel(hold.since)}{hold.reason ? ` (${hold.reason})` : ""}: todo anúncio desta conta vai para a sua fila na Moderação; a IA não aprova
+              sozinha.
+            </p>
+            <form action={adminClearHoldForm.bind(null, profile.id)} className="mt-3">
+              <button type="submit" className="rounded-brand border border-border px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-sober">
+                Liberar a conta (volta para a moderação automática)
+              </button>
+            </form>
+          </>
+        ) : (
+          <p className="mt-1 text-ink-muted">
+            Normal. Entra em revisão sozinha com 3 anúncios recusados em 30 dias ou 2 denúncias procedentes.
+          </p>
+        )}
+      </div>
+      <div className="rounded-brand-lg border border-status-danger/50 bg-surface-raised p-5 text-sm">
+        <h2 className="font-display text-lg font-semibold text-status-danger">Bloquear conta (golpe confirmado)</h2>
+        {profile.blockedAt ? (
+          <>
+            <p className="mt-1 text-ink">
+              Bloqueada em {dateLabel(profile.blockedAt)}. Motivo: {profile.blockedReason}
+            </p>
+            <form action={adminUnblockAccountForm.bind(null, profile.id)} className="mt-3">
+              <button type="submit" className="rounded-brand border border-border px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-sober">
+                Desbloquear (foi engano)
+              </button>
+            </form>
+          </>
+        ) : profile.status !== "active" ? (
+          <p className="mt-1 text-ink-muted">Conta já suspensa.</p>
+        ) : (
+          <>
+            <p className="mt-1 text-ink">
+              A pessoa perde o acesso na hora e os anúncios no ar ou em análise saem do ar. Nada é apagado: serve de prova e dá para desbloquear.
+            </p>
+            <form aria-label="Bloquear conta" action={adminBlockAccountForm.bind(null, profile.id)} className="mt-3 flex flex-col gap-2">
+              <textarea
+                name="reason"
+                required
+                minLength={5}
+                maxLength={500}
+                rows={2}
+                placeholder="Motivo (fica registrado). Ex.: pediu sinal por Pix de carro que não existe."
+                className="rounded-brand border border-border bg-surface-page px-3 py-2 text-sm text-ink"
+              />
+              <button type="submit" className="rounded-brand bg-status-danger px-4 py-2 text-sm font-bold text-white hover:opacity-90">
+                Bloquear conta
+              </button>
+            </form>
+          </>
+        )}
+      </div>
     </section>
   );
 }

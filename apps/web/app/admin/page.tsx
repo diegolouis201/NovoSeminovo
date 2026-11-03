@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { AdminReviewQueueItem, ModerationLogEntry, PendingListing, PendingPartner, PendingReport } from "@novoseminovo/shared-types";
+import type { AdminReviewQueueItem, HeldAccountItem, ModerationLogEntry, PendingListing, PendingPartner, PendingReport } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { Button } from "@/components/Button";
-import { fetchAdminReviews, fetchModerationLog, fetchOpenReports, fetchPendingListings, fetchPendingPartners } from "@/lib/api";
+import { fetchAdminReviews, fetchHeldAccounts, fetchModerationLog, fetchOpenReports, fetchPendingListings, fetchPendingPartners } from "@/lib/api";
 import { adminReviewDecisionAction } from "@/lib/actions/reviews";
 import { moderateListingAction, setPartnerTypeAction, updateReportStatusAction, verifyPartnerAction } from "@/lib/actions/admin";
 
@@ -43,12 +43,13 @@ export default async function AdminPage() {
     );
   }
 
-  const [listings, partners, reports, moderationLog, reviews] = await Promise.all([
+  const [listings, partners, reports, moderationLog, reviews, held] = await Promise.all([
     fetchPendingListings(session.accessToken),
     fetchPendingPartners(session.accessToken),
     fetchOpenReports(session.accessToken),
     fetchModerationLog(session.accessToken),
     fetchAdminReviews(session.accessToken),
+    fetchHeldAccounts(session.accessToken),
   ]);
 
   return (
@@ -134,6 +135,35 @@ export default async function AdminPage() {
           <ul className="mt-3 flex flex-col gap-3">
             {reviews.map((review) => (
               <ReviewQueueCard key={review.id} review={review} />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="mt-10" aria-label="Contas em revisão">
+        <h2 className="font-display text-xl font-semibold text-ink">
+          Contas em revisão (reincidência) <span className="text-base font-normal text-ink-muted">({held.length})</span>
+        </h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Com 3 anúncios recusados em 30 dias ou 2 denúncias procedentes, todo anúncio da conta vem para a sua fila (a IA não aprova sozinha). Abra o
+          cadastro para liberar a conta ou, se for golpe, bloquear.
+        </p>
+        {held.length === 0 ? (
+          <p className="mt-3 text-ink-muted">Nenhuma conta em revisão.</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2">
+            {held.map((account: HeldAccountItem) => (
+              <li key={account.id} className="flex flex-wrap items-center justify-between gap-2 rounded-brand-lg border border-border bg-surface-raised px-4 py-3 text-sm">
+                <span>
+                  <span className="font-semibold text-ink">{account.name}</span> <span className="text-ink-muted">· {account.email}</span>
+                  <span className="block text-ink-muted">
+                    {account.reason ?? "Reincidência"} · desde {new Date(account.since).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                  </span>
+                </span>
+                <Link href={`/admin/usuarios/${account.id}`} className="font-semibold text-brand-blue hover:underline">
+                  Abrir cadastro →
+                </Link>
+              </li>
             ))}
           </ul>
         )}

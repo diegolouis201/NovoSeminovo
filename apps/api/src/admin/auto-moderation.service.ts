@@ -30,6 +30,7 @@ const listingInclude = {
   vehicleDetails: true,
   propertyDetails: true,
   partner: { select: { legalName: true, type: true, verifiedAt: true } },
+  owner: { select: { moderationHoldAt: true, moderationHoldReason: true } },
 } satisfies Prisma.ListingInclude;
 type ListingRow = Prisma.ListingGetPayload<{ include: typeof listingInclude }>;
 
@@ -209,7 +210,11 @@ export class AutoModerationService implements OnModuleInit, OnModuleDestroy {
 
   private async reviewOnce(listing: ListingRow): Promise<void> {
     let decision: Decision;
-    if (listing.photos.length === 0) {
+    if (listing.owner?.moderationHoldAt) {
+      // Conta reincidente (ver account-safety.ts): a IA não aprova sozinha.
+      const why = listing.owner.moderationHoldReason ? ` (${listing.owner.moderationHoldReason})` : "";
+      decision = { decision: "human", adminNote: `Conta em revisão por reincidência${why} — revise à mão.` };
+    } else if (listing.photos.length === 0) {
       decision = { decision: "human", adminNote: "Anúncio sem fotos — confira se o anunciante ainda vai enviar." };
     } else if (suspiciousInstructions(listingText(listing))) {
       decision = { decision: "human", adminNote: "O texto do anúncio tenta dar ordens à moderação automática (possível golpe) — confira com atenção." };

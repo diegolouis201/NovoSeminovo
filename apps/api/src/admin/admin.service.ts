@@ -11,6 +11,7 @@ import type {
 import { formatBRL } from "@novoseminovo/shared-types";
 import type { AdminListingActionInput, AdminListingRow, AdminListingsPage } from "@novoseminovo/shared-types";
 import type { Prisma } from "@novoseminovo/db";
+import { checkRecidivism } from "./account-safety";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { SavedSearchesService } from "../saved-searches/saved-searches.service";
@@ -200,6 +201,8 @@ export class AdminService {
 
     if (nextStatus === "active") {
       await this.savedSearches.notifyMatches(listing.id);
+    } else {
+      await checkRecidivism(this.prisma, listing.ownerUserId);
     }
   }
 
@@ -264,6 +267,10 @@ export class AdminService {
     if (!report) throw new NotFoundException(`Denúncia ${reportId} não encontrada`);
 
     await this.prisma.report.update({ where: { id: reportId }, data: { status } });
+    if (status === "reviewed") {
+      const listing = await this.prisma.listing.findUnique({ where: { id: report.listingId }, select: { ownerUserId: true } });
+      if (listing) await checkRecidivism(this.prisma, listing.ownerUserId);
+    }
   }
 
   async listModerationLog(): Promise<ModerationLogEntry[]> {

@@ -28,10 +28,11 @@ const withDb = Boolean(process.env.DATABASE_URL);
 
 describe("Moderação de avaliações (banco local)", { skip: !withDb && "sem DATABASE_URL" }, () => {
   const prisma = new PrismaService();
-  const notifications = { notify: async () => undefined } as unknown as NotificationsService;
+  const sent: Array<{ to: string; type: string }> = [];
+  const notifications = { notify: async (to: string, type: string) => void sent.push({ to, type }) } as unknown as NotificationsService;
   const unused = {} as never;
   const listings = new ListingsService(prisma, notifications, unused, unused, unused, unused, unused, unused);
-  const moderation = new ReviewModerationService(prisma);
+  const moderation = new ReviewModerationService(prisma, notifications);
   const tag = `aval-${Date.now()}`;
   const ids = { seller: "", outsider: "", buyers: [] as string[], listing: "" };
   const stats = () =>
@@ -92,7 +93,10 @@ describe("Moderação de avaliações (banco local)", { skip: !withDb && "sem DA
       return { decision: "approve" };
     };
     (moderation as unknown as { enabled: () => boolean }).enabled = () => true;
+    sent.length = 0;
     await moderation.moderatePending();
+    // Aprovadas agora: a "número 0" e a que ficou pendente no teste anterior; recusada e revisão humana não avisam.
+    assert.deepEqual(sent, [{ to: ids.seller, type: "new_review" }, { to: ids.seller, type: "new_review" }], "o avaliado só é avisado das aprovadas");
     const rows = await Promise.all(buyers.map(reviewOf));
     const byStatus = rows.map((r) => r.status).sort();
     assert.deepEqual(byStatus, ["approved", "pending", "rejected"].concat().sort());
@@ -117,10 +121,13 @@ describe("Moderação de avaliações (banco local)", { skip: !withDb && "sem DA
     assert.ok(mine.some((item) => item.status === "reported"));
     assert.ok(mine.some((item) => item.status === "pending"));
     const reported = mine.find((item) => item.status === "reported")!;
+    sent.length = 0;
     await moderation.adminDecide(reported.id, "reject", "Avaliação sem negociação real.");
     assert.equal((await prisma.review.findUniqueOrThrow({ where: { id: reported.id } })).status, "rejected");
+    assert.equal(sent.length, 0, "recusar a denunciada não avisa ninguém");
     const pending = mine.find((item) => item.status === "pending")!;
     await moderation.adminDecide(pending.id, "approve");
+    assert.deepEqual(sent, [{ to: ids.seller, type: "new_review" }], "aprovada pelo admin avisa o avaliado");
     assert.equal((await prisma.review.findUniqueOrThrow({ where: { id: pending.id } })).status, "approved");
   });
 });

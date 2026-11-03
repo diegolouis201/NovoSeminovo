@@ -59,3 +59,23 @@ describe("Moderação: reenvio e avaliações", () => {
     cy.contains("h2", "Avaliações para revisar").should("be.visible");
   });
 });
+
+// POP MOD-05: bloquear sem excluir (golpe) e contas em revisão por reincidência.
+describe("Segurança das contas no admin", () => {
+  beforeEach(() => {
+    cy.login("admin@novoseminovo.com.br", "senha1234");
+    cy.location("pathname").should("not.eq", "/entrar");
+  });
+
+  it("Moderação mostra as contas em revisão por reincidência", () => {
+    cy.visit("/admin");
+    cy.contains("h2", "Contas em revisão (reincidência)").should("be.visible");
+  });
+
+  it("cadastro do anunciante tem bloquear conta com motivo, sem excluir", () => {
+    cy.visit("/admin/anuncios?busca=particular%40novoseminovo.com.br");
+    cy.get('a[href^="/admin/usuarios/"]').first().click();
+    cy.contains("h2", "Bloquear conta (golpe confirmado)").should("be.visible");
+    cy.get('form[aria-label="Bloquear conta"] textarea[name="reason"]').should("have.attr", "required");
+  });
+});

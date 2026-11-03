@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { adminDeleteAccount, adminDeleteListing, adminListingAction } from "@/lib/api";
+import { adminBlockAccount, adminClearModerationHold, adminDeleteAccount, adminDeleteListing, adminListingAction, adminUnblockAccount } from "@/lib/api";
 
 async function token(): Promise<string> {
   const session = await auth();
@@ -53,4 +53,21 @@ export async function adminDeleteAccountForm(id: string, formData: FormData): Pr
     result,
     `Conta excluída: dados pessoais apagados, ${listingsDeleted} anúncio(s) apagado(s)${listingsKept ? ` e ${listingsKept} guardado(s) fora do ar por terem pagamento` : ""}.`,
   );
+}
+
+// Golpe confirmado: bloqueia a conta sem excluir (POP MOD-05).
+export async function adminBlockAccountForm(id: string, formData: FormData): Promise<void> {
+  const result = await adminBlockAccount(id, { reason: String(formData.get("reason") ?? "").trim() }, await token());
+  back(`/admin/usuarios/${id}`, result, "Conta bloqueada: a pessoa perdeu o acesso e os anúncios saíram do ar. Nada foi apagado.");
+}
+
+export async function adminUnblockAccountForm(id: string): Promise<void> {
+  const result = await adminUnblockAccount(id, await token());
+  back(`/admin/usuarios/${id}`, result, "Conta desbloqueada. Os anúncios continuam pausados até serem reativados.");
+}
+
+// Tira a conta da revisão por reincidência.
+export async function adminClearHoldForm(id: string): Promise<void> {
+  const result = await adminClearModerationHold(id, await token());
+  back(`/admin/usuarios/${id}`, result, "Conta liberada: os próximos anúncios voltam a passar pela moderação automática.");
 }

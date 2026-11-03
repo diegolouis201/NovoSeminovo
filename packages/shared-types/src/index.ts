@@ -1544,7 +1544,20 @@ export type AdminUserProfile = {
   affiliateStatus?: string;
   canDelete: boolean;
   deleteBlockedReason?: string;
+  // Bloqueio por golpe confirmado (conta suspensa, nada apagado).
+  blockedAt?: string;
+  blockedReason?: string;
+  // Conta em revisão por reincidência: anúncios novos vão para revisão humana.
+  moderationHold?: { since: string; reason?: string };
 };
+
+// Bloquear conta sem excluir (golpe confirmado) — o motivo fica registrado.
+export const AdminBlockAccountInputSchema = z.object({
+  reason: z.string().trim().min(5, "Explique o motivo (mínimo 5 letras)").max(500),
+});
+export type AdminBlockAccountInput = z.infer<typeof AdminBlockAccountInputSchema>;
+
+export type HeldAccountItem = { id: string; name: string; email: string; since: string; reason?: string };
 
 export const ModerateListingInputSchema = z.object({
   action: z.enum(["approve", "reject"]),
