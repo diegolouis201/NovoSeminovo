@@ -137,11 +137,11 @@ export class SalesService {
         ? await this.prisma.user.findFirst({ where: { salesCode: code, role: "sales", status: "active" }, select: { id: true } })
         : null;
 
-    const linked = await this.prisma.salesProspect.findUnique({ where: { partnerId } });
-    if (linked) {
+    const adoptLinked = async (linked: { id: string; ownerId: string | null }) => {
       if (seller && !linked.ownerId) await this.prisma.salesProspect.update({ where: { id: linked.id }, data: { ownerId: seller.id, source: "link" } });
-      return;
-    }
+    };
+    const linked = await this.prisma.salesProspect.findUnique({ where: { partnerId } });
+    if (linked) return adoptLinked(linked);
     const cnpj = digits(partner.document);
     const manual = cnpj ? await this.prisma.salesProspect.findFirst({ where: { cnpj, partnerId: null } }) : null;
     if (manual) {
@@ -152,6 +152,8 @@ export class SalesService {
       await this.prisma.salesNote.create({ data: { prospectId: manual.id, kind: "stage", fromStage: manual.stage, toStage: "cadastrou", body: "A empresa se cadastrou no site." } });
       return;
     }
+    // Cadastro e sincronização podem criar o card ao mesmo tempo: quem perder
+    // a corrida usa o card que já existe (partnerId é único).
     await this.prisma.salesProspect.create({
       data: {
         name: partner.legalName,
@@ -165,6 +167,11 @@ export class SalesService {
         ownerId: seller?.id,
         source: seller ? "link" : "site",
       },
+    }).catch(async (error: unknown) => {
+      if ((error as { code?: string }).code !== "P2002") throw error;
+      const existing = await this.prisma.salesProspect.findUnique({ where: { partnerId } });
+      if (!existing) throw error;
+      await adoptLinked(existing);
     });
   }
 

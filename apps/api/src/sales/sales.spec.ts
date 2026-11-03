@@ -172,6 +172,30 @@ describe("Funil comercial (banco local)", { skip: !withDb && "sem DATABASE_URL" 
     assert.equal(card?.source, "link");
   });
 
+  test("cadastro e sincronização ao mesmo tempo: um card só, sem erro, e o link do vendedor vale", async () => {
+    const partner = await partnerSignup("dealership", cnpj(9));
+    const otherCode = (await prisma.user.findUniqueOrThrow({ where: { id: ids.other } })).salesCode!;
+    // A sincronização cria o card entre a conferência e a criação do cadastro.
+    await service.linkSignup(partner);
+    const original = prisma.salesProspect.findUnique.bind(prisma.salesProspect);
+    let first = true;
+    (prisma.salesProspect as { findUnique: unknown }).findUnique = (args: { where: { partnerId?: string } }) => {
+      if (first && args.where.partnerId === partner) {
+        first = false;
+        return Promise.resolve(null);
+      }
+      return original(args as Parameters<typeof original>[0]);
+    };
+    try {
+      await service.linkSignup(partner, otherCode);
+    } finally {
+      (prisma.salesProspect as { findUnique: unknown }).findUnique = original;
+    }
+    const cards = await prisma.salesProspect.findMany({ where: { partnerId: partner } });
+    assert.equal(cards.length, 1);
+    assert.equal(cards[0]?.ownerId, ids.other, "o link do vendedor vale mesmo com o card já criado");
+  });
+
   test("cadastro direto pelo site aparece sem dono, em Imóveis e no Consolidado", async () => {
     const partner = await partnerSignup("real_estate_agency", cnpj(3));
     const inProperty = await cardOf((c) => c.partnerId === partner, "property");
