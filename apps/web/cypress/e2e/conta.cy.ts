@@ -129,40 +129,8 @@ describe("Área Comercial", () => {
     cy.get('form[aria-label="Convidar para o comercial"] input[name="email"]').should("have.attr", "type", "email");
   });
 
-  it("admin vê a visão geral do CRM com funil, receita, NPS e atenção", () => {
-    cy.loginAs("admin@novoseminovo.com.br", "senha1234");
-    cy.visit("/admin/crm");
-    cy.contains("h1", "Visão geral do CRM").should("be.visible");
-    cy.contains("Mensalidades (MRR)").should("be.visible");
-    cy.contains("h2", "Funil de empresas").should("be.visible");
-    cy.get('[aria-label="Funil de empresas"]').should("contain", "Proposta enviada").and("contain", "Assinante");
-    cy.contains("h2", "Receita recebida por mês").should("be.visible");
-    cy.contains("h2", "Satisfação (NPS)").should("be.visible");
-    cy.contains("h2", "Motivos de perda e cancelamento").should("be.visible");
-    cy.contains("h2", "Origem dos cadastros").should("be.visible");
-    cy.contains("h2", "Desempenho por vendedor").should("be.visible");
-    cy.contains("h2", "Precisa de atenção").should("be.visible");
-    cy.get('nav[aria-label="Recorte da visão geral"]').contains("a", "Imóveis").click();
-    cy.location("search").should("eq", "?tipo=property");
-  });
-
-  it("admin vê as receitas por categoria: planos, financiamentos (fora do faturamento) e afiliados", () => {
-    cy.loginAs("admin@novoseminovo.com.br", "senha1234");
-    cy.visit("/admin/crm");
-    cy.get('nav[aria-label="Seções do CRM"]').contains("a", "Receitas").click();
-    cy.location("pathname").should("eq", "/admin/crm/receitas");
-    cy.contains("h1", "Receitas").should("be.visible");
-    cy.contains("h2", "Faturamento consolidado").should("be.visible");
-    cy.contains("h2", "Receita de planos").should("be.visible");
-    cy.contains("h2", "Financiamentos").should("be.visible");
-    cy.contains("Não entra no caixa nem no faturamento").should("be.visible");
-    cy.contains("h2", "Lojas parceiras (links de afiliado)").should("be.visible");
-    cy.contains("h2", "Programa de afiliados").should("be.visible");
-  });
-
-  it("quem não é admin não entra na visão geral do CRM", () => {
-    cy.loginAs("comprador@novoseminovo.com.br", "senha1234");
-    cy.visit("/admin/crm");
-    cy.location("pathname").should("not.eq", "/admin/crm");
+  it("telas do CRM ficam no computador (repositório), não no site", () => {
+    cy.request({ url: "/admin/crm", failOnStatusCode: false }).its("status").should("eq", 404);
+    cy.request({ url: "/admin/crm/receitas", failOnStatusCode: false }).its("status").should("eq", 404);
   });
 });

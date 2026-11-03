@@ -2,9 +2,9 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { buildCrmRevenue, type RevenueInput } from "./crm-revenue";
 
-// Receitas por categoria no CRM: planos (faturamento principal), lojas
-// parceiras pelos links de afiliado (faturamento), financiamentos (só
-// acompanhamento, fora do faturamento) e o programa de afiliados.
+// Receitas por categoria no CRM: planos = faturamento. Lojas parceiras
+// (links de afiliado), financiamentos e o programa de afiliados são só
+// para visualização e não entram no faturamento.
 
 const hoje = new Date("2026-11-15T12:00:00Z");
 const d = (iso: string) => new Date(`${iso}T12:00:00Z`);
@@ -65,11 +65,12 @@ describe("Receitas por categoria", () => {
     assert.equal(r.planos.mrr, 538);
   });
 
-  test("consolidado = planos + lojas parceiras; financiamento fica de fora", () => {
+  test("faturamento = só planos; lojas parceiras e financiamentos ficam ao lado, só para visualização", () => {
     const out = r.consolidado.porMes.find((m) => m.mes === "2026-10")!;
-    assert.deepEqual(out, { mes: "2026-10", planos: 449, lojas: 150, total: 599 });
-    assert.equal(r.consolidado.esteMes, 468.9);
-    assert.equal(r.consolidado.total12m, 1117.8);
+    assert.deepEqual(out, { mes: "2026-10", planos: 449, lojas: 150, financiamentos: 375, total: 449 });
+    assert.equal(r.consolidado.esteMes, 418.9);
+    assert.equal(r.consolidado.total12m, 917.8);
+    assert.deepEqual(r.consolidado.acompanhamento12m, { lojas: 200, financiamentos: 975 });
   });
 
   test("financiamentos: comissão menos cashback, a receber e cashback a pagar", () => {

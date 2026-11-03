@@ -23,7 +23,6 @@ const ADMIN_AREAS = [
   { href: "/admin/financiamentos", title: "Financiamentos", hint: "Interessados e Credihome" },
   { href: "/admin/recompensas", title: "Cashback", hint: "Pagar clientes que financiaram" },
   { href: "/admin/painel", title: "Painel geral", hint: "Big numbers do site" },
-  { href: "/admin/crm", title: "Visão geral do CRM", hint: "Funil, receita, NPS e atenção" },
   { href: "/admin/assinaturas", title: "Assinaturas", hint: "Planos dos parceiros" },
   { href: "/admin/afiliados", title: "Afiliados", hint: "Programa de afiliados" },
   { href: "/comercial", title: "Comercial", hint: "Funil de empresas" },

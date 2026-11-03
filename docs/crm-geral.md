@@ -49,31 +49,30 @@ funcionários).
 
 Não sai no feed: CPF, senha, cartão, dados de compradores.
 
-## Visão geral no admin (/admin/crm)
+## Telas do CRM: no computador, não no site
 
-Tela só para administrador (`GET /admin/crm/overview?tipo=all|vehicle|property`,
-`JwtAuthGuard` + `AdminGuard`). Calcula a partir do mesmo feed `clientes()`
-(`buildCrmOverview` em `apps/api/src/crm/crm-overview.ts`): mensalidades (MRR) e
-ticket médio, assinantes, novas assinaturas e cancelamentos do mês, NPS de 90
-dias, chamados abertos e tempo médio, assinantes em risco, funil por etapa,
-receita recebida por mês (12 meses, sem estornos), motivos de perda, origem dos
-cadastros, desempenho por vendedor e lista "Precisa de atenção" com link para a
-ficha em /comercial.
+Decisão do Diego (03/11/2026): as telas do CRM (visão geral, receitas,
+empresas com a ficha completa, prospecção, avisos, ordens e agenda) ficam no
+repositório do CRM no computador, em `relatorios/painel.html`, gerado por
+`scripts/painel.mjs` a cada `sincronizar.mjs`. O site só entrega os dados
+(`/crm/clientes`, `/crm/receitas`, `/crm/ordens`) com a chave. As páginas
+`/admin/crm` e `/admin/crm/receitas` foram removidas (teste no Cypress garante
+404). A área Comercial (/comercial) da equipe continua no site.
 
-## Receitas por categoria (/admin/crm/receitas e `GET /crm/receitas`)
+## Receitas por categoria (`GET /crm/receitas`)
 
-`buildCrmRevenue` (`apps/api/src/crm/crm-revenue.ts`), mesma conta para a tela
-do admin (`GET /admin/crm/receitas`, só admin) e para o repositório do CRM
-(`GET /crm/receitas`, chave `crm_feed_key`):
+`buildCrmRevenue` (`apps/api/src/crm/crm-revenue.ts`), para o repositório do
+CRM (chave `crm_feed_key`):
 
-- **Faturamento** = planos (SubscriptionPayment sem estornos +
-  ListingBoostPurchase pagos) + lojas parceiras (StoreEarning, links de
-  afiliado de Amazon/Mercado Livre, lançado à mão em /admin/painel).
-- **Financiamentos**: só acompanhamento, fora do faturamento. Comissão
+- **Faturamento** = só planos (SubscriptionPayment sem estornos +
+  ListingBoostPurchase pagos).
+- **Lojas parceiras** (StoreEarning, links de afiliado de Amazon/Mercado
+  Livre, lançado à mão em /admin/painel): só visualização.
+- **Financiamentos**: só visualização, fora do faturamento. Comissão
   (FinancingDeal.commissionAmount) menos cashback (rebateAmount), comissão a
   receber (sem commissionReceivedAt), cashback a pagar (status ≠ paid) e
   pedidos em andamento (FinancingLead fora de converted/lost).
-- **Programa de afiliados**: custo. Indicados, cliques, o que os indicados
+- **Programa de afiliados**: só visualização (é custo). Indicados, cliques, o que os indicados
   pagaram (baseAmount das comissões não canceladas) e comissões por situação.
 
 No pacote do CRM: `scripts/receitas.mjs` (relatório em

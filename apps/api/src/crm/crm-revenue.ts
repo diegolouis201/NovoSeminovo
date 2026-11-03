@@ -1,8 +1,9 @@
 import { STORE_EARNING_STORES, type CrmRevenue } from "@novoseminovo/shared-types";
 
 // Receitas por categoria do CRM. Função pura: recebe as linhas do banco e a
-// data de hoje. Faturamento = planos + lojas parceiras; financiamento é só
-// acompanhamento (comissão do banco menos o cashback) e fica fora do total.
+// data de hoje. Faturamento = planos. Lojas parceiras (links de afiliado),
+// financiamentos (comissão do banco menos o cashback) e o programa de
+// afiliados são só para visualização e ficam fora do total.
 
 type Money = unknown;
 export type RevenueInput = {
@@ -56,14 +57,6 @@ export function buildCrmRevenue(input: RevenueInput, hoje: Date): CrmRevenue {
   }
   const lojasPorMes = months.map((mes) => ({ mes, valor: cents(stores.get(mes)!) }));
 
-  // ---- Consolidado (faturamento) ----
-  const consolidadoPorMes = months.map((mes) => {
-    const planos = planoDoMes(mes);
-    const lojas = cents(stores.get(mes)!);
-    return { mes, planos, lojas, total: cents(planos + lojas) };
-  });
-  const totalDoMes = (mes: string) => consolidadoPorMes.find((m) => m.mes === mes)!.total;
-
   // ---- Financiamentos (só acompanhamento) ----
   const deals12m = input.deals.filter((deal) => inWindow.has(monthKey(deal.createdAt)));
   const financiamentosPorMes = months.map((mes) => {
@@ -72,6 +65,13 @@ export function buildCrmRevenue(input: RevenueInput, hoje: Date): CrmRevenue {
     const cashback = sum(rows, (deal) => num(deal.rebateAmount));
     return { mes, negocios: rows.length, comissao, cashback, liquido: cents(comissao - cashback) };
   });
+
+  // ---- Consolidado: faturamento = planos; o resto só para visualização ----
+  const consolidadoPorMes = months.map((mes) => {
+    const planos = planoDoMes(mes);
+    return { mes, planos, lojas: cents(stores.get(mes)!), financiamentos: financiamentosPorMes.find((m) => m.mes === mes)!.liquido, total: planos };
+  });
+  const totalDoMes = (mes: string) => consolidadoPorMes.find((m) => m.mes === mes)!.total;
 
   // ---- Programa de afiliados ----
   const valid = input.commissions.filter((c) => c.status !== "canceled");
@@ -87,7 +87,13 @@ export function buildCrmRevenue(input: RevenueInput, hoje: Date): CrmRevenue {
 
   return {
     geradoEm: hoje.toISOString(),
-    consolidado: { porMes: consolidadoPorMes, total12m: sum(consolidadoPorMes, (m) => m.total), esteMes: totalDoMes(esteMesKey), mesPassado: totalDoMes(mesPassadoKey) },
+    consolidado: {
+      porMes: consolidadoPorMes,
+      total12m: sum(consolidadoPorMes, (m) => m.total),
+      esteMes: totalDoMes(esteMesKey),
+      mesPassado: totalDoMes(mesPassadoKey),
+      acompanhamento12m: { lojas: sum(lojasPorMes, (m) => m.valor), financiamentos: sum(financiamentosPorMes, (m) => m.liquido) },
+    },
     planos: {
       porMes: planosPorMes,
       total12m: sum(planosPorMes, (m) => m.total),
