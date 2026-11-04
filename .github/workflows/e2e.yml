@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
   push:
     branches: [claude/vehicle-marketplace-platform-lmif9s, main]
-    paths: ["apps/api/**", "apps/web/**", "packages/**", ".github/workflows/e2e.yml", "pnpm-lock.yaml"]
+    paths: ["apps/api/**", "apps/web/**", "packages/**", "crm-pacote/**", ".github/workflows/e2e.yml", "pnpm-lock.yaml"]
   pull_request:
 
 jobs:
