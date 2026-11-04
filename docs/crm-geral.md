@@ -101,3 +101,17 @@ começo de cada `sincronizar.mjs` e só escreve caminhos permitidos com resumo
 conferido (`atualizar-regras.mjs`); nunca `.env`, `dados/`, `relatorios/`,
 `campanhas/` ou `.cmd`. Mudou o CRM = editar `crm-pacote/` e publicar o site;
 no dia seguinte o CRM do Diego está atualizado. Testes do CRM rodam no CI.
+
+## Painel com a marca e botões de ação (04/11/2026, pedido do CRM do Diego)
+
+`crm-pacote/scripts/painel-acoes.mjs` (funções puras, testadas e copiadas para
+dentro da página): Ligar (`tel:`), WhatsApp (Business por padrão, com
+mensagens prontas), E-mail (Gmail na conta da empresa ou mailto), Marcar
+reunião (Google Agenda no horário de Brasília ou .ics), Registrar (copia o
+texto e abre `/comercial/<cardId>`). `nao-contatar` desliga Ligar/WhatsApp/
+E-mail. Abas novas: Pessoas físicas (receita dos planos de anúncio; lista
+quando o feed mandar `pessoasFisicas`) e Configurações (localStorage). Logo
+embutida em `scripts/marca.mjs`; fontes Fredoka/Nunito Sans pelo Google Fonts
+(CSP libera só fontes). Atalho `abrir-crm.cmd`. Pendente: lista de PF no feed
+(pedido do CRM em `pedidos/pedido-site-pf.md` no computador do Diego) e
+`POST /crm/cards/<id>/anotacoes` para registrar sem copiar e colar.

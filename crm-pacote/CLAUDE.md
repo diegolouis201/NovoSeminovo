@@ -88,12 +88,24 @@ ordem em `docs/ordens.md`.
 ## Telas do CRM (painel no computador)
 
 As telas do CRM não ficam no site: ficam em `relatorios/painel.html`, gerado a
-partir de `dados/` a cada sincronização. Quando o Diego pedir para "ver o
-CRM", "ver a visão geral", "ver as receitas" ou "ver a ficha de uma empresa":
-sincronize e abra o painel (`start relatorios\painel.html`), dizendo qual aba
-olhar. O painel é só leitura; mudar card, etapa ou anotação é em /comercial no
-site, e ordens continuam pelos comandos abaixo. Nunca enviar o painel para
-ninguém (tem dados de clientes).
+partir de `dados/` a cada sincronização (atalho na Área de Trabalho:
+`abrir-crm.cmd`, que sincroniza e abre o painel). Quando o Diego pedir para
+"ver o CRM", "ver a visão geral", "ver as receitas" ou "ver a ficha de uma
+empresa": sincronize e abra o painel (`start relatorios\painel.html`), dizendo
+qual aba olhar. Nunca enviar o painel para ninguém (tem dados de clientes).
+
+O painel tem a marca da NovoSeminovo e botões em cada empresa, card de
+prospecção e pessoa física: Ligar, WhatsApp (abre o WhatsApp Business com
+mensagem pronta), E-mail (abre o Gmail na conta da empresa), Marcar reunião
+(Google Agenda ou convite .ics), Registrar (copia o texto e abre a ficha em
+/comercial) e Ver no site. Quem está `nao-contatar` fica com Ligar, WhatsApp e
+E-mail desligados. A mensagem só sai quando o Diego clica em enviar: uma
+pessoa por vez, nada de envio em massa. As mensagens prontas e as
+configurações (nome, conta Google, onde abrir WhatsApp/e-mail, tema) ficam na
+aba Configurações, salvas só no navegador deste computador. Mudar card ou
+etapa continua sendo em /comercial no site; ordens continuam pelos comandos
+abaixo. Pedidos de mudança no painel: escrever em `pedidos/` para o
+desenvolvimento do site (não editar os programas: a atualização desfaz).
 
 ## Post de boas-vindas nas redes
 

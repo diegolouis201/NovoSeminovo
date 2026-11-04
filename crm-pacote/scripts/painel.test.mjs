@@ -122,3 +122,53 @@ test("painel tem todas as telas e funciona sem receitas baixadas", () => {
   assert.ok(html.includes("Ainda sem receitas baixadas"));
   assert.ok(!/<script[^>]+src=/.test(html), "nada carregado da internet");
 });
+
+test("botões de ação em cada empresa e card: ligar, WhatsApp, e-mail, reunião, registrar e site", () => {
+  const f = { ...feed, empresas: [empresa({ id: "a1", nome: "Loja A", cardId: "ca1", pagina: "/lojas/loja-a", responsavel: { nome: "Maria Souza", email: "maria@loja.com", telefone: "31988887777" } })] };
+  const html = renderPainel({ feed: f, receitas: undefined, ordens: [], avisos: [], marcacoes: {}, jornada: [], calendario: [], hoje });
+  for (const acao of ["ligar", "whatsapp", "email", "reuniao", "registrar", "site"]) assert.ok(html.includes(`data-acao="${acao}"`), acao);
+  assert.ok(html.includes('data-telefone="31988887777"'));
+  assert.ok(html.includes('data-card="ca1"'));
+  // card de prospecção também tem os botões
+  assert.ok(html.includes('data-card="p1"'));
+});
+
+test("quem pediu para não ser contatado e quem não tem telefone ficam com os botões desligados", () => {
+  const f = { ...feed, empresas: [empresa({ id: "n1", nome: "Não Contatar", responsavel: { nome: "X", email: "x@x.com", telefone: "31988887777" } }), empresa({ id: "s1", nome: "Sem Fone", responsavel: { nome: "Y", email: "" } })] };
+  const html = renderPainel({ feed: f, receitas: undefined, ordens: [], avisos: [], marcacoes: { n1: { naoContatar: true } }, jornada: [], calendario: [], hoje });
+  const bloco = (id) => html.slice(html.indexOf(`id="empresa-${id}"`), html.indexOf("</details>", html.indexOf(`id="empresa-${id}"`)));
+  assert.match(bloco("n1"), /data-acao="ligar"[^>]*disabled/);
+  assert.match(bloco("n1"), /data-acao="whatsapp"[^>]*disabled/);
+  assert.match(bloco("n1"), /Pediu para não ser contatado/);
+  assert.match(bloco("s1"), /data-acao="ligar"[^>]*disabled[^>]*title="Sem telefone"/);
+  assert.match(bloco("s1"), /data-acao="email"[^>]*disabled[^>]*title="Sem e-mail"/);
+});
+
+test("dados vindos do site são escapados também nos atributos dos botões", () => {
+  const f = { ...feed, empresas: [empresa({ id: "z", nome: `Loja "><img src=x onerror=alert(1)>`, responsavel: { nome: "<b>", email: "a@a.com", telefone: "31988887777" } })] };
+  const html = renderPainel({ feed: f, receitas: undefined, ordens: [], avisos: [], marcacoes: {}, jornada: [], calendario: [], hoje });
+  assert.ok(!html.includes("<img src=x"));
+  assert.ok(html.includes("&quot;&gt;&lt;img src=x onerror=alert(1)&gt;"));
+});
+
+test("marca: logo embutida, fontes do Google só como fonte, nenhum programa de fora", () => {
+  const html = renderPainel({ feed, receitas: undefined, ordens: [], avisos: [], marcacoes: {}, jornada: [], calendario: [], hoje });
+  assert.ok(html.includes('src="data:image/png;base64,'));
+  assert.match(html, /font-src https:\/\/fonts\.gstatic\.com/);
+  assert.match(html, /style-src 'unsafe-inline' https:\/\/fonts\.googleapis\.com/);
+  assert.match(html, /script-src 'unsafe-inline';/);
+  assert.ok(!/<script[^>]+src=/.test(html));
+  assert.ok(html.includes("#0E2F4A") && html.includes("#F18E29") && html.includes("#0B1C2C"));
+});
+
+test("abas Pessoas físicas e Configurações; PF mostra a receita dos planos de anúncio", () => {
+  const receitas = { geradoEm: hoje.toISOString(), consolidado: { porMes: [], total12m: 0, esteMes: 0, mesPassado: 0, acompanhamento12m: { lojas: 0, financiamentos: 0 } }, planos: { porMes: [{ mes: "2026-10", assinaturas: 100, anuncios: 59.8, total: 159.8 }, { mes: "2026-11", assinaturas: 100, anuncios: 29.9, total: 129.9 }], total12m: 289.7, esteMes: 129.9, mesPassado: 159.8, estornos12m: 0, mrr: 100, assinantes: 1 }, financiamentos: { porMes: [], negocios12m: 0, valorFinanciado12m: 0, liquido12m: 0, comissaoRecebida: 0, comissaoAReceber: 0, cashbackAPagar: 0, leadsAbertos: 0 }, afiliados: { lojas: { porMes: [], porLoja: [], total12m: 0, cliques30d: 0 }, programa: { ativos: 0, pendentes: 0, indicados: 0, cliques30d: 0, receitaGerada12m: 0, comissoes: { aConfirmar: 0, disponivel: 0, paga: 0, cancelada: 0 }, ranking: [] } } };
+  const pf = [{ id: "u1", nome: "João PF", telefone: "31977776666", email: "joao@x.com", cidade: "BH", segmento: "vehicle" }];
+  const html = renderPainel({ feed: { ...feed, pessoasFisicas: pf }, receitas, ordens: [], avisos: [], marcacoes: {}, jornada: [], calendario: [], hoje });
+  for (const aba of ["Pessoas físicas", "Configurações"]) assert.ok(html.includes(`>${aba}<`), aba);
+  assert.ok(html.includes("R$ 89,70"), "planos de anúncio em 12 meses");
+  const pfBloco = html.slice(html.indexOf('id="pf"'), html.indexOf('<section class="tab"', html.indexOf('id="pf"')));
+  assert.ok(pfBloco.includes("João PF"));
+  assert.ok(pfBloco.includes('data-acao="whatsapp"'));
+  assert.ok(!pfBloco.includes('data-acao="registrar"'), "PF não tem ficha no /comercial");
+});
