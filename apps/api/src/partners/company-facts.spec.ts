@@ -102,4 +102,21 @@ describe("Preenchimento dos sócios (banco local)", { skip: !withDb && "sem DATA
     assert.equal(calls, before, "empresa já conferida não consulta de novo");
     assert.equal(await prisma.partnerSocio.count({ where: { partnerId: ids.partner } }), 1, "não duplica");
   });
+
+  test("empresa apagada enquanto a Receita é consultada: pula e continua", async () => {
+    const owner = await prisma.user.create({ data: { name: "Dono 2", email: `dono2-${tag}@teste.local` } });
+    const sumiu = await prisma.partner.create({ data: { ownerUserId: owner.id, type: "dealership", legalName: `Loja some ${tag}`, document: "11444777000161", slug: `${tag}-some` } });
+    const apagaNoMeio = {
+      companyFacts: async () => {
+        await prisma.partner.deleteMany({ where: { id: sumiu.id } });
+        return { openedAt: "2015-03-20", partners: [{ name: "JOAO", role: "Sócio" }], activity: "x", size: "Microempresa", shareCapital: 1 };
+      },
+    } as unknown as CnpjService;
+    try {
+      assert.equal(await fillCompanyFacts(prisma, apagaNoMeio, [sumiu.id]), 0);
+    } finally {
+      await prisma.partner.deleteMany({ where: { id: sumiu.id } });
+      await prisma.user.delete({ where: { id: owner.id } });
+    }
+  });
 });

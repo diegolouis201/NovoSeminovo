@@ -15,17 +15,21 @@ export async function fillCompanyFacts(prisma: PrismaService, cnpj: CnpjService,
     const facts = await cnpj.companyFacts(partner.document).catch(() => undefined);
     if (!facts) continue; // Receita fora do ar: tenta na próxima rodada
     const opened = facts.openedAt ? new Date(`${facts.openedAt}T12:00:00Z`) : undefined;
-    await prisma.$transaction([
-      prisma.partner.update({
+    // Se a empresa foi apagada enquanto a Receita respondia, não há o que
+    // gravar: segue para a próxima (sem derrubar a rodada inteira).
+    const gravou = await prisma.$transaction(async (tx) => {
+      const { count } = await tx.partner.updateMany({
         where: { id: partner.id },
         data: { foundedAt: opened, mainActivity: facts.activity, companySize: facts.size, shareCapital: facts.shareCapital, receitaCheckedAt: new Date() },
-      }),
-      prisma.partnerSocio.createMany({
+      });
+      if (!count) return false;
+      await tx.partnerSocio.createMany({
         data: facts.partners.map((socio) => ({ partnerId: partner.id, name: socio.name, role: socio.role, source: "receita" })),
         skipDuplicates: true,
-      }),
-    ]);
-    filled++;
+      });
+      return true;
+    });
+    if (gravou) filled++;
   }
   return filled;
 }

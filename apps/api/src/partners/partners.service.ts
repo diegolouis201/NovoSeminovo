@@ -330,11 +330,13 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
     for (const partner of missing) {
       const company = await this.cnpj.lookup(partner.document.replace(/\D/g, "")).catch(() => undefined);
       if (!company?.city) continue;
-      await this.prisma.partner.update({
+      // updateMany: se a empresa foi apagada enquanto o CNPJ era consultado,
+      // não há o que atualizar e a tarefa segue para a próxima.
+      const { count } = await this.prisma.partner.updateMany({
         where: { id: partner.id },
         data: { city: company.city.slice(0, 80), state: company.state?.slice(0, 2).toUpperCase() },
       });
-      filled++;
+      filled += count;
     }
     return filled;
   }

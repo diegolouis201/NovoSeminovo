@@ -92,6 +92,24 @@ describe("Cadastro de empresa: selo de verificada automático", { skip: !withDb 
     }
   });
 
+  test("empresa apagada enquanto a cidade é consultada: pula e continua", async () => {
+    const tag = `cidade-apagada-${Date.now()}`;
+    const owner = await prisma.user.create({ data: { name: "Dono", email: `${tag}@teste.local` } });
+    const partner = await prisma.partner.create({
+      data: { ownerUserId: owner.id, type: "dealership", legalName: `Loja ${tag}`, document: "11222333000181", slug: tag },
+    });
+    try {
+      const lookup = async () => {
+        await prisma.partner.deleteMany({ where: { id: partner.id } });
+        return { ...base, city: "Contagem", state: "MG" };
+      };
+      await service(lookup, prisma).fillMissingCities();
+    } finally {
+      await prisma.partner.deleteMany({ where: { id: partner.id } });
+      await prisma.user.delete({ where: { id: owner.id } });
+    }
+  });
+
   test("CNPJ inativo continua recusado", async () => {
     await assert.rejects(service(async () => ({ ...base, active: false, situation: "Baixada" }), prisma).resolveCompany({ document }), /só aceitamos empresas ativas/);
   });
