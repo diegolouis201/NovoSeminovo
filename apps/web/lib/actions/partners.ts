@@ -24,6 +24,7 @@ import {
   subscribeToPlan,
   updateLeadStatus,
   uploadPartnerLogo,
+  savePartnerSocial,
 } from "@/lib/api";
 
 export async function createPartnerAction(formData: FormData): Promise<void> {
@@ -58,6 +59,23 @@ export async function uploadPartnerLogoAction(formData: FormData): Promise<void>
 
   revalidatePath("/parceiro");
   redirect("/parceiro");
+}
+
+// Instagram/Facebook da empresa e autorização do post de boas-vindas.
+export async function savePartnerSocialAction(formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+  const result = await savePartnerSocial(
+    {
+      instagram: String(formData.get("instagram") ?? "").slice(0, 200),
+      facebook: String(formData.get("facebook") ?? "").slice(0, 200),
+      consent: formData.get("consent") === "on",
+    },
+    session.accessToken,
+  );
+  if (!result.ok) redirect(`/parceiro?error=${encodeURIComponent(result.error)}#redes`);
+  revalidatePath("/parceiro");
+  redirect("/parceiro?redes=ok#redes");
 }
 
 export async function updateLeadStatusAction(leadId: string, formData: FormData): Promise<void> {

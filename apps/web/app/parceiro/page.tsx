@@ -8,7 +8,7 @@ import { FormField, TextAreaField } from "@/components/FormField";
 import { CompanyCnpjFields } from "@/components/CompanyCnpjFields";
 import { NpsCard } from "@/components/NpsCard";
 import { fetchMyPartner, resolveMediaUrl } from "@/lib/api";
-import { createPartnerAction, uploadPartnerLogoAction } from "@/lib/actions/partners";
+import { createPartnerAction, savePartnerSocialAction, uploadPartnerLogoAction } from "@/lib/actions/partners";
 
 const PARTNER_TYPE_LABEL: Record<string, string> = {
   dealership: "Loja de veículos",
@@ -18,7 +18,7 @@ const PARTNER_TYPE_LABEL: Record<string, string> = {
   workshop: "Oficina mecânica",
 };
 
-export default async function PartnerHomePage({ searchParams }: { searchParams: { error?: string; nps?: string } }) {
+export default async function PartnerHomePage({ searchParams }: { searchParams: { error?: string; nps?: string; redes?: string } }) {
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");
 
@@ -113,6 +113,60 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
           </label>
           <Button type="submit" variant="secondary" className="self-end">
             Enviar
+          </Button>
+        </form>
+      )}
+
+      {partner.isOwner && (
+        <form
+          key={`${partner.social?.instagram ?? ""}|${partner.social?.facebook ?? ""}|${partner.social?.consentAt ?? ""}`}
+          id="redes"
+          aria-label="Redes sociais da empresa"
+          action={savePartnerSocialAction}
+          className="mt-4 flex flex-col gap-3 rounded-brand border border-border bg-surface-raised p-4 text-sm"
+        >
+          <div>
+            <h2 className="font-display text-base font-semibold text-ink">Redes sociais da empresa</h2>
+            <p className="text-ink-muted">
+              Com plano ativo e logo enviada, o NovoSeminovo publica um post de boas-vindas no Instagram e no Facebook marcando a sua empresa.
+            </p>
+          </div>
+          {searchParams.redes === "ok" && <p className="rounded-brand bg-surface-sober px-3 py-2 font-semibold text-ink">Redes sociais salvas.</p>}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="font-semibold text-ink">Instagram</span>
+              <input
+                name="instagram"
+                defaultValue={partner.social?.instagram ?? ""}
+                maxLength={200}
+                placeholder="@suaempresa ou link do perfil"
+                className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="font-semibold text-ink">Facebook</span>
+              <input
+                name="facebook"
+                defaultValue={partner.social?.facebook ?? ""}
+                maxLength={200}
+                placeholder="nome ou link da página"
+                className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink"
+              />
+            </label>
+          </div>
+          <label className="flex items-start gap-2">
+            <input type="checkbox" name="consent" defaultChecked={Boolean(partner.social?.consentAt)} className="mt-1" />
+            <span className="text-ink">
+              Autorizo o NovoSeminovo a divulgar minha empresa e a minha logomarca no Instagram e no Facebook, marcando os perfis acima.
+              {partner.social?.consentAt && (
+                <span className="block text-xs text-ink-muted">
+                  Autorizado em {new Date(partner.social.consentAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}. Pode desmarcar quando quiser.
+                </span>
+              )}
+            </span>
+          </label>
+          <Button type="submit" variant="secondary" className="self-start">
+            Salvar redes sociais
           </Button>
         </form>
       )}

@@ -54,6 +54,9 @@ export type CrmEmpresa = {
   pais: "Brasil";
   perfil: { funcionarios?: string; faturamento?: string };
   responsavel: { nome: string; cargo?: string; email: string; telefone?: string };
+  logo?: string;
+  redesSociais: { instagram?: string; facebook?: string };
+  autorizaDivulgacaoEm?: string;
   origemMarketing?: { canal: string; meio?: string; campanha?: string };
   uso: { ultimoAcesso?: string; diasSemAcesso?: number; visualizacoes: number };
   chamados: { total: number; abertos: number; abertoDesde?: string; tempoMedioResolucaoHoras?: number; ultimoAssunto?: string };
@@ -175,6 +178,9 @@ export class CrmService {
         pais: "Brasil",
         perfil: { funcionarios: label(EMPLOYEE_RANGES, prospect?.employeesRange), faturamento: label(REVENUE_RANGES, prospect?.revenueRange) },
         responsavel: { nome: p.owner.name, cargo: prospect?.contactRole ?? undefined, email: p.owner.email, telefone: p.owner.phone ?? undefined },
+        logo: p.logoUrl ?? undefined,
+        redesSociais: { instagram: p.instagram ?? undefined, facebook: p.facebook ?? undefined },
+        autorizaDivulgacaoEm: p.socialConsentAt?.toISOString(),
         origemMarketing: p.owner.acqSource ? { canal: p.owner.acqSource, meio: p.owner.acqMedium ?? undefined, campanha: p.owner.acqCampaign ?? undefined } : undefined,
         uso: {
           ultimoAcesso: p.owner.lastActiveAt?.toISOString(),

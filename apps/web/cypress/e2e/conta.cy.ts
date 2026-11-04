@@ -129,6 +129,23 @@ describe("Área Comercial", () => {
     cy.get('form[aria-label="Convidar para o comercial"] input[name="email"]').should("have.attr", "type", "email");
   });
 
+  it("empresa informa Instagram/Facebook e autoriza o post de boas-vindas", () => {
+    cy.loginAs("loja@novoseminovo.com.br", "senha1234");
+    cy.visit("/parceiro");
+    const form = () => cy.get('form[aria-label="Redes sociais da empresa"]');
+    form().find('input[name="instagram"]').clear().type("javascript:alert(1)");
+    form().find('button[type="submit"]').click();
+    cy.contains("Instagram inválido").should("be.visible");
+    form().find('input[name="instagram"]').clear().type("@Loja.Teste");
+    form().find('input[name="facebook"]').clear().type("https://www.facebook.com/LojaTeste");
+    form().find('input[name="consent"]').check();
+    form().find('button[type="submit"]').click();
+    cy.contains("Redes sociais salvas.").should("be.visible");
+    form().find('input[name="instagram"]').should("have.value", "loja.teste");
+    form().find('input[name="consent"]').should("be.checked");
+    form().contains("Autorizado em").should("be.visible");
+  });
+
   it("telas do CRM ficam no computador (repositório), não no site", () => {
     cy.request({ url: "/admin/crm", failOnStatusCode: false }).its("status").should("eq", 404);
     cy.request({ url: "/admin/crm/receitas", failOnStatusCode: false }).its("status").should("eq", 404);

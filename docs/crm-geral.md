@@ -78,3 +78,14 @@ CRM (chave `crm_feed_key`):
 No pacote do CRM: `scripts/receitas.mjs` (relatório em
 `relatorios/receitas-AAAA-MM.md`), `sincronizar.mjs` também baixa
 `dados/receitas.json`; regras no CLAUDE.md do pacote.
+
+## Post de boas-vindas nas redes (04/11/2026)
+
+No painel do parceiro (/parceiro), o dono informa Instagram/Facebook da
+empresa e marca a autorização de divulgação ("Redes sociais da empresa",
+`POST /partners/mine/social`, `PartnerSocialInputSchema` guarda só o nome do
+perfil; `Partner.instagram/facebook/socialConsentAt`). O feed `/crm/clientes`
+traz `logo`, `redesSociais` e `autorizaDivulgacaoEm`. No CRM, a regra
+`boas_vindas_redes` (plano ativo + logo + autorização + rede) gera ordem para o
+Marketing com a legenda sugerida; `boas_vindas_pendente` pede ao Comercial o
+que falta. O Marketing mostra a prévia ao Diego e só publica depois do OK.

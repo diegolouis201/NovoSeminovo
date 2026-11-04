@@ -35,6 +35,7 @@ import type {
 } from "@novoseminovo/shared-types";
 import type { Prisma } from "@novoseminovo/db";
 import { PrismaService } from "../prisma/prisma.service";
+import { socialView } from "./social";
 import { conversationsForLeads } from "../conversations/access";
 import { ContactsService } from "../marketing/contacts.service";
 import { PaymentsService } from "../payments/payments.service";
@@ -532,6 +533,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
       description: partner.description ?? undefined,
       address: partner.address ?? undefined,
       logoUrl: partner.logoUrl ?? undefined,
+      social: socialView(partner),
       verified: Boolean(partner.verifiedAt),
       subscription: subscription
         ? {

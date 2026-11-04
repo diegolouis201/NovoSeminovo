@@ -1216,8 +1216,45 @@ export const PartnerSchema = z.object({
   // contrata/cancela plano (ver /parceiro/plano) — um agente vê e opera o
   // painel (anúncios, leads) igual, mas essas duas abas somem pra ele.
   isOwner: z.boolean(),
+  // Instagram/Facebook da empresa e quando autorizou o post de boas-vindas.
+  social: z.object({ instagram: z.string().optional(), facebook: z.string().optional(), consentAt: z.string().optional() }).optional(),
 });
 export type Partner = z.infer<typeof PartnerSchema>;
+
+// Redes sociais da empresa: aceita @nome, nome ou link e guarda só o nome do
+// perfil (nunca um link qualquer). Vazio = apagar.
+const blankToNull = (v: unknown) => (typeof v === "string" && v.trim() === "" ? null : v);
+function instagramName(raw: string): string | undefined {
+  let v = raw.trim();
+  const url = /^(?:https?:\/\/)?(?:www\.)?instagram\.com\/([^/?#]+)/i.exec(v);
+  if (url) v = url[1]!;
+  else if (/[/:]/.test(v)) return undefined;
+  v = v.replace(/^@/, "").toLowerCase();
+  return /^(?!\.+$)[a-z0-9._]{1,30}$/.test(v) ? v : undefined;
+}
+function facebookName(raw: string): string | undefined {
+  let v = raw.trim();
+  const url = /^(?:https?:\/\/)?(?:www\.|m\.|web\.)?(?:facebook|fb)\.com\/(.+)$/i.exec(v);
+  if (url) v = url[1]!.replace(/\/+$/, "");
+  else if (/[/:]/.test(v)) return undefined;
+  v = v.replace(/^@/, "");
+  const profile = /^profile\.php\?id=(\d{5,20})/.exec(v);
+  if (profile) return `profile.php?id=${profile[1]}`;
+  v = v.split(/[?#]/)[0]!;
+  return /^[A-Za-z0-9.\-]{2,80}$/.test(v) ? v : undefined;
+}
+export const PartnerSocialInputSchema = z.object({
+  instagram: z.preprocess(
+    blankToNull,
+    z.string().max(200).transform((v, ctx) => instagramName(v) ?? (ctx.addIssue({ code: "custom", message: "Instagram inválido: use o @ ou o link do perfil." }), z.NEVER)).nullable().optional(),
+  ),
+  facebook: z.preprocess(
+    blankToNull,
+    z.string().max(200).transform((v, ctx) => facebookName(v) ?? (ctx.addIssue({ code: "custom", message: "Facebook inválido: use o nome ou o link da página." }), z.NEVER)).nullable().optional(),
+  ),
+  consent: z.boolean(),
+});
+export type PartnerSocialInput = z.infer<typeof PartnerSocialInputSchema>;
 
 // Convite de equipe é direto: o dono digita o e-mail de alguém que já tem
 // conta na plataforma e essa pessoa vira "agent" na hora — sem link de

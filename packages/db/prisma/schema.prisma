@@ -304,6 +304,11 @@ model Partner {
   mainActivity       String?     @map("main_activity")
   companySize        String?     @map("company_size")
   shareCapital       Decimal?    @map("share_capital") @db.Decimal(14, 2)
+  // Redes da empresa (só o nome do perfil) e quando o dono autorizou o
+  // NovoSeminovo a divulgar a empresa e a logomarca (post de boas-vindas).
+  instagram          String?
+  facebook           String?
+  socialConsentAt    DateTime?   @map("social_consent_at")
   createdAt          DateTime    @default(now()) @map("created_at")
 
   members               PartnerMember[]

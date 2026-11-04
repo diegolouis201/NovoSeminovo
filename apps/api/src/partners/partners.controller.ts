@@ -29,6 +29,8 @@ import {
   UpdateLeadStatusInputSchema,
   UpdatePartnerAdminNotesInputSchema,
   UpdateSaleInputSchema,
+  PartnerSocialInputSchema,
+  type PartnerSocialInput,
 } from "@novoseminovo/shared-types";
 import { AdminGuard } from "../admin/admin.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -37,6 +39,8 @@ import { parseOrBadRequest } from "../common/parse";
 import { PartnersService } from "./partners.service";
 import { CnpjService } from "./cnpj.service";
 import { AuthService } from "../auth/auth.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { savePartnerSocial } from "./social";
 
 const ALLOWED_LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -61,6 +65,7 @@ export class PartnersController {
     private readonly cnpj: CnpjService,
     private readonly auth: AuthService,
     private readonly sales: SalesService,
+    private readonly prisma: PrismaService,
   ) {}
 
   // Consulta do CNPJ na tela de cadastro (pública: a pessoa ainda não tem conta).
@@ -114,6 +119,14 @@ export class PartnersController {
   uploadLogo(@CurrentUser() user: { id: string }, @UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException("Envie um arquivo de imagem.");
     return this.partnersService.uploadLogo(user.id, file);
+  }
+
+  // Instagram/Facebook da empresa e autorização do post de boas-vindas.
+  @UseGuards(JwtAuthGuard)
+  @Post("partners/mine/social")
+  async saveSocial(@CurrentUser() user: { id: string }, @Body() body: unknown) {
+    await savePartnerSocial(this.prisma, user.id, parseOrBadRequest(PartnerSocialInputSchema, body) as PartnerSocialInput);
+    return this.partnersService.getMine(user.id);
   }
 
   // Precisa vir antes de "partners/:slug" — mesmo caso do "mine" acima, "/partners"

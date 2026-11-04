@@ -943,6 +943,10 @@ export async function uploadPartnerLogo(formData: FormData, accessToken: string)
   }
 }
 
+export function savePartnerSocial(input: { instagram: string; facebook: string; consent: boolean }, accessToken: string): Promise<ApiResult<Partner>> {
+  return sendJson<Partner>("/partners/mine/social", "POST", input, accessToken);
+}
+
 export async function fetchMyPartner(accessToken: string): Promise<Partner | undefined> {
   try {
     const res = await fetchWithTimeout(`${API_URL}/partners/mine`, { headers: authHeaders(accessToken) });
