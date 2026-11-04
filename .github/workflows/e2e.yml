@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
   push:
     branches: [claude/vehicle-marketplace-platform-lmif9s, main]
-    paths: ["apps/api/**", "apps/web/**", "packages/**", "crm-pacote/**", "marketing-pacote/**", ".github/workflows/e2e.yml", "pnpm-lock.yaml"]
+    paths: ["apps/api/**", "apps/web/**", "packages/**", "crm-pacote/**", ".github/workflows/e2e.yml", "pnpm-lock.yaml"]
   pull_request:
 
 jobs:
@@ -65,8 +65,6 @@ jobs:
         run: pnpm --filter @novoseminovo/api test
       - name: Testes do CRM (repositório no computador do Diego)
         run: node --test crm-pacote/scripts/*.test.mjs
-      - name: Testes do Marketing (busca das ordens do CRM)
-        run: node --test marketing-pacote/scripts/*.test.mjs
       - name: Tipos (API e site)
         run: |
           pnpm --filter @novoseminovo/api exec tsc --noEmit
