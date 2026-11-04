@@ -1,0 +1,8 @@
+# Chaves e dados de clientes nunca vão para o GitHub.
+.env
+dados/*
+!dados/.gitkeep
+relatorios/*
+!relatorios/.gitkeep
+campanhas/*
+!campanhas/.gitkeep

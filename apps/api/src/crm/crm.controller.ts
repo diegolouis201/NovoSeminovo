@@ -8,6 +8,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { feedKeyCheck } from "../marketing/conversions.service";
 import { SalesGuard } from "../sales/sales.guard";
+import { buildCrmPackage } from "./crm-package";
 import { CrmOrdersService } from "./crm-orders.service";
 import { CrmService } from "./crm.service";
 import { NpsService } from "./nps.service";
@@ -31,6 +32,7 @@ const StatusQuery = z.object({ status: z.enum(["aberta", "feita", "cancelada"]).
 // Repositório "CRM NovoSeminovo" (sessão do Claude) com a chave de secrets/crm_feed_key:
 //   GET  /crm/clientes      jornada de todas as empresas
 //   GET  /crm/receitas      receitas por categoria (planos, lojas, financiamentos, afiliados)
+//   GET  /crm/pacote        programas e instruções do CRM (atualização automática)
 //   GET  /crm/ordens        ordens e o que cada área fez
 //   POST /crm/ordens        manda uma ordem para uma área
 @Controller("crm")
@@ -52,6 +54,14 @@ export class CrmController {
   async receitas(@Headers("authorization") authorization: string | undefined) {
     assertKey(authorization, "CRM_FEED_KEY", "Feed do CRM");
     return this.crm.receitas();
+  }
+
+  // Atualização automática do repositório do CRM (programas e instruções).
+  @Get("pacote")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  pacote(@Headers("authorization") authorization: string | undefined) {
+    assertKey(authorization, "CRM_FEED_KEY", "Feed do CRM");
+    return buildCrmPackage();
   }
 
   @Get("ordens")

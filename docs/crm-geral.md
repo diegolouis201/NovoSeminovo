@@ -89,3 +89,15 @@ traz `logo`, `redesSociais` e `autorizaDivulgacaoEm`. No CRM, a regra
 `boas_vindas_redes` (plano ativo + logo + autorização + rede) gera ordem para o
 Marketing com a legenda sugerida; `boas_vindas_pendente` pede ao Comercial o
 que falta. O Marketing mostra a prévia ao Diego e só publica depois do OK.
+
+## Atualização automática do CRM (04/11/2026)
+
+O código do repositório do CRM fica em `crm-pacote/` neste projeto (sem
+`.env` e sem dados). `GET /crm/pacote` (chave `crm_feed_key`,
+`apps/api/src/crm/crm-package.ts`) entrega só programas (`scripts/*.mjs`) e
+instruções (CLAUDE.md, README, PRIMEIRA-TAREFA, `docs/*.md|csv`, `.gitignore`,
+`.env.exemplo`) com sha256. No computador, `scripts/atualizar.mjs` roda no
+começo de cada `sincronizar.mjs` e só escreve caminhos permitidos com resumo
+conferido (`atualizar-regras.mjs`); nunca `.env`, `dados/`, `relatorios/`,
+`campanhas/` ou `.cmd`. Mudou o CRM = editar `crm-pacote/` e publicar o site;
+no dia seguinte o CRM do Diego está atualizado. Testes do CRM rodam no CI.

@@ -63,6 +63,8 @@ jobs:
           pnpm db:seed
       - name: Testes da API
         run: pnpm --filter @novoseminovo/api test
+      - name: Testes do CRM (repositório no computador do Diego)
+        run: node --test crm-pacote/scripts/*.test.mjs
       - name: Tipos (API e site)
         run: |
           pnpm --filter @novoseminovo/api exec tsc --noEmit
