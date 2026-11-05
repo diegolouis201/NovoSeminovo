@@ -3048,3 +3048,52 @@ export const HubMarkInputSchema = z.object({
 });
 export type HubMarkInput = z.infer<typeof HubMarkInputSchema>;
 export type HubMark = HubMarkInput & { naoContatarEm?: string; atualizadoEm: string };
+
+// Financeiro do Hub (fase 2). Valores sempre positivos; o tipo diz se entra
+// (receber) ou sai (pagar). Datas "AAAA-MM-DD".
+const FinDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data no formato AAAA-MM-DD");
+const FinMoney = z.number().positive().max(100_000_000);
+export const FinEntryInputSchema = z.object({
+  tipo: z.enum(["receber", "pagar"]),
+  descricao: z.string().trim().min(1, "Escreva a descrição").max(200),
+  contraparte: z.string().trim().max(120).optional(),
+  categoria: z.string().trim().regex(/^[A-Z]\d{2}$/, "Escolha a categoria"),
+  valor: FinMoney,
+  competencia: FinDate,
+  vencimento: FinDate,
+  parcelas: z.number().int().min(1).max(60).default(1),
+  recorrente: z.boolean().default(false),
+  pago: z.boolean().default(false),
+  pagoEm: FinDate.optional(),
+  contaId: z.string().trim().min(1).max(40).optional(),
+  observacao: z.string().trim().max(1000).optional(),
+});
+export type FinEntryInput = z.input<typeof FinEntryInputSchema>;
+export const FinEntryEditSchema = z.object({
+  descricao: z.string().trim().min(1).max(200).optional(),
+  contraparte: z.string().trim().max(120).optional(),
+  categoria: z.string().trim().regex(/^[A-Z]\d{2}$/).optional(),
+  valor: FinMoney.optional(),
+  competencia: FinDate.optional(),
+  vencimento: FinDate.optional(),
+});
+export const FinPayInputSchema = z.object({ pagoEm: FinDate, contaId: z.string().trim().min(1).max(40) });
+export const FinAccountInputSchema = z.object({
+  nome: z.string().trim().min(2).max(80),
+  banco: z.string().trim().max(80).optional(),
+  tipo: z.enum(["corrente", "cartao", "caixa", "investimento"]).default("corrente"),
+  saldoInicial: z.number().min(-100_000_000).max(100_000_000),
+  saldoInicialEm: FinDate,
+});
+export const FinTransferInputSchema = z.object({
+  deContaId: z.string().trim().min(1).max(40),
+  paraContaId: z.string().trim().min(1).max(40),
+  valor: FinMoney,
+  data: FinDate,
+  descricao: z.string().trim().max(200).optional(),
+});
+export const FinImportInputSchema = z.object({
+  formato: z.enum(["planilha", "ofx"]),
+  texto: z.string().min(1).max(2_000_000),
+  contaId: z.string().trim().min(1).max(40).optional(),
+});

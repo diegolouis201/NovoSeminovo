@@ -117,3 +117,86 @@ export async function irPara(form: FormData) {
   const q = txt(form, "q", 100);
   redirect(`/empresas${q ? `?q=${encodeURIComponent(q)}` : ""}`);
 }
+
+// ------------------------------------------------------------ Financeiro
+const valorBr = (s: string) => Number(s.replace(/R\$|\s/g, "").replace(/\./g, "").replace(",", "."));
+const dataOk = (s: string) => (/^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "");
+
+export async function novoLancamento(_: Resultado, form: FormData): Promise<Resultado> {
+  const vencimento = dataOk(txt(form, "vencimento", 10));
+  const pago = form.get("pago") === "on";
+  const body = {
+    tipo: txt(form, "tipo", 10),
+    descricao: txt(form, "descricao", 200),
+    contraparte: txt(form, "contraparte", 120) || undefined,
+    categoria: txt(form, "categoria", 3),
+    valor: valorBr(txt(form, "valor", 20)),
+    competencia: dataOk(txt(form, "competencia", 10)) || vencimento,
+    vencimento,
+    parcelas: Math.max(1, Number(txt(form, "parcelas", 3)) || 1),
+    recorrente: txt(form, "repetir", 20) === "recorrente",
+    pago,
+    pagoEm: pago ? vencimento : undefined,
+    contaId: txt(form, "conta", 40) || undefined,
+    observacao: txt(form, "observacao", 1000) || undefined,
+  };
+  if (!vencimento) return { erro: "Escolha a data de vencimento." };
+  if (!Number.isFinite(body.valor) || body.valor <= 0) return { erro: "Valor inválido." };
+  return run(() => hubFetch("/hub/financeiro/lancamentos", { method: "POST", body }), "Lançamento criado.", ["/financeiro"]);
+}
+
+export async function baixarLancamento(_: Resultado, form: FormData): Promise<Resultado> {
+  const l = id(txt(form, "id", 40));
+  return run(() => hubFetch(`/hub/financeiro/lancamentos/${l}/baixar`, { method: "POST", body: { pagoEm: dataOk(txt(form, "pagoEm", 10)), contaId: txt(form, "conta", 40) } }), "Baixado.", ["/financeiro"]);
+}
+
+export async function acaoLancamento(form: FormData) {
+  const l = id(txt(form, "id", 40));
+  const acao = txt(form, "acao", 10);
+  if (l && (acao === "cancelar" || acao === "reabrir")) await run(() => hubFetch(`/hub/financeiro/lancamentos/${l}/${acao}`, { method: "POST" }), "", ["/financeiro"]);
+}
+
+export async function editarCategoria(form: FormData) {
+  const l = id(txt(form, "id", 40));
+  const categoria = txt(form, "categoria", 3);
+  if (l && /^[A-Z]\d{2}$/.test(categoria)) await run(() => hubFetch(`/hub/financeiro/lancamentos/${l}`, { method: "POST", body: { categoria } }), "", ["/financeiro"]);
+}
+
+export async function novaConta(_: Resultado, form: FormData): Promise<Resultado> {
+  const saldo = valorBr(txt(form, "saldoInicial", 20) || "0");
+  return run(
+    () => hubFetch("/hub/financeiro/contas", { method: "POST", body: { nome: txt(form, "nome", 80), banco: txt(form, "banco", 80) || undefined, tipo: txt(form, "tipo", 20) || "corrente", saldoInicial: Number.isFinite(saldo) ? saldo : 0, saldoInicialEm: dataOk(txt(form, "saldoInicialEm", 10)) } }),
+    "Conta criada.",
+    ["/financeiro"],
+  );
+}
+
+export async function transferir(_: Resultado, form: FormData): Promise<Resultado> {
+  return run(
+    () => hubFetch("/hub/financeiro/transferencias", { method: "POST", body: { deContaId: txt(form, "de", 40), paraContaId: txt(form, "para", 40), valor: valorBr(txt(form, "valor", 20)), data: dataOk(txt(form, "data", 10)), descricao: txt(form, "descricao", 200) || undefined } }),
+    "Transferência registrada.",
+    ["/financeiro"],
+  );
+}
+
+export type ResultadoImportacao = Resultado & { lancamentos?: number; transferencias?: number; repetidos?: number; erros?: string[] };
+export async function importarArquivo(_: ResultadoImportacao, form: FormData): Promise<ResultadoImportacao> {
+  const arquivo = form.get("arquivo");
+  if (!(arquivo instanceof File) || !arquivo.size) return { erro: "Escolha o arquivo." };
+  if (arquivo.size > 2_000_000) return { erro: "Arquivo grande demais (máximo 2 MB)." };
+  const nome = arquivo.name.toLowerCase();
+  const formato = nome.endsWith(".ofx") ? "ofx" : nome.endsWith(".csv") || nome.endsWith(".txt") ? "planilha" : "";
+  if (!formato) return { erro: "Use o extrato do banco em .ofx ou a planilha salva como .csv." };
+  const bytes = Buffer.from(await arquivo.arrayBuffer());
+  // Planilha do Excel em CSV costuma vir em Windows-1252; o resto em UTF-8.
+  let texto = bytes.toString("utf8");
+  if (texto.includes("�")) texto = new TextDecoder("windows-1252").decode(bytes);
+  try {
+    const r = await hubFetch<{ lancamentos: number; transferencias: number; repetidos: number; erros: string[] }>("/hub/financeiro/importar", { method: "POST", body: { formato, texto, contaId: txt(form, "conta", 40) || undefined } });
+    revalidatePath("/financeiro", "layout");
+    return { ok: "Importação concluída.", ...r };
+  } catch (e) {
+    if (e instanceof HubApiError) return { erro: e.message };
+    throw e;
+  }
+}

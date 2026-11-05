@@ -4,17 +4,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
+  ArrowsLeftRight,
+  Bank,
   Bell,
   Buildings,
   CalendarCheck,
+  ChartPieSlice,
   ChartLineUp,
   CurrencyCircleDollar,
   Funnel,
   House,
   List,
+  Receipt,
   Ruler,
   SignOut,
   Star,
+  Table,
+  UploadSimple,
   UsersThree,
   X,
 } from "@phosphor-icons/react";
@@ -44,11 +50,22 @@ export function Sidebar({ name, profile, permissions, badges, sair }: { name: st
         { href: "/nps", label: "NPS", icon: Star, need: "crm.ver" },
       ],
     },
-    { title: "Financeiro", items: [{ href: "/receitas", label: "Receitas", icon: CurrencyCircleDollar, need: "financeiro" }] },
+    {
+      title: "Financeiro",
+      items: [
+        { href: "/financeiro", label: "Painel de indicadores", icon: ChartPieSlice, need: "financeiro" },
+        { href: "/financeiro/lancamentos", label: "Contas a pagar e receber", icon: Receipt, need: "financeiro", badge: badges.vencidos },
+        { href: "/financeiro/extrato", label: "Extrato", icon: Bank, need: "financeiro" },
+        { href: "/financeiro/fluxo", label: "Fluxo de caixa", icon: ArrowsLeftRight, need: "financeiro" },
+        { href: "/financeiro/dre", label: "DRE", icon: Table, need: "financeiro" },
+        { href: "/financeiro/importar", label: "Importar e contas", icon: UploadSimple, need: "financeiro" },
+        { href: "/receitas", label: "Receitas por categoria", icon: CurrencyCircleDollar, need: "financeiro" },
+      ],
+    },
     { title: "Administração", items: [{ href: "/equipe", label: "Equipe e acessos", icon: UsersThree, need: "equipe" }] },
   ];
   const can = (p?: HubPermission) => !p || permissions.includes(p);
-  const active = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+  const active = (href: string) => (href === "/" ? path === "/" : href === "/financeiro" ? path === href : path.startsWith(href));
 
   const nav = (
     <nav className="flex h-full flex-col gap-5 overflow-y-auto px-3 py-5">

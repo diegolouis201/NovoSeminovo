@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { Sidebar } from "@/components/Sidebar";
-import { HubApiError } from "@/lib/api";
+import { HubApiError, hubFetch } from "@/lib/api";
 import { sair } from "@/lib/actions";
 import { calc, feed, hoje, marcacoes, me, tarefas } from "@/lib/crm";
 import { HUB_PROFILES } from "@novoseminovo/shared-types";
@@ -24,6 +24,14 @@ export default async function HubLayout({ children }: { children: React.ReactNod
     badges.avisos = calc.buildAlerts(f, m, [], h).filter((a: { nivel: string }) => a.nivel === "urgente").length;
     badges.regua = calc.regua(f, h, m).filter((r: { situacao: string }) => r.situacao === "atrasado").length;
     badges.tarefas = t.filter((x) => x.dueAt.slice(0, 10) <= new Date().toISOString().slice(0, 10)).length;
+  }
+  if (access.permissions.includes("financeiro")) {
+    try {
+      const r = await hubFetch<{ resumo: { vencidosReceber: { quantidade: number }; vencidosPagar: { quantidade: number } } }>("/hub/financeiro/lancamentos?status=vencido");
+      badges.vencidos = r.resumo.vencidosReceber.quantidade + r.resumo.vencidosPagar.quantidade;
+    } catch {
+      /* sem financeiro ainda */
+    }
   }
   return (
     <div className="min-h-screen">

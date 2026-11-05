@@ -43,5 +43,25 @@ describe("NovoSeminovo Hub", { baseUrl: "http://localhost:3100" }, () => {
     cy.contains("h1", "Régua de relacionamento");
     cy.visit("/vendas");
     cy.contains("h1", "Dashboard de vendas");
+
+    // Financeiro: conta, lançamento manual e as telas de indicadores.
+    cy.visit("/financeiro/importar");
+    cy.contains("button", "Nova conta").click();
+    cy.get('input[name="nome"]').type("Banco Cypress");
+    cy.get('input[name="saldoInicial"]').type("1000");
+    cy.contains("button", "Criar conta").click();
+    cy.contains("Conta criada.");
+    cy.visit("/financeiro/lancamentos");
+    cy.contains("button", "Lançamento manual").click();
+    cy.get("#descricao").type("Despesa do teste Cypress");
+    cy.get("#valor").type("123,45");
+    cy.contains("button", "Salvar lançamento").click();
+    cy.contains("Lançamento criado.");
+    cy.reload();
+    cy.contains("Despesa do teste Cypress");
+    for (const [rota, titulo] of [["/financeiro", "Painel de indicadores"], ["/financeiro/extrato", "Extrato"], ["/financeiro/fluxo", "Fluxo de caixa"], ["/financeiro/dre", "DRE"]]) {
+      cy.visit(rota);
+      cy.contains("h1", titulo);
+    }
   });
 });

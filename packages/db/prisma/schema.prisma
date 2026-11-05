@@ -1844,3 +1844,58 @@ model HubMark {
 
   @@map("hub_marks")
 }
+
+// Financeiro do Hub (fase 2): contas bancárias, lançamentos (a pagar e a
+// receber) e transferências. As mensalidades do Stripe NÃO ficam aqui: o Hub
+// lê de subscription_payments e listing_boost_purchases (conta "Stripe").
+model FinAccount {
+  id             String   @id @default(cuid())
+  nome           String
+  banco          String?
+  tipo           String   @default("corrente")
+  saldoInicial   Decimal  @map("saldo_inicial") @db.Decimal(14, 2)
+  saldoInicialEm DateTime @map("saldo_inicial_em") @db.Date
+  ativa          Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("fin_accounts")
+}
+
+model FinEntry {
+  id          String    @id @default(cuid())
+  tipo        String
+  descricao   String
+  contraparte String?
+  categoria   String
+  valor       Decimal   @db.Decimal(14, 2)
+  competencia DateTime  @db.Date
+  vencimento  DateTime  @db.Date
+  status      String    @default("aberto")
+  pagoEm      DateTime? @map("pago_em") @db.Date
+  contaId     String?   @map("conta_id")
+  origem      String    @default("manual")
+  // Importação: evita lançar duas vezes a mesma linha do OFX/planilha.
+  externalId  String?   @unique @map("external_id")
+  grupoId     String?   @map("grupo_id")
+  observacao  String?
+  createdById String?   @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, vencimento])
+  @@index([competencia])
+  @@map("fin_entries")
+}
+
+model FinTransfer {
+  id          String   @id @default(cuid())
+  deContaId   String   @map("de_conta_id")
+  paraContaId String   @map("para_conta_id")
+  valor       Decimal  @db.Decimal(14, 2)
+  data        DateTime @db.Date
+  descricao   String?
+  externalId  String?  @unique @map("external_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("fin_transfers")
+}
