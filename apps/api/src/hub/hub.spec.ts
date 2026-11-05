@@ -9,7 +9,8 @@ import { HubService } from "./hub.service";
 
 describe("Perfis de acesso do Hub", () => {
   test("dono tem tudo; comercial não vê financeiro nem equipe; financeiro não mexe no CRM", () => {
-    assert.deepEqual(hubPermissionsOf("dono").sort(), ["crm.editar", "crm.ver", "equipe", "financeiro"]);
+    assert.deepEqual(hubPermissionsOf("dono").sort(), ["crm.editar", "crm.ver", "equipe", "financeiro", "marketing"]);
+    assert.deepEqual(hubPermissionsOf("marketing"), ["marketing"]);
     assert.deepEqual(hubPermissionsOf("comercial").sort(), ["crm.editar", "crm.ver"]);
     assert.deepEqual(hubPermissionsOf("financeiro").sort(), ["financeiro"]);
     assert.deepEqual(hubPermissionsOf("leitura"), ["crm.ver"]);

@@ -2987,12 +2987,13 @@ export type CrmRevenue = {
 // ---------------------------------------------------------------------------
 // NovoSeminovo Hub (hub.novoseminovo.com.br): CRM da empresa com login.
 // O dono (admin) tem tudo; cada funcionário entra com o perfil que o dono der.
-export const HUB_PERMISSIONS = ["crm.ver", "crm.editar", "financeiro", "equipe"] as const;
+export const HUB_PERMISSIONS = ["crm.ver", "crm.editar", "financeiro", "marketing", "equipe"] as const;
 export type HubPermission = (typeof HUB_PERMISSIONS)[number];
 export const HUB_PROFILES = {
-  dono: { label: "Dono (tudo)", permissions: ["crm.ver", "crm.editar", "financeiro", "equipe"] },
+  dono: { label: "Dono (tudo)", permissions: ["crm.ver", "crm.editar", "financeiro", "marketing", "equipe"] },
   comercial: { label: "Comercial", permissions: ["crm.ver", "crm.editar"] },
   financeiro: { label: "Financeiro", permissions: ["financeiro"] },
+  marketing: { label: "Marketing", permissions: ["marketing"] },
   leitura: { label: "Só leitura do CRM", permissions: ["crm.ver"] },
 } as const satisfies Record<string, { label: string; permissions: readonly HubPermission[] }>;
 export type HubProfile = keyof typeof HUB_PROFILES;
@@ -3032,7 +3033,7 @@ export type HubGoal = z.infer<typeof HubGoalInputSchema>;
 export const HubMemberInputSchema = z.object({
   email: z.string().trim().toLowerCase().max(200).email("E-mail inválido"),
   name: z.string().trim().min(2).max(120).optional(),
-  profile: z.enum(["comercial", "financeiro", "leitura"]),
+  profile: z.enum(["comercial", "financeiro", "marketing", "leitura"]),
 });
 export type HubMemberInput = z.infer<typeof HubMemberInputSchema>;
 
@@ -3097,3 +3098,30 @@ export const FinImportInputSchema = z.object({
   texto: z.string().min(1).max(2_000_000),
   contaId: z.string().trim().min(1).max(40).optional(),
 });
+
+// Marketing do Hub (fase 3): conteúdos que o Claude do Marketing envia, o
+// Diego aprova e o Hub publica (Instagram e Facebook) ou marca como publicado.
+export const MKT_TIPOS = { post: "Post", carrossel: "Carrossel", reels: "Reels / vídeo", story: "Story", video: "Vídeo (YouTube/TikTok)", email: "E-mail", whatsapp: "WhatsApp", anuncio: "Anúncio pago" } as const;
+export const MKT_REDES = { instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", email: "E-mail", whatsapp: "WhatsApp", meta_ads: "Meta Ads", google_ads: "Google Ads", tiktok_ads: "TikTok Ads" } as const;
+export const MKT_STATUS = { rascunho: "Rascunho", em_aprovacao: "Aguardando aprovação", ajuste: "Pediu ajuste", aprovado: "Aprovado", publicando: "Publicando", publicado: "Publicado", erro: "Erro ao publicar", cancelado: "Cancelado" } as const;
+const MktUrl = z.string().trim().max(500).refine((u) => u.startsWith("/uploads/") || /^https:\/\//.test(u), "Mídia inválida (envie a imagem pelo Hub ou um link https)");
+export const MktContentInputSchema = z.object({
+  tipo: z.enum(Object.keys(MKT_TIPOS) as [keyof typeof MKT_TIPOS, ...(keyof typeof MKT_TIPOS)[]]),
+  redes: z.array(z.enum(Object.keys(MKT_REDES) as [keyof typeof MKT_REDES, ...(keyof typeof MKT_REDES)[]])).min(1, "Escolha ao menos uma rede").max(9),
+  titulo: z.string().trim().min(1).max(160),
+  legenda: z.string().trim().max(5000).default(""),
+  hashtags: z.array(z.string().trim().max(60)).max(30).default([]),
+  midias: z.array(MktUrl).max(10).default([]),
+  dataPlanejada: z.string().datetime({ offset: true }).optional(),
+  campanha: z
+    .object({ plataforma: z.enum(["meta_ads", "google_ads", "tiktok_ads"]), orcamento: z.number().min(0).max(1_000_000).optional(), objetivo: z.string().trim().max(200).optional(), publico: z.string().trim().max(1000).optional(), inicio: z.string().max(10).optional(), fim: z.string().max(10).optional() })
+    .optional(),
+  observacao: z.string().trim().max(2000).optional(),
+  ordemId: z.string().trim().max(40).optional(),
+});
+export type MktContentInput = z.input<typeof MktContentInputSchema>;
+export const MktReviseInputSchema = MktContentInputSchema.partial().extend({ resposta: z.string().trim().max(2000).optional() });
+export const MktMediaInputSchema = z.object({ nome: z.string().trim().min(1).max(120), base64: z.string().min(1).max(11_000_000) });
+export const MktApproveInputSchema = z.object({ publicarEm: z.string().datetime({ offset: true }).optional() });
+export const MktPublishedInputSchema = z.object({ rede: z.string().trim().min(1).max(20), link: z.string().trim().url().max(500).refine((u) => /^https:\/\//.test(u), "O link precisa começar com https://") });
+export const MktBudgetInputSchema = z.object({ mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), plataforma: z.enum(["meta_ads", "google_ads", "tiktok_ads"]), valor: z.number().min(0).max(10_000_000) });

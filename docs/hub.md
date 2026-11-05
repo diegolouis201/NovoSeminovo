@@ -50,6 +50,26 @@ Receitas por categoria. API em `apps/api/src/hub/financeiro.*` (regras puras em
   Categoria, Tipo, Situação; valor negativo = despesa).
 - Tabelas: `fin_accounts`, `fin_entries`, `fin_transfers`.
 
+## Marketing (fase 3)
+Telas (permissão `marketing`: dono e perfil Marketing): Painel, Aprovações,
+Calendário de conteúdo, Conteúdos (e detalhe com histórico), Novo conteúdo,
+Gastos e orçamento, Análises. API em `apps/api/src/hub/marketing.*`
+(regras em `marketing-regras.ts`, publicação em `meta-graph.ts`).
+- O Claude do Marketing envia pela chave do marketing (`/marketing/midias`,
+  `/marketing/conteudos`, `/revisao`, `/resultados`): ver
+  `docs/hub-marketing-claude.md` (texto para colar no Marketing).
+- Fluxo: em aprovação → (ajuste → nova versão) → aprovado com data/hora →
+  publicado. Nada publica sem aprovação.
+- O Hub publica sozinho imagem e carrossel no Instagram e na página do
+  Facebook (publicador a cada 2 min). Vídeo, TikTok, YouTube, e-mail e
+  WhatsApp: publicação à mão, marcando o link.
+- Servidor (.env): `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_ACCOUNT_ID`,
+  `FACEBOOK_PAGE_ID`, `FACEBOOK_PAGE_TOKEN`, `WINDSOR_API_KEY` (gastos Meta,
+  Google, TikTok e análises). `MKT_PUBLISHER_DISABLED=1` desliga o publicador.
+- No extrato do banco, cobranças do Meta/Google/TikTok Ads entram sozinhas em
+  F03 (Marketing) — `categoriaAutomatica` em `financeiro-regras.ts`.
+- Tabelas: `mkt_contents`, `mkt_history`, `mkt_budgets`.
+
 ## Próximas fases
 Login com Google @novoseminovo.com.br; trazer o histórico da planilha e da
 sessão do Financeiro (importação já pronta).

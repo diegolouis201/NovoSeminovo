@@ -30,7 +30,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   // Padrão do Express é 100kb — pouco pro envio em lote da API de
   // integração (até 100 anúncios com descrição, ver IntegrationsController).
-  app.useBodyParser("json", { limit: "5mb" });
+  // 12 MB: imagens do marketing (Hub) chegam em base64 (até ~8 MB cada).
+  app.useBodyParser("json", { limit: "12mb" });
   // Só o próprio site fala com a API pelo navegador (ver common/cors.ts).
   app.enableCors(corsOptions());
   app.useStaticAssets(UPLOADS_DIR, {

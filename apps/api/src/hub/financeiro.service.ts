@@ -8,6 +8,7 @@ import {
   type Movimento,
   type Transferencia,
   PLANO_DE_CONTAS,
+  categoriaAutomatica,
   dre,
   extrato,
   fluxoCaixa,
@@ -172,7 +173,7 @@ export class FinanceiroService {
           continue;
         }
         await this.prisma.finEntry.create({
-          data: { tipo: t.valor > 0 ? "receber" : "pagar", descricao: t.descricao || "Sem descrição", categoria: t.valor > 0 ? "R03" : "F06", valor: Math.abs(t.valor), competencia: data(t.data), vencimento: data(t.data), status: "pago", pagoEm: data(t.data), contaId: i.contaId, origem: "ofx", externalId, createdById: byUserId },
+          data: { tipo: t.valor > 0 ? "receber" : "pagar", descricao: t.descricao || "Sem descrição", categoria: categoriaAutomatica(t.descricao, t.valor), valor: Math.abs(t.valor), competencia: data(t.data), vencimento: data(t.data), status: "pago", pagoEm: data(t.data), contaId: i.contaId, origem: "ofx", externalId, createdById: byUserId },
         });
         out.lancamentos++;
       }
@@ -186,7 +187,7 @@ export class FinanceiroService {
         out.repetidos++;
         continue;
       }
-      const categoria = l.categoria && CATEGORIAS.has(l.categoria) ? l.categoria : l.tipo === "receber" ? "R03" : "F06";
+      const categoria = l.categoria && CATEGORIAS.has(l.categoria) ? l.categoria : categoriaAutomatica(l.descricao, l.tipo === "receber" ? l.valor : -l.valor);
       const pago = l.status === "pago";
       await this.prisma.finEntry.create({
         data: { tipo: l.tipo, descricao: l.descricao, categoria, valor: l.valor, competencia: data(l.data), vencimento: data(l.data), status: pago ? "pago" : "aberto", pagoEm: pago ? data(l.data) : null, contaId: i.contaId, origem: "planilha", externalId, createdById: byUserId },

@@ -8,7 +8,13 @@ import {
   Bank,
   Bell,
   Buildings,
+  CalendarBlank,
   CalendarCheck,
+  ChartBar,
+  CheckSquare,
+  Coins,
+  ImagesSquare,
+  Megaphone,
   ChartPieSlice,
   ChartLineUp,
   CurrencyCircleDollar,
@@ -51,6 +57,17 @@ export function Sidebar({ name, profile, permissions, badges, sair }: { name: st
       ],
     },
     {
+      title: "Marketing",
+      items: [
+        { href: "/marketing", label: "Painel de marketing", icon: Megaphone, need: "marketing" },
+        { href: "/marketing/aprovacoes", label: "Aprovações", icon: CheckSquare, need: "marketing", badge: badges.aprovacoes },
+        { href: "/marketing/calendario", label: "Calendário de conteúdo", icon: CalendarBlank, need: "marketing" },
+        { href: "/marketing/conteudos", label: "Conteúdos", icon: ImagesSquare, need: "marketing" },
+        { href: "/marketing/gastos", label: "Gastos e orçamento", icon: Coins, need: "marketing" },
+        { href: "/marketing/analises", label: "Análises", icon: ChartBar, need: "marketing" },
+      ],
+    },
+    {
       title: "Financeiro",
       items: [
         { href: "/financeiro", label: "Painel de indicadores", icon: ChartPieSlice, need: "financeiro" },
@@ -65,7 +82,7 @@ export function Sidebar({ name, profile, permissions, badges, sair }: { name: st
     { title: "Administração", items: [{ href: "/equipe", label: "Equipe e acessos", icon: UsersThree, need: "equipe" }] },
   ];
   const can = (p?: HubPermission) => !p || permissions.includes(p);
-  const active = (href: string) => (href === "/" ? path === "/" : href === "/financeiro" ? path === href : path.startsWith(href));
+  const active = (href: string) => (href === "/" ? path === "/" : href === "/financeiro" || href === "/marketing" ? path === href : path.startsWith(href));
 
   const nav = (
     <nav className="flex h-full flex-col gap-5 overflow-y-auto px-3 py-5">

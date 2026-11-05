@@ -358,3 +358,19 @@ export function lerPlanilha(texto: string) {
   });
   return { linhas, erros };
 }
+
+// Categoria sugerida para a linha do extrato pela descrição do banco
+// (anúncios, servidor, impostos, tarifas). O resto fica em "Outras" para
+// classificar na tela.
+const REGRAS_CATEGORIA: [RegExp, string][] = [
+  [/FACEBK|FACEBOOK|\bMETA\b.*ADS|GOOGLE\s*\*?\s*ADS|TIKTOK/, "F03"],
+  [/LOCAWEB|HOSTINGER|AMAZON WEB|\bAWS\b|ANTHROPIC|OPENAI|RESEND|CLOUDFLARE|DIGITALOCEAN|WINDSOR/, "C02"],
+  [/\bDAS\b|SIMPLES NACIONAL|\bDARF\b/, "D01"],
+  [/STRIPE/, "C01"],
+  [/TARIFA|\bIOF\b|JUROS|RENDIMENTO/, "N01"],
+];
+export function categoriaAutomatica(descricao: string, valor: number): string {
+  const d = descricao.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+  for (const [re, cat] of REGRAS_CATEGORIA) if (re.test(d) && (valor < 0 || cat === "N01")) return cat;
+  return valor > 0 ? "R03" : "F06";
+}

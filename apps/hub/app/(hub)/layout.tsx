@@ -33,6 +33,13 @@ export default async function HubLayout({ children }: { children: React.ReactNod
       /* sem financeiro ainda */
     }
   }
+  if (access.permissions.includes("marketing")) {
+    try {
+      badges.aprovacoes = (await hubFetch<{ aguardando: number }>("/hub/marketing/resumo")).aguardando;
+    } catch {
+      /* sem marketing ainda */
+    }
+  }
   return (
     <div className="min-h-screen">
       <Sidebar name={access.name} profile={HUB_PROFILES[access.profile].label} permissions={access.permissions} badges={badges} sair={sair} />

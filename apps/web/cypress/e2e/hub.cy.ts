@@ -66,6 +66,11 @@ describe("NovoSeminovo Hub", { baseUrl: "http://localhost:3100" }, () => {
     cy.contains("Lançamento criado.");
     cy.reload();
     cy.contains("Despesa do teste Cypress");
+    // Marketing: telas abrem para o dono.
+    for (const [rota, titulo] of [["/marketing", "Marketing"], ["/marketing/aprovacoes", "Aprovações"], ["/marketing/calendario", "Calendário"], ["/marketing/gastos", "Gastos"], ["/marketing/analises", "Análises"]]) {
+      cy.visit(rota);
+      cy.contains("h1", titulo);
+    }
     for (const [rota, titulo] of [["/financeiro", "Painel de indicadores"], ["/financeiro/extrato", "Extrato"], ["/financeiro/fluxo", "Fluxo de caixa"], ["/financeiro/dre", "DRE"]]) {
       cy.visit(rota);
       cy.contains("h1", titulo);

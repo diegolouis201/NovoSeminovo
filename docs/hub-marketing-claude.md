@@ -1,0 +1,55 @@
+# Para o Claude do Marketing: enviar conteúdos para o NovoSeminovo Hub
+
+Cole este texto nas instruções (CLAUDE.md) da pasta do Marketing no
+computador do Diego. A chave é a mesma que já está no `.env` do Marketing
+(`NSN_FEED_KEY`). Nunca mostre a chave no chat.
+
+## Regra
+Todo conteúdo (post, carrossel, reels, story, vídeo, e-mail, WhatsApp,
+anúncio pago) vai para aprovação no Hub (https://hub.novoseminovo.com.br,
+tela Marketing → Aprovações). Não publique nada por fora e não use artefatos
+para pedir aprovação: o Diego aprova no Hub, e o Hub publica sozinho no
+Instagram e no Facebook na hora marcada. TikTok, YouTube, vídeos, e-mail e
+WhatsApp: depois de aprovado, quem publica marca o link no Hub.
+
+## Como enviar (API do site, com a chave)
+Base: `https://api.novoseminovo.com.br`, cabeçalho
+`Authorization: Bearer <NSN_FEED_KEY>` e `Content-Type: application/json`.
+
+1. **Imagem** (JPEG/PNG, até 8 MB): `POST /marketing/midias`
+   corpo `{"nome": "arte.png", "base64": "<arquivo em base64>"}` → `{"url": "/uploads/....jpg"}`.
+   Use a `url` devolvida no conteúdo. Vídeo ou arquivo grande: link `https://`
+   (Drive, Dropbox) direto no campo `midias`.
+2. **Conteúdo**: `POST /marketing/conteudos`
+   ```json
+   {
+     "tipo": "post | carrossel | reels | story | video | email | whatsapp | anuncio",
+     "redes": ["instagram", "facebook", "tiktok", "youtube", "email", "whatsapp", "meta_ads", "google_ads", "tiktok_ads"],
+     "titulo": "Nome interno curto",
+     "legenda": "Texto do post (sem preço nem desconto; atuação no Brasil todo)",
+     "hashtags": ["novoseminovo", "carros"],
+     "midias": ["/uploads/....jpg"],
+     "dataPlanejada": "2026-11-10T12:00:00-03:00",
+     "campanha": {"plataforma": "meta_ads", "orcamento": 600, "objetivo": "...", "publico": "..."},
+     "observacao": "O que o Diego precisa saber para aprovar",
+     "ordemId": "id da ordem do CRM, se veio de uma"
+   }
+   ```
+   Carrossel: 2 a 10 imagens. `campanha` só para anúncio pago.
+3. **Acompanhar**: `GET /marketing/conteudos?status=ajuste` traz o que o Diego
+   pediu para ajustar (campo `feedback`). Outros status: `em_aprovacao`,
+   `aprovado`, `publicado`, `erro`, `cancelado`.
+4. **Nova versão depois do ajuste**: `POST /marketing/conteudos/<id>/revisao`
+   com só o que mudou e `"resposta": "o que foi ajustado"`. Volta para a fila
+   de aprovação como nova versão.
+5. **Resultados**: `GET /marketing/resultados` → gastos do mês (Meta, Google,
+   TikTok contra o orçamento, custo por cadastro e por assinatura) e análises
+   (Instagram, origem das visitas, posts publicados). Use para o relatório e
+   para sugerir o que repetir.
+
+## Rotina sugerida
+- Toda segunda: montar o calendário da semana e enviar tudo ao Hub.
+- Todo dia: olhar `status=ajuste` e mandar as novas versões.
+- Ordens do CRM para o Marketing (boas-vindas nas redes etc.): criar o
+  conteúdo com `ordemId` e concluir a ordem com o link depois de publicado.
+- Dia 1º: relatório do mês com `GET /marketing/resultados`.

@@ -1899,3 +1899,62 @@ model FinTransfer {
 
   @@map("fin_transfers")
 }
+
+// Marketing do Hub (fase 3). O Claude do Marketing envia (chave do
+// marketing), o Diego aprova no Hub e o Hub publica no Instagram/Facebook na
+// hora marcada. Redes sem API liberada: publicação à mão, com o link.
+model MktContent {
+  id            String       @id @default(cuid())
+  tipo          String
+  redes         String[]
+  titulo        String
+  legenda       String       @default("")
+  hashtags      String[]     @default([])
+  midias        String[]     @default([])
+  dataPlanejada DateTime?    @map("data_planejada")
+  status        String       @default("em_aprovacao")
+  feedback      String?
+  revisao       Int          @default(1)
+  campanha      Json?
+  origem        String       @default("claude")
+  observacao    String?
+  ordemId       String?      @map("ordem_id")
+  aprovadoPorId String?      @map("aprovado_por_id")
+  aprovadoEm    DateTime?    @map("aprovado_em")
+  publicadoEm   DateTime?    @map("publicado_em")
+  links         Json         @default("{}")
+  igMediaId     String?      @map("ig_media_id")
+  fbPostId      String?      @map("fb_post_id")
+  erro          String?
+  metricas      Json?
+  metricasEm    DateTime?    @map("metricas_em")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  historico     MktHistory[]
+
+  @@index([status, dataPlanejada])
+  @@map("mkt_contents")
+}
+
+model MktHistory {
+  id        String     @id @default(cuid())
+  contentId String     @map("content_id")
+  content   MktContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  acao      String
+  texto     String?
+  autor     String
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  @@index([contentId])
+  @@map("mkt_history")
+}
+
+model MktBudget {
+  month      String
+  plataforma String
+  valor      Decimal  @db.Decimal(12, 2)
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@id([month, plataforma])
+  @@map("mkt_budgets")
+}

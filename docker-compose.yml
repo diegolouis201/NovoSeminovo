@@ -61,6 +61,9 @@ services:
       INSTAGRAM_ACCOUNT_ID: ${INSTAGRAM_ACCOUNT_ID:-}
       INSTAGRAM_GRAPH_HOST: ${INSTAGRAM_GRAPH_HOST:-graph.facebook.com}
       INSTAGRAM_GRAPH_VERSION: ${INSTAGRAM_GRAPH_VERSION:-v23.0}
+      # Hub (marketing): publicar na página do Facebook.
+      FACEBOOK_PAGE_ID: ${FACEBOOK_PAGE_ID:-}
+      FACEBOOK_PAGE_TOKEN: ${FACEBOOK_PAGE_TOKEN:-}
       EMAIL_DAILY_LIMIT: ${EMAIL_DAILY_LIMIT:-80}
       EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-diego.louis@novoseminovo.com.br}
       RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
@@ -122,6 +125,8 @@ services:
     environment:
       AUTH_URL: https://hub.${DOMAIN}
       API_URL: http://api:4000
+      # Endereço público da API, para o navegador mostrar as imagens do marketing.
+      PUBLIC_API_URL: https://api.${DOMAIN}
     volumes:
       # Chave do login do Hub (HUB_AUTH_SECRET) lida de arquivo (secrets/hub_auth_secret).
       - ./secrets:/run/secrets:ro

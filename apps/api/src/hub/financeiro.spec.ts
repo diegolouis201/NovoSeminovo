@@ -71,17 +71,17 @@ describe("Financeiro do Hub (banco local)", { skip: !withDb && "sem DATABASE_URL
   });
 
   test("importar OFX duas vezes não duplica; Stripe no extrato vira transferência", async () => {
-    const ofx = `<OFX><STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20261015<TRNAMT>-80.00<FITID>X1-${tag}<MEMO>LOCAWEB ${tag}</STMTTRN>
+    const ofx = `<OFX><STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20261015<TRNAMT>-80.00<FITID>X1-${tag}<MEMO>PAPELARIA ${tag}</STMTTRN>
 <STMTTRN><TRNTYPE>CREDIT<DTPOSTED>20261016<TRNAMT>100.00<FITID>X2-${tag}<MEMO>STRIPE PAYOUT</STMTTRN></OFX>`;
     const a = await fin.importar({ formato: "ofx", texto: ofx, contaId: ids.conta }, "u1");
     assert.deepEqual([a.lancamentos, a.transferencias, a.repetidos], [1, 1, 0]);
     const b = await fin.importar({ formato: "ofx", texto: ofx, contaId: ids.conta }, "u1");
     assert.deepEqual([b.lancamentos, b.transferencias, b.repetidos], [0, 0, 2]);
-    const loc = (await fin.movimentos()).find((m) => m.descricao.includes(`LOCAWEB ${tag}`))!;
+    const loc = (await fin.movimentos()).find((m) => m.descricao.includes(`PAPELARIA ${tag}`))!;
     assert.equal(loc.status, "pago");
     assert.equal(loc.categoria, "F06", "sem categoria: vai para Outras despesas, para classificar depois");
-    await fin.editar(loc.id, { categoria: "F02", contraparte: "Locaweb" });
-    assert.equal((await fin.movimentos()).find((m) => m.id === loc.id)!.categoria, "F02");
+    await fin.editar(loc.id, { categoria: "F05", contraparte: "Papelaria" });
+    assert.equal((await fin.movimentos()).find((m) => m.id === loc.id)!.categoria, "F05");
   });
 
   test("importar planilha: linhas válidas viram lançamentos e as ruins viram aviso", async () => {

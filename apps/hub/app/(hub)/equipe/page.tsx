@@ -55,7 +55,8 @@ export default async function Equipe() {
               <select id="perfil" name="perfil" className="input" defaultValue="comercial">
                 <option value="comercial">Comercial — vê e edita o CRM (sem financeiro)</option>
                 <option value="leitura">Só leitura do CRM</option>
-                <option value="financeiro">Financeiro — só receitas (e o financeiro da fase 2)</option>
+                <option value="financeiro">Financeiro — contas, extrato, fluxo de caixa, DRE e receitas</option>
+                <option value="marketing">Marketing — aprovações, calendário, gastos e análises</option>
               </select>
             </div>
           </Form>

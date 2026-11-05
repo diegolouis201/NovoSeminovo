@@ -200,3 +200,77 @@ export async function importarArquivo(_: ResultadoImportacao, form: FormData): P
     throw e;
   }
 }
+
+// -------------------------------------------------------------- Marketing
+export async function aprovarConteudo(_: Resultado, form: FormData): Promise<Resultado> {
+  const c = id(txt(form, "id", 40));
+  const agora = form.get("agora") === "1";
+  const quando = txt(form, "quando", 16); // "2026-11-10T14:30" (horário de Brasília)
+  const publicarEm = agora ? new Date().toISOString() : /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(quando) ? `${quando}:00-03:00` : undefined;
+  return run(() => hubFetch(`/hub/marketing/conteudos/${c}/aprovar`, { method: "POST", body: publicarEm ? { publicarEm } : {} }), agora ? "Aprovado: publica em até 2 minutos." : "Aprovado e agendado.", ["/marketing"]);
+}
+
+export async function pedirAjuste(_: Resultado, form: FormData): Promise<Resultado> {
+  const c = id(txt(form, "id", 40));
+  return run(() => hubFetch(`/hub/marketing/conteudos/${c}/ajuste`, { method: "POST", body: { feedback: txt(form, "feedback") } }), "Pedido de ajuste enviado ao Claude do Marketing.", ["/marketing"]);
+}
+
+export async function cancelarConteudo(form: FormData) {
+  const c = id(txt(form, "id", 40));
+  if (c) await run(() => hubFetch(`/hub/marketing/conteudos/${c}/cancelar`, { method: "POST" }), "", ["/marketing"]);
+}
+
+export async function marcarPublicadoManual(_: Resultado, form: FormData): Promise<Resultado> {
+  const c = id(txt(form, "id", 40));
+  return run(() => hubFetch(`/hub/marketing/conteudos/${c}/publicado`, { method: "POST", body: { rede: txt(form, "rede", 20), link: txt(form, "link", 500) } }), "Marcado como publicado.", ["/marketing"]);
+}
+
+export async function atualizarMetricas(form: FormData) {
+  const c = id(txt(form, "id", 40));
+  if (c) await run(() => hubFetch(`/hub/marketing/conteudos/${c}/metricas`, { method: "POST" }), "", ["/marketing"]);
+}
+
+export async function salvarOrcamentos(_: Resultado, form: FormData): Promise<Resultado> {
+  const mes = txt(form, "mes", 7);
+  try {
+    for (const p of ["meta_ads", "google_ads", "tiktok_ads"]) {
+      const v = txt(form, p, 20);
+      if (v) await hubFetch("/hub/marketing/orcamentos", { method: "POST", body: { mes, plataforma: p, valor: valorBr(v) } });
+    }
+  } catch (e) {
+    if (e instanceof HubApiError) return { erro: e.message };
+    throw e;
+  }
+  revalidatePath("/marketing", "layout");
+  return { ok: "Orçamento salvo." };
+}
+
+export async function novoConteudo(_: Resultado, form: FormData): Promise<Resultado> {
+  const arquivos = form.getAll("imagens").filter((f): f is File => f instanceof File && f.size > 0).slice(0, 10);
+  try {
+    const midias: string[] = [];
+    for (const f of arquivos) {
+      if (f.size > 8_000_000) return { erro: `${f.name}: imagem acima de 8 MB.` };
+      const base64 = Buffer.from(await f.arrayBuffer()).toString("base64");
+      midias.push((await hubFetch<{ url: string }>("/hub/marketing/midias", { method: "POST", body: { nome: f.name.slice(0, 120), base64 } })).url);
+    }
+    const quando = txt(form, "quando", 16);
+    await hubFetch("/hub/marketing/conteudos", {
+      method: "POST",
+      body: {
+        tipo: txt(form, "tipo", 20),
+        redes: form.getAll("redes").map(String).slice(0, 9),
+        titulo: txt(form, "titulo", 160),
+        legenda: txt(form, "legenda", 5000),
+        hashtags: txt(form, "hashtags", 1000).split(/[\s,]+/).map((h) => h.replace(/^#/, "")).filter(Boolean).slice(0, 30),
+        midias: [...midias, ...txt(form, "links", 2000).split(/\s+/).filter((u) => u.startsWith("https://")).slice(0, 10 - midias.length)],
+        dataPlanejada: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(quando) ? `${quando}:00-03:00` : undefined,
+      },
+    });
+  } catch (e) {
+    if (e instanceof HubApiError) return { erro: e.message };
+    throw e;
+  }
+  revalidatePath("/marketing", "layout");
+  return { ok: "Conteúdo criado e enviado para aprovação." };
+}
