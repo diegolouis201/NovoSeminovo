@@ -73,6 +73,8 @@ export type CrmEmpresa = {
   anuncios: { noAr: number; total: number };
   leads: { total: number; ultimos30Dias: number; vendidos: number; paradosMais3Dias: number };
   ultimasAnotacoes: { data: string; tipo: string; texto: string; autor?: string }[];
+  // Última ligação, WhatsApp, e-mail ou reunião registrada (régua de relacionamento).
+  ultimoContato?: { data: string; tipo: string };
   cardId?: string;
 };
 export type CrmProspeccao = {
@@ -91,6 +93,7 @@ export type CrmProspeccao = {
   proximoContato?: string;
   proximoContatoTipo?: string;
   motivoPerda?: { categoria?: string; texto?: string };
+  ultimoContato?: { data: string; tipo: string };
   criadoEm: string;
 };
 export type CrmFeed = { geradoEm: string; empresas: CrmEmpresa[]; prospeccao: CrmProspeccao[] };
@@ -102,8 +105,20 @@ export class CrmService {
     private readonly sales: SalesService,
   ) {}
 
+  // Último contato de verdade por card (não conta anotação de sistema).
+  private async lastContacts() {
+    const rows = await this.prisma.salesNote.findMany({
+      where: { kind: { in: ["ligacao", "whatsapp", "email", "reuniao"] } },
+      distinct: ["prospectId"],
+      orderBy: [{ prospectId: "asc" }, { createdAt: "desc" }],
+      select: { prospectId: true, kind: true, createdAt: true },
+    });
+    return new Map(rows.map((r) => [r.prospectId, { data: r.createdAt.toISOString(), tipo: r.kind }]));
+  }
+
   async clientes(): Promise<CrmFeed> {
     await this.sales.syncPartners();
+    const contatos = await this.lastContacts();
     const now = Date.now();
     const [partners, leadRows, staleRows, recentRows, payments] = await Promise.all([
       this.prisma.partner.findMany({
@@ -222,6 +237,7 @@ export class CrmService {
           paradosMais3Dias: stale.get(p.id)?._count._all ?? 0,
         },
         ultimasAnotacoes: (prospect?.notes ?? []).map((n) => ({ data: n.createdAt.toISOString(), tipo: n.kind, texto: n.body, autor: n.author?.name })),
+        ultimoContato: prospect ? contatos.get(prospect.id) : undefined,
         cardId: prospect?.id,
       };
     });
@@ -249,6 +265,7 @@ export class CrmService {
         proximoContato: r.nextContactAt?.toISOString(),
         proximoContatoTipo: r.nextContactKind ?? undefined,
         motivoPerda: r.lostCategory || r.lostReason ? { categoria: label(LOSS_CATEGORIES, r.lostCategory), texto: r.lostReason ?? undefined } : undefined,
+        ultimoContato: contatos.get(r.id),
         criadoEm: r.createdAt.toISOString(),
       }),
     );

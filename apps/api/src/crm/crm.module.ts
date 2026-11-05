@@ -11,5 +11,6 @@ import { CrmService } from "./crm.service";
   imports: [AuthModule, OperationsModule, SalesModule],
   controllers: [CrmController, AreaOrdersController, SalesOrdersController, NpsController],
   providers: [CrmService, CrmOrdersService, NpsService],
+  exports: [CrmService],
 })
 export class CrmModule {}

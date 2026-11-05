@@ -101,6 +101,16 @@ describe("Jornada das empresas no feed (banco local)", { skip: !withDb && "sem D
     assert.ok(empresa.ultimasAnotacoes.some((n) => n.texto.includes("destaque extra")));
   });
 
+  test("último contato: só ligação, WhatsApp, e-mail ou reunião contam (anotação de sistema não)", async () => {
+    let empresa = (await service.clientes()).empresas.find((e) => e.id === ids.partner)!;
+    assert.equal(empresa.ultimoContato, undefined, "anotação comum não é contato");
+    await sales.addNote(ids.seller, ids.prospect, "Liguei, pediu retorno semana que vem.", "ligacao");
+    for (let i = 0; i < 6; i++) await sales.addNote(ids.seller, ids.prospect, `Anotação ${i}`);
+    empresa = (await service.clientes()).empresas.find((e) => e.id === ids.partner)!;
+    assert.equal(empresa.ultimoContato?.tipo, "ligacao", "acha o contato mesmo fora das 5 últimas anotações");
+    assert.ok(empresa.ultimoContato?.data);
+  });
+
   test("uso do site: anúncios, leads e leads parados", async () => {
     const empresa = (await service.clientes()).empresas.find((e) => e.id === ids.partner)!;
     assert.equal(empresa.anuncios.noAr, 1);

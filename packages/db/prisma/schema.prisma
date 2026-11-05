@@ -190,6 +190,8 @@ model User {
   passwordHash String?      @map("password_hash")
   authProvider AuthProvider @default(email) @map("auth_provider")
   role         Role         @default(buyer)
+  hubMember    HubMember?   @relation("HubMember")
+  hubTasks     HubTask[]    @relation("HubTaskAssignee")
   avatarUrl    String?      @map("avatar_url")
   status       UserStatus   @default(active)
   createdAt    DateTime     @default(now()) @map("created_at")
@@ -1677,6 +1679,7 @@ model SalesProspect {
   updatedAt       DateTime    @updatedAt @map("updated_at")
   notes           SalesNote[]
   CrmTicket       CrmTicket[]
+  hubTasks        HubTask[]
 
   @@index([segment])
   @@index([ownerId])
@@ -1776,4 +1779,68 @@ model NpsResponse {
 
   @@index([partnerId, createdAt])
   @@map("nps_responses")
+}
+
+// NovoSeminovo Hub (hub.novoseminovo.com.br): quem da equipe entra e com qual
+// perfil (HUB_PROFILES em shared-types). O admin entra sempre como "dono".
+model HubMember {
+  id          String   @id @default(cuid())
+  userId      String   @unique @map("user_id")
+  user        User     @relation("HubMember", fields: [userId], references: [id], onDelete: Cascade)
+  profile     String
+  active      Boolean  @default(true)
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("hub_members")
+}
+
+// Tarefas e agenda do Hub (ligação, WhatsApp, e-mail, reunião), ligadas ou
+// não a uma empresa do Comercial.
+model HubTask {
+  id          String         @id @default(cuid())
+  title       String
+  kind        String         @default("tarefa")
+  dueAt       DateTime       @map("due_at")
+  notes       String?
+  prospectId  String?        @map("prospect_id")
+  prospect    SalesProspect? @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  assigneeId  String?        @map("assignee_id")
+  assignee    User?          @relation("HubTaskAssignee", fields: [assigneeId], references: [id])
+  createdById String         @map("created_by_id")
+  doneAt      DateTime?      @map("done_at")
+  doneById    String?        @map("done_by_id")
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  @@index([doneAt, dueAt])
+  @@index([prospectId])
+  @@map("hub_tasks")
+}
+
+// Meta do mês (novas assinaturas e faturamento de planos) — Dashboard de vendas.
+model HubGoal {
+  month            String   @id
+  newSubscriptions Int      @map("new_subscriptions")
+  revenue          Decimal  @db.Decimal(12, 2)
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("hub_goals")
+}
+
+// Marcações do CRM por empresa (id da empresa ou do card): importante, não
+// contatar (LGPD), tags e nota. Mesmo formato do marcacoes.json do CRM.
+model HubMark {
+  key               String    @id
+  importante        Boolean   @default(false)
+  motivoImportante  String?   @map("motivo_importante")
+  naoContatar       Boolean   @default(false) @map("nao_contatar")
+  motivoNaoContatar String?   @map("motivo_nao_contatar")
+  naoContatarEm     DateTime? @map("nao_contatar_em")
+  tags              String[]  @default([])
+  nota              String?
+  updatedById       String?   @map("updated_by_id")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@map("hub_marks")
 }

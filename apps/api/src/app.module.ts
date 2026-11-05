@@ -1,6 +1,7 @@
 import { AffiliatesModule } from "./affiliates/affiliates.module";
 import { SalesModule } from "./sales/sales.module";
 import { CrmModule } from "./crm/crm.module";
+import { HubModule } from "./hub/hub.module";
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
@@ -61,6 +62,7 @@ import { HealthController } from "./common/health.controller";
     AffiliatesModule,
     SalesModule,
     CrmModule,
+    HubModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

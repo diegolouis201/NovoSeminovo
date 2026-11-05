@@ -2983,3 +2983,68 @@ export type CrmRevenue = {
     };
   };
 };
+
+// ---------------------------------------------------------------------------
+// NovoSeminovo Hub (hub.novoseminovo.com.br): CRM da empresa com login.
+// O dono (admin) tem tudo; cada funcionário entra com o perfil que o dono der.
+export const HUB_PERMISSIONS = ["crm.ver", "crm.editar", "financeiro", "equipe"] as const;
+export type HubPermission = (typeof HUB_PERMISSIONS)[number];
+export const HUB_PROFILES = {
+  dono: { label: "Dono (tudo)", permissions: ["crm.ver", "crm.editar", "financeiro", "equipe"] },
+  comercial: { label: "Comercial", permissions: ["crm.ver", "crm.editar"] },
+  financeiro: { label: "Financeiro", permissions: ["financeiro"] },
+  leitura: { label: "Só leitura do CRM", permissions: ["crm.ver"] },
+} as const satisfies Record<string, { label: string; permissions: readonly HubPermission[] }>;
+export type HubProfile = keyof typeof HUB_PROFILES;
+export function hubPermissionsOf(profile: string): HubPermission[] {
+  return profile in HUB_PROFILES ? [...HUB_PROFILES[profile as HubProfile].permissions] : [];
+}
+export type HubAccess = { userId: string; name: string; email: string; profile: HubProfile; permissions: HubPermission[] };
+
+export const HUB_TASK_KINDS = { tarefa: "Tarefa", ligacao: "Ligação", whatsapp: "WhatsApp", email: "E-mail", reuniao: "Reunião" } as const;
+export const HubTaskInputSchema = z.object({
+  title: z.string().trim().min(1, "Escreva a tarefa").max(200),
+  kind: z.enum(["tarefa", "ligacao", "whatsapp", "email", "reuniao"]).default("tarefa"),
+  dueAt: z.string().datetime({ offset: true }),
+  notes: z.string().trim().max(2000).optional(),
+  prospectId: z.string().trim().min(1).max(40).optional(),
+  assigneeId: z.string().trim().min(1).max(40).optional(),
+});
+export type HubTaskInput = z.input<typeof HubTaskInputSchema>;
+export type HubTask = {
+  id: string;
+  title: string;
+  kind: keyof typeof HUB_TASK_KINDS;
+  dueAt: string;
+  notes?: string;
+  empresa?: { id: string; nome: string };
+  responsavel?: string;
+  concluidaEm?: string;
+};
+
+export const HubGoalInputSchema = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Mês no formato AAAA-MM"),
+  newSubscriptions: z.number().int().min(0).max(100000),
+  revenue: z.number().min(0).max(100_000_000),
+});
+export type HubGoal = z.infer<typeof HubGoalInputSchema>;
+
+export const HubMemberInputSchema = z.object({
+  email: z.string().trim().toLowerCase().max(200).email("E-mail inválido"),
+  name: z.string().trim().min(2).max(120).optional(),
+  profile: z.enum(["comercial", "financeiro", "leitura"]),
+});
+export type HubMemberInput = z.infer<typeof HubMemberInputSchema>;
+
+// Marcações do CRM (mesmo formato de dados/marcacoes.json do CRM no
+// computador): importante, não contatar (LGPD), tags e nota.
+export const HubMarkInputSchema = z.object({
+  importante: z.boolean().optional(),
+  motivoImportante: z.string().trim().max(300).optional(),
+  naoContatar: z.boolean().optional(),
+  motivoNaoContatar: z.string().trim().max(300).optional(),
+  tags: z.array(z.string().trim().toLowerCase().min(1).max(40)).max(30).optional(),
+  nota: z.string().trim().max(2000).optional(),
+});
+export type HubMarkInput = z.infer<typeof HubMarkInputSchema>;
+export type HubMark = HubMarkInput & { naoContatarEm?: string; atualizadoEm: string };
