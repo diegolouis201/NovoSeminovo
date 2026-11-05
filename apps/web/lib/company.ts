@@ -13,6 +13,7 @@ export const COMPANY = {
   email: "diego.louis@novoseminovo.com.br",
   instagram: "https://instagram.com/novoseminovooficial",
   youtube: "https://www.youtube.com/@novoseminovooficial",
+  tiktok: "https://www.tiktok.com/@novoseminovo",
   city: "Belo Horizonte/MG",
 } as const;
 
