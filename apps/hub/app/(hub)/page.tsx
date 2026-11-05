@@ -45,7 +45,7 @@ export default async function Inicio() {
         <Kpi valor={n.assinantes} rotulo="Assinantes" detalhe={`MRR ${brlCurto(n.mrr)}`} tom="green" href="/empresas?filtro=assinantes" />
         <Kpi valor={n.empresas} rotulo="Empresas cadastradas" href="/empresas" />
         <Kpi valor={n.prospeccao} rotulo="Em prospecção" href="/funil" />
-        <Kpi valor={n.novasAssinaturasMes} rotulo="Novas assinaturas no mês" detalhe={ritmo ? `meta ${ritmo.assinaturas.meta} · ritmo ${ritmo.assinaturas.ritmoHoje}` : "sem meta"} tom={ritmo && ritmo.assinaturas.situacao === "abaixo" ? "orange" : "navy"} href="/vendas" />
+        <Kpi valor={n.novasAssinaturasMes} rotulo="Novas assinaturas no mês" detalhe={ritmo ? `meta ${ritmo.assinaturas.meta} · ritmo ${ritmo.assinaturas.ritmoHoje.toLocaleString("pt-BR")}` : "sem meta"} tom={ritmo && ritmo.assinaturas.situacao === "abaixo" ? "orange" : "navy"} href="/vendas" />
         <Kpi valor={urgentes.length} rotulo="Avisos urgentes" tom={urgentes.length ? "danger" : "navy"} href="/avisos" />
         <Kpi valor={n.nps.score ?? "—"} rotulo="NPS (90 dias)" detalhe={`${n.nps.respostas} respostas`} href="/nps" />
       </div>
