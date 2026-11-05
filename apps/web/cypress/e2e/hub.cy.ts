@@ -45,14 +45,21 @@ describe("NovoSeminovo Hub", { baseUrl: "http://localhost:3100" }, () => {
     cy.contains("h1", "Dashboard de vendas");
 
     // Financeiro: conta, lançamento manual e as telas de indicadores.
+    // Expandir: abre só se estiver fechado, e depois que a página carregou.
+    const abrir = (titulo: string, campo: string) =>
+      cy.get("[data-pronto]").then(() =>
+        cy.get("body").then(($b) => {
+          if (!$b.find(campo).length) cy.contains("button", titulo).click();
+        }),
+      );
     cy.visit("/financeiro/importar");
-    cy.contains("button", "Nova conta").click();
+    abrir("Nova conta", 'input[name="nome"]');
     cy.get('input[name="nome"]').type("Banco Cypress");
     cy.get('input[name="saldoInicial"]').type("1000");
     cy.contains("button", "Criar conta").click();
     cy.contains("Conta criada.");
     cy.visit("/financeiro/lancamentos");
-    cy.contains("button", "Lançamento manual").click();
+    abrir("Lançamento manual", "#descricao");
     cy.get("#descricao").type("Despesa do teste Cypress");
     cy.get("#valor").type("123,45");
     cy.contains("button", "Salvar lançamento").click();
