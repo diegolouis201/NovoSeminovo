@@ -12,7 +12,7 @@ export const COMPANY = {
   whatsappLink: "https://wa.me/5531936187896",
   email: "diego.louis@novoseminovo.com.br",
   instagram: "https://instagram.com/novoseminovooficial",
-  youtube: "https://www.youtube.com/@novoseminovo5623",
+  youtube: "https://www.youtube.com/@novoseminovooficial",
   city: "Belo Horizonte/MG",
 } as const;
 

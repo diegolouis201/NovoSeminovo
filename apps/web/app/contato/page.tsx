@@ -39,7 +39,7 @@ const CHANNELS = [
   {
     icon: YoutubeLogo,
     title: "YouTube",
-    text: "@novoseminovo5623 — vídeos do NovoSeminovo.",
+    text: "@novoseminovooficial — vídeos do NovoSeminovo.",
     href: COMPANY.youtube,
     cta: "Ver o canal",
   },

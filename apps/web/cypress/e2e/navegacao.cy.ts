@@ -9,6 +9,12 @@ describe("Navegação de quem compra", () => {
     cy.contains("Imóveis").should("be.visible");
   });
 
+  it("rodapé leva às redes oficiais (Instagram e YouTube @novoseminovooficial)", () => {
+    cy.visit("/");
+    cy.get('footer a[href="https://www.youtube.com/@novoseminovooficial"]').should("exist");
+    cy.get('footer a[href="https://instagram.com/novoseminovooficial"]').should("exist");
+  });
+
   it("busca de carros: escolher o estado carrega as cidades dele", () => {
     cy.visit("/busca?assetType=vehicle");
     cy.get('aside select[name="city"]').should("be.disabled");
