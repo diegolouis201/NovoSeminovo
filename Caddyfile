@@ -24,3 +24,16 @@ api.{$DOMAIN} {
 	# sem configuração extra — o Caddy detecta o cabeçalho Upgrade sozinho.
 	reverse_proxy api:4000
 }
+
+hub.{$DOMAIN} {
+	# NovoSeminovo Hub: CRM da empresa com login (apps/hub). Área interna:
+	# sem indexação e sem cache.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "same-origin"
+		X-Robots-Tag "noindex, nofollow"
+	}
+	reverse_proxy hub:3100
+}

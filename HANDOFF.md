@@ -320,3 +320,12 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
 - **Campanhas no admin (02/11/2026)**: `/admin/leads?campanha=&canal=` filtra por `acqCampaign`/`acqSource`, mostra quantos leads e a lista de cadastros da campanha; a tabela de campanhas do `/admin/painel` abre esse filtro.
 - **Feed do CRM financeiro (02/11/2026, pedido do Diego)**: `GET /financeiro/eventos?dias=` (`finance-feed/`), chave `secrets/finance_feed_key` (`FINANCE_FEED_KEY`, mesmo `feedKeyCheck` do marketing). Entradas (mensalidades `SubscriptionPayment`, planos de anúncio `ListingBoostPurchase`, comissão de financiamento recebida, comissão das lojas parceiras), saídas (comissões de afiliados, cashback) e assinaturas; sem CPF/telefone/Pix. Repositório "Financeiro NovoSeminovo" concilia com Stripe (chave restrita só leitura) e extrato OFX do Nubank PJ. Ver `docs/crm-financeiro.md`.
 
+
+
+## NovoSeminovo Hub (hub.novoseminovo.com.br) — 05/11/2026
+CRM da empresa com login, ao vivo, em app separado (`apps/hub`, porta 3100,
+serviço `hub` no compose, bloco `hub.{$DOMAIN}` no Caddyfile). Perfis por
+funcionário (dono, comercial, financeiro, leitura), tarefas, meta do mês com
+ritmo, régua de relacionamento, marcações e NPS pendente. Reaproveita as regras
+do CRM (`crm-pacote/scripts`). API em `apps/api/src/hub`. Detalhes em
+`docs/hub.md`. Fase 2: financeiro.

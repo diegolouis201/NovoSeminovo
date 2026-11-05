@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
   push:
     branches: [claude/vehicle-marketplace-platform-lmif9s, main]
-    paths: ["apps/api/**", "apps/web/**", "packages/**", "crm-pacote/**", ".github/workflows/e2e.yml", "pnpm-lock.yaml"]
+    paths: ["apps/api/**", "apps/web/**", "apps/hub/**", "packages/**", "crm-pacote/**", ".github/workflows/e2e.yml", "pnpm-lock.yaml"]
   pull_request:
 
 jobs:
@@ -47,10 +47,11 @@ jobs:
       - name: Segredos de teste (em arquivo, como no servidor)
         run: |
           mkdir -p "$RUNNER_TEMP/secrets"
-          (umask 077; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/jwt_secret"; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/auth_secret"; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/data_key")
+          (umask 077; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/jwt_secret"; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/auth_secret"; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/data_key"; openssl rand -base64 48 | tr -d '\n' > "$RUNNER_TEMP/secrets/hub_auth_secret")
           echo "JWT_SECRET_FILE=$RUNNER_TEMP/secrets/jwt_secret" >> "$GITHUB_ENV"
           echo "AUTH_SECRET_FILE=$RUNNER_TEMP/secrets/auth_secret" >> "$GITHUB_ENV"
           echo "DATA_KEY_FILE=$RUNNER_TEMP/secrets/data_key" >> "$GITHUB_ENV"
+          echo "HUB_AUTH_SECRET_FILE=$RUNNER_TEMP/secrets/hub_auth_secret" >> "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
       - name: Programa do Cypress
         run: pnpm --filter @novoseminovo/web exec cypress install
@@ -65,18 +66,21 @@ jobs:
         run: pnpm --filter @novoseminovo/api test
       - name: Testes do CRM (repositório no computador do Diego)
         run: node --test crm-pacote/scripts/*.test.mjs
-      - name: Tipos (API e site)
+      - name: Tipos (API, site e Hub)
         run: |
           pnpm --filter @novoseminovo/api exec tsc --noEmit
+          pnpm --filter @novoseminovo/hub exec tsc --noEmit
           pnpm --filter @novoseminovo/web exec tsc --noEmit
           pnpm --filter @novoseminovo/web exec tsc --noEmit -p cypress/tsconfig.json
       - name: Sobe API e site
         run: |
           pnpm --filter @novoseminovo/api build
           pnpm --filter @novoseminovo/web build
+          pnpm --filter @novoseminovo/hub build
           (cd apps/api && nohup node dist/main.js > ../../api.log 2>&1 &)
           (cd apps/web && nohup pnpm start > ../../web.log 2>&1 &)
-          for i in $(seq 1 90); do curl -sf http://localhost:4000/health >/dev/null && curl -sf http://localhost:3000/ >/dev/null && break; sleep 2; done
+          (cd apps/hub && API_URL=http://localhost:4000 AUTH_URL=http://localhost:3100 nohup pnpm start -p 3100 > ../../hub.log 2>&1 &)
+          for i in $(seq 1 90); do curl -sf http://localhost:4000/health >/dev/null && curl -sf http://localhost:3000/ >/dev/null && curl -sf http://localhost:3100/entrar >/dev/null && break; sleep 2; done
       - name: Cypress
         uses: cypress-io/github-action@v6
         with:
@@ -85,7 +89,7 @@ jobs:
           browser: chrome
       - name: Logs se falhar
         if: failure()
-        run: tail -n 120 api.log web.log || true
+        run: tail -n 120 api.log web.log hub.log || true
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

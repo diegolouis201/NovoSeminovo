@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[hidden] { display: none !important; }
+body { background: #FAF8F3; color: #0B1C2C; }
+.card { @apply rounded-2xl border border-line bg-white p-5 shadow-sm; min-width: 0; }
+.btn { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-navy transition hover:border-blue hover:text-blue disabled:cursor-not-allowed disabled:opacity-40; }
+.btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-blue px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy disabled:opacity-40; }
+.input { @apply w-full rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none focus:border-blue; }
+.label { @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-muted; }
+.h1 { @apply font-display text-3xl font-semibold text-navy; }
+.h2 { @apply font-display text-xl font-semibold text-navy; }
+.link { @apply font-semibold text-blue underline-offset-2 hover:underline; }
+.pill { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold; }
+table.tabela { @apply w-full text-left text-sm; }
+table.tabela th { @apply border-b border-line px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted; }
+table.tabela td { @apply border-b border-line px-3 py-3 align-top; }

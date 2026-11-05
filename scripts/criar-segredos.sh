@@ -14,7 +14,7 @@ umask 077
 mkdir -p secrets
 chmod 700 secrets
 
-for nome in jwt_secret auth_secret data_key marketing_feed_key finance_feed_key crm_feed_key; do
+for nome in jwt_secret auth_secret hub_auth_secret data_key marketing_feed_key finance_feed_key crm_feed_key; do
   arquivo="secrets/$nome"
   if [ -s "$arquivo" ] && { [ "${1:-}" != "--trocar" ] || [ "$nome" = "data_key" ]; }; then
     echo "OK  $arquivo já existe (mantido)"

@@ -11,3 +11,8 @@ dist
 **/.env
 **/.env.local
 apps/api/uploads
+# Dados do CRM do computador (nunca vão para o servidor nem para a imagem).
+crm-pacote/dados
+crm-pacote/relatorios
+crm-pacote/campanhas
+crm-pacote/.env

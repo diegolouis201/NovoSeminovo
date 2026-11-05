@@ -109,6 +109,23 @@ services:
       # Chave do login do site (AUTH_SECRET) lida de arquivo (ver DEPLOY.md).
       - ./secrets:/run/secrets:ro
 
+  # NovoSeminovo Hub (hub.DOMÍNIO): CRM da empresa com login. App separado
+  # do site — se o Hub cair, o marketplace continua no ar. Fala com a API pela
+  # rede interna do Docker (http://api:4000), nunca pelo navegador.
+  hub:
+    build:
+      context: .
+      dockerfile: apps/hub/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      AUTH_URL: https://hub.${DOMAIN}
+      API_URL: http://api:4000
+    volumes:
+      # Chave do login do Hub (HUB_AUTH_SECRET) lida de arquivo (secrets/hub_auth_secret).
+      - ./secrets:/run/secrets:ro
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -124,6 +141,7 @@ services:
     depends_on:
       - api
       - web
+      - hub
 
   # Antivírus (ClamAV) dos arquivos enviados. Só sobe com
   # COMPOSE_PROFILES=antivirus no .env (usa ~1,5 GB de memória) — e a API só

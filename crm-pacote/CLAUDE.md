@@ -108,6 +108,15 @@ etapa continua sendo em /comercial no site; ordens continuam pelos comandos
 abaixo. Pedidos de mudança no painel: escrever em `pedidos/` para o
 desenvolvimento do site (não editar os programas: a atualização desfaz).
 
+## NovoSeminovo Hub (no navegador)
+
+As mesmas telas, ao vivo e com login, ficam em https://hub.novoseminovo.com.br
+(Início, vendas e meta do mês, funil, empresas, régua de relacionamento,
+tarefas, NPS, receitas e equipe). As marcações (importante, não contatar,
+tags) do Hub ficam no site; as do `dados/marcacoes.json` continuam valendo
+aqui no computador. Se o Diego perguntar onde ver algo "no Hub", indique a
+tela de lá.
+
 ## Post de boas-vindas nas redes
 
 Toda empresa que assina um plano, envia a logo e autoriza (caixinha no painel
