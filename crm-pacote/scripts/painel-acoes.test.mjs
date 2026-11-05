@@ -66,6 +66,7 @@ test("mensagens iniciais: sem preço, desconto ou %, e só com os campos conheci
   for (const m of MENSAGENS_INICIAIS) {
     const tudo = `${m.assunto ?? ""} ${m.texto}`;
     assert.doesNotMatch(tudo, /R\$|desconto|%/i, m.nome);
+    assert.doesNotMatch(tudo, /Minas|\bMG\b|Belo Horizonte|\bBH\b/i, `${m.nome}: a empresa atua no Brasil todo`);
     for (const [, campo] of tudo.matchAll(/\{(\w+)\}/g)) assert.ok(CAMPOS_MENSAGEM.includes(campo), `${m.nome}: {${campo}}`);
     assert.ok(["whatsapp", "email", "ambos"].includes(m.canal), m.nome);
     assert.ok(["todos", "vehicle", "property"].includes(m.publico), m.nome);

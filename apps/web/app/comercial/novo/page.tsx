@@ -39,7 +39,7 @@ export default async function NewProspectPage({ searchParams }: { searchParams: 
         <div className="grid grid-cols-[1fr_5rem] gap-3">
           <label className="flex flex-col gap-1">
             <span className="font-semibold text-ink">Cidade</span>
-            <input name="city" maxLength={80} defaultValue="Belo Horizonte" className={input} />
+            <input name="city" maxLength={80} placeholder="Cidade" className={input} />
           </label>
           <label className="flex flex-col gap-1">
             <span className="font-semibold text-ink">UF</span>
