@@ -9,11 +9,12 @@ describe("Navegação de quem compra", () => {
     cy.contains("Imóveis").should("be.visible");
   });
 
-  it("rodapé leva às redes oficiais (Instagram, YouTube e TikTok)", () => {
+  it("rodapé leva às redes oficiais (Instagram, Facebook, YouTube e TikTok)", () => {
     cy.visit("/");
     cy.get('footer a[href="https://www.youtube.com/@novoseminovooficial"]').should("exist");
     cy.get('footer a[href="https://instagram.com/novoseminovooficial"]').should("exist");
     cy.get('footer a[href="https://www.tiktok.com/@novoseminovo"]').should("exist");
+    cy.get('footer a[href="https://www.facebook.com/novoseminovooficial"]').should("exist");
   });
 
   it("busca de carros: escolher o estado carrega as cidades dele", () => {

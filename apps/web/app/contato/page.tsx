@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChatCircleDots, EnvelopeSimple, InstagramLogo, Storefront, TiktokLogo, WhatsappLogo, YoutubeLogo } from "@phosphor-icons/react/dist/ssr";
+import { ChatCircleDots, EnvelopeSimple, FacebookLogo, InstagramLogo, Storefront, TiktokLogo, WhatsappLogo, YoutubeLogo } from "@phosphor-icons/react/dist/ssr";
 import { PageHero, Section } from "@/components/marketing/PageHero";
 import { COMPANY } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "Contato",
-  description: "Fale com o NovoSeminovo pelo WhatsApp, Instagram, TikTok ou pelo assistente do site.",
+  description: "Fale com o NovoSeminovo pelo WhatsApp, Instagram, Facebook, TikTok ou pelo assistente do site.",
   alternates: { canonical: "/contato" },
 };
 
@@ -35,6 +35,13 @@ const CHANNELS = [
     text: "@novoseminovooficial — novidades e anúncios em destaque.",
     href: COMPANY.instagram,
     cta: "Seguir no Instagram",
+  },
+  {
+    icon: FacebookLogo,
+    title: "Facebook",
+    text: "@novoseminovooficial — novidades e anúncios em destaque.",
+    href: COMPANY.facebook,
+    cta: "Seguir no Facebook",
   },
   {
     icon: YoutubeLogo,
