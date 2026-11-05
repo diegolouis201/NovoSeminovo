@@ -104,7 +104,7 @@ export default async function Inicio() {
                   <li key={r.empresaId} className="flex items-center justify-between gap-3 py-3">
                     <Link className="link" href={`/empresas/${r.cardId ?? r.empresaId}`}>{r.nome}</Link>
                     <span className={`text-sm font-semibold ${r.situacao === "atrasado" ? "text-danger" : "text-orange"}`}>
-                      {r.dias < 0 ? `${-r.dias} dias de atraso` : `vence ${data(r.vence)}`}
+                      {r.dias < 0 ? `${-r.dias} ${r.dias === -1 ? "dia" : "dias"} de atraso` : r.dias === 0 ? "vence hoje" : `vence ${data(r.vence)}`}
                     </span>
                   </li>
                 ))}

@@ -50,7 +50,7 @@ export default async function Regua({ searchParams }: { searchParams: { situacao
                 <td>
                   <BarraRegua progresso={r.progresso} situacao={r.situacao} />
                   <p className={`mt-1 text-xs font-semibold ${r.situacao === "atrasado" ? "text-danger" : r.situacao === "vencendo" ? "text-orange" : "text-green"}`}>
-                    {r.dias < 0 ? `${-r.dias} dias de atraso` : `faltam ${r.dias} dias`} · a cada {r.ciclo} dias
+                    {r.dias < 0 ? `${-r.dias} ${r.dias === -1 ? "dia" : "dias"} de atraso` : r.dias === 0 ? "vence hoje" : r.dias === 1 ? "falta 1 dia" : `faltam ${r.dias} dias`} · a cada {r.ciclo} dias
                   </p>
                 </td>
                 <td className="text-sm">{r.ultimo ? `${data(r.ultimo)} · ${INTERACTION_KINDS[r.ultimoTipo as keyof typeof INTERACTION_KINDS] ?? ""}` : <span className="text-muted">Sem registro</span>}</td>
