@@ -12,7 +12,8 @@ export const COMPANY = {
   whatsappLink: "https://wa.me/5531936187896",
   email: "diego.louis@novoseminovo.com.br",
   instagram: "https://instagram.com/novoseminovooficial",
-  facebook: "https://www.facebook.com/novoseminovooficial",
+  // Sem nome de usuário ainda; trocar por facebook.com/novoseminovooficial quando o Diego criar.
+  facebook: "https://www.facebook.com/profile.php?id=100067362031812",
   youtube: "https://www.youtube.com/@novoseminovooficial",
   tiktok: "https://www.tiktok.com/@novoseminovo",
   city: "Belo Horizonte/MG",

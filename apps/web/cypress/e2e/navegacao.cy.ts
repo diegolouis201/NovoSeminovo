@@ -14,7 +14,7 @@ describe("Navegação de quem compra", () => {
     cy.get('footer a[href="https://www.youtube.com/@novoseminovooficial"]').should("exist");
     cy.get('footer a[href="https://instagram.com/novoseminovooficial"]').should("exist");
     cy.get('footer a[href="https://www.tiktok.com/@novoseminovo"]').should("exist");
-    cy.get('footer a[href="https://www.facebook.com/novoseminovooficial"]').should("exist");
+    cy.get('footer a[href="https://www.facebook.com/profile.php?id=100067362031812"]').should("exist");
   });
 
   it("busca de carros: escolher o estado carrega as cidades dele", () => {

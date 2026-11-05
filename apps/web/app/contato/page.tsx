@@ -39,7 +39,7 @@ const CHANNELS = [
   {
     icon: FacebookLogo,
     title: "Facebook",
-    text: "@novoseminovooficial — novidades e anúncios em destaque.",
+    text: "Novoseminovo — novidades e anúncios em destaque.",
     href: COMPANY.facebook,
     cta: "Seguir no Facebook",
   },
