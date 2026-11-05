@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { signIn, signOut } from "@/auth";
-import { HubApiError, hubFetch } from "./api";
+import { HubApiError, hubFetch, hubUpload } from "./api";
 
 // Ações do Hub. Toda entrada é validada de novo na API (zod); aqui só
 // limitamos o tamanho e repassamos. Ações do Comercial usam as rotas
@@ -245,11 +245,44 @@ export async function salvarOrcamentos(_: Resultado, form: FormData): Promise<Re
   return { ok: "Orçamento salvo." };
 }
 
+export async function aprovarTodosConteudos(_: Resultado): Promise<Resultado & { aprovados?: number; semData?: number }> {
+  try {
+    const r = await hubFetch<{ aprovados: number; semData: number }>("/hub/marketing/aprovar-todos", { method: "POST" });
+    revalidatePath("/marketing", "layout");
+    return { ok: `${r.aprovados} aprovado(s) com a data e a hora de cada um.${r.semData ? ` ${r.semData} sem data ficaram na fila.` : ""}`, ...r };
+  } catch (e) {
+    if (e instanceof HubApiError) return { erro: e.message };
+    throw e;
+  }
+}
+
+export async function aprovarImpulso(form: FormData) {
+  const c = id(txt(form, "id", 40));
+  if (c) await run(() => hubFetch(`/hub/marketing/conteudos/${c}/impulso/aprovar`, { method: "POST" }), "", ["/marketing"]);
+}
+
+export async function salvarEstrategia(_: Resultado, form: FormData): Promise<Resultado> {
+  const p = txt(form, "plataforma", 20);
+  const campos = ["status", "objetivo", "publico", "frequencia", "formatos", "horario", "tom", "notas"];
+  return run(() => hubFetch(`/hub/marketing/estrategias/${encodeURIComponent(p)}`, { method: "POST", body: Object.fromEntries(campos.map((k) => [k, txt(form, k, 4000)])) }), "Estratégia salva.", ["/marketing"]);
+}
+
+export async function salvarRegrasImpulso(_: Resultado, form: FormData): Promise<Resultado> {
+  const campos = ["objetivo", "criterios", "publicos", "orcamento", "execucao", "regras"];
+  const limite = Number(txt(form, "limiteDia", 10).replace(",", "."));
+  return run(() => hubFetch("/hub/marketing/impulso/regras", { method: "POST", body: { ...Object.fromEntries(campos.map((k) => [k, txt(form, k, 3000)])), ...(Number.isFinite(limite) && limite > 0 ? { limiteDia: limite } : {}) } }), "Estratégia salva.", ["/marketing"]);
+}
+
 export async function novoConteudo(_: Resultado, form: FormData): Promise<Resultado> {
   const arquivos = form.getAll("imagens").filter((f): f is File => f instanceof File && f.size > 0).slice(0, 10);
   try {
     const midias: string[] = [];
     for (const f of arquivos) {
+      if (/\.(mp4|mov)$/i.test(f.name) || f.type.startsWith("video/")) {
+        if (f.size > 150_000_000) return { erro: `${f.name}: vídeo acima de 150 MB.` };
+        midias.push((await hubUpload<{ url: string }>("/hub/marketing/midias/video", "video", f)).url);
+        continue;
+      }
       if (f.size > 8_000_000) return { erro: `${f.name}: imagem acima de 8 MB.` };
       const base64 = Buffer.from(await f.arrayBuffer()).toString("base64");
       midias.push((await hubFetch<{ url: string }>("/hub/marketing/midias", { method: "POST", body: { nome: f.name.slice(0, 120), base64 } })).url);

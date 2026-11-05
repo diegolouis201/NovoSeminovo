@@ -17,6 +17,7 @@ const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
   "image/jpeg": ".jpg",
   "image/png": ".png",
   "image/webp": ".webp",
+  "video/mp4": ".mp4",
 };
 
 // Segunda conferência, já na hora de gravar: os bytes têm de ser do tipo

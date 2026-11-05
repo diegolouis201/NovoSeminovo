@@ -46,7 +46,7 @@ export function Nivel({ nivel }: { nivel: string }) {
 }
 
 export function Etapa({ nome }: { nome?: string }) {
-  return nome ? <span className="pill bg-blue/10 text-blue">{nome}</span> : null;
+  return nome ? <span className="pill whitespace-nowrap bg-blue/10 text-blue">{nome}</span> : null;
 }
 
 export function Cabecalho({ titulo, subtitulo, acao }: { titulo: string; subtitulo?: string; acao?: React.ReactNode }) {

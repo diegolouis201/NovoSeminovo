@@ -44,8 +44,8 @@ export default async function Novo() {
             <input id="hashtags" name="hashtags" maxLength={1000} className="input" placeholder="#carros #imoveis #novoseminovo" />
           </div>
           <div className="sm:col-span-2">
-            <label className="label" htmlFor="imagens">Imagens (JPEG/PNG, até 10, máx. 8 MB cada)</label>
-            <input id="imagens" name="imagens" type="file" multiple accept="image/jpeg,image/png,image/webp" className="input" />
+            <label className="label" htmlFor="imagens">Imagens ou vídeo (JPEG/PNG até 8 MB; MP4 até 150 MB; até 10 arquivos)</label>
+            <input id="imagens" name="imagens" type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4" className="input" />
           </div>
           <div className="sm:col-span-2">
             <label className="label" htmlFor="links">Vídeo ou arquivo grande (link https do Drive, Dropbox...)</label>

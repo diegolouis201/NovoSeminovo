@@ -18,8 +18,8 @@ Base: `https://api.novoseminovo.com.br`, cabeçalho
 
 1. **Imagem** (JPEG/PNG, até 8 MB): `POST /marketing/midias`
    corpo `{"nome": "arte.png", "base64": "<arquivo em base64>"}` → `{"url": "/uploads/....jpg"}`.
-   Use a `url` devolvida no conteúdo. Vídeo ou arquivo grande: link `https://`
-   (Drive, Dropbox) direto no campo `midias`.
+   Use a `url` devolvida no conteúdo. **Vídeo MP4** (até 150 MB):
+   `POST /marketing/midias/video` em multipart, campo `video` → `{"url": ...}`.
 2. **Conteúdo**: `POST /marketing/conteudos`
    ```json
    {
@@ -32,7 +32,10 @@ Base: `https://api.novoseminovo.com.br`, cabeçalho
      "dataPlanejada": "2026-11-10T12:00:00-03:00",
      "campanha": {"plataforma": "meta_ads", "orcamento": 600, "objetivo": "...", "publico": "..."},
      "observacao": "O que o Diego precisa saber para aprovar",
-     "ordemId": "id da ordem do CRM, se veio de uma"
+     "ordemId": "id da ordem do CRM, se veio de uma",
+     "origemId": "id seu, único: reenviar com o mesmo id não duplica",
+     "detalhes": {"pilar": "...", "formato": "Reel", "roteiro": "...", "gancho": "...", "cta": "..."},
+     "impulso": {"status": "proposto", "orcamentoDia": 10, "dias": 7, "inicio": "2026-12-02", "objetivo": "Visitas ao site", "publico": "...", "local": "...", "idade": "25 a 60"}
    }
    ```
    Carrossel: 2 a 10 imagens. `campanha` só para anúncio pago.
@@ -46,6 +49,16 @@ Base: `https://api.novoseminovo.com.br`, cabeçalho
    TikTok contra o orçamento, custo por cadastro e por assinatura) e análises
    (Instagram, origem das visitas, posts publicados). Use para o relatório e
    para sugerir o que repetir.
+
+6. **Estratégia por plataforma**: `POST /marketing/estrategias/<rede>` com
+   `objetivo, publico, frequencia, formatos, horario, tom, notas, status`.
+   **Regras de impulsionamento**: `POST /marketing/impulso/regras` com
+   `objetivo, criterios, publicos, orcamento, execucao, regras, limiteDia`.
+   Impulso só roda depois que o Diego aprova no Hub (Marketing → Impulsionamento).
+7. **Prospecção** (empresas achadas no Google Maps etc.): `POST /marketing/prospeccao`
+   com uma lista (até 3000) de `{id, empresa, tipo, cidade, uf, telefone, email,
+   site, endereco, nota, avaliacoes}`. Viram cards "A abordar" no CRM do Hub,
+   sem duplicar pelo `id`.
 
 ## Rotina sugerida
 - Toda segunda: montar o calendário da semana e enviar tudo ao Hub.

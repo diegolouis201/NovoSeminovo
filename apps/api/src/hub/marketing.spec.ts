@@ -65,6 +65,8 @@ describe("Marketing do Hub (banco local)", { skip: !withDb && "sem DATABASE_URL"
     server.close();
     await prisma.mktContent.deleteMany({ where: { titulo: { contains: tag } } });
     await prisma.mktBudget.deleteMany({ where: { month: "2099-01" } });
+    await prisma.mktStrategy.deleteMany({ where: { plataforma: "linkedin" } });
+    await prisma.mktSetting.deleteMany({ where: { chave: "impulso" } });
     await prisma.$disconnect();
   });
 
@@ -131,6 +133,69 @@ describe("Marketing do Hub (banco local)", { skip: !withDb && "sem DATABASE_URL"
     assert.equal(d.status, "erro");
     assert.ok(d.erro && !d.erro.includes("token-de-teste"));
     process.env.INSTAGRAM_ACCOUNT_ID = "ig1";
+  });
+
+  test("importação: o mesmo conteúdo (origemId) não entra duas vezes; detalhes e impulso ficam guardados", async () => {
+    const dados = { tipo: "reels" as const, redes: ["instagram" as const], titulo: `Importado ${tag}`, legenda: "x", dataPlanejada: "2099-02-01T19:00:00-03:00", origemId: `crm-conteudo:${tag}`, detalhes: { pilar: "Mostra", formato: "Reel", roteiro: "cena 1" }, impulso: { status: "proposto" as const, orcamentoDia: 12, dias: 7, inicio: "2099-02-02", objetivo: "Visitas ao site", publico: "Brasil, 22 a 60" } };
+    const a = await mkt.criar(dados, "claude", "Claude");
+    const b = await mkt.criar(dados, "claude", "Claude");
+    assert.equal(b.id, a.id);
+    assert.equal(b.repetido, true);
+    const d = await mkt.detalhe(a.id);
+    assert.equal(d.detalhes?.roteiro, "cena 1");
+    assert.equal(d.impulso?.status, "proposto");
+    await mkt.aprovarImpulso(a.id, "u1");
+    assert.equal((await mkt.detalhe(a.id)).impulso?.status, "aprovado");
+    assert.ok((await mkt.impulsos()).some((x) => x.id === a.id));
+  });
+
+  test("aprovar todos: aprova de uma vez o que está aguardando e tem data; sem data fica", async () => {
+    const com = await mkt.criar({ tipo: "post", redes: ["facebook"], titulo: `Lote A ${tag}`, legenda: "x", dataPlanejada: "2099-03-01T12:00:00-03:00" }, "claude", "Claude");
+    const sem = await mkt.criar({ tipo: "post", redes: ["facebook"], titulo: `Lote B ${tag}`, legenda: "x" }, "claude", "Claude");
+    const r = await mkt.aprovarTodos("u1");
+    assert.ok(r.aprovados >= 1);
+    assert.equal((await mkt.detalhe(com.id)).status, "aprovado");
+    assert.equal((await mkt.detalhe(sem.id)).status, "em_aprovacao");
+    assert.ok(r.semData >= 1);
+  });
+
+  test("estratégia por plataforma e de impulsionamento", async () => {
+    await mkt.salvarEstrategia("linkedin", { status: "planejada", objetivo: `obj ${tag}`, publico: "lojas", frequencia: "1x", formatos: "texto", horario: "9h", tom: "direto" });
+    const e = (await mkt.estrategias()).find((x) => x.plataforma === "linkedin");
+    assert.equal(e?.objetivo, `obj ${tag}`);
+    await mkt.salvarImpulsoRegras({ objetivo: `tracionar ${tag}`, limiteDia: 20 });
+    assert.equal((await mkt.impulsoRegras()).objetivo, `tracionar ${tag}`);
+  });
+
+  test("vídeo: só MP4 de verdade (pelos bytes)", async () => {
+    const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from("ftypmp42"), Buffer.alloc(64)]);
+    const url = await mkt.salvarVideo(mp4, "reel.mp4");
+    assert.match(url, /\.mp4$/);
+    await assert.rejects(mkt.salvarVideo(Buffer.from("<html>"), "x.mp4"), /MP4/);
+  });
+
+  test("prospecção vira card 'A abordar' no funil, sem duplicar", async () => {
+    const empresas = [
+      { id: `p1-${tag}`, empresa: `Loja Prospect ${tag}`, tipo: "Loja de veículos", cidade: "Aracaju", uf: "SE", telefone: "(79) 99649-1011", email: "loja@exemplo.com", site: "https://loja.exemplo.com", endereco: "Av. X, 1", nota: 4.9, avaliacoes: 259 },
+      { id: `p2-${tag}`, empresa: `Imob Prospect ${tag}`, tipo: "Imobiliária", cidade: "Belém", uf: "PA", telefone: "", email: "", site: "", endereco: "", nota: null, avaliacoes: 0 },
+    ];
+    const r = await mkt.importarProspeccao(empresas);
+    assert.deepEqual([r.criados, r.repetidos], [2, 0]);
+    const r2 = await mkt.importarProspeccao(empresas);
+    assert.deepEqual([r2.criados, r2.repetidos], [0, 2]);
+    const card = await prisma.salesProspect.findFirst({ where: { name: `Loja Prospect ${tag}` }, include: { notes: true } });
+    assert.equal(card?.stage, "a_abordar");
+    assert.equal(card?.segment, "vehicle");
+    assert.equal(card?.source, "prospeccao");
+    assert.ok(card?.notes.some((n) => n.body.includes("loja.exemplo.com")));
+    assert.equal((await prisma.salesProspect.findFirst({ where: { name: `Imob Prospect ${tag}` } }))?.segment, "property");
+    // aparece no CRM do Hub (Empresas → "A abordar")
+    const { CrmService } = require("../crm/crm.service") as typeof import("../crm/crm.service");
+    const feed = await new CrmService(prisma, { syncPartners: async () => undefined } as never).clientes();
+    const noCrm = feed.prospeccao.find((p) => p.nome === `Loja Prospect ${tag}`);
+    assert.equal(noCrm?.etapa.id, "a_abordar");
+    assert.equal(noCrm?.cidade, "Aracaju");
+    await prisma.salesProspect.deleteMany({ where: { name: { contains: tag } } });
   });
 
   test("orçamento do mês por plataforma", async () => {

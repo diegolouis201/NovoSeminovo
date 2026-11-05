@@ -3102,7 +3102,7 @@ export const FinImportInputSchema = z.object({
 // Marketing do Hub (fase 3): conteúdos que o Claude do Marketing envia, o
 // Diego aprova e o Hub publica (Instagram e Facebook) ou marca como publicado.
 export const MKT_TIPOS = { post: "Post", carrossel: "Carrossel", reels: "Reels / vídeo", story: "Story", video: "Vídeo (YouTube/TikTok)", email: "E-mail", whatsapp: "WhatsApp", anuncio: "Anúncio pago" } as const;
-export const MKT_REDES = { instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", email: "E-mail", whatsapp: "WhatsApp", meta_ads: "Meta Ads", google_ads: "Google Ads", tiktok_ads: "TikTok Ads" } as const;
+export const MKT_REDES = { instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", google: "Google (Perfil da Empresa)", linkedin: "LinkedIn", email: "E-mail", whatsapp: "WhatsApp", meta_ads: "Meta Ads", google_ads: "Google Ads", tiktok_ads: "TikTok Ads" } as const;
 export const MKT_STATUS = { rascunho: "Rascunho", em_aprovacao: "Aguardando aprovação", ajuste: "Pediu ajuste", aprovado: "Aprovado", publicando: "Publicando", publicado: "Publicado", erro: "Erro ao publicar", cancelado: "Cancelado" } as const;
 const MktUrl = z.string().trim().max(500).refine((u) => u.startsWith("/uploads/") || /^https:\/\//.test(u), "Mídia inválida (envie a imagem pelo Hub ou um link https)");
 export const MktContentInputSchema = z.object({
@@ -3118,8 +3118,61 @@ export const MktContentInputSchema = z.object({
     .optional(),
   observacao: z.string().trim().max(2000).optional(),
   ordemId: z.string().trim().max(40).optional(),
+  // pilar, formato, roteiro, gancho, cta, objetivo, publico, campanha...
+  detalhes: z.record(z.string().max(40), z.string().max(4000)).optional(),
+  impulso: z.lazy(() => MktBoostSchema).optional(),
+  origemId: z.string().trim().max(120).optional(),
 });
 export type MktContentInput = z.input<typeof MktContentInputSchema>;
+export const MKT_IMPULSO_STATUS = { proposto: "Proposto", aprovado: "Aprovado para rodar", ativo: "No ar", pausado: "Pausado", encerrado: "Encerrado" } as const;
+export const MktBoostSchema = z.object({
+  status: z.enum(["proposto", "aprovado", "ativo", "pausado", "encerrado"]).default("proposto"),
+  orcamentoDia: z.number().min(0).max(100_000).optional(),
+  dias: z.number().int().min(0).max(365).optional(),
+  inicio: z.string().max(10).optional(),
+  objetivo: z.string().trim().max(300).optional(),
+  publico: z.string().trim().max(1000).optional(),
+  local: z.string().trim().max(200).optional(),
+  idade: z.string().trim().max(40).optional(),
+  destino: z.string().trim().max(300).optional(),
+  notas: z.string().trim().max(2000).optional(),
+  resultados: z.record(z.string().max(40), z.number()).optional(),
+  aprovadoEm: z.string().max(40).optional(),
+});
+export const MktStrategyInputSchema = z.object({
+  status: z.string().trim().max(30).optional(),
+  objetivo: z.string().trim().max(2000).optional(),
+  publico: z.string().trim().max(2000).optional(),
+  frequencia: z.string().trim().max(2000).optional(),
+  formatos: z.string().trim().max(2000).optional(),
+  horario: z.string().trim().max(500).optional(),
+  tom: z.string().trim().max(1000).optional(),
+  notas: z.string().trim().max(4000).optional(),
+});
+export const MktBoostRulesSchema = z.object({
+  objetivo: z.string().trim().max(3000).optional(),
+  criterios: z.string().trim().max(3000).optional(),
+  publicos: z.string().trim().max(3000).optional(),
+  orcamento: z.string().trim().max(3000).optional(),
+  execucao: z.string().trim().max(3000).optional(),
+  regras: z.string().trim().max(3000).optional(),
+  limiteDia: z.number().min(0).max(100_000).optional(),
+});
+export const MktProspectImportSchema = z.array(
+  z.object({
+    id: z.string().trim().min(1).max(200),
+    empresa: z.string().trim().min(2).max(200),
+    tipo: z.string().trim().max(60),
+    cidade: z.string().trim().max(80).optional(),
+    uf: z.string().trim().max(2).optional(),
+    telefone: z.string().trim().max(40).optional(),
+    email: z.string().trim().max(200).optional(),
+    site: z.string().trim().max(500).optional(),
+    endereco: z.string().trim().max(500).optional(),
+    nota: z.number().nullable().optional(),
+    avaliacoes: z.number().nullable().optional(),
+  }),
+).max(3000);
 export const MktReviseInputSchema = MktContentInputSchema.partial().extend({ resposta: z.string().trim().max(2000).optional() });
 export const MktMediaInputSchema = z.object({ nome: z.string().trim().min(1).max(120), base64: z.string().min(1).max(11_000_000) });
 export const MktApproveInputSchema = z.object({ publicarEm: z.string().datetime({ offset: true }).optional() });

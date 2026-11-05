@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AprovarTodos } from "@/components/AprovarTodos";
 import { Decisao } from "@/components/MktForms";
 import { Previa } from "@/components/Previa";
 import { Cabecalho, Vazio } from "@/components/ui";
@@ -12,7 +13,11 @@ export default async function Aprovacoes() {
   const lista = await mkt.listar("?status=em_aprovacao");
   return (
     <>
-      <Cabecalho titulo="Aprovações" subtitulo="Nada é publicado sem o seu OK. Aprove com a data e a hora, ou peça ajuste: o Claude do Marketing recebe o pedido e manda uma nova versão." />
+      <Cabecalho
+        titulo="Aprovações"
+        subtitulo="Nada é publicado sem o seu OK. Aprove com a data e a hora, ou peça ajuste: o Claude do Marketing recebe o pedido e manda uma nova versão."
+        acao={<AprovarTodos total={lista.filter((c) => c.dataPlanejada).length} />}
+      />
       {lista.length ? (
         <div className="grid gap-6 lg:grid-cols-2 2xl:grid-cols-3">
           {lista.map((c) => (

@@ -1,5 +1,9 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
 import {
+  MktBoostRulesSchema,
+  MktBoostSchema,
+  MktProspectImportSchema,
+  MktStrategyInputSchema,
   MktBudgetInputSchema,
   MktContentInputSchema,
   MktMediaInputSchema,
@@ -9,7 +13,7 @@ import {
 } from "@novoseminovo/shared-types";
 import type { Prisma } from "@novoseminovo/db";
 import type { z } from "zod";
-import { safeSharp, sanitizeUpload } from "../common/image-safety";
+import { assertNoMalware, safeSharp, sanitizeUpload } from "../common/image-safety";
 import { getPhotoStorage } from "../common/storage";
 import { windsorEnabled, windsorRows } from "../operations/windsor";
 import { PrismaService } from "../prisma/prisma.service";
@@ -68,8 +72,12 @@ export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
     await this.prisma.mktHistory.create({ data: { contentId, acao, autor, texto: texto?.slice(0, 2000) } });
   }
 
-  async criar(raw: MktContentInput, origem: "claude" | "hub", autor: string) {
+  async criar(raw: MktContentInput, origem: "claude" | "hub", autor: string): Promise<{ id: string; repetido?: boolean }> {
     const i = MktContentInputSchema.parse(raw);
+    if (i.origemId) {
+      const ja = await this.prisma.mktContent.findUnique({ where: { origemId: i.origemId }, select: { id: true } });
+      if (ja) return { id: ja.id, repetido: true };
+    }
     const c = await this.prisma.mktContent.create({
       data: {
         tipo: i.tipo,
@@ -82,6 +90,9 @@ export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
         campanha: (i.campanha as Prisma.InputJsonValue) ?? undefined,
         observacao: i.observacao,
         ordemId: i.ordemId,
+        detalhes: (i.detalhes as Prisma.InputJsonValue) ?? undefined,
+        impulso: (i.impulso as Prisma.InputJsonValue) ?? undefined,
+        origemId: i.origemId,
         origem,
         status: "em_aprovacao",
       },
@@ -136,6 +147,8 @@ export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
       ...(i.dataPlanejada ? { dataPlanejada: new Date(i.dataPlanejada) } : {}),
       ...(i.campanha ? { campanha: i.campanha as Prisma.InputJsonValue } : {}),
       ...(i.observacao !== undefined ? { observacao: i.observacao } : {}),
+      ...(i.detalhes ? { detalhes: i.detalhes as Prisma.InputJsonValue } : {}),
+      ...(i.impulso ? { impulso: i.impulso as Prisma.InputJsonValue } : {}),
     });
     await this.historico(id, "revisado", autor, i.resposta);
   }
@@ -212,6 +225,98 @@ export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
     return metricas;
   }
 
+  // Aprova de uma vez o que está aguardando e já tem data e hora (ex.: posts
+  // importados que o Diego já tinha aprovado no CRM de Conteúdo antigo).
+  async aprovarTodos(userId: string) {
+    const fila = await this.prisma.mktContent.findMany({ where: { status: "em_aprovacao" }, select: { id: true, dataPlanejada: true } });
+    let aprovados = 0;
+    for (const c of fila.filter((x) => x.dataPlanejada)) {
+      const { count } = await this.prisma.mktContent.updateMany({ where: { id: c.id, status: "em_aprovacao" }, data: { status: "aprovado", aprovadoPorId: userId, aprovadoEm: new Date(), erro: null } });
+      if (count) {
+        aprovados++;
+        await this.historico(c.id, "aprovado", userId, `Aprovado em lote · publicar em ${c.dataPlanejada!.toISOString()}`);
+      }
+    }
+    return { aprovados, semData: fila.filter((x) => !x.dataPlanejada).length };
+  }
+
+  // Vídeo (reels): só MP4 de verdade, conferido pelos bytes ("ftyp"), com
+  // antivírus. Publicação de vídeo é à mão (o Hub guarda e mostra).
+  async salvarVideo(buffer: Buffer, nome: string): Promise<string> {
+    if (buffer.length < 12 || buffer.toString("ascii", 4, 8) !== "ftyp") throw new BadRequestException("Envie um vídeo MP4.");
+    if (buffer.length > 150_000_000) throw new BadRequestException("O vídeo precisa ter até 150 MB.");
+    await assertNoMalware(buffer);
+    return getPhotoStorage().save(buffer, `${nome.replace(/\.[^.]*$/, "").slice(0, 80)}.mp4`, "video/mp4");
+  }
+
+  async impulsos() {
+    const rows = await this.prisma.mktContent.findMany({ where: {}, orderBy: { dataPlanejada: "asc" }, take: 500 });
+    return rows.filter((c) => c.impulso).map((c) => this.vista(c));
+  }
+
+  async aprovarImpulso(id: string, userId: string) {
+    const c = await this.carregar(id);
+    const imp = c.impulso as z.infer<typeof MktBoostSchema> | null;
+    if (!imp || imp.status !== "proposto") throw new BadRequestException("Este impulsionamento não está aguardando aprovação.");
+    await this.prisma.mktContent.update({ where: { id }, data: { impulso: { ...imp, status: "aprovado", aprovadoEm: new Date().toISOString() } as Prisma.InputJsonValue } });
+    await this.historico(id, "impulso", userId, `Impulsionamento aprovado: R$ ${imp.orcamentoDia ?? "?"}/dia por ${imp.dias ?? "?"} dias`);
+  }
+
+  async estrategias() {
+    const rows = await this.prisma.mktStrategy.findMany({ orderBy: { plataforma: "asc" } });
+    return rows.map((r) => ({ plataforma: r.plataforma, ...(r.dados as z.infer<typeof MktStrategyInputSchema>), atualizadoEm: r.updatedAt.toISOString() }));
+  }
+
+  async salvarEstrategia(plataforma: string, raw: z.input<typeof MktStrategyInputSchema>) {
+    if (!/^[a-z_]{2,20}$/.test(plataforma)) throw new BadRequestException("Plataforma inválida.");
+    const dados = MktStrategyInputSchema.parse(raw) as Prisma.InputJsonValue;
+    await this.prisma.mktStrategy.upsert({ where: { plataforma }, create: { plataforma, dados }, update: { dados } });
+  }
+
+  async impulsoRegras(): Promise<z.infer<typeof MktBoostRulesSchema>> {
+    const r = await this.prisma.mktSetting.findUnique({ where: { chave: "impulso" } });
+    return (r?.valor as z.infer<typeof MktBoostRulesSchema>) ?? {};
+  }
+
+  async salvarImpulsoRegras(raw: z.input<typeof MktBoostRulesSchema>) {
+    const valor = MktBoostRulesSchema.parse(raw) as Prisma.InputJsonValue;
+    await this.prisma.mktSetting.upsert({ where: { chave: "impulso" }, create: { chave: "impulso", valor }, update: { valor } });
+  }
+
+  // Lista de prospecção (lojas e imobiliárias, dados públicos do Google Maps)
+  // → cards "A abordar" no funil do CRM. A mesma empresa não entra duas vezes.
+  async importarProspeccao(raw: z.input<typeof MktProspectImportSchema>) {
+    const lista = MktProspectImportSchema.parse(raw);
+    let criados = 0;
+    let repetidos = 0;
+    for (const e of lista) {
+      const externalId = `prospeccao:${e.id}`;
+      if (await this.prisma.salesProspect.findUnique({ where: { externalId }, select: { id: true } })) {
+        repetidos++;
+        continue;
+      }
+      const phone = (e.telefone ?? "").replace(/\D/g, "");
+      const email = e.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.email) ? e.email.toLowerCase() : undefined;
+      const card = await this.prisma.salesProspect.create({
+        data: {
+          name: e.empresa,
+          segment: /imobili|corretor|constru/i.test(e.tipo) ? "property" : "vehicle",
+          city: e.cidade,
+          state: e.uf && e.uf.length === 2 ? e.uf.toUpperCase() : undefined,
+          phone: phone.length >= 10 && phone.length <= 13 ? phone : undefined,
+          email,
+          source: "prospeccao",
+          externalId,
+        },
+        select: { id: true },
+      });
+      const extra = [e.site ? `Site: ${e.site}` : "", e.endereco ? `Endereço: ${e.endereco}` : "", e.nota ? `Google: nota ${e.nota} (${e.avaliacoes ?? 0} avaliações)` : ""].filter(Boolean).join("\n");
+      await this.prisma.salesNote.create({ data: { prospectId: card.id, kind: "note", body: `Importado da lista de prospecção (${e.tipo}, dados públicos do Google Maps).${extra ? `\n${extra}` : ""}`.slice(0, 2000) } });
+      criados++;
+    }
+    return { criados, repetidos };
+  }
+
   // ----------------------------------------------------------- Consultas
 
   private vista(c: Awaited<ReturnType<MarketingHubService["carregar"]>>) {
@@ -234,6 +339,8 @@ export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
       links: (c.links as Links) ?? {},
       erro: c.erro ?? undefined,
       metricas: (c.metricas as Record<string, number> | null) ?? undefined,
+      detalhes: (c.detalhes as Record<string, string> | null) ?? undefined,
+      impulso: (c.impulso as z.infer<typeof MktBoostSchema> | null) ?? undefined,
       publicadoEm: c.publicadoEm?.toISOString(),
       automatico: auto.automatico,
       manual: auto.manual,

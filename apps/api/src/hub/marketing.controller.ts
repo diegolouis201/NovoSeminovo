@@ -1,5 +1,7 @@
-import { Body, Controller, Get, Headers, HttpException, HttpStatus, Param, Post, Query, UseGuards } from "@nestjs/common";
-import { MktApproveInputSchema, MktBudgetInputSchema, MktContentInputSchema, MktMediaInputSchema, MktPublishedInputSchema, MktReviseInputSchema } from "@novoseminovo/shared-types";
+import { BadRequestException, Body, Controller, Get, Headers, HttpException, HttpStatus, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { memoryStorage } from "multer";
+import { MktApproveInputSchema, MktBoostRulesSchema, MktBudgetInputSchema, MktProspectImportSchema, MktStrategyInputSchema, MktContentInputSchema, MktMediaInputSchema, MktPublishedInputSchema, MktReviseInputSchema } from "@novoseminovo/shared-types";
 import { z } from "zod";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -14,6 +16,10 @@ const Id = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/);
 const Mes = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 const Filtro = z.object({ status: z.string().max(20).optional(), mes: Mes.optional(), rede: z.string().max(20).optional() });
 const hoje = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10);
+const Plataforma = z.string().regex(/^[a-z_]{2,20}$/);
+// Vídeo (reels) em memória até 150 MB; o tipo real é conferido pelos bytes no serviço.
+const videoInterceptor = FileInterceptor("video", { storage: memoryStorage(), limits: { fileSize: 150 * 1024 * 1024 } });
+type Upload = { buffer: Buffer; originalname: string } | undefined;
 
 // Telas do Marketing no Hub (permissão "marketing": dono e perfil Marketing).
 @UseGuards(JwtAuthGuard, HubGuard)
@@ -96,6 +102,47 @@ export class MarketingHubController {
   analises() {
     return this.mkt.analises();
   }
+
+  @Post("aprovar-todos")
+  aprovarTodos(@CurrentUser() me: Me) {
+    return this.mkt.aprovarTodos(me.id);
+  }
+
+  @Post("midias/video")
+  @UseInterceptors(videoInterceptor)
+  async video(@UploadedFile() file: Upload) {
+    if (!file) throw new BadRequestException("Envie o vídeo.");
+    return { url: await this.mkt.salvarVideo(file.buffer, file.originalname) };
+  }
+
+  @Get("estrategias")
+  estrategias() {
+    return this.mkt.estrategias();
+  }
+
+  @Post("estrategias/:plataforma")
+  async estrategia(@Param("plataforma") p: string, @Body() body: unknown) {
+    await this.mkt.salvarEstrategia(parseOrBadRequest(Plataforma, p), parseOrBadRequest(MktStrategyInputSchema, body));
+    return { ok: true };
+  }
+
+  @Get("impulso")
+  async impulso() {
+    const [regras, lista] = await Promise.all([this.mkt.impulsoRegras(), this.mkt.impulsos()]);
+    return { regras, lista };
+  }
+
+  @Post("impulso/regras")
+  async impulsoRegras(@Body() body: unknown) {
+    await this.mkt.salvarImpulsoRegras(parseOrBadRequest(MktBoostRulesSchema, body));
+    return { ok: true };
+  }
+
+  @Post("conteudos/:id/impulso/aprovar")
+  async aprovarImpulso(@CurrentUser() me: Me, @Param("id") id: string) {
+    await this.mkt.aprovarImpulso(parseOrBadRequest(Id, id), me.id);
+    return { ok: true };
+  }
 }
 
 function assertKey(authorization: string | undefined) {
@@ -150,6 +197,35 @@ export class MarketingFeedController {
     assertKey(a);
     await this.mkt.revisar(parseOrBadRequest(Id, id), parseOrBadRequest(MktReviseInputSchema, body), "Claude Marketing");
     return { ok: true };
+  }
+
+  @Post("midias/video")
+  @UseInterceptors(videoInterceptor)
+  async video(@Headers("authorization") a: string | undefined, @UploadedFile() file: Upload) {
+    assertKey(a);
+    if (!file) throw new BadRequestException("Envie o vídeo no campo \"video\".");
+    return { url: await this.mkt.salvarVideo(file.buffer, file.originalname) };
+  }
+
+  @Post("estrategias/:plataforma")
+  async estrategia(@Headers("authorization") a: string | undefined, @Param("plataforma") p: string, @Body() body: unknown) {
+    assertKey(a);
+    await this.mkt.salvarEstrategia(parseOrBadRequest(Plataforma, p), parseOrBadRequest(MktStrategyInputSchema, body));
+    return { ok: true };
+  }
+
+  @Post("impulso/regras")
+  async impulsoRegras(@Headers("authorization") a: string | undefined, @Body() body: unknown) {
+    assertKey(a);
+    await this.mkt.salvarImpulsoRegras(parseOrBadRequest(MktBoostRulesSchema, body));
+    return { ok: true };
+  }
+
+  // Lista de prospecção (até 3.000 empresas por vez) → cards "A abordar".
+  @Post("prospeccao")
+  importarProspeccao(@Headers("authorization") a: string | undefined, @Body() body: unknown) {
+    assertKey(a);
+    return this.mkt.importarProspeccao(parseOrBadRequest(MktProspectImportSchema, body));
   }
 
   @Get("resultados")

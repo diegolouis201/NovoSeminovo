@@ -21,6 +21,8 @@ export type Conteudo = {
   links: Record<string, string>;
   erro?: string;
   metricas?: Record<string, number>;
+  detalhes?: Record<string, string>;
+  impulso?: { status: string; orcamentoDia?: number; dias?: number; inicio?: string; objetivo?: string; publico?: string; local?: string; idade?: string; destino?: string; notas?: string; resultados?: Record<string, number>; aprovadoEm?: string };
   publicadoEm?: string;
   automatico: string[];
   manual: string[];
@@ -54,6 +56,8 @@ export const mkt = {
       assinaturas: number;
       custo: { porCadastro?: number; porAssinatura?: number };
     }>(`/hub/marketing/gastos/${mes}`),
+  estrategias: () => hubFetch<Estrategia[]>("/hub/marketing/estrategias"),
+  impulso: () => hubFetch<{ regras: RegrasImpulso; lista: Conteudo[] }>("/hub/marketing/impulso"),
   analises: () =>
     hubFetch<{
       windsor: boolean;
@@ -67,6 +71,9 @@ export const mkt = {
 // Imagens ficam na API (/uploads/...): o navegador busca no endereço público.
 export const midiaUrl = (u: string) => (u.startsWith("http") ? u : `${(process.env.PUBLIC_API_URL ?? process.env.API_URL ?? "http://localhost:4000").replace(/\/$/, "")}${u}`);
 export const ehImagem = (u: string) => /\.(jpe?g|png|webp)(\?|$)/i.test(u);
+export const ehVideo = (u: string) => /\.(mp4|mov|webm)(\?|$)/i.test(u);
+export type Estrategia = { plataforma: string; status?: string; objetivo?: string; publico?: string; frequencia?: string; formatos?: string; horario?: string; tom?: string; notas?: string; atualizadoEm?: string };
+export type RegrasImpulso = { objetivo?: string; criterios?: string; publicos?: string; orcamento?: string; execucao?: string; regras?: string; limiteDia?: number };
 export const COR_STATUS: Record<string, string> = {
   em_aprovacao: "bg-orange/15 text-danger",
   ajuste: "bg-orange/15 text-orange",

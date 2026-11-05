@@ -243,7 +243,7 @@ export class CrmService {
     });
 
     const open = await this.prisma.salesProspect.findMany({
-      where: { partnerId: null, source: "manual" },
+      where: { partnerId: null, source: { in: ["manual", "prospeccao"] } },
       include: { owner: { select: { name: true } } },
       orderBy: { createdAt: "asc" },
       take: 5000,

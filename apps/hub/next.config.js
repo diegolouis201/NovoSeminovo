@@ -5,8 +5,8 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@novoseminovo/shared-types"],
-  // Imagens do marketing sobem por Server Action (até ~4 MB cada).
-  experimental: { externalDir: true, serverActions: { bodySizeLimit: "12mb" } },
+  // Imagens e vídeos do marketing sobem por Server Action (vídeo até 150 MB).
+  experimental: { externalDir: true, serverActions: { bodySizeLimit: "160mb" } },
   async headers() {
     return [
       {

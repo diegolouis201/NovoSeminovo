@@ -1671,6 +1671,8 @@ model SalesProspect {
   nextContactKind String?     @map("next_contact_kind")
   // manual = vendedor cadastrou; site = empresa se cadastrou sozinha; link = pelo link do vendedor.
   source          String      @default("manual")
+  // Importação de listas de prospecção: a mesma empresa não entra duas vezes.
+  externalId      String?     @unique @map("external_id")
   ownerId         String?     @map("owner_id")
   owner           User?       @relation("SalesOwner", fields: [ownerId], references: [id])
   partnerId       String?     @unique @map("partner_id")
@@ -1919,6 +1921,12 @@ model MktContent {
   origem        String       @default("claude")
   observacao    String?
   ordemId       String?      @map("ordem_id")
+  // Detalhes do post (pilar, formato, roteiro, gancho, CTA, objetivo...) e o
+  // impulsionamento proposto/aprovado para ele.
+  detalhes      Json?
+  impulso       Json?
+  // Importação (ex.: "crm-conteudo:<id>"): o mesmo conteúdo não entra duas vezes.
+  origemId      String?      @unique @map("origem_id")
   aprovadoPorId String?      @map("aprovado_por_id")
   aprovadoEm    DateTime?    @map("aprovado_em")
   publicadoEm   DateTime?    @map("publicado_em")
@@ -1957,4 +1965,22 @@ model MktBudget {
 
   @@id([month, plataforma])
   @@map("mkt_budgets")
+}
+
+// Estratégia de cada plataforma (objetivo, público, frequência, formatos...).
+model MktStrategy {
+  plataforma String   @id
+  dados      Json
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("mkt_strategies")
+}
+
+// Configurações do marketing (ex.: "impulso" = estratégia de impulsionamento).
+model MktSetting {
+  chave     String   @id
+  valor     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("mkt_settings")
 }

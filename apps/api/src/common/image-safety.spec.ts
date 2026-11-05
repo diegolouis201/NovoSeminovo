@@ -141,5 +141,9 @@ describe("Armazenamento: segunda conferência antes de gravar", () => {
     const { assertStoredTypeMatches } = await import("./storage");
     assert.throws(() => assertStoredTypeMatches(Buffer.from("<html>"), "image/jpeg"), /não confere/);
     assert.doesNotThrow(async () => assertStoredTypeMatches(await jpeg(), "image/jpeg"));
+    // Vídeo do marketing (Hub): MP4 de verdade passa; HTML com nome de vídeo não.
+    const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from("ftypmp42"), Buffer.alloc(32)]);
+    assert.doesNotThrow(() => assertStoredTypeMatches(mp4, "video/mp4"));
+    assert.throws(() => assertStoredTypeMatches(Buffer.from("<html><script>"), "video/mp4"), /não confere/);
   });
 });

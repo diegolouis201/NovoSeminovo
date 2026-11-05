@@ -41,3 +41,16 @@ export async function hubFetch<T>(path: string, init: { method?: "GET" | "POST";
   }
   return (await res.json()) as T;
 }
+
+// Envio de arquivo (vídeo do marketing) em multipart.
+export async function hubUpload<T>(path: string, campo: string, arquivo: File): Promise<T> {
+  const fd = new FormData();
+  fd.append(campo, arquivo, arquivo.name);
+  const res = await fetch(`${API_URL}${path}`, { method: "POST", headers: { Authorization: `Bearer ${await token()}` }, body: fd, cache: "no-store" });
+  if (res.status === 401) redirect("/entrar?expirou=1");
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { message?: string | string[] };
+    throw new HubApiError(Array.isArray(body.message) ? body.message.join(" ") : body.message ?? "Não foi possível enviar o arquivo.", res.status);
+  }
+  return (await res.json()) as T;
+}
