@@ -2,7 +2,7 @@ import { STORE_EARNING_STORES, type CrmRevenue } from "@novoseminovo/shared-type
 
 // Receitas por categoria do CRM. Função pura: recebe as linhas do banco e a
 // data de hoje. Faturamento = planos. Lojas parceiras (links de afiliado),
-// financiamentos (comissão do banco menos o cashback) e o programa de
+// financiamentos (comissão do banco, toda da empresa) e o programa de
 // afiliados são só para visualização e ficam fora do total.
 
 type Money = unknown;
@@ -11,7 +11,7 @@ export type RevenueInput = {
   listingPlans: { paidAt: Date | null; amount: Money }[];
   mrr: number;
   assinantes: number;
-  deals: { createdAt: Date; financedAmount: Money; commissionAmount: Money; rebateAmount: Money; status: string; commissionReceivedAt: Date | null }[];
+  deals: { createdAt: Date; financedAmount: Money; commissionAmount: Money; commissionReceivedAt: Date | null }[];
   leadsAbertos: number;
   storeEarnings: { month: string; store: string; amount: Money }[];
   storeClicks30d: number;
@@ -61,15 +61,13 @@ export function buildCrmRevenue(input: RevenueInput, hoje: Date): CrmRevenue {
   const deals12m = input.deals.filter((deal) => inWindow.has(monthKey(deal.createdAt)));
   const financiamentosPorMes = months.map((mes) => {
     const rows = deals12m.filter((deal) => monthKey(deal.createdAt) === mes);
-    const comissao = sum(rows, (deal) => num(deal.commissionAmount));
-    const cashback = sum(rows, (deal) => num(deal.rebateAmount));
-    return { mes, negocios: rows.length, comissao, cashback, liquido: cents(comissao - cashback) };
+    return { mes, negocios: rows.length, comissao: sum(rows, (deal) => num(deal.commissionAmount)) };
   });
 
   // ---- Consolidado: faturamento = planos; o resto só para visualização ----
   const consolidadoPorMes = months.map((mes) => {
     const planos = planoDoMes(mes);
-    return { mes, planos, lojas: cents(stores.get(mes)!), financiamentos: financiamentosPorMes.find((m) => m.mes === mes)!.liquido, total: planos };
+    return { mes, planos, lojas: cents(stores.get(mes)!), financiamentos: financiamentosPorMes.find((m) => m.mes === mes)!.comissao, total: planos };
   });
   const totalDoMes = (mes: string) => consolidadoPorMes.find((m) => m.mes === mes)!.total;
 
@@ -92,7 +90,7 @@ export function buildCrmRevenue(input: RevenueInput, hoje: Date): CrmRevenue {
       total12m: sum(consolidadoPorMes, (m) => m.total),
       esteMes: totalDoMes(esteMesKey),
       mesPassado: totalDoMes(mesPassadoKey),
-      acompanhamento12m: { lojas: sum(lojasPorMes, (m) => m.valor), financiamentos: sum(financiamentosPorMes, (m) => m.liquido) },
+      acompanhamento12m: { lojas: sum(lojasPorMes, (m) => m.valor), financiamentos: sum(financiamentosPorMes, (m) => m.comissao) },
     },
     planos: {
       porMes: planosPorMes,
@@ -107,10 +105,9 @@ export function buildCrmRevenue(input: RevenueInput, hoje: Date): CrmRevenue {
       porMes: financiamentosPorMes,
       negocios12m: deals12m.length,
       valorFinanciado12m: sum(deals12m, (deal) => num(deal.financedAmount)),
-      liquido12m: sum(financiamentosPorMes, (m) => m.liquido),
+      comissao12m: sum(financiamentosPorMes, (m) => m.comissao),
       comissaoRecebida: sum(input.deals.filter((deal) => deal.commissionReceivedAt), (deal) => num(deal.commissionAmount)),
       comissaoAReceber: sum(input.deals.filter((deal) => !deal.commissionReceivedAt), (deal) => num(deal.commissionAmount)),
-      cashbackAPagar: sum(input.deals.filter((deal) => deal.status !== "paid"), (deal) => num(deal.rebateAmount)),
       leadsAbertos: input.leadsAbertos,
     },
     afiliados: {

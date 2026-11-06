@@ -22,11 +22,11 @@ export type FinanceEntry = {
 };
 export type FinanceExit = {
   id: string;
-  tipo: "comissao_afiliado" | "cashback_financiamento";
+  tipo: "comissao_afiliado";
   descricao: string;
   favorecido: string;
   valor: number;
-  // aguardando: ainda não pode pagar (garantia contra estorno / banco não pagou a comissão).
+  // aguardando: ainda não pode pagar (garantia contra estorno).
   status: "aguardando" | "a_pagar" | "pago" | "cancelado";
   disponivelEm?: string;
   pagoEm?: string;
@@ -65,7 +65,7 @@ export class FinanceFeedService {
         include: { listing: { select: { title: true, owner: { select: { name: true, email: true } } } } },
       }),
       this.prisma.financingDeal.findMany({
-        where: { OR: [changedSince("createdAt"), changedSince("commissionReceivedAt"), changedSince("paidAt")] },
+        where: { OR: [changedSince("createdAt"), changedSince("commissionReceivedAt")] },
         orderBy: { createdAt: "desc" },
         take: 1000,
       }),
@@ -165,21 +165,6 @@ export class FinanceFeedService {
           criadoEm: commission.createdAt.toISOString(),
         }),
       ),
-      ...deals
-        .filter((deal) => Number(deal.rebateAmount) > 0)
-        .map(
-          (deal): FinanceExit => ({
-            id: deal.id,
-            tipo: "cashback_financiamento",
-            descricao: `Cashback do financiamento (${deal.financingProvider})`,
-            favorecido: deal.buyerName || "Cliente do financiamento",
-            valor: money(deal.rebateAmount),
-            status: deal.status === "paid" ? "pago" : deal.commissionReceivedAt ? "a_pagar" : "aguardando",
-            disponivelEm: iso(deal.commissionReceivedAt),
-            pagoEm: iso(deal.paidAt),
-            criadoEm: deal.createdAt.toISOString(),
-          }),
-        ),
     ];
 
     const assinaturas = subscriptions.map(

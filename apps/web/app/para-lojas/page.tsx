@@ -21,7 +21,7 @@ import { COMPANY } from "@/lib/company";
 export const metadata: Metadata = {
   title: "Para lojas, imobiliárias e corretores",
   description:
-    "Anuncie seu estoque no NovoSeminovo: vitrine com a sua marca, leads organizados, assistente de IA, posts prontos pro Instagram e cashback no financiamento para os seus clientes.",
+    "Anuncie seu estoque no NovoSeminovo: vitrine com a sua marca, leads organizados, assistente de IA, posts prontos pro Instagram e financiamento com acompanhamento para os seus clientes.",
   alternates: { canonical: "/para-lojas" },
 };
 
@@ -85,7 +85,7 @@ export default async function ForPartnersPage() {
     <main className="pb-16">
       <PageHero eyebrow="Para lojas, imobiliárias e corretores" title="Seu estoque na frente de quem está pronto pra comprar">
         Comece com 3 meses grátis, sem limite de anúncios, e ganhe um painel completo pra vender mais: leads
-        organizados, assistente de IA, posts prontos — e o seu cliente ainda ganha cashback quando financia pelo site.
+        organizados, assistente de IA, posts prontos — e o seu cliente ainda conta com um especialista em financiamento.
       </PageHero>
 
       <div className="mx-auto mt-6 flex max-w-3xl flex-wrap justify-center gap-3 px-4">
@@ -203,13 +203,14 @@ export default async function ForPartnersPage() {
         </Section>
       )}
 
-      <Section title="Cashback no financiamento para o seu cliente">
+      <Section title="Financiamento para o seu cliente">
         <p className="mt-2 max-w-3xl text-sm text-ink-muted">
-          Quem compra um carro ou imóvel do seu estoque e financia pelo NovoSeminovo recebe de volta 20% da nossa comissão,
-          por Pix. É um argumento a mais para fechar a venda — e não custa nada para a sua loja.
+          Quem compra um carro ou imóvel do seu estoque pode simular a parcela na página do anúncio e pedir contato de um
+          especialista em financiamento, que leva o pedido aos bancos e acompanha até a assinatura. Não custa nada para a sua
+          loja.
         </p>
-        <Link href="/recompensas" className="mt-4 inline-block text-sm font-semibold text-brand-blue hover:underline">
-          Como funciona o cashback →
+        <Link href="/como-funciona#financiar" className="mt-4 inline-block text-sm font-semibold text-brand-blue hover:underline">
+          Como funciona o financiamento →
         </Link>
       </Section>
 

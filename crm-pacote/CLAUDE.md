@@ -38,13 +38,13 @@ frases curtas, sem jargão. Números em R$ 1.234,56 e datas em DD/MM/AAAA.
 |---|---|---|
 | Planos (mensalidades de lojas/imobiliárias + planos de anúncio de PF) | **Sim: é o faturamento** | Stripe, automático |
 | Lojas parceiras (links de afiliado: Amazon, Mercado Livre…) | Não, só visualização | Diego lança o valor do mês em /admin/painel |
-| Financiamentos (comissão do banco menos cashback) | Não, só visualização | Negócios registrados no admin |
+| Financiamentos (comissão do banco, toda da empresa) | Não, só visualização | Negócios registrados no admin |
 | Programa de afiliados (quem indica o NovoSeminovo) | Não, só visualização (é custo) | Automático, a cada pagamento do indicado |
 
 - Faturamento = planos. Lojas parceiras, financiamentos e afiliados sempre
   aparecem separados, com o aviso "só visualização"; nunca somar ao
   faturamento nem ao caixa.
-- Comissão de afiliado a pagar, cashback e comissão a receber do banco
+- Comissão de afiliado a pagar e comissão a receber do banco
   envolvem dinheiro: aparecem em "Para o Diego decidir" e nunca viram ordem.
 - Os números vêm do site (`dados/receitas.json`). Não estimar nem completar
   mês faltando; mês em andamento é sempre dito como "em andamento".

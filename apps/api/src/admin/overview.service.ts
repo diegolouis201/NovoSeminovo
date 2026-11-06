@@ -91,10 +91,10 @@ export class AdminOverviewService {
         (await db.subscriptionPayment.aggregate({ where: { paidAt: range, ...(partnerTypes ? { partnerType: { in: partnerTypes } } : {}) }, _sum: { refundedAmount: true } }))._sum
           .refundedAmount,
       );
-    // Receita de financiamento = comissão do banco menos o cashback devolvido a quem contratou.
+    // Receita de financiamento = comissão do banco (fica toda com a empresa).
     const financingIn = async (range: Range) => {
-      const result = await db.financingDeal.aggregate({ where: { createdAt: range, ...dealListing }, _sum: { commissionAmount: true, rebateAmount: true } });
-      return money(result._sum.commissionAmount) - money(result._sum.rebateAmount);
+      const result = await db.financingDeal.aggregate({ where: { createdAt: range, ...dealListing }, _sum: { commissionAmount: true } });
+      return money(result._sum.commissionAmount);
     };
     const storesIn = async (range: Range) => {
       if (!hasStores) return 0;
@@ -131,7 +131,6 @@ export class AdminOverviewService {
       subscriptions,
       financing,
       financingDeals30d,
-      financingRebates30d,
       financingOpenLeads,
       stores,
       storeClicks30d,
@@ -189,7 +188,6 @@ export class AdminOverviewService {
       trend(subscriptionsIn),
       trend(financingIn),
       db.financingDeal.count({ where: { createdAt: last30, ...dealListing } }),
-      db.financingDeal.aggregate({ where: { createdAt: last30, ...dealListing }, _sum: { rebateAmount: true } }),
       db.financingLead.count({ where: { status: { notIn: ["converted", "lost"] }, ...financingLeadWhere } }),
       trend(storesIn),
       hasStores ? db.affiliateClick.count({ where: { createdAt: last30 } }) : Promise.resolve(0),
@@ -221,7 +219,7 @@ export class AdminOverviewService {
       }),
       db.financingDeal.findMany({
         where: { createdAt: { gte: monthsStart }, ...dealListing },
-        select: { createdAt: true, commissionAmount: true, rebateAmount: true },
+        select: { createdAt: true, commissionAmount: true },
       }),
       db.storeEarning.findMany({ orderBy: [{ month: "desc" }, { store: "asc" }], take: 36 }),
       db.user.findMany({ where: { createdAt: last30 }, select: { acqSource: true, acqCampaign: true, referredByAffiliateId: true } }),
@@ -259,7 +257,7 @@ export class AdminOverviewService {
     };
     for (const row of monthPlans) addMonth(row.paidAt, "listingPlans", money(row.amount));
     for (const row of monthSubscriptions) addMonth(row.paidAt, "subscriptions", money(row.amount) - money(row.refundedAmount));
-    for (const row of monthDeals) addMonth(row.createdAt, "financing", money(row.commissionAmount) - money(row.rebateAmount));
+    for (const row of monthDeals) addMonth(row.createdAt, "financing", money(row.commissionAmount));
     if (hasStores) for (const row of storeEntries) addMonth(new Date(`${row.month}-15T00:00:00Z`), "stores", money(row.amount));
 
     // Origens dos últimos 30 dias: cadastros, leads de lojas e pedidos de financiamento.
@@ -339,7 +337,6 @@ export class AdminOverviewService {
         subscriptions,
         financing,
         financingDeals30d,
-        financingRebates30d: money(financingRebates30d._sum.rebateAmount),
         financingOpenLeads,
         stores,
         storeClicks30d,

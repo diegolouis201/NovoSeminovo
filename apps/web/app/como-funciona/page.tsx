@@ -35,10 +35,6 @@ const SELL = [
     title: "Receba contatos",
     text: "Depois da aprovação, seu anúncio aparece na busca. Os interessados falam com você pelo chat ou WhatsApp, e você é avisado de cada mensagem.",
   },
-  {
-    title: "Financie e ganhe cashback",
-    text: "Quem compra e financia pelo NovoSeminovo recebe de volta 20% da nossa comissão do financiamento, por Pix (valor líquido, pago depois que o banco paga a comissão).",
-  },
 ];
 
 const FINANCE = [
@@ -93,9 +89,6 @@ export default function HowItWorksPage() {
         <div className="mt-6 flex flex-wrap gap-3">
           <Link href="/anunciar" className="rounded-brand bg-brand-green px-5 py-3 text-sm font-bold text-on-green">
             Anunciar agora
-          </Link>
-          <Link href="/recompensas" className="rounded-brand border border-border px-5 py-3 text-sm font-bold text-ink hover:bg-surface-sober">
-            Como funciona o cashback
           </Link>
           <Link href="/para-lojas" className="rounded-brand border border-border px-5 py-3 text-sm font-bold text-ink hover:bg-surface-sober">
             Sou loja ou imobiliária

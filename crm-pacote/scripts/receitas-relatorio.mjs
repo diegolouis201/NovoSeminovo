@@ -44,7 +44,7 @@ export function buildRevenueReport(r) {
   add("## Financiamentos — só visualização (não entra no caixa nem no faturamento)");
   add();
   add(`- Negócios em 12 meses: ${f.negocios12m} · valor financiado: ${brl(f.valorFinanciado12m)}`);
-  add(`- Líquido 12 meses: ${brl(f.liquido12m)} (comissão do banco menos cashback)`);
+  add(`- Comissão do banco em 12 meses: ${brl(f.comissao12m)} (fica toda com a empresa)`);
   add(`- Pedidos de financiamento em andamento: ${f.leadsAbertos}`);
   add();
   add("## Programa de afiliados (custo) — só visualização");
@@ -65,7 +65,6 @@ export function buildRevenueReport(r) {
   add("Envolve dinheiro: nada aqui vira ordem sem o Diego.");
   add();
   add(`- Comissões de afiliados liberadas para pagar: ${brl(pr.comissoes.disponivel)} (pagar em /admin/afiliados)`);
-  add(`- Cashback de financiamento a pagar: ${brl(f.cashbackAPagar)}`);
   add(`- Comissão de financiamento a receber do banco: ${brl(f.comissaoAReceber)}`);
   add();
   return linhas.join("\n");

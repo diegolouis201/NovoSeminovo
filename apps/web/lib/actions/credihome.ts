@@ -18,7 +18,7 @@ export async function simulateCredihomeAction(listingId: string, input: Credihom
 }
 
 export async function requestCredihomeProposalAction(listingId: string, input: CredihomeProposalInput) {
-  // Logado: o pedido fica na conta da pessoa (o cashback aparece em "Meu cashback").
+  // Logado: o pedido fica ligado à conta da pessoa.
   const session = await auth();
   const extraHeaders: Record<string, string> = { ...acquisitionHeaders() };
   if (session?.accessToken) extraHeaders.Authorization = `Bearer ${session.accessToken}`;

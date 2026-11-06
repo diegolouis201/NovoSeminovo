@@ -108,7 +108,7 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
     input: CredihomeProposalInput & { phone: string },
     visitor: string,
     acquisition?: Acquisition,
-    // Conta de quem pediu (se estava logado) — recebe o cashback.
+    // Conta de quem pediu (se estava logado) — o pedido fica ligado a ela.
     buyerUserId?: string,
   ): Promise<{ outcome: ProposalOutcome }> {
     const listing = await this.propertyListing(listingId);

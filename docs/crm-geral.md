@@ -68,10 +68,11 @@ CRM (chave `crm_feed_key`):
   ListingBoostPurchase pagos).
 - **Lojas parceiras** (StoreEarning, links de afiliado de Amazon/Mercado
   Livre, lançado à mão em /admin/painel): só visualização.
-- **Financiamentos**: só visualização, fora do faturamento. Comissão
-  (FinancingDeal.commissionAmount) menos cashback (rebateAmount), comissão a
-  receber (sem commissionReceivedAt), cashback a pagar (status ≠ paid) e
-  pedidos em andamento (FinancingLead fora de converted/lost).
+- **Financiamentos**: só visualização, fora do faturamento. Comissão do
+  banco (FinancingDeal.commissionAmount, toda da empresa — `comissao12m`),
+  comissão recebida e a receber (com/sem commissionReceivedAt) e pedidos em
+  andamento (FinancingLead fora de converted/lost). O cashback ao cliente
+  acabou em 06/11/2026; os campos `liquido12m` e `cashbackAPagar` saíram.
 - **Programa de afiliados**: só visualização (é custo). Indicados, cliques, o que os indicados
   pagaram (baseAmount das comissões não canceladas) e comissões por situação.
 

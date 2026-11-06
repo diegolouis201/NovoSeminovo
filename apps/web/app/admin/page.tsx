@@ -21,7 +21,7 @@ const ADMIN_AREAS = [
   { href: "/admin/anuncios", title: "Todos os anúncios", hint: "Veículos e imóveis, PF e PJ" },
   { href: "/admin/leads", title: "Todos os leads", hint: "Funil das lojas e imobiliárias" },
   { href: "/admin/financiamentos", title: "Financiamentos", hint: "Interessados e Credihome" },
-  { href: "/admin/recompensas", title: "Cashback", hint: "Pagar clientes que financiaram" },
+  { href: "/admin/comissoes", title: "Comissões", hint: "Comissão dos financiamentos fechados" },
   { href: "/admin/painel", title: "Painel geral", hint: "Big numbers do site" },
   { href: "/admin/assinaturas", title: "Assinaturas", hint: "Planos dos parceiros" },
   { href: "/admin/afiliados", title: "Afiliados", hint: "Programa de afiliados" },

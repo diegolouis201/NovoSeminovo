@@ -199,8 +199,8 @@ model User {
   createdAt    DateTime     @default(now()) @map("created_at")
 
   // Perfil completo (ver tela "Minha conta") — tudo opcional porque o
-  // cadastro inicial continua mínimo (nome/e-mail/senha); CPF em especial é
-  // o que falta pra poder pagar o rebate de PF via Pix (ver RebatesService).
+  // cadastro inicial continua mínimo (nome/e-mail/senha); o CPF garante uma
+  // conta por pessoa (exigido para anunciar como pessoa física).
   cpf       String?
   cpfHash   String?   @unique @map("cpf_hash")
   gender    Gender?
@@ -261,7 +261,7 @@ model User {
   vehicleEvents            VehicleEvent[]
   vehicleFollows           VehicleFollow[]
   financingDealsRegistered FinancingDeal[]       @relation("FinancingDealRegisteredBy")
-  cashbackDeals            FinancingDeal[]       @relation("FinancingDealBuyer")
+  financedDeals            FinancingDeal[]       @relation("FinancingDealBuyer")
   financingLeadsAsBuyer    FinancingLead[]       @relation("FinancingLeadBuyer")
   agentConversations       AgentConversation[]
 
@@ -909,8 +909,8 @@ model PushDevice {
 // bancário volta pra quem anunciou — PF ganha uma fatia fixa; corretor/
 // imobiliária e lojista evoluem de nível conforme o volume financiado
 // acumulado em negócios vindos da plataforma (ver PartnerRebateTier, editável
-// pelo admin sem precisar mexer em código). DESATIVADO em 26/10/2026: o
-// programa virou cashback para quem contrata (ver FinancingDeal). A tabela
+// pelo admin sem precisar mexer em código). DESATIVADO em 26/10/2026 (virou
+// um cashback a quem contratava, que também acabou em 06/11/2026). A tabela
 // fica só como histórico.
 model PartnerRebateTier {
   id            String      @id @default(cuid())
@@ -926,16 +926,17 @@ model PartnerRebateTier {
   @@map("partner_rebate_tiers")
 }
 
-// Financiamento fechado → cashback de quem contratou (CASHBACK_PERCENT da
-// comissão bruta, ver shared-types). Nasce quando o lead vai para
-// "Concluído"; só vira "a pagar" depois que a comissão é recebida
-// (commissionReceivedAt). Os campos rebate* guardam o cashback (nome antigo
-// do programa, que pagava o anunciante até 26/10/2026).
+// Financiamento fechado e a comissão que o banco/Credihome paga ao
+// NovoSeminovo (toda da empresa — ver FinancingDealsService). Nasce quando
+// o lead vai para "Concluído"; commissionReceivedAt marca quando o banco
+// pagou. Os campos rebate*, status "paid", paidAt e paidNote são histórico
+// dos programas antigos (repasse ao anunciante até 26/10/2026, cashback ao
+// cliente até 06/11/2026): negócios novos gravam 0 e não usam os demais.
 model FinancingDeal {
   id                   String              @id @default(cuid())
   listingId            String?             @map("listing_id")
   listing              Listing?            @relation(fields: [listingId], references: [id])
-  // Quem contratou o financiamento e recebe o cashback. buyerUserId liga à
+  // Quem contratou o financiamento. buyerUserId liga à
   // conta do site (pode ficar vazio até a pessoa se cadastrar com o mesmo
   // e-mail/telefone); nome/e-mail/telefone são o retrato do lead.
   buyerUserId          String?             @map("buyer_user_id")
@@ -944,8 +945,7 @@ model FinancingDeal {
   buyerEmail           String?             @map("buyer_email")
   buyerPhone           String?             @map("buyer_phone")
   buyerPhoneHash       String?             @map("buyer_phone_hash")
-  // Data em que o banco/Credihome pagou a comissão ao NovoSeminovo — só
-  // depois disso o cashback pode ser pago.
+  // Data em que o banco/Credihome pagou a comissão ao NovoSeminovo.
   commissionReceivedAt DateTime?           @map("commission_received_at")
   // Nome livre (não um enum fechado) porque o programa não é exclusivo da
   // Credihome — qualquer parceiro de financiamento futuro usa o mesmo fluxo.
@@ -1066,8 +1066,8 @@ model FinancingLead {
   statusChangedAt    DateTime?           @map("status_changed_at")
   // Negócio registrado automaticamente quando o lead é concluído (ver
   // AgentsService.updateFinancingLead) — é o que entra no fechamento mensal
-  // e no repasse ao anunciante (ver RebatesService).
-  // Conta de quem pediu (chat logado ou simulador logado) — recebe o cashback.
+  // e na receita (ver FinancingDealsService).
+  // Conta de quem pediu (chat logado ou simulador logado).
   buyerUserId        String?             @map("buyer_user_id")
   buyerUser          User?               @relation("FinancingLeadBuyer", fields: [buyerUserId], references: [id])
   financingDealId    String?             @unique @map("financing_deal_id")

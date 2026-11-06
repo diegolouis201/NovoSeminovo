@@ -48,10 +48,6 @@ const GROUPS: { title: string; items: Faq[] }[] = [
         q: "Como marco meu anúncio como vendido?",
         a: "Em Minha conta → Meus anúncios (ou no Estoque do painel do parceiro), use a opção de marcar como vendido. Anúncio vendido sai da busca.",
       },
-      {
-        q: "Como funciona o cashback no financiamento?",
-        a: "Quem contrata o financiamento do carro ou do imóvel pelo NovoSeminovo recebe de volta 20% da comissão bruta que o banco paga ao NovoSeminovo, por Pix no CPF. O valor recebido é o líquido (depois de descontos e tributos) e só é pago depois que o banco paga a comissão. Acompanhe em Minha conta → Meu cashback.",
-      },
     ],
   },
   {

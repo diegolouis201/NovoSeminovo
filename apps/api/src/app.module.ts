@@ -18,7 +18,7 @@ import { NotificationsModule } from "./notifications/notifications.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { WebhooksModule } from "./webhooks/webhooks.module";
 import { VehiclesModule } from "./vehicles/vehicles.module";
-import { RebatesModule } from "./rebates/rebates.module";
+import { FinancingDealsModule } from "./financing-deals/financing-deals.module";
 import { ProfileModule } from "./profile/profile.module";
 import { AgentsModule } from "./agents/agents.module";
 import { IntegrationsModule } from "./integrations/integrations.module";
@@ -50,7 +50,7 @@ import { HealthController } from "./common/health.controller";
     PaymentsModule,
     WebhooksModule,
     VehiclesModule,
-    RebatesModule,
+    FinancingDealsModule,
     ProfileModule,
     AgentsModule,
     IntegrationsModule,

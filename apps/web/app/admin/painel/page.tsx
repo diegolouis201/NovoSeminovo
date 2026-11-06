@@ -196,7 +196,7 @@ function Dashboard({ data, back }: { data: AdminOverview; back: string }) {
             trend={revenue.financing}
             lines={[
               `${int(revenue.financingDeals30d)} financiamentos fechados`,
-              `Comissão do banco menos o cashback dos clientes (${formatBRL(revenue.financingRebates30d)})`,
+              "Comissão do banco pelos financiamentos fechados",
               `${int(revenue.financingOpenLeads)} pedidos de financiamento em andamento`,
             ]}
           />

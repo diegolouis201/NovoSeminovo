@@ -23,9 +23,9 @@ const input: RevenueInput = {
   mrr: 538,
   assinantes: 2,
   deals: [
-    { createdAt: d("2026-11-03"), financedAmount: 80000, commissionAmount: 800, rebateAmount: 200, status: "registered", commissionReceivedAt: null },
-    { createdAt: d("2026-10-03"), financedAmount: 50000, commissionAmount: 500, rebateAmount: 125, status: "paid", commissionReceivedAt: d("2026-10-20") },
-    { createdAt: d("2025-01-03"), financedAmount: 10000, commissionAmount: 100, rebateAmount: 25, status: "paid", commissionReceivedAt: d("2025-02-01") },
+    { createdAt: d("2026-11-03"), financedAmount: 80000, commissionAmount: 800, commissionReceivedAt: null },
+    { createdAt: d("2026-10-03"), financedAmount: 50000, commissionAmount: 500, commissionReceivedAt: d("2026-10-20") },
+    { createdAt: d("2025-01-03"), financedAmount: 10000, commissionAmount: 100, commissionReceivedAt: d("2025-02-01") },
   ],
   leadsAbertos: 4,
   storeEarnings: [
@@ -67,22 +67,22 @@ describe("Receitas por categoria", () => {
 
   test("faturamento = só planos; lojas parceiras e financiamentos ficam ao lado, só para visualização", () => {
     const out = r.consolidado.porMes.find((m) => m.mes === "2026-10")!;
-    assert.deepEqual(out, { mes: "2026-10", planos: 449, lojas: 150, financiamentos: 375, total: 449 });
+    assert.deepEqual(out, { mes: "2026-10", planos: 449, lojas: 150, financiamentos: 500, total: 449 });
     assert.equal(r.consolidado.esteMes, 418.9);
     assert.equal(r.consolidado.total12m, 917.8);
-    assert.deepEqual(r.consolidado.acompanhamento12m, { lojas: 200, financiamentos: 975 });
+    assert.deepEqual(r.consolidado.acompanhamento12m, { lojas: 200, financiamentos: 1300 });
   });
 
-  test("financiamentos: comissão menos cashback, a receber e cashback a pagar", () => {
+  test("financiamentos: a comissão do banco fica toda com a empresa (sem cashback)", () => {
     const nov = r.financiamentos.porMes.find((m) => m.mes === "2026-11")!;
-    assert.deepEqual(nov, { mes: "2026-11", negocios: 1, comissao: 800, cashback: 200, liquido: 600 });
+    assert.deepEqual(nov, { mes: "2026-11", negocios: 1, comissao: 800 });
     assert.equal(r.financiamentos.negocios12m, 2);
     assert.equal(r.financiamentos.valorFinanciado12m, 130000);
-    assert.equal(r.financiamentos.liquido12m, 975);
+    assert.equal(r.financiamentos.comissao12m, 1300);
     assert.equal(r.financiamentos.comissaoRecebida, 600, "todos os negócios com comissão recebida");
     assert.equal(r.financiamentos.comissaoAReceber, 800);
-    assert.equal(r.financiamentos.cashbackAPagar, 200);
     assert.equal(r.financiamentos.leadsAbertos, 4);
+    assert.ok(!/cashback|liquido/i.test(JSON.stringify(r.financiamentos)), "nenhum campo de cashback");
   });
 
   test("lojas parceiras (links de afiliado): por mês e por loja", () => {

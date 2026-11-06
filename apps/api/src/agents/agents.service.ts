@@ -12,7 +12,6 @@ import {
 import Anthropic from "@anthropic-ai/sdk";
 import { Prisma, type AgentConversation } from "@novoseminovo/db";
 import {
-  CASHBACK_PERCENT,
   CREDIHOME_PHASE_LABELS,
   formatBRL,
   type AgentConversationView,
@@ -30,7 +29,7 @@ import { NotificationsService } from "../notifications/notifications.service";
 import { ListingsService } from "../listings/listings.service";
 import { PartnersService } from "../partners/partners.service";
 import { AdminService } from "../admin/admin.service";
-import { RebatesService, cashbackStage } from "../rebates/rebates.service";
+import { FinancingDealsService, commissionStage } from "../financing-deals/financing-deals.service";
 import { runAgentTurn, visibleMessages, type AgentDefinition } from "./agent-engine";
 import { buildBuyerAgent, type FinancingLeadInput } from "./buyer-agent";
 import { buildPartnerAgent } from "./partner-agent";
@@ -78,7 +77,7 @@ export class AgentsService {
     private readonly listings: ListingsService,
     private readonly partners: PartnersService,
     private readonly admin: AdminService,
-    private readonly rebates: RebatesService,
+    private readonly financingDeals: FinancingDealsService,
     private readonly contacts: ContactsService,
   ) {}
 
@@ -293,7 +292,7 @@ export class AgentsService {
           {
             prisma: this.prisma,
             admin: this.admin,
-            rebates: this.rebates,
+            financingDeals: this.financingDeals,
             listFinancingLeads: (status, assetType) => this.listFinancingLeads(status, assetType),
             updateFinancingLeadStatus: (id, status) => this.updateFinancingLeadStatus(conversation.userId!, id, status),
           },
@@ -381,7 +380,7 @@ export class AgentsService {
       where: { ...(status ? { status } : {}), ...(assetType ? { assetType } : {}) },
       include: {
         listing: { select: { title: true } },
-        financingDeal: { select: { status: true, paidAt: true, rebatePercent: true, rebateAmount: true, commissionAmount: true, commissionReceivedAt: true } },
+        financingDeal: { select: { commissionAmount: true, commissionReceivedAt: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 500,
@@ -406,22 +405,6 @@ export class AgentsService {
         : base !== undefined
           ? Math.round(base * commissionRate) / 100
           : undefined;
-
-      // Cashback de quem contratou: previsto até concluir; depois segue o negócio.
-      const cashbackAmount = deal
-        ? Number(deal.rebateAmount)
-        : commissionAmount !== undefined
-          ? Math.round(commissionAmount * CASHBACK_PERCENT) / 100
-          : undefined;
-      const cashback: FinancingLeadSummary["cashback"] = {
-        percent: deal ? Number(deal.rebatePercent) : CASHBACK_PERCENT,
-        amount: cashbackAmount,
-        amountLabel: cashbackAmount === undefined ? undefined : formatBRL(cashbackAmount),
-        stage: deal ? cashbackStage(deal) : "expected",
-        paidAt: deal?.paidAt?.toISOString(),
-      };
-      const netCommission =
-        commissionAmount === undefined ? undefined : Math.round((commissionAmount - (cashbackAmount ?? 0)) * 100) / 100;
 
       return {
         id: lead.id,
@@ -449,9 +432,8 @@ export class AgentsService {
         commissionIsEstimate: !deal && negotiatedValue === undefined,
         bank: lead.bank ?? undefined,
         adminNotes: lead.adminNotes ?? undefined,
-        cashback,
-        netCommission,
-        netCommissionLabel: netCommission === undefined ? undefined : formatBRL(netCommission),
+        commissionStage: deal ? commissionStage(deal) : undefined,
+        commissionReceivedAt: deal?.commissionReceivedAt?.toISOString(),
         statusChangedAt: lead.statusChangedAt?.toISOString(),
         credihome:
           lead.credihomeLeadId && lead.credihomeSentAt
@@ -471,7 +453,7 @@ export class AgentsService {
   async updateFinancingLead(adminId: string, id: string, input: UpdateFinancingLeadInput): Promise<void> {
     const lead = await this.prisma.financingLead.findUnique({
       where: { id },
-      include: { financingDeal: { select: { id: true, status: true } } },
+      include: { financingDeal: { select: { id: true, commissionReceivedAt: true } } },
     });
     if (!lead) throw new NotFoundException("Lead não encontrado");
     // Avaliação do imóvel (engenharia do banco) não existe no financiamento
@@ -490,24 +472,24 @@ export class AgentsService {
       (input.commissionRate !== undefined && input.commissionRate !== Number(lead.commissionRate)) ||
       (input.bank !== undefined && (input.bank || null) !== lead.bank);
 
-    if (lead.financingDeal?.status === "paid" && (nextStatus !== "converted" || valuesChanged)) {
+    if (lead.financingDeal?.commissionReceivedAt && (nextStatus !== "converted" || valuesChanged)) {
       throw new BadRequestException(
-        "O cashback deste financiamento já foi pago — valor, comissão e banco não podem mais mudar, nem a etapa.",
+        "A comissão deste financiamento já foi recebida — valor, comissão e banco não podem mais mudar, nem a etapa.",
       );
     }
 
-    // Concluído = financiamento fechado: registra o cashback de quem contratou
-    // (com ou sem anúncio) — entra no fechamento mensal e em "Meu cashback".
+    // Concluído = financiamento fechado: registra o negócio e a comissão da
+    // empresa (com ou sem anúncio) — entra no fechamento mensal e na receita.
     let financingDealId = lead.financingDealId;
     const needsDeal = nextStatus === "converted";
     if (needsDeal && !negotiatedValue) {
-      throw new BadRequestException("Preencha o valor negociado (financiado) antes de concluir — é a base da comissão e do cashback.");
+      throw new BadRequestException("Preencha o valor negociado (financiado) antes de concluir — é a base da comissão.");
     }
     if (lead.financingDeal && (!needsDeal || valuesChanged)) {
       // Desliga do card antes de apagar (a chave estrangeira não deixa apagar
-      // um negócio ainda ligado). Pago já foi barrado acima.
+      // um negócio ainda ligado). Comissão recebida já foi barrada acima.
       await this.prisma.financingLead.update({ where: { id }, data: { financingDealId: null } });
-      await this.rebates.deleteUnpaidDeal(lead.financingDeal.id);
+      await this.financingDeals.deleteOpenDeal(lead.financingDeal.id);
       financingDealId = null;
     }
 
@@ -524,7 +506,7 @@ export class AgentsService {
 
     if (needsDeal && !financingDealId && negotiatedValue) {
       const assetValue = Math.max(Number(lead.assetValue ?? 0), negotiatedValue);
-      const deal = await this.rebates.registerCashback(adminId, {
+      const deal = await this.financingDeals.registerDeal(adminId, {
         leadId: lead.id,
         listingId: lead.listingId ?? undefined,
         financingProvider: bank ?? "Banco não informado",

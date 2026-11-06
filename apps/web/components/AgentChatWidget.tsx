@@ -50,7 +50,7 @@ const ADMIN_AGENT: AgentConfig = {
   title: "Assistente do admin",
   subtitle: "Resumo, moderação, financiamentos · com IA",
   greeting:
-    "Oi! Sou seu assistente de gestão do NovoSeminovo. Posso resumir como está o site, mostrar o que precisa de aprovação, os interessados em financiamento e o cashback a pagar aos clientes. O que você quer ver?",
+    "Oi! Sou seu assistente de gestão do NovoSeminovo. Posso resumir como está o site, mostrar o que precisa de aprovação, os interessados em financiamento e as comissões a receber dos bancos. O que você quer ver?",
   suggestions: [
     "Como foi a última semana?",
     "O que precisa da minha aprovação?",

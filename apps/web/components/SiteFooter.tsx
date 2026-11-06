@@ -20,7 +20,6 @@ const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/anunciar", label: "Anunciar grátis" },
       { href: "/assistente-compra", label: "Assistente de compra" },
       { href: "/consultar-veiculo", label: "Passaporte Digital do veículo" },
-      { href: "/recompensas", label: "Cashback no financiamento" },
       { href: "/afiliados", label: "Programa de afiliados" },
     ],
   },

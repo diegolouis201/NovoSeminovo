@@ -42,9 +42,9 @@ export default async function Receitas() {
         <Secao titulo="Financiamentos (só visualização)">
           <dl className="grid grid-cols-2 gap-3 text-sm">
             <div><dt className="text-muted">Negócios em 12 meses</dt><dd className="font-semibold">{r.financiamentos.negocios12m}</dd></div>
-            <div><dt className="text-muted">Líquido em 12 meses</dt><dd className="font-semibold">{brl(r.financiamentos.liquido12m)}</dd></div>
+            <div><dt className="text-muted">Comissão em 12 meses</dt><dd className="font-semibold">{brl(r.financiamentos.comissao12m)}</dd></div>
             <div><dt className="text-muted">Comissão a receber</dt><dd className="font-semibold">{brl(r.financiamentos.comissaoAReceber)}</dd></div>
-            <div><dt className="text-muted">Cashback a pagar</dt><dd className="font-semibold">{brl(r.financiamentos.cashbackAPagar)}</dd></div>
+            <div><dt className="text-muted">Comissão recebida</dt><dd className="font-semibold">{brl(r.financiamentos.comissaoRecebida)}</dd></div>
           </dl>
         </Secao>
         <Secao titulo="Programa de afiliados (só visualização)">

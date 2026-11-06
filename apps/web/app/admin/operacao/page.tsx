@@ -434,7 +434,7 @@ const AGENT_JOB: Record<string, string> = {
   operacoes: "Acha anúncios com problema e manda dicas aos donos; pede sua aprovação para suspender casos suspeitos.",
   comercial: "Lembra lojas com clientes esperando resposta e lojas no período grátis que ainda não anunciaram.",
   atendimento: "Lembra vendedores (PF e lojas) de responder compradores que esperam há mais de 24h e avisa você sobre financiamentos sem contato e denúncias abertas.",
-  financeiro: "Relatório semanal: receita por linha, assinaturas em atraso, comissões e cashback a pagar e gasto com IA. Só lê; não paga nada.",
+  financeiro: "Relatório semanal: receita por linha, assinaturas em atraso, comissões a pagar e a receber e gasto com IA. Só lê; não paga nada.",
 };
 
 function AgentsPanel({ data }: { data: OpsSummary }) {

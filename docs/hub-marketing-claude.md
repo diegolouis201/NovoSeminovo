@@ -12,6 +12,12 @@ para pedir aprovação: o Diego aprova no Hub, e o Hub publica sozinho no
 Instagram e no Facebook na hora marcada. TikTok, YouTube, vídeos, e-mail e
 WhatsApp: depois de aprovado, quem publica marca o link no Hub.
 
+**Não existe mais cashback** (decisão do Diego, 06/11/2026). Nada de
+cashback, "dinheiro de volta" ou vantagem em dinheiro no financiamento em
+legenda, hashtag, arte, roteiro ou locução. O financiamento continua: pode
+dizer que dá para simular o financiamento no próprio anúncio, sempre com
+"O NovoSeminovo não é instituição financeira e não concede crédito".
+
 ## Como enviar (API do site, com a chave)
 Base: `https://api.novoseminovo.com.br`, cabeçalho
 `Authorization: Bearer <NSN_FEED_KEY>` e `Content-Type: application/json`.
@@ -45,7 +51,9 @@ Base: `https://api.novoseminovo.com.br`, cabeçalho
 4. **Nova versão depois do ajuste**: `POST /marketing/conteudos/<id>/revisao`
    com só o que mudou e `"resposta": "o que foi ajustado"`. Volta para a fila
    de aprovação como nova versão.
-5. **Resultados**: `GET /marketing/resultados` → gastos do mês (Meta, Google,
+5. **Recolher** um conteúdo que ainda não foi ao ar: `POST /marketing/conteudos/<id>/recolher`
+   com `{"acao": "ajuste" | "cancelar", "motivo": "..."}`.
+6. **Resultados**: `GET /marketing/resultados` → gastos do mês (Meta, Google,
    TikTok contra o orçamento, custo por cadastro e por assinatura) e análises
    (Instagram, origem das visitas, posts publicados). Use para o relatório e
    para sugerir o que repetir.

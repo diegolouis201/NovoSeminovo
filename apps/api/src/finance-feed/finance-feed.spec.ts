@@ -114,17 +114,15 @@ describe("Feed do CRM financeiro (banco local)", { skip: !withDb && "sem DATABAS
     assert.equal(financing?.origem, "banco");
   });
 
-  test("saídas: comissão de afiliado a pagar e cashback, sem chave Pix", async () => {
+  test("saídas: comissão de afiliado a pagar, sem chave Pix; cashback não existe mais (mesmo em negócio antigo com rebate)", async () => {
     const feed = await service.feed(new Date(Date.now() - 86_400_000));
     const commission = feed.saidas.find((s) => s.id === ids.commission);
     assert.equal(commission?.tipo, "comissao_afiliado");
     assert.equal(commission?.status, "a_pagar");
     assert.equal(commission?.valor, 39.98);
     assert.equal(commission?.favorecido, "Afiliada");
-    const cashback = feed.saidas.find((s) => s.id === ids.deal);
-    assert.equal(cashback?.tipo, "cashback_financiamento");
-    assert.equal(cashback?.status, "a_pagar");
-    assert.equal(cashback?.valor, 400);
+    assert.equal(feed.saidas.find((s) => s.id === ids.deal), undefined, "financiamento não gera saída de cashback");
+    assert.ok(!/cashback/i.test(JSON.stringify(feed)), "nenhuma linha fala em cashback");
     const text = JSON.stringify(feed);
     assert.ok(!text.includes("chave-pix-secreta"));
     assert.ok(!text.includes(cpf), "CPF não sai");

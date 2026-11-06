@@ -15,7 +15,6 @@ const STATIC_PAGES: { path: string; priority: number; changeFrequency: "daily" |
   { path: "/anunciar", priority: 0.6, changeFrequency: "monthly" },
   { path: "/assistente-compra", priority: 0.6, changeFrequency: "monthly" },
   { path: "/consultar-veiculo", priority: 0.5, changeFrequency: "monthly" },
-  { path: "/recompensas", priority: 0.5, changeFrequency: "monthly" },
   { path: "/como-funciona", priority: 0.6, changeFrequency: "monthly" },
   { path: "/para-lojas", priority: 0.7, changeFrequency: "monthly" },
   { path: "/quem-somos", priority: 0.4, changeFrequency: "monthly" },

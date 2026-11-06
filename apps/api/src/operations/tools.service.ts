@@ -385,7 +385,7 @@ export class OpsToolsService {
       name: "ler_financeiro",
       color: "green",
       description:
-        "Saúde financeira: receita dos últimos 30 dias contra os 30 anteriores e os últimos meses por linha (anúncios, financiamento, afiliados/lojas); assinaturas pagantes, em atraso e canceladas; lojas com período grátis vencendo; comissões de afiliados e cashback de financiamento a pagar aos clientes; gasto com IA. Traz também alertas calculados pelo sistema.",
+        "Saúde financeira: receita dos últimos 30 dias contra os 30 anteriores e os últimos meses por linha (anúncios, financiamento, afiliados/lojas); assinaturas pagantes, em atraso e canceladas; lojas com período grátis vencendo; comissões de afiliados a pagar e comissão de financiamento a receber do banco; gasto com IA. Traz também alertas calculados pelo sistema.",
       input: z.object({}),
       schema: { type: "object", properties: {} },
       run: async () => this.financeSnapshot(),
@@ -597,7 +597,7 @@ export class OpsToolsService {
       }),
       this.prisma.affiliateCommission.groupBy({ by: ["status"], where: { status: { in: ["pending", "available"] } }, _sum: { amount: true }, _count: { _all: true } }),
       this.prisma.affiliateCommission.aggregate({ where: { status: "paid", paidAt: { gte: since30 } }, _sum: { amount: true } }),
-      this.prisma.financingDeal.aggregate({ where: { status: "registered" }, _sum: { commissionAmount: true, rebateAmount: true }, _count: { _all: true } }),
+      this.prisma.financingDeal.aggregate({ where: { commissionReceivedAt: null }, _sum: { commissionAmount: true }, _count: { _all: true } }),
       this.prisma.agentRun.groupBy({ by: ["feature"], where: { createdAt: { gte: since30 } }, _sum: { costBrl: true }, _count: { _all: true } }),
     ]);
     const money = (value: unknown) => Math.round(Number(value ?? 0) * 100) / 100;
@@ -611,7 +611,7 @@ export class OpsToolsService {
     if (pastDueSubs.length) alertas.push(`${pastDueSubs.length} assinatura(s) com pagamento em atraso`);
     if (change !== undefined && change <= -30) alertas.push(`Receita dos últimos 30 dias caiu ${Math.abs(change)}% contra os 30 anteriores`);
     if (available && Number(available._sum.amount ?? 0) > 0) alertas.push(`Comissões de afiliados disponíveis para pagar: R$ ${money(available._sum.amount).toFixed(2)}`);
-    if (deals._count._all) alertas.push(`${deals._count._all} negócio(s) de financiamento registrados e ainda não pagos`);
+    if (deals._count._all) alertas.push(`${deals._count._all} financiamento(s) fechado(s) com a comissão do banco ainda a receber`);
     if (revenue.total.last30d > 0 && aiTotal > revenue.total.last30d * 0.5) alertas.push("Gasto com IA passou de metade da receita dos últimos 30 dias");
     if (trialPartners.length) alertas.push(`${trialPartners.length} loja(s)/imobiliária(s) com período grátis acabando nos próximos 7 dias`);
 
@@ -653,9 +653,8 @@ export class OpsToolsService {
         pagas30d: money(paid30d._sum.amount),
       },
       financiamento: {
-        negociosComCashbackNaoPago: deals._count._all,
-        comissaoAReceberOuRecebidaNaoRepassada: money(deals._sum.commissionAmount),
-        cashbackAPagarAosClientes: money(deals._sum.rebateAmount),
+        negociosComComissaoAReceber: deals._count._all,
+        comissaoAReceberDoBanco: money(deals._sum.commissionAmount),
         leadsEmAberto: revenue.financingOpenLeads,
       },
       custoIa30d: {

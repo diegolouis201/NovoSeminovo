@@ -18,6 +18,12 @@ type NotificationRow = {
 // Título, corpo e link de cada notificação são montados aqui a partir do
 // tipo + payload — o front só recebe texto pronto, nunca o payload cru.
 // Um tipo novo é só mais um `case` aqui, sem mexer em nenhuma tela.
+// Avisos de programas que acabaram: continuam no banco (histórico), mas não
+// aparecem mais na lista nem contam como não lidos. O cashback no
+// financiamento acabou em 06/11/2026.
+export const RETIRED_NOTIFICATION_TYPES = ["cashback_registered", "cashback_released", "cashback_paid"];
+const activeTypes = { notIn: RETIRED_NOTIFICATION_TYPES };
+
 function toNotification(row: NotificationRow): Notification {
   const payload = row.payload as Record<string, unknown>;
   const { title, body, link } = describe(row.type as NotificationType, payload);
@@ -156,24 +162,6 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: `"${payload.listingTitle}" acabou de ser aprovado e bate com uma busca salva sua.`,
         link: `/anuncio/${payload.listingId}`,
       };
-    case "cashback_registered":
-      return {
-        title: "Seu cashback do financiamento foi registrado",
-        body: `Parabéns pelo financiamento! Você tem ${payload.amountLabel} de cashback (valor bruto). Ele é pago depois que o banco paga a comissão ao NovoSeminovo — você recebe o valor líquido, por Pix no seu CPF.`,
-        link: "/conta/recompensas",
-      };
-    case "cashback_released":
-      return {
-        title: "Seu cashback foi liberado",
-        body: `O banco pagou a comissão do seu financiamento: seu cashback de ${payload.amountLabel} (valor bruto) vai ser pago por Pix no seu CPF. Confira se o CPF está certo em "Meus dados".`,
-        link: "/conta/recompensas",
-      };
-    case "cashback_paid":
-      return {
-        title: "Cashback pago",
-        body: `Pagamos o seu cashback do financiamento (${payload.amountLabel} bruto; o valor que caiu é o líquido, depois dos descontos e tributos).`,
-        link: "/conta/recompensas",
-      };
     case "financing_lead_created":
       return {
         title: "Novo interessado em financiamento",
@@ -216,6 +204,9 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: `${payload.ownerName ?? "Um cliente"} registrou "${payload.eventTitle}" no veículo ${payload.vehicleLabel} e pediu a sua confirmação.`,
         link: "/parceiro/servicos",
       };
+    default:
+      // Tipo desconhecido (ex.: aviso antigo): nunca quebra a lista.
+      return { title: "Aviso do NovoSeminovo", body: "" };
   }
 }
 
@@ -255,7 +246,7 @@ export class NotificationsService {
 
   async listMine(userId: string): Promise<Notification[]> {
     const notifications = await this.prisma.notification.findMany({
-      where: { userId },
+      where: { userId, type: activeTypes },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
@@ -263,7 +254,7 @@ export class NotificationsService {
   }
 
   async unreadCount(userId: string): Promise<number> {
-    return this.prisma.notification.count({ where: { userId, readAt: null } });
+    return this.prisma.notification.count({ where: { userId, readAt: null, type: activeTypes } });
   }
 
   async markRead(userId: string, id: string): Promise<void> {

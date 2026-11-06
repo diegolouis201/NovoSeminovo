@@ -63,8 +63,7 @@ import type {
   CrlvExtractResult,
   FeaturedPartner,
   FinancingDeal,
-  CashbackStage,
-  MyCashbackSummary,
+  FinancingCommissionStage,
   FinancingSimulationResult,
   LeadStatus,
   LeadSummary,
@@ -1680,18 +1679,8 @@ export async function verifyEmailCode(code: string, accessToken: string): Promis
   }
 }
 
-// Cashback no financiamento — ver RebatesService na API.
-export async function fetchMyCashback(accessToken: string): Promise<MyCashbackSummary | undefined> {
-  try {
-    const res = await fetchWithTimeout(`${API_URL}/me/cashback`, { headers: authHeaders(accessToken) });
-    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-    return (await res.json()) as MyCashbackSummary;
-  } catch {
-    return undefined;
-  }
-}
-
-export async function fetchFinancingDeals(stage: CashbackStage | undefined, accessToken: string): Promise<FinancingDeal[]> {
+// Financiamentos fechados e a comissão do banco — ver FinancingDealsService na API.
+export async function fetchFinancingDeals(stage: FinancingCommissionStage | undefined, accessToken: string): Promise<FinancingDeal[]> {
   try {
     const query = stage ? `?etapa=${stage}` : "";
     const res = await fetchWithTimeout(`${API_URL}/admin/financing-deals${query}`, { headers: authHeaders(accessToken) });
@@ -1704,10 +1693,6 @@ export async function fetchFinancingDeals(stage: CashbackStage | undefined, acce
 
 export async function markFinancingCommissionReceived(dealId: string, accessToken: string): Promise<ApiResult<FinancingDeal>> {
   return sendJson(`/admin/financing-deals/${dealId}/commission-received`, "PATCH", {}, accessToken);
-}
-
-export async function markFinancingDealPaid(dealId: string, note: string | undefined, accessToken: string): Promise<ApiResult<FinancingDeal>> {
-  return sendJson(`/admin/financing-deals/${dealId}/pay`, "PATCH", { note }, accessToken);
 }
 
 // ---------- Agentes de IA ----------

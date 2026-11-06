@@ -282,7 +282,7 @@ export class CrmService {
       this.prisma.subscriptionPayment.findMany({ where: { paidAt: { gte: since } }, select: { paidAt: true, amount: true, refundedAmount: true } }),
       this.prisma.listingBoostPurchase.findMany({ where: { status: "paid", paidAt: { gte: since } }, select: { paidAt: true, amount: true } }),
       this.prisma.subscription.findMany({ where: { status: { in: ["active", "past_due"] } }, select: { partnerId: true, plan: { select: { priceMonth: true } } } }),
-      this.prisma.financingDeal.findMany({ select: { createdAt: true, financedAmount: true, commissionAmount: true, rebateAmount: true, status: true, commissionReceivedAt: true } }),
+      this.prisma.financingDeal.findMany({ select: { createdAt: true, financedAmount: true, commissionAmount: true, commissionReceivedAt: true } }),
       this.prisma.financingLead.count({ where: { status: { notIn: ["converted", "lost"] } } }),
       this.prisma.storeEarning.findMany({ select: { month: true, store: true, amount: true } }),
       this.prisma.affiliateClick.count({ where: { createdAt: { gte: last30 } } }),

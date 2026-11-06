@@ -22,6 +22,15 @@ const nextConfig = {
       },
     ];
   },
+  // O cashback no financiamento acabou (06/11/2026): links antigos (Google,
+  // e-mails, avisos) caem numa página que existe.
+  async redirects() {
+    return [
+      { source: "/recompensas", destination: "/como-funciona", statusCode: 301 },
+      { source: "/conta/recompensas", destination: "/conta", statusCode: 301 },
+      { source: "/admin/recompensas", destination: "/admin/comissoes", statusCode: 301 },
+    ];
+  },
   // Links do site abrindo direto no app do celular (ver mobile/README.md).
   async rewrites() {
     return [

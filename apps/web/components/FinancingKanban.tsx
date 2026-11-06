@@ -250,34 +250,16 @@ function LeadCard({
             )}
           </dd>
         </div>
-        <div className="flex justify-between gap-2" title="20% da comissão bruta, para quem contratou o financiamento">
-          <dt className="min-w-0 truncate text-ink-muted">Cashback ({lead.cashback.percent.toLocaleString("pt-BR")}%)</dt>
-          <dd className="shrink-0 text-ink [font-variant-numeric:tabular-nums]">
-            {lead.cashback.amountLabel ? `− ${lead.cashback.amountLabel}` : "—"}
-          </dd>
-        </div>
-        {lead.netCommissionLabel && (
-          <div className="flex justify-between gap-2">
-            <dt className="text-ink-muted">Seu líquido</dt>
-            <dd className="font-semibold text-ink [font-variant-numeric:tabular-nums]">{lead.netCommissionLabel}</dd>
-          </div>
-        )}
-        {lead.cashback.stage !== "expected" && (
+        {lead.commissionStage && (
           <div className="flex justify-end">
             <span
               className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                lead.cashback.stage === "paid"
-                  ? "bg-brand-green text-on-green"
-                  : lead.cashback.stage === "to_pay"
-                    ? "bg-brand-orange text-on-orange"
-                    : "bg-surface-sober text-ink"
+                lead.commissionStage === "received" ? "bg-brand-green text-on-green" : "bg-surface-sober text-ink"
               }`}
             >
-              {lead.cashback.stage === "paid"
-                ? `Cashback pago${lead.cashback.paidAt ? ` em ${new Date(lead.cashback.paidAt).toLocaleDateString("pt-BR")}` : ""}`
-                : lead.cashback.stage === "to_pay"
-                  ? "Cashback a pagar"
-                  : "Cashback aguardando comissão"}
+              {lead.commissionStage === "received"
+                ? `Comissão recebida${lead.commissionReceivedAt ? ` em ${new Date(lead.commissionReceivedAt).toLocaleDateString("pt-BR")}` : ""}`
+                : "Aguardando comissão do banco"}
             </span>
           </div>
         )}

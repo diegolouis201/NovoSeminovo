@@ -8,5 +8,5 @@ writeJson("dados/receitas.json", receitas);
 const arquivo = `relatorios/receitas-${iso(today()).slice(0, 7)}.md`;
 writeText(arquivo, buildRevenueReport(receitas));
 console.log(`Faturamento do mês (em andamento): ${brl(receitas.consolidado.esteMes)} · 12 meses: ${brl(receitas.consolidado.total12m)} · MRR: ${brl(receitas.planos.mrr)}`);
-console.log(`Financiamentos (só acompanhamento): líquido 12 meses ${brl(receitas.financiamentos.liquido12m)}`);
+console.log(`Financiamentos (só acompanhamento): comissão 12 meses ${brl(receitas.financiamentos.comissao12m)}`);
 console.log(`Relatório: ${arquivo}`);
