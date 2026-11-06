@@ -105,7 +105,7 @@ export default async function Ficha({ params, searchParams }: { params: { id: st
                 <h2 className="h2 mb-3">Contato</h2>
                 <p className="font-semibold">{contato.nome ?? "—"}{contato.cargo ? ` · ${contato.cargo}` : ""}</p>
                 <p className="mb-4 text-sm text-muted">{[contato.telefone, contato.email].filter(Boolean).join(" · ") || "Sem telefone nem e-mail"}</p>
-                <Contato telefone={contato.telefone} email={contato.email} dados={dados} segmento={e?.segmento ?? p?.segmento} naoContatar={Boolean(marca?.naoContatar)} contaEmail={access.email} />
+                <Contato telefone={contato.telefone} email={contato.email} dados={dados} segmento={e?.segmento ?? p?.segmento} naoContatar={Boolean(marca?.naoContatar)} contaEmail={access.email} card={pode ? ficha.cardId : undefined} />
               </section>
               {pode && ficha.cardId ? (
                 <section className="card">

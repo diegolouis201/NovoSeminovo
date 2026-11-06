@@ -2,7 +2,7 @@
 // mensagens prontas. Rodar: node --test scripts/*.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CAMPOS_MENSAGEM, MENSAGENS_INICIAIS, convidarIcs, linkAgenda, linkEmail, linkLigar, linkWhatsApp, preencherMensagem, telefoneBr } from "./painel-acoes.mjs";
+import { CAMPOS_MENSAGEM, MENSAGENS_INICIAIS, convidarIcs, emailValido, linkAgenda, linkEmail, linkLigar, linkWhatsApp, preencherMensagem, telefoneBr } from "./painel-acoes.mjs";
 
 test("telefone: só dígitos, com 55 na frente quando tem DDD + número", () => {
   assert.equal(telefoneBr("(31) 98888-7777"), "5531988887777");
@@ -73,4 +73,15 @@ test("mensagens iniciais: sem preço, desconto ou %, e só com os campos conheci
   }
   assert.equal(MENSAGENS_INICIAIS.find((m) => m.nome === "Lojas: destaque dos carros").publico, "vehicle");
   assert.equal(MENSAGENS_INICIAIS.find((m) => m.nome === "Imóveis: captação").publico, "property");
+});
+
+test("e-mail digitado na ficha: limpa, aceita só endereço de verdade", () => {
+  assert.equal(emailValido("  Contato@Loja.com.BR "), "contato@loja.com.br");
+  assert.equal(emailValido("loja@x"), null);
+  assert.equal(emailValido("sem arroba"), null);
+  assert.equal(emailValido("a@b.com?bcc=x@y.com"), null, "não deixa enfiar cópia oculta no link");
+  assert.equal(emailValido("a b@c.com"), null);
+  assert.equal(emailValido(""), null);
+  assert.equal(emailValido(undefined), null);
+  assert.equal(emailValido("x".repeat(195) + "@a.com"), null, "até 200 caracteres");
 });

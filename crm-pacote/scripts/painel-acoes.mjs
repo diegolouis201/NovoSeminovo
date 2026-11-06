@@ -23,6 +23,14 @@ export function linkWhatsApp(onde, telefone, texto) {
   return "whatsapp-smb://send?phone=" + telefone + "&text=" + t;
 }
 
+// E-mail digitado à mão (empresa sem e-mail no cadastro): limpo e conferido,
+// para não virar link com cópia oculta ou endereço quebrado.
+export function emailValido(texto) {
+  const v = String(texto ?? "").trim().toLowerCase();
+  if (!v || v.length > 200) return null;
+  return /^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(v) ? v : null;
+}
+
 export function linkEmail(onde, conta, para, assunto, corpo) {
   const e = encodeURIComponent;
   if (onde === "mailto") return "mailto:" + e(para) + "?subject=" + e(assunto ?? "") + "&body=" + e(corpo ?? "");

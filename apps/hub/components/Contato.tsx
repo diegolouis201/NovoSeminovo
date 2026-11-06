@@ -1,16 +1,26 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
+import { salvarEmailContato } from "@/lib/actions";
 import { EnvelopeSimple, Phone, WhatsappLogo } from "@phosphor-icons/react";
 // Mesmos botões e mensagens prontas do painel do CRM (testados lá).
-import { MENSAGENS_INICIAIS, linkEmail, linkLigar, linkWhatsApp, preencherMensagem, telefoneBr } from "../../../crm-pacote/scripts/painel-acoes.mjs";
+import { MENSAGENS_INICIAIS, emailValido, linkEmail, linkLigar, linkWhatsApp, preencherMensagem, telefoneBr } from "../../../crm-pacote/scripts/painel-acoes.mjs";
 
 type Msg = { nome: string; publico: string; assunto?: string; texto: string };
 const NOMES: Record<string, string> = { responsavel: "nome do responsável", empresa: "nome da empresa", cidade: "cidade", seunome: "seu nome", fimgratis: "fim do período grátis", leadsparados: "clientes esperando", link: "link da página" };
 
 // Uma pessoa por vez: o link só abre o WhatsApp ou o e-mail com o texto
 // pronto; quem envia é você. Quem pediu para não ser contatado fica sem botão.
-export function Contato({ telefone, email, dados, segmento, naoContatar, contaEmail }: { telefone?: string; email?: string; dados: Record<string, string | number | undefined>; segmento?: string; naoContatar: boolean; contaEmail: string }) {
+function Salvar() {
+  const { pending } = useFormStatus();
+  return <button className="btn" disabled={pending}>{pending ? "Salvando..." : "Salvar no cadastro"}</button>;
+}
+
+export function Contato({ telefone, email, dados, segmento, naoContatar, contaEmail, card }: { telefone?: string; email?: string; dados: Record<string, string | number | undefined>; segmento?: string; naoContatar: boolean; contaEmail: string; card?: string }) {
+  const [digitado, setDigitado] = useState("");
+  const [salvo, salvar] = useFormState(salvarEmailContato, {});
+  const destino = email || (emailValido(digitado) as string | null);
   const msgs = (MENSAGENS_INICIAIS as Msg[]).filter((m) => m.publico === "todos" || m.publico === segmento);
   const [escolha, setEscolha] = useState(0);
   const msg = msgs[escolha];
@@ -33,14 +43,28 @@ export function Contato({ telefone, email, dados, segmento, naoContatar, contaEm
             <WhatsappLogo size={18} /> WhatsApp
           </a>
         ) : null}
-        {email ? (
-          <a className="btn" target="_blank" rel="noopener noreferrer" href={linkEmail("gmail", contaEmail, email, assunto, preenchida.texto) as string}>
+        {destino ? (
+          <a className="btn" target="_blank" rel="noopener noreferrer" href={linkEmail("gmail", contaEmail, destino, assunto, preenchida.texto) as string}>
             <EnvelopeSimple size={18} /> E-mail
           </a>
-        ) : null}
-        {!fone && !email ? <span className="text-sm text-muted">Sem telefone nem e-mail cadastrados.</span> : null}
+        ) : (
+          <span className="btn pointer-events-none opacity-50" aria-disabled="true">
+            <EnvelopeSimple size={18} /> E-mail
+          </span>
+        )}
       </div>
-      {fone || email ? (
+      {!email ? (
+        <form action={salvar} className="flex flex-wrap items-center gap-2">
+          <input type="hidden" name="card" value={card ?? ""} />
+          <label className="sr-only" htmlFor="email-contato">E-mail do contato</label>
+          <input id="email-contato" name="email" type="email" className="input min-w-0 flex-1" placeholder="Sem e-mail no cadastro: digite para enviar" maxLength={200} value={digitado} onChange={(e) => setDigitado(e.target.value)} />
+          {card && destino ? <Salvar /> : null}
+          {digitado && !destino ? <span className="w-full text-xs font-semibold text-orange">Confira o e-mail digitado.</span> : null}
+          {salvo.ok ? <span className="w-full text-xs font-semibold text-green">{salvo.ok}</span> : null}
+          {salvo.erro ? <span className="w-full text-xs font-semibold text-danger">{salvo.erro}</span> : null}
+        </form>
+      ) : null}
+      {fone || destino ? (
         <div>
           <label className="label" htmlFor="msg">Mensagem pronta</label>
           <select id="msg" className="input" value={escolha} onChange={(e) => setEscolha(Number(e.target.value))}>

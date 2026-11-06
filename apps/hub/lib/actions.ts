@@ -45,6 +45,13 @@ export async function registrarAtividade(_: Resultado, form: FormData): Promise<
   return run(() => hubFetch(`/sales/prospects/${card}/notes`, { method: "POST", body: { body: txt(form, "texto"), kind: txt(form, "tipo", 20) || "note" } }), "Atividade registrada.", ["/"]);
 }
 
+// E-mail digitado na ficha (empresa sem e-mail): grava no cadastro do card.
+export async function salvarEmailContato(_: Resultado, form: FormData): Promise<Resultado> {
+  const card = id(txt(form, "card", 40));
+  if (!card) return { erro: "Esta empresa ainda não tem card no Comercial." };
+  return run(() => hubFetch(`/sales/prospects/${card}/profile`, { method: "POST", body: { email: txt(form, "email", 200) } }), "E-mail salvo no cadastro.", ["/"]);
+}
+
 export async function novaTarefa(_: Resultado, form: FormData): Promise<Resultado> {
   const card = id(txt(form, "card", 40));
   const dueAt = quando(txt(form, "dia", 10), txt(form, "hora", 5));
