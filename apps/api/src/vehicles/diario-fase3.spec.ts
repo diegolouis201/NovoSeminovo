@@ -32,13 +32,29 @@ describe("Fatos do carro para o resumo (só dados estruturados)", () => {
     const texto = f.join("\n");
     assert.match(texto, /Toyota Corolla 2020/);
     assert.match(texto, /2 donos registrados/);
-    assert.match(texto, /1º dono: de 02\/2021 a 01\/2024/);
+    assert.match(texto, /1º dono: de fevereiro de 2021 a janeiro de 2024/);
+    assert.match(texto, /2º dono: desde janeiro de 2024 \(dono atual\)/);
     assert.match(texto, /2 revisões com comprovante/);
     assert.match(texto, /1 serviço confirmado por oficina parceira/);
     assert.match(texto, /1 momento registrado pelo dono/);
     assert.match(texto, /carta para o próximo dono/);
     assert.ok(!/IGNORE|zero|me liga|Chapada/.test(texto), "nada de texto livre do dono vai para a IA");
     assert.ok(!/\d km/.test(texto), "quilometragem não entra no resumo (não destacar km)");
+  });
+
+  test("período num mês só vira \"em outubro de 2026\", sem \"de 10/2026 a 10/2026\"", () => {
+    const perfil = {
+      ownersCount: 2,
+      events: [
+        ev({ type: "listing_published", occurredAt: "2026-10-18T10:00:00Z", source: "system" }),
+        ev({ type: "ownership_change", occurredAt: "2026-10-19T10:00:00Z", source: "system" }),
+      ],
+      anuncios: [],
+    };
+    const texto = fatosDoCarro(perfil, historiaDoCarro(perfil, new Date("2026-11-06T00:00:00Z"))).join("\n");
+    assert.match(texto, /1º dono: em outubro de 2026/);
+    assert.match(texto, /2º dono: desde outubro de 2026 \(dono atual\)/);
+    assert.ok(!/\d{2}\/\d{4}/.test(texto), "sem datas no formato 10/2026");
   });
 
   test("resumo da IA: limpa espaços, corta no tamanho e recusa contato ou link", () => {

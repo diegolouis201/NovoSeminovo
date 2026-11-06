@@ -42,6 +42,12 @@ const mesAno = (iso: string) => {
   const d = new Date(iso);
   return `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}`;
 };
+const MESES_EXTENSO = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+// "outubro de 2026" — para o resumo da IA ler natural (sem "10/2026").
+const mesExtenso = (iso: string) => {
+  const d = new Date(iso);
+  return `${MESES_EXTENSO[d.getUTCMonth()]} de ${d.getUTCFullYear()}`;
+};
 const meses = (de: string, ate: Date) => {
   const a = new Date(de);
   let m = (ate.getUTCFullYear() - a.getUTCFullYear()) * 12 + (ate.getUTCMonth() - a.getUTCMonth());
@@ -99,7 +105,7 @@ export function historiaDoCarro<E extends Evento>(perfil: Perfil & { events: E[]
   const mesesDono = inicioAtual ? meses(inicioAtual, agora) : 0;
   if (mesesDono >= 12) {
     const anos = Math.floor(mesesDono / 12);
-    selos.push({ id: "mesmo_dono", nome: `Mesmo dono há ${anos} ${anos === 1 ? "ano" : "anos"}`, descricao: `Sem troca de dono registrada desde ${mesAno(inicioAtual!)}` });
+    selos.push({ id: "mesmo_dono", nome: `Mesmo dono há ${anos} ${anos === 1 ? "ano" : "anos"}`, descricao: `Sem troca de dono registrada desde ${mesExtenso(inicioAtual!)}` });
   }
 
   const donos = `${perfil.ownersCount} ${perfil.ownersCount === 1 ? "dono" : "donos"}`;
@@ -117,7 +123,13 @@ export function fatosDoCarro(
   if (nome) fatos.push(`Carro: ${nome}`);
   fatos.push(`${perfil.ownersCount} ${perfil.ownersCount === 1 ? "dono registrado" : "donos registrados"} no NovoSeminovo`);
   for (const c of historia.capitulos) {
-    const periodo = c.inicio ? `de ${mesAno(c.inicio)} a ${c.fim ? mesAno(c.fim) : "hoje"}` : "sem data";
+    const periodo = !c.inicio
+      ? "sem data"
+      : !c.fim
+        ? `desde ${mesExtenso(c.inicio)}`
+        : mesExtenso(c.inicio) === mesExtenso(c.fim)
+          ? `em ${mesExtenso(c.inicio)}`
+          : `de ${mesExtenso(c.inicio)} a ${mesExtenso(c.fim)}`;
     fatos.push(`${c.numero}º dono: ${periodo}${c.cidade ? `, ${c.cidade}` : ""}${c.atual ? " (dono atual)" : ""}`);
   }
   const evs = perfil.events;
