@@ -25,6 +25,8 @@ export type CapituloDoCarro<E extends Evento = Evento> = {
   kmInicio?: number;
   kmFim?: number;
   eventos: E[];
+  // Carta do dono deste capítulo para o próximo dono (a mais recente).
+  carta?: E;
 };
 export type SeloDoCarro = { id: "revisoes_comprovadas" | "oficina_verificada" | "km_coerente" | "mesmo_dono"; nome: string; descricao: string };
 export type HistoriaDoCarro<E extends Evento = Evento> = {
@@ -70,7 +72,8 @@ export function historiaDoCarro<E extends Evento>(perfil: Perfil & { events: E[]
       cidade: anuncio ? `${anuncio.cidade}/${anuncio.uf}` : undefined,
       kmInicio: kms[0],
       kmFim: kms.length ? kms[kms.length - 1] : undefined,
-      eventos: evs,
+      eventos: evs.filter((e) => e.type !== "letter"),
+      carta: evs.filter((e) => e.type === "letter").pop(),
     };
   });
 

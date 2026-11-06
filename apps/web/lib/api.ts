@@ -352,6 +352,22 @@ export async function addVehicleEvent(
   }
 }
 
+// Carta para o próximo dono (Diário do Carro) — só o dono atual.
+export async function saveVehicleLetter(vehicleId: string, texto: string, accessToken: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/vehicles/${encodeURIComponent(vehicleId)}/carta`, {
+      method: "POST",
+      headers: { ...authHeaders(accessToken), "Content-Type": "application/json" },
+      body: JSON.stringify({ texto }),
+    });
+    const body = await res.json().catch(() => undefined);
+    if (!res.ok) return { ok: false, error: body?.message ?? `API respondeu ${res.status}` };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Não foi possível salvar a carta agora. Tente de novo em instantes." };
+  }
+}
+
 // Consulta pública por placa — "Passaporte consultável" sem precisar do link
 // direto do anúncio ou de "Meus veículos". Sem mock fallback: é uma busca ao
 // vivo, não tem dado de exemplo que faça sentido "encontrar".
@@ -1158,6 +1174,29 @@ export async function fetchFipePrice(brand: string, modelCode: number, yearModel
     const res = await fetchWithTimeout(`${API_URL}/listings/fipe-price?${params.toString()}`, undefined, 10000);
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return ((await res.json()) as FipePrice | null) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// Página "Ficha técnica": anos de uma versão FIPE e os dados dela no ano.
+export type FichaFipe = { marca: string; modelo: string; anoModelo: number; combustivel: string; codigoFipe: string; valor: number; mesReferencia: string };
+export async function fetchFipeYears(brand: string, modelCode: number): Promise<{ code: string; name: string }[]> {
+  try {
+    const params = new URLSearchParams({ brand, modelCode: String(modelCode) });
+    const res = await fetchWithTimeout(`${API_URL}/listings/fipe-years?${params.toString()}`, undefined, 10000);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as { code: string; name: string }[];
+  } catch {
+    return [];
+  }
+}
+export async function fetchFipeFicha(brand: string, modelCode: number, yearCode: string): Promise<FichaFipe | undefined> {
+  try {
+    const params = new URLSearchParams({ brand, modelCode: String(modelCode), yearCode });
+    const res = await fetchWithTimeout(`${API_URL}/listings/fipe-ficha?${params.toString()}`, undefined, 10000);
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return ((await res.json()) as FichaFipe | null) ?? undefined;
   } catch {
     return undefined;
   }

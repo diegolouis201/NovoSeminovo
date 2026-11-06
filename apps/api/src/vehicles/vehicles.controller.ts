@@ -1,7 +1,7 @@
 import { BadRequestException, Body, Controller, Get, Param, Post, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
-import { CreateVehicleEventInputSchema, RegisterVehicleInputSchema } from "@novoseminovo/shared-types";
+import { CreateVehicleEventInputSchema, RegisterVehicleInputSchema, VehicleLetterInputSchema } from "@novoseminovo/shared-types";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
@@ -95,7 +95,7 @@ export class VehiclesController {
   ) {
     if (!files?.length) {
       throw new BadRequestException(
-        "Envie uma foto do comprovante (nota fiscal, ordem de serviço, etc.) pra registrar o evento.",
+        body?.type === "moment" ? "Envie uma foto do momento." : "Envie uma foto do comprovante (nota fiscal, ordem de serviço, etc.) pra registrar o evento.",
       );
     }
     const input = parseOrBadRequest(CreateVehicleEventInputSchema, {
@@ -104,5 +104,13 @@ export class VehiclesController {
       workshopPartnerId: body.workshopPartnerId || undefined,
     });
     return this.vehiclesService.addEvent(id, user.id, input, files);
+  }
+
+  // Carta para o próximo dono (Diário do Carro): só o dono atual, texto puro.
+  @UseGuards(JwtAuthGuard)
+  @Post(":id/carta")
+  async saveLetter(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
+    await this.vehiclesService.saveLetter(id, user.id, parseOrBadRequest(VehicleLetterInputSchema, body));
+    return { ok: true };
   }
 }

@@ -548,6 +548,8 @@ export const VehicleEventType = z.enum([
   "inspection",
   "listing_published",
   "other",
+  "moment",
+  "letter",
 ]);
 export type VehicleEventType = z.infer<typeof VehicleEventType>;
 
@@ -600,7 +602,7 @@ export type VehicleProfile = z.infer<typeof VehicleProfileSchema>;
 // (foto) é obrigatório e validado à parte, não dá pra expressar "pelo menos
 // um arquivo" neste schema de metadados.
 export const CreateVehicleEventInputSchema = z.object({
-  type: z.enum(["revision", "repair", "inspection", "other"]),
+  type: z.enum(["revision", "repair", "inspection", "other", "moment"]),
   title: z.string().min(3, "Dê um título pro evento").max(120),
   description: z.string().max(2_000).optional(),
   mileageAtEvent: z.number().int().min(0).optional(),
@@ -610,6 +612,12 @@ export const CreateVehicleEventInputSchema = z.object({
   // pendente até a própria oficina validar (ver VehiclesService.confirmService).
   workshopPartnerId: z.string().optional(),
 });
+// Carta do dono para o próximo dono (Diário do Carro) — uma por dono.
+export const VehicleLetterInputSchema = z.object({
+  texto: z.string().trim().min(10, "Escreva pelo menos uma frase").max(1500, "A carta pode ter até 1.500 caracteres"),
+});
+export type VehicleLetterInput = z.infer<typeof VehicleLetterInputSchema>;
+
 export type CreateVehicleEventInput = z.infer<typeof CreateVehicleEventInputSchema>;
 
 export const WorkshopOptionSchema = z.object({

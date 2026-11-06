@@ -169,6 +169,8 @@ enum VehicleEventType {
   inspection
   listing_published
   other
+  moment // Diário do Carro: momento do dono (viagem, conquista), com foto
+  letter // Diário do Carro: carta do dono para o próximo dono (texto)
 }
 
 enum VehicleEventSource {

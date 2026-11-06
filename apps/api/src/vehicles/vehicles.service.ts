@@ -5,15 +5,25 @@ import type {
   PendingServiceConfirmation,
   RegisterVehicleInput,
   VehicleEvent,
+  VehicleLetterInput,
   VehicleProfile,
   WorkshopOption,
 } from "@novoseminovo/shared-types";
+import { VehicleLetterInputSchema } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { getPhotoStorage } from "../common/storage";
 import { hashPlate, maskPlate } from "./plate.util";
 import { toVehicleEvent, toVehicleProfile, vehicleInclude } from "./vehicles.mapper";
 import { sanitizeUpload } from "../common/image-safety";
+import { findContactInfo } from "../common/contact-filter";
+
+// O Diário do Carro é público: nada de telefone, e-mail, link ou @ no texto
+// (o contato acontece pelo chat do anúncio, que protege contra golpe).
+function semContato(texto: string | undefined, onde: string) {
+  const kind = texto ? findContactInfo(texto) : undefined;
+  if (kind) throw new BadRequestException(`Não dá para colocar ${kind} ${onde} — o Diário do Carro é público. Remova e tente de novo.`);
+}
 
 export type ResolveVehicleForListingInput = {
   plate: string;
@@ -221,6 +231,9 @@ export class VehiclesService {
       throw new ForbiddenException("Só o dono atual pode adicionar um evento ao histórico deste veículo.");
     }
 
+    semContato(input.title, "no título");
+    semContato(input.description, "na descrição");
+
     let workshop: { id: string; legalName: string; ownerUserId: string } | null = null;
     if (input.workshopPartnerId) {
       workshop = await this.prisma.partner.findFirst({
@@ -263,6 +276,28 @@ export class VehiclesService {
     }
 
     return toVehicleEvent(event);
+  }
+
+  // Carta para o próximo dono: uma por dono (por capítulo). Escrever de
+  // novo substitui a carta deste dono; a do dono anterior fica.
+  async saveLetter(vehicleId: string, userId: string, raw: VehicleLetterInput): Promise<void> {
+    const input = VehicleLetterInputSchema.parse(raw);
+    const vehicle = await this.prisma.vehicle.findUnique({ where: { id: vehicleId } });
+    if (!vehicle) throw new NotFoundException(`Veículo ${vehicleId} não encontrado`);
+    if (vehicle.currentOwnerId !== userId) throw new ForbiddenException("Só o dono atual pode escrever a carta deste carro.");
+    semContato(input.texto, "na carta");
+    const troca = await this.prisma.vehicleEvent.findFirst({ where: { vehicleId, type: "ownership_change" }, orderBy: { occurredAt: "desc" }, select: { occurredAt: true } });
+    const atual = await this.prisma.vehicleEvent.findFirst({
+      where: { vehicleId, type: "letter", createdByUserId: userId, ...(troca ? { occurredAt: { gte: troca.occurredAt } } : {}) },
+      select: { id: true },
+    });
+    if (atual) {
+      await this.prisma.vehicleEvent.update({ where: { id: atual.id }, data: { description: input.texto, occurredAt: new Date() } });
+    } else {
+      await this.prisma.vehicleEvent.create({
+        data: { vehicleId, type: "letter", source: "owner_reported", title: "Carta para o próximo dono", description: input.texto, occurredAt: new Date(), createdByUserId: userId },
+      });
+    }
   }
 
   // Fila de confirmação da oficina logada — precisa achar o Partner dela

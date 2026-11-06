@@ -1,4 +1,5 @@
-import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
+import Link from "next/link";
+import { ListMagnifyingGlass, MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { fetchVehicleByPlate } from "@/lib/api";
 import { VehiclePassportView } from "@/components/VehiclePassport";
@@ -35,6 +36,10 @@ export default async function ConsultarVeiculoPage({
           Consultar
         </button>
       </form>
+      <Link href={placa ? `/ficha-tecnica?placa=${encodeURIComponent(placa)}` : "/ficha-tecnica"} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue hover:underline">
+        <ListMagnifyingGlass size={16} weight="bold" />
+        Quer conhecer a ficha técnica? Busque pela placa ou pelo modelo
+      </Link>
 
       {placa && !vehicle && (
         <p className="mt-6 rounded-brand border border-dashed border-border p-6 text-center text-sm text-ink-muted">

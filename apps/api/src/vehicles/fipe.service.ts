@@ -8,6 +8,7 @@ type FipeModel = { codigo: number; nome: string };
 type FipeModelsResponse = { modelos: FipeModel[] };
 type FipeYear = { codigo: string; nome: string };
 type FipePriceResponse = { Valor: string; CodigoFipe: string };
+export type FichaFipe = { marca: string; modelo: string; anoModelo: number; combustivel: string; codigoFipe: string; valor: number; mesReferencia: string };
 
 // Cache em memória (a API roda numa instância só): a tabela FIPE muda uma vez
 // por mês e a API pública (parallelum) tem limite diário de consultas — sem
@@ -175,6 +176,36 @@ export class FipeService {
       this.logger.warn(`Versões FIPE falharam pra ${brandName} ${modelName}: ${error}`);
       return [];
     }
+  }
+
+  // Ficha técnica (com o que temos): anos de uma versão e os dados da FIPE
+  // da versão no ano. Códigos passam por formato fixo antes de virar URL.
+  async listYears(brandName: string, modelCode: number): Promise<{ code: string; name: string }[]> {
+    if (!Number.isInteger(modelCode) || modelCode <= 0) return [];
+    const brand = await this.findBrand(brandName);
+    if (!brand) return [];
+    const years = await fetchJson<FipeYear[]>(`${FIPE_BASE_URL}/marcas/${brand.codigo}/modelos/${modelCode}/anos`);
+    return (years ?? []).map((y) => ({ code: y.codigo, name: y.nome }));
+  }
+
+  async ficha(brandName: string, modelCode: number, yearCode: string): Promise<FichaFipe | undefined> {
+    if (!Number.isInteger(modelCode) || modelCode <= 0 || !/^\d{4}-\d$/.test(yearCode)) return undefined;
+    const brand = await this.findBrand(brandName);
+    if (!brand) return undefined;
+    const r = await fetchJson<FipePriceResponse & { Marca?: string; Modelo?: string; AnoModelo?: number; Combustivel?: string; MesReferencia?: string }>(
+      `${FIPE_BASE_URL}/marcas/${brand.codigo}/modelos/${modelCode}/anos/${yearCode}`,
+    );
+    const valor = r ? parseFipeValue(r.Valor) : undefined;
+    if (!r || !valor) return undefined;
+    return {
+      marca: String(r.Marca ?? brand.nome),
+      modelo: String(r.Modelo ?? ""),
+      anoModelo: Number(r.AnoModelo),
+      combustivel: String(r.Combustivel ?? ""),
+      codigoFipe: r.CodigoFipe,
+      valor,
+      mesReferencia: String(r.MesReferencia ?? "").trim(),
+    };
   }
 
   // Preço de uma versão escolhida (código do modelo na FIPE) no ano-modelo.

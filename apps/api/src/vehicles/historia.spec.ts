@@ -91,3 +91,22 @@ describe("anunciosDoCarro (capa e cidades do Passaporte)", () => {
     ]);
   });
 });
+
+describe("Diário do Carro fase 2: carta do dono", () => {
+  test("carta do dono fica no capítulo dele, fora da lista de eventos; momento não vira selo", () => {
+    const h = historiaDoCarro(
+      perfil([
+        ev({ type: "ownership_change", occurredAt: "2026-01-10T10:00:00Z", source: "system" }),
+        ev({ type: "letter", occurredAt: "2025-12-20T10:00:00Z", title: "Carta para o próximo dono", description: "Cuide bem dele.", photos: [] }),
+        ev({ type: "moment", occurredAt: "2025-06-01T10:00:00Z", title: "Viagem para a Chapada", mileageAtEvent: 20000 }),
+        ev({ type: "listing_published", occurredAt: "2024-01-01T10:00:00Z", source: "system", mileageAtEvent: 0 }),
+      ]),
+      agora,
+    );
+    assert.equal(h.capitulos[0].carta?.description, "Cuide bem dele.");
+    assert.ok(!h.capitulos[0].eventos.some((e) => e.type === "letter"));
+    assert.equal(h.capitulos[0].eventos.length, 2);
+    assert.equal(h.capitulos[1].carta, undefined);
+    assert.ok(!h.selos.some((s) => s.id === "revisoes_comprovadas"), "momento não é revisão");
+  });
+});

@@ -38,6 +38,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AdminGuard } from "../admin/admin.guard";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
+import { z } from "zod";
 import { parseOrBadRequest } from "../common/parse";
 import { StartBoostInputSchema } from "@novoseminovo/shared-types";
 import { AiService } from "./ai.service";
@@ -186,6 +187,22 @@ export class ListingsController {
     const year = Number(query.yearModel);
     if (!query.brand || !Number.isInteger(code) || !Number.isInteger(year)) return null;
     return (await this.fipe.priceForVersion(query.brand, code, year)) ?? null;
+  }
+
+  // Página "Ficha técnica": anos de uma versão e os dados da FIPE dela.
+  @Get("fipe-years")
+  fipeYears(@Query() query: unknown) {
+    const q = parseOrBadRequest(z.object({ brand: z.string().trim().min(1).max(60), modelCode: z.coerce.number().int().positive() }), query);
+    return this.fipe.listYears(q.brand, q.modelCode);
+  }
+
+  @Get("fipe-ficha")
+  async fipeFicha(@Query() query: unknown) {
+    const q = parseOrBadRequest(
+      z.object({ brand: z.string().trim().min(1).max(60), modelCode: z.coerce.number().int().positive(), yearCode: z.string().regex(/^\d{4}-\d$/) }),
+      query,
+    );
+    return (await this.fipe.ficha(q.brand, q.modelCode, q.yearCode)) ?? null;
   }
 
   // Filtro "Marca" e "Modelo" da busca de carros: FIPE + o que já tem
