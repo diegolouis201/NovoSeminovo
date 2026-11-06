@@ -9,6 +9,15 @@ const vehicleWithDetails = Prisma.validator<Prisma.VehicleDefaultArgs>()({
       orderBy: { occurredAt: "desc" },
       include: { verifiedByPartner: { select: { legalName: true } } },
     },
+    // Só anúncios que já foram ao ar: cidade/UF e a foto de capa.
+    listings: {
+      where: { listing: { status: { in: ["active", "paused", "sold", "expired"] } } },
+      select: {
+        listing: {
+          select: { city: true, state: true, createdAt: true, publishedAt: true, photos: { orderBy: [{ isCover: "desc" }, { position: "asc" }], take: 1, select: { url: true } } },
+        },
+      },
+    },
   },
 });
 
@@ -43,5 +52,16 @@ export function toVehicleProfile(vehicle: VehicleWithDetails, viewerId: string |
     ownersCount,
     isOwner: Boolean(viewerId) && viewerId === vehicle.currentOwnerId,
     events: vehicle.events.map(toVehicleEvent),
+    ...anunciosDoCarro(vehicle.listings),
   };
+}
+
+// Foto de capa = do anúncio mais recente; cidade/UF de cada anúncio para
+// localizar os capítulos do Diário do Carro.
+export function anunciosDoCarro(listings: VehicleWithDetails["listings"]): Pick<VehicleProfile, "capaUrl" | "anuncios"> {
+  const anuncios = listings
+    .map(({ listing }) => ({ publicadoEm: (listing.publishedAt ?? listing.createdAt).toISOString(), cidade: listing.city, uf: listing.state, foto: listing.photos[0]?.url }))
+    .sort((a, b) => a.publicadoEm.localeCompare(b.publicadoEm));
+  const capaUrl = [...anuncios].reverse().find((a) => a.foto)?.foto;
+  return { capaUrl, anuncios: anuncios.map(({ foto: _foto, ...a }) => a) };
 }

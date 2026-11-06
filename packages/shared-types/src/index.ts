@@ -587,6 +587,10 @@ export const VehicleProfileSchema = z.object({
   // mostra o formulário de "adicionar evento".
   isOwner: z.boolean(),
   events: z.array(VehicleEventSchema),
+  // Foto de capa (do anúncio mais recente) e onde cada anúncio foi publicado
+  // — cidade/UF já são públicas no anúncio; nunca o endereço nem o dono.
+  capaUrl: z.string().optional(),
+  anuncios: z.array(z.object({ publicadoEm: z.string(), cidade: z.string(), uf: z.string() })).default([]),
 });
 export type VehicleProfile = z.infer<typeof VehicleProfileSchema>;
 
@@ -3178,3 +3182,5 @@ export const MktMediaInputSchema = z.object({ nome: z.string().trim().min(1).max
 export const MktApproveInputSchema = z.object({ publicarEm: z.string().datetime({ offset: true }).optional() });
 export const MktPublishedInputSchema = z.object({ rede: z.string().trim().min(1).max(20), link: z.string().trim().url().max(500).refine((u) => /^https:\/\//.test(u), "O link precisa começar com https://") });
 export const MktBudgetInputSchema = z.object({ mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), plataforma: z.enum(["meta_ads", "google_ads", "tiktok_ads"]), valor: z.number().min(0).max(10_000_000) });
+
+export * from "./historia";

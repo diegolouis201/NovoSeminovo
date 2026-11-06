@@ -162,6 +162,7 @@ const VEHICLE_PROFILES: VehicleProfile[] = [
     plateMasked: "ABC**34",
     ownersCount: 1,
     isOwner: false,
+    anuncios: [],
     events: [
       {
         id: "mock-event-3",
