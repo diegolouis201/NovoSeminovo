@@ -23,7 +23,7 @@ const base: CnpjLookup = {
   detectedLabel: "Imobiliária",
 };
 
-function service(lookup: () => Promise<CnpjLookup>, prisma: PrismaService) {
+function service(lookup: (cnpj: string) => Promise<CnpjLookup>, prisma: PrismaService) {
   const cnpj = { lookup } as unknown as CnpjService;
   return new PartnersService(prisma, {} as PaymentsService, {} as AiService, {} as NotificationsService, cnpj, {} as ContactsService);
 }
@@ -71,12 +71,14 @@ describe("Cadastro de empresa: selo de verificada automático", { skip: !withDb 
     const tag = `cidade-${Date.now()}`;
     const owner = await prisma.user.create({ data: { name: "Dono", email: `${tag}@teste.local` } });
     const partner = await prisma.partner.create({
-      data: { ownerUserId: owner.id, type: "dealership", legalName: `Loja ${tag}`, document: "11222333000181", slug: tag },
+      data: { ownerUserId: owner.id, type: "dealership", legalName: `Loja ${tag}`, document: "45723174000110", slug: tag },
     });
     try {
+      // Conta só a consulta desta empresa: outros arquivos de teste rodam ao
+      // mesmo tempo e podem criar empresas sem cidade.
       let calls = 0;
-      const lookup = async () => {
-        calls++;
+      const lookup = async (cnpj: string) => {
+        if (cnpj === "45723174000110") calls++;
         return { ...base, city: "Contagem", state: "MG" };
       };
       await service(lookup, prisma).fillMissingCities();
