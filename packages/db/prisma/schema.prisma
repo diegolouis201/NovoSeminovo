@@ -259,6 +259,7 @@ model User {
   listingContacts          ListingContact[]      @relation("ListingContactBuyer")
   vehiclesOwned            Vehicle[]             @relation("VehicleCurrentOwner")
   vehicleEvents            VehicleEvent[]
+  vehicleFollows           VehicleFollow[]
   financingDealsRegistered FinancingDeal[]       @relation("FinancingDealRegisteredBy")
   cashbackDeals            FinancingDeal[]       @relation("FinancingDealBuyer")
   financingLeadsAsBuyer    FinancingLead[]       @relation("FinancingLeadBuyer")
@@ -568,6 +569,12 @@ model Vehicle {
 
   listings VehicleDetails[]
   events   VehicleEvent[]
+  follows  VehicleFollow[]
+
+  // "A história em 30 segundos" (IA, só com fatos) e a chave dos fatos que a
+  // geraram — história mudou, chave muda e o resumo antigo não aparece.
+  resumoIa      String? @map("resumo_ia")
+  resumoIaChave String? @map("resumo_ia_chave")
 
   @@map("vehicles")
 }
@@ -578,6 +585,21 @@ model Vehicle {
 // virarem algo que o dono forja sobre si mesmo. revision/repair/inspection/
 // other são autoanunciados (source=owner_reported) até existir parceiro
 // verificado (oficina, despachante) alimentando isso de verdade.
+// Quem segue o carro recebe aviso quando ele volta a ser anunciado ou
+// baixa de preço (Diário do Carro).
+model VehicleFollow {
+  id        String   @id @default(cuid())
+  vehicleId String   @map("vehicle_id")
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([vehicleId, userId])
+  @@index([userId])
+  @@map("vehicle_follows")
+}
+
 model VehicleEvent {
   id                  String             @id @default(cuid())
   vehicleId           String             @map("vehicle_id")

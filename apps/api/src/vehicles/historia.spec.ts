@@ -7,7 +7,7 @@ import { historiaDoCarro, type VehicleProfile } from "@novoseminovo/shared-types
 
 type Ev = VehicleProfile["events"][number];
 const ev = (p: Partial<Ev> & Pick<Ev, "type" | "occurredAt">): Ev => ({ id: Math.random().toString(36).slice(2), source: "owner_reported", title: p.type, photos: ["/uploads/x.jpg"], ...p });
-const perfil = (events: Ev[], anuncios: VehicleProfile["anuncios"] = []): VehicleProfile => ({ id: "v1", brand: "VW", model: "T-Cross", yearModel: 2024, color: "Cinza", plateMasked: "SYU**91", ownersCount: 1 + events.filter((e) => e.type === "ownership_change").length, isOwner: false, events, anuncios });
+const perfil = (events: Ev[], anuncios: VehicleProfile["anuncios"] = []): VehicleProfile => ({ id: "v1", brand: "VW", model: "T-Cross", yearModel: 2024, color: "Cinza", plateMasked: "SYU**91", ownersCount: 1 + events.filter((e) => e.type === "ownership_change").length, isOwner: false, events, anuncios, seguidores: 0, seguindo: false });
 const agora = new Date("2026-11-06T12:00:00Z");
 
 describe("historiaDoCarro", () => {

@@ -53,6 +53,8 @@ export function toVehicleProfile(vehicle: VehicleWithDetails, viewerId: string |
     isOwner: Boolean(viewerId) && viewerId === vehicle.currentOwnerId,
     events: vehicle.events.map(toVehicleEvent),
     ...anunciosDoCarro(vehicle.listings),
+    seguidores: 0,
+    seguindo: false,
   };
 }
 

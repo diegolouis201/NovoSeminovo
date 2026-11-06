@@ -4,11 +4,12 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { FipeService } from "./fipe.service";
 import { VehiclesController } from "./vehicles.controller";
 import { VehiclesService } from "./vehicles.service";
+import { VehicleStoryAi } from "./historia-ia";
 
 @Module({
   imports: [AuthModule, NotificationsModule],
   controllers: [VehiclesController],
-  providers: [VehiclesService, FipeService],
+  providers: [VehiclesService, FipeService, VehicleStoryAi],
   exports: [VehiclesService, FipeService],
 })
 export class VehiclesModule {}

@@ -105,3 +105,40 @@ export function historiaDoCarro<E extends Evento>(perfil: Perfil & { events: E[]
   const donos = `${perfil.ownersCount} ${perfil.ownersCount === 1 ? "dono" : "donos"}`;
   return { capitulos, selos, alertas, kmAtual, subtitulo: kmAtual !== undefined ? `${donos} · ${formatarKm(kmAtual)}` : donos };
 }
+
+// Fatos do carro para o resumo da IA: só dados estruturados (contagens,
+// datas, selos). Nada do texto livre do dono vai para a IA.
+export function fatosDoCarro(
+  perfil: Perfil & { brand?: string; model?: string; yearModel?: number },
+  historia: HistoriaDoCarro,
+): string[] {
+  const fatos: string[] = [];
+  const nome = [perfil.brand, perfil.model, perfil.yearModel].filter(Boolean).join(" ");
+  if (nome) fatos.push(`Carro: ${nome}`);
+  fatos.push(`${perfil.ownersCount} ${perfil.ownersCount === 1 ? "dono registrado" : "donos registrados"} no NovoSeminovo`);
+  for (const c of historia.capitulos) {
+    const periodo = c.inicio ? `de ${mesAno(c.inicio)} a ${c.fim ? mesAno(c.fim) : "hoje"}` : "sem data";
+    fatos.push(`${c.numero}º dono: ${periodo}${c.cidade ? `, ${c.cidade}` : ""}${c.atual ? " (dono atual)" : ""}`);
+  }
+  const evs = perfil.events;
+  const conta = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+  const revisoes = evs.filter((e) => e.type === "revision" && e.photos.length > 0).length;
+  if (revisoes) fatos.push(conta(revisoes, "revisão com comprovante", "revisões com comprovante"));
+  const reparos = evs.filter((e) => e.type === "repair").length;
+  if (reparos) fatos.push(conta(reparos, "reparo registrado", "reparos registrados"));
+  const oficina = evs.filter((e) => e.source === "partner_verified").length;
+  if (oficina) fatos.push(conta(oficina, "serviço confirmado por oficina parceira", "serviços confirmados por oficina parceira"));
+  const vistorias = evs.filter((e) => e.type === "inspection").length;
+  if (vistorias) fatos.push(conta(vistorias, "vistoria registrada", "vistorias registradas"));
+  const sinistros = evs.filter((e) => e.type === "accident").length;
+  if (sinistros) fatos.push(conta(sinistros, "batida registrada", "batidas registradas"));
+  const momentos = evs.filter((e) => e.type === "moment").length;
+  if (momentos) fatos.push(conta(momentos, "momento registrado pelo dono", "momentos registrados pelo dono"));
+  const cartas = historia.capitulos.filter((c) => c.carta).length;
+  if (cartas) fatos.push(conta(cartas, "carta para o próximo dono", "cartas para o próximo dono"));
+  // Quilometragem fica de fora do resumo de propósito (decisão do Diego:
+  // não destacar km); só o selo "Km coerente" e alertas entram.
+  for (const s of historia.selos) fatos.push(`Selo: ${s.nome} (${s.descricao})`);
+  for (const a of historia.alertas) fatos.push(`Atenção: ${a}`);
+  return fatos;
+}

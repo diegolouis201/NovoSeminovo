@@ -1,4 +1,5 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { createHash } from "node:crypto";
 import { Prisma } from "@novoseminovo/db";
 import type {
   CreateVehicleEventInput,
@@ -9,7 +10,8 @@ import type {
   VehicleProfile,
   WorkshopOption,
 } from "@novoseminovo/shared-types";
-import { VehicleLetterInputSchema } from "@novoseminovo/shared-types";
+import { VehicleLetterInputSchema, fatosDoCarro, historiaDoCarro } from "@novoseminovo/shared-types";
+import { VehicleStoryAi } from "./historia-ia";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { getPhotoStorage } from "../common/storage";
@@ -40,7 +42,77 @@ export class VehiclesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    @Optional() private readonly story: VehicleStoryAi = new VehicleStoryAi(),
   ) {}
+
+  // Perfil + seguidores + resumo em dia (resumo velho não aparece; se a IA
+  // estiver ligada, um novo é gerado em segundo plano).
+  private async enriquecer(vehicle: Parameters<typeof toVehicleProfile>[0], viewerId: string | undefined): Promise<VehicleProfile> {
+    const perfil = toVehicleProfile(vehicle, viewerId);
+    const [seguidores, meu] = await Promise.all([
+      this.prisma.vehicleFollow.count({ where: { vehicleId: vehicle.id } }),
+      viewerId ? this.prisma.vehicleFollow.findUnique({ where: { vehicleId_userId: { vehicleId: vehicle.id, userId: viewerId } }, select: { id: true } }) : null,
+    ]);
+    const chave = this.chaveResumo(perfil);
+    const emDia = vehicle.resumoIa && vehicle.resumoIaChave === chave;
+    if (!emDia && this.story.isEnabled()) void this.atualizarResumo(vehicle.id).catch(() => undefined);
+    return { ...perfil, seguidores, seguindo: Boolean(meu), resumo: emDia ? vehicle.resumoIa! : undefined };
+  }
+
+  private chaveResumo(perfil: VehicleProfile): string {
+    return createHash("sha256").update(fatosDoCarro(perfil, historiaDoCarro(perfil)).join("\n")).digest("hex");
+  }
+
+  private resumindo = new Map<string, Promise<void>>();
+
+  // "A história em 30 segundos": só gera quando os fatos mudaram.
+  async atualizarResumo(vehicleId: string): Promise<void> {
+    const emAndamento = this.resumindo.get(vehicleId);
+    if (emAndamento) return emAndamento;
+    const job = (async () => {
+      const vehicle = await this.prisma.vehicle.findUnique({ where: { id: vehicleId }, include: vehicleInclude });
+      if (!vehicle) return;
+      const perfil = toVehicleProfile(vehicle, undefined);
+      const chave = this.chaveResumo(perfil);
+      if (vehicle.resumoIa && vehicle.resumoIaChave === chave) return;
+      const texto = await this.story.resumir(fatosDoCarro(perfil, historiaDoCarro(perfil)));
+      if (texto) await this.prisma.vehicle.update({ where: { id: vehicleId }, data: { resumoIa: texto, resumoIaChave: chave } });
+    })().finally(() => this.resumindo.delete(vehicleId));
+    this.resumindo.set(vehicleId, job);
+    return job;
+  }
+
+  // Seguir o carro (Diário do Carro): aviso quando volta ao mercado ou baixa de preço.
+  async follow(vehicleId: string, userId: string): Promise<void> {
+    const exists = await this.prisma.vehicle.findUnique({ where: { id: vehicleId }, select: { id: true } });
+    if (!exists) throw new NotFoundException(`Veículo ${vehicleId} não encontrado`);
+    await this.prisma.vehicleFollow.upsert({ where: { vehicleId_userId: { vehicleId, userId } }, create: { vehicleId, userId }, update: {} });
+  }
+
+  async unfollow(vehicleId: string, userId: string): Promise<void> {
+    await this.prisma.vehicleFollow.deleteMany({ where: { vehicleId, userId } });
+  }
+
+  // Anúncio no ar com carro ligado ao Diário e preço menor: avisa quem segue.
+  async avisarSeBaixouPreco(listingId: string, antes: number, depois: number): Promise<void> {
+    if (!(depois < antes)) return;
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId }, select: { status: true, ownerUserId: true, vehicleDetails: { select: { vehicleId: true } } } });
+    const vehicleId = listing?.vehicleDetails?.vehicleId;
+    if (!listing || listing.status !== "active" || !vehicleId) return;
+    await this.avisarSeguidores(vehicleId, "preco", { listingId, preco: depois }, listing.ownerUserId);
+  }
+
+  async avisarSeguidores(vehicleId: string, motivo: "anunciado" | "preco", dados: Record<string, unknown>, exceto?: string): Promise<void> {
+    const [vehicle, seguidores] = await Promise.all([
+      this.prisma.vehicle.findUnique({ where: { id: vehicleId }, select: { brand: { select: { name: true } }, model: { select: { name: true } }, yearModel: true } }),
+      this.prisma.vehicleFollow.findMany({ where: { vehicleId, ...(exceto ? { userId: { not: exceto } } : {}) }, select: { userId: true }, take: 5000 }),
+    ]);
+    if (!vehicle) return;
+    const nome = [vehicle.brand?.name, vehicle.model?.name, vehicle.yearModel].filter(Boolean).join(" ") || "O carro que você segue";
+    for (const { userId } of seguidores) {
+      await this.notifications.notify(userId, "vehicle_follow_update", { vehicleId, motivo, nome, ...dados }).catch(() => undefined);
+    }
+  }
 
   // Chamado na criação de anúncio de veículo quando a placa foi informada.
   // Mesma placa já vista antes = mesmo Vehicle (o histórico persiste entre
@@ -105,6 +177,7 @@ export class VehiclesService {
         createdByUserId: userId,
       },
     });
+    await this.avisarSeguidores(vehicleId, "anunciado", { titulo: listingTitle }, userId);
   }
 
   // Marca/modelo são texto livre (sem consulta a Detran/FIPE no MVP) — a
@@ -181,7 +254,7 @@ export class VehiclesService {
       include: vehicleInclude,
       orderBy: { createdAt: "desc" },
     });
-    return vehicles.map((vehicle) => toVehicleProfile(vehicle, ownerUserId));
+    return Promise.all(vehicles.map((vehicle) => this.enriquecer(vehicle, ownerUserId)));
   }
 
   async getProfile(vehicleId: string, viewerId: string | undefined): Promise<VehicleProfile> {
@@ -190,7 +263,7 @@ export class VehiclesService {
       include: vehicleInclude,
     });
     if (!vehicle) throw new NotFoundException(`Veículo ${vehicleId} não encontrado`);
-    return toVehicleProfile(vehicle, viewerId);
+    return this.enriquecer(vehicle, viewerId);
   }
 
   // Único jeito de olhar o Passaporte sem ter o link direto — mesmo hash da
@@ -200,7 +273,7 @@ export class VehiclesService {
       where: { plateHash: hashPlate(plate) },
       include: vehicleInclude,
     });
-    return vehicle ? toVehicleProfile(vehicle, viewerId) : undefined;
+    return vehicle ? this.enriquecer(vehicle, viewerId) : undefined;
   }
 
   // Lista pro <select> de "oficina que realizou o serviço" — só parceiros do

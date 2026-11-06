@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Param, Post, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import { CreateVehicleEventInputSchema, RegisterVehicleInputSchema, VehicleLetterInputSchema } from "@novoseminovo/shared-types";
@@ -111,6 +111,21 @@ export class VehiclesController {
   @Post(":id/carta")
   async saveLetter(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() body: unknown) {
     await this.vehiclesService.saveLetter(id, user.id, parseOrBadRequest(VehicleLetterInputSchema, body));
+    return { ok: true };
+  }
+
+  // Seguir o carro (Diário do Carro): avisos quando volta ao mercado ou baixa de preço.
+  @UseGuards(JwtAuthGuard)
+  @Post(":id/seguir")
+  async follow(@CurrentUser() user: { id: string }, @Param("id") id: string) {
+    await this.vehiclesService.follow(id, user.id);
+    return { ok: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(":id/seguir")
+  async unfollow(@CurrentUser() user: { id: string }, @Param("id") id: string) {
+    await this.vehiclesService.unfollow(id, user.id);
     return { ok: true };
   }
 }

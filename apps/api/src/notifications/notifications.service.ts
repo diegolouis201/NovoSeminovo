@@ -138,6 +138,18 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: `Você recebeu uma avaliação de ${payload.rating} estrela(s) sobre "${payload.listingTitle}".`,
         link: `/anuncio/${payload.listingId}`,
       };
+    case "vehicle_follow_update":
+      return payload.motivo === "preco"
+        ? {
+            title: "O carro que você segue baixou de preço",
+            body: `${payload.nome} agora está anunciado por ${Number(payload.preco).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}.`,
+            link: payload.listingId ? `/anuncio/${payload.listingId}` : `/veiculo/${payload.vehicleId}`,
+          }
+        : {
+            title: "O carro que você segue voltou a ser anunciado",
+            body: `${payload.nome} foi anunciado de novo no NovoSeminovo. Veja o Diário do Carro e o anúncio.`,
+            link: `/veiculo/${payload.vehicleId}`,
+          };
     case "saved_search_match":
       return {
         title: "Novo anúncio compatível com sua busca",

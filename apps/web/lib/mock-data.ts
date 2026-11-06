@@ -163,6 +163,8 @@ const VEHICLE_PROFILES: VehicleProfile[] = [
     ownersCount: 1,
     isOwner: false,
     anuncios: [],
+    seguidores: 0,
+    seguindo: false,
     events: [
       {
         id: "mock-event-3",

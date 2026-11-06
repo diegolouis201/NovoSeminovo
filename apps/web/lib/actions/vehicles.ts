@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { RegisterVehicleInput } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
-import { addVehicleEvent, confirmVehicleService, registerVehicle, saveVehicleLetter } from "@/lib/api";
+import { addVehicleEvent, confirmVehicleService, registerVehicle, saveVehicleLetter, setVehicleFollow } from "@/lib/api";
 
 function numOrUndefined(value: FormDataEntryValue | null): number | undefined {
   if (!value) return undefined;
@@ -77,4 +77,14 @@ export async function saveVehicleLetterAction(vehicleId: string, formData: FormD
   if (!result.ok) redirect(`/veiculo/${vehicleId}?erro=${encodeURIComponent(result.error)}#carta`);
   revalidatePath(`/veiculo/${vehicleId}`);
   redirect(`/veiculo/${vehicleId}#carta`);
+}
+
+// Seguir / deixar de seguir o carro. Sem login, vai para a tela de entrar.
+export async function followVehicleAction(vehicleId: string, seguir: boolean): Promise<void> {
+  const session = await auth();
+  if (!session?.accessToken) redirect("/entrar");
+  const result = await setVehicleFollow(vehicleId, seguir, session.accessToken);
+  if (!result.ok) redirect(`/veiculo/${vehicleId}?erro=${encodeURIComponent(result.error ?? "Não foi possível agora.")}`);
+  revalidatePath(`/veiculo/${vehicleId}`);
+  redirect(`/veiculo/${vehicleId}`);
 }

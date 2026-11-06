@@ -593,6 +593,11 @@ export const VehicleProfileSchema = z.object({
   // — cidade/UF já são públicas no anúncio; nunca o endereço nem o dono.
   capaUrl: z.string().optional(),
   anuncios: z.array(z.object({ publicadoEm: z.string(), cidade: z.string(), uf: z.string() })).default([]),
+  // Seguir o carro: quantas pessoas seguem e se quem está vendo segue.
+  seguidores: z.number().default(0),
+  seguindo: z.boolean().default(false),
+  // "A história em 30 segundos" (IA, só com fatos), quando está em dia.
+  resumo: z.string().optional(),
 });
 export type VehicleProfile = z.infer<typeof VehicleProfileSchema>;
 
@@ -1705,6 +1710,7 @@ export const NotificationType = z.enum([
   "cashback_released",
   "cashback_paid",
   "listing_contact",
+  "vehicle_follow_update",
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 

@@ -368,6 +368,17 @@ export async function saveVehicleLetter(vehicleId: string, texto: string, access
   }
 }
 
+// Seguir o carro (Diário do Carro).
+export async function setVehicleFollow(vehicleId: string, seguir: boolean, accessToken: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/vehicles/${encodeURIComponent(vehicleId)}/seguir`, { method: seguir ? "POST" : "DELETE", headers: authHeaders(accessToken) });
+    if (!res.ok) return { ok: false, error: `API respondeu ${res.status}` };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Não foi possível agora. Tente de novo em instantes." };
+  }
+}
+
 // Consulta pública por placa — "Passaporte consultável" sem precisar do link
 // direto do anúncio ou de "Meus veículos". Sem mock fallback: é uma busca ao
 // vivo, não tem dado de exemplo que faça sentido "encontrar".

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import {
   ArrowsLeftRight,
+  Bell,
+  BellRinging,
   Camera,
   Car,
   EnvelopeSimple,
@@ -9,6 +11,7 @@ import {
   DownloadSimple,
   Megaphone,
   SealCheck,
+  Sparkle,
   ShieldCheck,
   Warning,
   WhatsappLogo,
@@ -18,7 +21,7 @@ import QRCode from "qrcode";
 import { formatarKm, historiaDoCarro, type VehicleEventType, type VehicleProfile } from "@novoseminovo/shared-types";
 import { SITE_URL } from "@/lib/company";
 import { fetchWorkshopOptions, resolveMediaUrl } from "@/lib/api";
-import { addVehicleEventAction, saveVehicleLetterAction } from "@/lib/actions/vehicles";
+import { addVehicleEventAction, followVehicleAction, saveVehicleLetterAction } from "@/lib/actions/vehicles";
 import { FormField, SelectField, TextAreaField } from "@/components/FormField";
 import { Button } from "@/components/Button";
 
@@ -146,6 +149,8 @@ export async function VehiclePassportView({
   const historia = historiaDoCarro(vehicle);
   const capituloAtual = historia.capitulos[historia.capitulos.length - 1];
   const saveLetterWithId = saveVehicleLetterAction.bind(null, vehicle.id);
+  const followWithId = followVehicleAction.bind(null, vehicle.id, !vehicle.seguindo);
+  const seguidores = vehicle.seguidores ?? 0;
   const nome = `${[vehicle.brand, vehicle.model].filter(Boolean).join(" ") || "Veículo"}${vehicle.yearModel ? ` ${vehicle.yearModel}` : ""}`;
   const link = `${SITE_URL}/veiculo/${vehicle.id}`;
   const qr = await QRCode.toDataURL(link, { margin: 1, width: 264, color: { dark: "#20261b", light: "#ffffff" } });
@@ -175,6 +180,25 @@ export async function VehiclePassportView({
               .filter(Boolean)
               .join(" · ")}
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            {!vehicle.isOwner && (
+              <form action={followWithId}>
+                <button
+                  type="submit"
+                  className={`flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-bold ${
+                    vehicle.seguindo ? "border border-brand-blue text-brand-blue hover:bg-brand-blue/5" : "bg-brand-blue text-white hover:opacity-90"
+                  }`}
+                >
+                  {vehicle.seguindo ? <BellRinging size={16} weight="fill" /> : <Bell size={16} weight="bold" />}
+                  {vehicle.seguindo ? "Seguindo · deixar de seguir" : "Seguir este carro"}
+                </button>
+              </form>
+            )}
+            <span className="text-sm text-ink-muted">
+              {seguidores === 0 ? "Ninguém segue ainda" : seguidores === 1 ? "1 pessoa segue" : `${seguidores} pessoas seguem`}
+              {!vehicle.isOwner && " · avisamos quando voltar a ser anunciado ou baixar de preço"}
+            </span>
+          </div>
           {historia.selos.length > 0 && (
             <ul className="mt-4 flex flex-wrap gap-2" aria-label="Selos do carro">
               {historia.selos.map((selo) => (
@@ -216,6 +240,16 @@ export async function VehiclePassportView({
           </div>
         </div>
       </header>
+
+      {vehicle.resumo && (
+        <section className="mt-4 rounded-brand border border-brand-blue/20 bg-brand-blue/5 p-4">
+          <h2 className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-brand-blue">
+            <Sparkle size={16} weight="fill" /> A história em 30 segundos
+          </h2>
+          <p className="mt-2 text-sm text-ink">{vehicle.resumo}</p>
+          <p className="mt-2 text-xs text-ink-muted">Resumo automático feito por IA só com os registros deste Diário. Confira os detalhes nos capítulos abaixo.</p>
+        </section>
+      )}
 
       {historia.alertas.length > 0 && (
         <div className="mt-4 rounded-brand bg-brand-orange/10 px-4 py-3 text-sm text-ink">
