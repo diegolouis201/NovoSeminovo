@@ -6,7 +6,8 @@ export type AcaoConteudo = "aprovar" | "ajuste" | "revisar" | "publicando" | "pu
 
 const TRANSICOES: Record<AcaoConteudo, { de: StatusConteudo[]; para: StatusConteudo }> = {
   aprovar: { de: ["em_aprovacao", "erro"], para: "aprovado" },
-  ajuste: { de: ["em_aprovacao"], para: "ajuste" },
+  // Aprovado e ainda não publicado (ou com erro) também pode voltar para ajuste.
+  ajuste: { de: ["em_aprovacao", "aprovado", "erro"], para: "ajuste" },
   revisar: { de: ["rascunho", "em_aprovacao", "ajuste"], para: "em_aprovacao" },
   publicando: { de: ["aprovado"], para: "publicando" },
   publicado: { de: ["aprovado", "publicando", "erro"], para: "publicado" },

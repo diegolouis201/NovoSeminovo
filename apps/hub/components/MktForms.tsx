@@ -56,6 +56,26 @@ export function Decisao({ id, sugestao, automatico, manual }: { id: string; suge
   );
 }
 
+// Já aprovado, ainda não publicado: puxar de volta para ajuste.
+export function RecolherParaAjuste({ id }: { id: string }) {
+  const [aj, ajustar] = useFormState(pedirAjuste, {});
+  const [aberto, setAberto] = useState(false);
+  if (aj.ok) return <p className="rounded-xl bg-green/10 p-3 text-sm font-semibold text-green">{aj.ok}</p>;
+  return aberto ? (
+    <form action={ajustar} className="space-y-2">
+      <input type="hidden" name="id" value={id} />
+      <textarea name="feedback" required maxLength={2000} rows={3} className="input" placeholder="O que precisa mudar antes de ir ao ar?" />
+      <div className="flex gap-2">
+        <Botao texto="Tirar da agenda e pedir ajuste" />
+        <button type="button" className="btn" onClick={() => setAberto(false)}>Voltar</button>
+      </div>
+      {aj.erro ? <p className="text-sm text-danger">{aj.erro}</p> : null}
+    </form>
+  ) : (
+    <button type="button" className="btn" onClick={() => setAberto(true)}>Pedir ajuste antes de publicar</button>
+  );
+}
+
 export function MarcarPublicado({ id, redes }: { id: string; redes: string[] }) {
   const [state, action] = useFormState(marcarPublicadoManual, {});
   if (!redes.length) return null;

@@ -19,6 +19,20 @@ describe("Chave do Claude do Marketing", () => {
     await assert.rejects(ctrl.listar("Bearer errada", {}), /Chave inválida/);
     assert.deepEqual(await ctrl.listar("Bearer chave-do-marketing-para-testes-com-mais-de-32-caracteres", {}), []);
   });
+  test("recolher (ajuste ou cancelar) pela chave: precisa de motivo e passa pelo serviço com o autor Claude", async () => {
+    const chamadas: unknown[][] = [];
+    const c = new MarketingFeedController({ pedirAjuste: async (...a: unknown[]) => void chamadas.push(["ajuste", ...a]), cancelar: async (...a: unknown[]) => void chamadas.push(["cancelar", ...a]) } as never);
+    const key = "Bearer chave-do-marketing-para-testes-com-mais-de-32-caracteres";
+    await assert.rejects(c.recolher("Bearer errada", "abc", { acao: "ajuste", motivo: "x" }), /Chave inválida/);
+    await assert.rejects(c.recolher(key, "abc", { acao: "ajuste", motivo: "" }), /motivo|Too small|String must/i);
+    await assert.rejects(c.recolher(key, "abc", { acao: "apagar", motivo: "x" }), /Invalid enum|acao/i);
+    await c.recolher(key, "abc", { acao: "ajuste", motivo: "Tirar o cashback" });
+    await c.recolher(key, "def", { acao: "cancelar", motivo: "Post só sobre cashback" });
+    assert.deepEqual(chamadas, [
+      ["ajuste", "abc", "Tirar o cashback", "claude"],
+      ["cancelar", "def", "claude", "Post só sobre cashback"],
+    ]);
+  });
 });
 const PNG_1X1 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 

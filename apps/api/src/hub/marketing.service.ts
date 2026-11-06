@@ -153,9 +153,9 @@ export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
     await this.historico(id, "revisado", autor, i.resposta);
   }
 
-  async cancelar(id: string, userId: string) {
+  async cancelar(id: string, userId: string, motivo?: string) {
     await this.mudar(id, "cancelar");
-    await this.historico(id, "cancelado", userId);
+    await this.historico(id, "cancelado", userId, motivo?.trim() || undefined);
   }
 
   // Rede sem publicação automática (TikTok, YouTube, e-mail...): marca o link.

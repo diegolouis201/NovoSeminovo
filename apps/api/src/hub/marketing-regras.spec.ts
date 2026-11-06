@@ -15,6 +15,11 @@ describe("Aprovação do conteúdo", () => {
     assert.equal(proximoStatus("erro", "aprovar"), "aprovado", "deu erro ao publicar: dá para aprovar de novo");
     assert.equal(proximoStatus("aprovado", "cancelar"), "cancelado");
   });
+  test("aprovado e ainda não publicado (ou com erro): dá para puxar de volta e pedir ajuste", () => {
+    assert.equal(proximoStatus("aprovado", "ajuste"), "ajuste");
+    assert.equal(proximoStatus("erro", "ajuste"), "ajuste");
+    assert.equal(proximoStatus("publicado", "ajuste"), null, "o que já foi ao ar não volta");
+  });
   test("transição inválida é recusada (nada publica sem aprovação)", () => {
     assert.equal(proximoStatus("em_aprovacao", "publicado"), null);
     assert.equal(proximoStatus("ajuste", "aprovar"), null, "precisa da revisão antes");

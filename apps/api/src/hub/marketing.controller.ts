@@ -163,6 +163,7 @@ function assertKey(authorization: string | undefined) {
 //   GET  /marketing/conteudos?status=      o que está em aprovação, ajuste, aprovado...
 //   GET  /marketing/conteudos/:id          detalhe com o pedido de ajuste
 //   POST /marketing/conteudos/:id/revisao  nova versão depois do ajuste
+//   POST /marketing/conteudos/:id/recolher {acao: ajuste|cancelar, motivo}
 //   GET  /marketing/resultados             gastos do mês e análises
 @Controller("marketing")
 export class MarketingFeedController {
@@ -196,6 +197,18 @@ export class MarketingFeedController {
   async revisao(@Headers("authorization") a: string | undefined, @Param("id") id: string, @Body() body: unknown) {
     assertKey(a);
     await this.mkt.revisar(parseOrBadRequest(Id, id), parseOrBadRequest(MktReviseInputSchema, body), "Claude Marketing");
+    return { ok: true };
+  }
+
+  // Recolher um conteúdo que ainda não foi ao ar: volta para ajuste (com o
+  // motivo) ou é cancelado. Ex.: mudança no modelo de negócios.
+  @Post("conteudos/:id/recolher")
+  async recolher(@Headers("authorization") a: string | undefined, @Param("id") id: string, @Body() body: unknown) {
+    assertKey(a);
+    const i = parseOrBadRequest(z.object({ acao: z.enum(["ajuste", "cancelar"]), motivo: z.string().trim().min(3).max(2000) }), body);
+    const conteudo = parseOrBadRequest(Id, id);
+    if (i.acao === "ajuste") await this.mkt.pedirAjuste(conteudo, i.motivo, "claude");
+    else await this.mkt.cancelar(conteudo, "claude", i.motivo);
     return { ok: true };
   }
 

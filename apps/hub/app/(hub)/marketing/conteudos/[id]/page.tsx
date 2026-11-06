@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { MKT_REDES } from "@novoseminovo/shared-types";
-import { Decisao, MarcarPublicado } from "@/components/MktForms";
+import { Decisao, MarcarPublicado, RecolherParaAjuste } from "@/components/MktForms";
 import { Previa } from "@/components/Previa";
 import { atualizarMetricas, cancelarConteudo } from "@/lib/actions";
 import { exigirMarketing, mkt } from "@/lib/mkt";
@@ -33,6 +33,7 @@ export default async function ConteudoDetalhe({ params }: { params: { id: string
               <h2 className="h2 mb-2">Publicação</h2>
               <p className="mb-3 text-sm text-muted">{c.automatico.length ? `O Hub publica sozinho no ${c.automatico.map(nome).join(" e ")} em ${dataHora(c.dataPlanejada)}.` : "Este conteúdo é publicado à mão."} {faltam.length ? `Falta publicar à mão: ${faltam.map(nome).join(", ")}.` : ""}</p>
               <MarcarPublicado id={c.id} redes={faltam} />
+              {c.status === "aprovado" ? <div className="mt-4 border-t border-line pt-4"><RecolherParaAjuste id={c.id} /></div> : null}
             </section>
           ) : null}
           <section className="card">
