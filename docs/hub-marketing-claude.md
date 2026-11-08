@@ -18,6 +18,13 @@ legenda, hashtag, arte, roteiro ou locução. O financiamento continua: pode
 dizer que dá para simular o financiamento no próprio anúncio, sempre com
 "O NovoSeminovo não é instituição financeira e não concede crédito".
 
+**Não existe mais o Passaporte Digital / Diário do Carro** (decisão do Diego,
+08/11/2026, por risco jurídico). Nada de Passaporte, Diário do Carro,
+histórico do veículo, consulta por placa ou ficha técnica. O diferencial no
+lugar é a **Vitrine do carro / Vitrine do imóvel**: no anúncio, o anunciante
+gera um card para WhatsApp e Instagram (com o link do anúncio) e um cartaz
+A4 com QR para imprimir e colar no vidro do carro ou no portão.
+
 ## Como enviar (API do site, com a chave)
 Base: `https://api.novoseminovo.com.br`, cabeçalho
 `Authorization: Bearer <NSN_FEED_KEY>` e `Content-Type: application/json`.
