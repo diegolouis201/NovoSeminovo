@@ -315,6 +315,8 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
   // a simulação/contato de financiamento no anúncio.
   youtubeVideoId: z.string().optional(),
   financingEnabled: z.boolean(),
+  // Imóvel: venda ou aluguel (Vitrine do imóvel: "VENDE-SE" / "ALUGA-SE").
+  finalidade: z.enum(["venda", "aluguel"]).optional(),
   // Plano do anúncio (pessoa física) e, só pro dono, quantas fotos ele subiu
   // a mais do que o plano mostra — pra oferecer "turbinar".
   planTier: ListingTierIdSchema,
@@ -3151,3 +3153,4 @@ export const MktPublishedInputSchema = z.object({ rede: z.string().trim().min(1)
 export const MktBudgetInputSchema = z.object({ mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), plataforma: z.enum(["meta_ads", "google_ads", "tiktok_ads"]), valor: z.number().min(0).max(10_000_000) });
 
 export * from "./historia";
+export * from "./vitrine";

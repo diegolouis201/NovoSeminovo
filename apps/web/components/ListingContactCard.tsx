@@ -106,6 +106,14 @@ export function ListingContactCard({
           </a>
         )}
       </div>
+      {/* Vitrine: o anúncio em imagem para WhatsApp, Instagram e cartaz impresso. */}
+      <Link
+        href={`/anuncio/${listingId}/vitrine`}
+        className="-mt-2 flex items-center justify-center gap-2 rounded-brand bg-brand-orange/10 px-4 py-2.5 text-sm font-bold text-brand-orange hover:bg-brand-orange/20"
+      >
+        <Storefront size={18} weight="bold" />
+        {assetType === "vehicle" ? "Vitrine do carro" : "Vitrine do imóvel"} · WhatsApp, Instagram e cartaz
+      </Link>
 
       {seller && <SellerHeader seller={seller} assetType={assetType} />}
 

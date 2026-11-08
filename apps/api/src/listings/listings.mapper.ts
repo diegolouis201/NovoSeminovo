@@ -424,6 +424,7 @@ export function toListingDetail(
     isPartnerListing: Boolean(listing.partnerId),
     hiddenPhotosCount: fullView && hiddenPhotosCount > 0 ? hiddenPhotosCount : undefined,
     financingEnabled: listing.financingEnabled,
+    finalidade: listing.propertyDetails ? (listing.propertyDetails.purpose === "rent" ? "aluguel" : "venda") : undefined,
     financing: {
       price: formatBRL(price),
       priceValue: price,
