@@ -2,7 +2,7 @@
 // decisão do Diego, por risco jurídico das informações). As páginas antigas
 // redirecionam de vez e nenhuma tela pública fala do Passaporte.
 
-const PUBLIC_PAGES = ["/", "/carros", "/como-funciona", "/quem-somos", "/para-lojas", "/perguntas-frequentes", "/termos", "/privacidade"];
+const PAGINAS_SEM_PASSAPORTE = ["/", "/carros", "/como-funciona", "/quem-somos", "/para-lojas", "/perguntas-frequentes", "/termos", "/privacidade"];
 const PASSAPORTE = /passaporte|diário do carro|histórico completo deste veículo/i;
 
 describe("Sem Passaporte Digital / Diário do Carro", () => {
@@ -33,7 +33,7 @@ describe("Sem Passaporte Digital / Diário do Carro", () => {
   });
 
   it("páginas públicas e rodapé não falam do Passaporte", () => {
-    for (const path of PUBLIC_PAGES) {
+    for (const path of PAGINAS_SEM_PASSAPORTE) {
       cy.visit(path);
       cy.get("body").invoke("text").should("not.match", PASSAPORTE);
       cy.get('a[href^="/consultar-veiculo"], a[href^="/veiculo/"], a[href^="/ficha-tecnica"]').should("not.exist");
