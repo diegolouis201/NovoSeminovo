@@ -91,22 +91,17 @@ import type {
   SavedSearch,
   GenerateListingDraftInput,
   ListingDraft,
-  PendingServiceConfirmation,
   PropertyProfileInput,
   PropertyRecommendation,
-  RegisterVehicleInput,
   ReorderPhotosInput,
   SaleSummary,
-  VehicleEvent,
-  VehicleProfile,
   VehicleProfileInput,
   VehicleRecommendation,
-  WorkshopOption,
   ListingModerationInfo,
   ResubmitListingInput,
   AdminReviewQueueItem,
 } from "@novoseminovo/shared-types";
-import { getListing, getVehicleProfile, listListings } from "@/lib/mock-data";
+import { getListing, listListings } from "@/lib/mock-data";
 
 // apps/api (NestJS) implementa estes três endpoints sobre o schema de
 // packages/db. Sem NEXT_PUBLIC_API_URL configurada, ou com a API fora do ar
@@ -278,161 +273,6 @@ export async function fetchListing(id: string, accessToken?: string): Promise<Li
 
 function authHeaders(accessToken: string): HeadersInit {
   return { Authorization: `Bearer ${accessToken}` };
-}
-
-// Passaporte Digital do veículo — perfil persistente do carro, separado do
-// anúncio (ver GET /vehicles/:id na API). Público de propósito: funciona
-// como prova de confiança só se qualquer comprador conseguir ver antes de
-// comprar, sem precisar estar logado.
-export async function fetchVehicleProfile(id: string, accessToken?: string): Promise<VehicleProfile | undefined> {
-  try {
-    const res = await fetchWithTimeout(`${API_URL}/vehicles/${id}`, {
-      headers: accessToken ? authHeaders(accessToken) : undefined,
-    });
-    if (res.status === 404) return undefined;
-    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-    return (await res.json()) as VehicleProfile;
-  } catch {
-    return mockOr(() => getVehicleProfile(id));
-  }
-}
-
-// "Meus veículos" — sem mock fallback de propósito: é uma lista pessoal
-// (depende de quem está logado), não tem sentido mostrar dado de exemplo.
-export async function fetchMyVehicles(accessToken: string): Promise<VehicleProfile[]> {
-  try {
-    const res = await fetchWithTimeout(`${API_URL}/vehicles/mine`, { headers: authHeaders(accessToken) });
-    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-    return (await res.json()) as VehicleProfile[];
-  } catch {
-    return [];
-  }
-}
-
-export async function registerVehicle(
-  input: RegisterVehicleInput,
-  accessToken: string,
-): Promise<{ ok: true; vehicle: VehicleProfile } | { ok: false; error: string }> {
-  try {
-    const res = await fetchWithTimeout(`${API_URL}/vehicles`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => undefined);
-      return { ok: false, error: body?.message ?? `API respondeu ${res.status}` };
-    }
-    return { ok: true, vehicle: (await res.json()) as VehicleProfile };
-  } catch {
-    return { ok: false, error: "Não foi possível cadastrar o veículo agora. Tente de novo em instantes." };
-  }
-}
-
-// Multipart, não JSON: o comprovante (foto) é obrigatório (ver
-// VehiclesController.addEvent na API), então metadados e arquivo viajam
-// juntos numa requisição só.
-export async function addVehicleEvent(
-  vehicleId: string,
-  formData: FormData,
-  accessToken: string,
-): Promise<{ ok: true; event: VehicleEvent } | { ok: false; error: string }> {
-  try {
-    const res = await fetchWithTimeout(
-      `${API_URL}/vehicles/${vehicleId}/events`,
-      { method: "POST", headers: authHeaders(accessToken), body: formData },
-      20000,
-    );
-    const body = await res.json().catch(() => undefined);
-    if (!res.ok) return { ok: false, error: body?.message ?? `API respondeu ${res.status}` };
-    return { ok: true, event: body as VehicleEvent };
-  } catch {
-    return { ok: false, error: "Não foi possível registrar o evento agora. Tente de novo em instantes." };
-  }
-}
-
-// Carta para o próximo dono (Diário do Carro) — só o dono atual.
-export async function saveVehicleLetter(vehicleId: string, texto: string, accessToken: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  try {
-    const res = await fetchWithTimeout(`${API_URL}/vehicles/${encodeURIComponent(vehicleId)}/carta`, {
-      method: "POST",
-      headers: { ...authHeaders(accessToken), "Content-Type": "application/json" },
-      body: JSON.stringify({ texto }),
-    });
-    const body = await res.json().catch(() => undefined);
-    if (!res.ok) return { ok: false, error: body?.message ?? `API respondeu ${res.status}` };
-    return { ok: true };
-  } catch {
-    return { ok: false, error: "Não foi possível salvar a carta agora. Tente de novo em instantes." };
-  }
-}
-
-// Seguir o carro (Diário do Carro).
-export async function setVehicleFollow(vehicleId: string, seguir: boolean, accessToken: string): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await fetchWithTimeout(`${API_URL}/vehicles/${encodeURIComponent(vehicleId)}/seguir`, { method: seguir ? "POST" : "DELETE", headers: authHeaders(accessToken) });
-    if (!res.ok) return { ok: false, error: `API respondeu ${res.status}` };
-    return { ok: true };
-  } catch {
-    return { ok: false, error: "Não foi possível agora. Tente de novo em instantes." };
-  }
-}
-
-// Consulta pública por placa — "Passaporte consultável" sem precisar do link
-// direto do anúncio ou de "Meus veículos". Sem mock fallback: é uma busca ao
-// vivo, não tem dado de exemplo que faça sentido "encontrar".
-export async function fetchVehicleByPlate(plate: string, accessToken?: string): Promise<VehicleProfile | undefined> {
-  try {
-    const res = await fetchWithTimeout(`${API_URL}/vehicles/by-plate/${encodeURIComponent(plate)}`, {
-      headers: accessToken ? authHeaders(accessToken) : undefined,
-    });
-    if (res.status === 404) return undefined;
-    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-    return (await res.json()) as VehicleProfile;
-  } catch {
-    return undefined;
-  }
-}
-
-export async function fetchWorkshopOptions(): Promise<WorkshopOption[]> {
-  try {
-    const res = await fetchWithTimeout(`${API_URL}/vehicles/workshops`);
-    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-    return (await res.json()) as WorkshopOption[];
-  } catch {
-    return [];
-  }
-}
-
-export async function fetchPendingServiceConfirmations(accessToken: string): Promise<PendingServiceConfirmation[]> {
-  try {
-    const res = await fetchWithTimeout(`${API_URL}/vehicles/pending-confirmations`, {
-      headers: authHeaders(accessToken),
-    });
-    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-    return (await res.json()) as PendingServiceConfirmation[];
-  } catch {
-    return [];
-  }
-}
-
-export async function confirmVehicleService(
-  eventId: string,
-  accessToken: string,
-): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await fetchWithTimeout(`${API_URL}/vehicles/events/${eventId}/confirm`, {
-      method: "POST",
-      headers: authHeaders(accessToken),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => undefined);
-      return { ok: false, error: body?.message ?? `API respondeu ${res.status}` };
-    }
-    return { ok: true };
-  } catch {
-    return { ok: false, error: "Não foi possível confirmar agora. Tente de novo em instantes." };
-  }
 }
 
 // Favoritos exigem a API no ar (não têm equivalente em mock-data.ts — não há
@@ -1184,29 +1024,6 @@ export async function fetchFipePrice(brand: string, modelCode: number, yearModel
     const res = await fetchWithTimeout(`${API_URL}/listings/fipe-price?${params.toString()}`, undefined, 10000);
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return ((await res.json()) as FipePrice | null) ?? undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-// Página "Ficha técnica": anos de uma versão FIPE e os dados dela no ano.
-export type FichaFipe = { marca: string; modelo: string; anoModelo: number; combustivel: string; codigoFipe: string; valor: number; mesReferencia: string };
-export async function fetchFipeYears(brand: string, modelCode: number): Promise<{ code: string; name: string }[]> {
-  try {
-    const params = new URLSearchParams({ brand, modelCode: String(modelCode) });
-    const res = await fetchWithTimeout(`${API_URL}/listings/fipe-years?${params.toString()}`, undefined, 10000);
-    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-    return (await res.json()) as { code: string; name: string }[];
-  } catch {
-    return [];
-  }
-}
-export async function fetchFipeFicha(brand: string, modelCode: number, yearCode: string): Promise<FichaFipe | undefined> {
-  try {
-    const params = new URLSearchParams({ brand, modelCode: String(modelCode), yearCode });
-    const res = await fetchWithTimeout(`${API_URL}/listings/fipe-ficha?${params.toString()}`, undefined, 10000);
-    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-    return ((await res.json()) as FichaFipe | null) ?? undefined;
   } catch {
     return undefined;
   }

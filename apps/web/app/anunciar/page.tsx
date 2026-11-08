@@ -285,8 +285,7 @@ export default async function CreateListingPage({
                 defaultValue={searchParams.draftPlate}
               />
               <p className="text-xs text-ink-muted">
-                Ajuda a começar o histórico verificado deste carro (revisões, donos, anúncios anteriores) —
-                a placa nunca é exibida publicamente, só usada para reconhecer o veículo.
+                Opcional. A placa nunca é exibida publicamente, só usada para reconhecer o veículo.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

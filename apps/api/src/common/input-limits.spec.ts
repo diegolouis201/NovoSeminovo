@@ -4,7 +4,6 @@ import {
   CreateListingInputSchema,
   CreatePartnerInputSchema,
   CreateReportInputSchema,
-  CreateVehicleEventInputSchema,
   GenerateListingDraftInputSchema,
   RegisterInputSchema,
 } from "@novoseminovo/shared-types";
@@ -39,10 +38,5 @@ describe("Limites de tamanho nas entradas", () => {
   test("empresa: razão social até 200 e descrição até 3.000", () => {
     rejects(CreatePartnerInputSchema, { document: "11222333000181", legalName: long(201) }, "razão social");
     rejects(CreatePartnerInputSchema, { document: "11222333000181", description: long(3_001) }, "descrição");
-  });
-
-  test("evento do veículo: título até 120 e descrição até 2.000", () => {
-    rejects(CreateVehicleEventInputSchema, { type: "repair", title: long(121) }, "título");
-    rejects(CreateVehicleEventInputSchema, { type: "repair", title: "Troca de óleo", description: long(2_001) }, "descrição");
   });
 });

@@ -27,10 +27,6 @@ const GROUPS: { title: string; items: Faq[] }[] = [
         q: "O que é a loja verificada?",
         a: "É uma loja, imobiliária ou corretor cujos dados foram conferidos pela nossa equipe. O selo aparece no anúncio e na vitrine da empresa.",
       },
-      {
-        q: "O que é o Passaporte Digital do veículo?",
-        a: "É o histórico do carro no NovoSeminovo pela placa: anúncios anteriores e eventos registrados (revisões, manutenções), com indicação de quem confirmou cada informação.",
-      },
     ],
   },
   {

@@ -207,7 +207,7 @@ ${VEHICLE_EXAMPLE}`}</Code>
               ["fuelType", "texto", '"flex", "gasoline", "ethanol", "diesel", "electric" ou "hybrid"'],
               ["color", "texto", "obrigatório"],
               ["doors", "número", "opcional, 2 a 6"],
-              ["plate", "texto", "opcional — liga ao histórico (Passaporte Digital) do veículo"],
+              ["plate", "texto", "opcional — não aparece no anúncio; serve para reconhecer o mesmo veículo"],
               ["— imóvel —", "", ""],
               ["propertyType", "texto", '"house", "apartment", "land", "commercial", "penthouse", "farm", "warehouse", "condo_house", "studio", "store" ou "garage"'],
               ["purpose", "texto", '"sale" (venda) ou "rent" (aluguel)'],

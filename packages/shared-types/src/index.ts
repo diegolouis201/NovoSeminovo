@@ -307,10 +307,6 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
   // id de cada uma é só para a própria página de gerenciar fotos (excluir
   // uma foto específica); a galeria pública só usa a url.
   photos: z.array(PhotoSchema),
-  // Só em anúncio de veículo cuja placa já foi informada (ver
-  // CreateVehicleInputSchema.plate) — o site usa isto pra mostrar "Ver
-  // histórico completo deste veículo" linkando pro Passaporte Digital.
-  vehicleId: z.string().optional(),
   // Vídeo do YouTube (só o id, pra montar o player) e se o vendedor liberou
   // a simulação/contato de financiamento no anúncio.
   youtubeVideoId: z.string().optional(),
@@ -338,9 +334,8 @@ export type MyListingSummary = z.infer<typeof MyListingSummarySchema>;
 // Detran/FIPE por placa — isso é Fase 2 (ver Etapa 1). A pessoa preenche os
 // campos à mão; marca/modelo do veículo são texto livre (a API cria a
 // entrada no catálogo se ainda não existir). A placa (abaixo, em
-// CreateVehicleInputSchema) já liga o anúncio ao Passaporte Digital do
-// veículo (ver VehicleProfileSchema) — sem consultar Detran ainda, só pra
-// reconhecer "é o mesmo carro de um anúncio anterior".
+// CreateVehicleInputSchema) é opcional e de uso interno: nunca aparece no
+// anúncio (só o hash fica no banco e ela é borrada nas fotos).
 const listingCoreFields = {
   title: z.string().min(5, "Escreva um título com pelo menos 5 caracteres").max(150, "Título muito longo (máx. 150 caracteres)"),
   description: z.string().min(20, "Descreva o anúncio com pelo menos 20 caracteres").max(10_000, "Descrição muito longa (máx. 10.000 caracteres)"),
@@ -534,132 +529,6 @@ export const UpdateListingStatusInputSchema = z.object({
   costPrice: z.number().nonnegative().optional(),
 });
 export type UpdateListingStatusInput = z.infer<typeof UpdateListingStatusInputSchema>;
-
-// ---------- Passaporte Digital do Veículo ----------
-// "Ativo" separado do anúncio: um carro pode ter vários anúncios ao longo da
-// vida, mas o Vehicle (e seu histórico) é um só, identificado pela placa.
-// ownership_change e listing_published são gerados só pelo backend (nunca
-// pelo próprio dono, ver CreateVehicleEventInputSchema) — o resto é
-// autoanunciado até existir parceiro verificado alimentando isso de verdade.
-
-export const VehicleEventType = z.enum([
-  "ownership_change",
-  "revision",
-  "repair",
-  "accident",
-  "inspection",
-  "listing_published",
-  "other",
-  "moment",
-  "letter",
-]);
-export type VehicleEventType = z.infer<typeof VehicleEventType>;
-
-export const VehicleEventSource = z.enum(["owner_reported", "partner_verified", "system"]);
-export type VehicleEventSource = z.infer<typeof VehicleEventSource>;
-
-export const VehicleEventSchema = z.object({
-  id: z.string(),
-  type: VehicleEventType,
-  source: VehicleEventSource,
-  title: z.string(),
-  description: z.string().optional(),
-  mileageAtEvent: z.number().optional(),
-  occurredAt: z.string(),
-  // Comprovante anexado na hora de registrar (ver CreateVehicleEventInputSchema) —
-  // sempre tem pelo menos uma foto pra eventos autoanunciados.
-  photos: z.array(z.string()),
-  // Nome da oficina que confirmou (só quando source === "partner_verified"),
-  // ou que foi marcada e ainda não confirmou (source ainda "owner_reported").
-  verifiedByPartnerName: z.string().optional(),
-});
-export type VehicleEvent = z.infer<typeof VehicleEventSchema>;
-
-export const VehicleProfileSchema = z.object({
-  id: z.string(),
-  brand: z.string().optional(),
-  model: z.string().optional(),
-  yearManufacture: z.number().optional(),
-  yearModel: z.number().optional(),
-  color: z.string().optional(),
-  plateMasked: z.string().optional(),
-  // Nº de donos registrados nesta plataforma — não é o histórico real de
-  // propriedade do Detran, só o que a própria base já viu (1 + quantos
-  // "ownership_change" o Vehicle acumulou).
-  ownersCount: z.number(),
-  // true só quando quem está vendo é o dono atual — controla se o site
-  // mostra o formulário de "adicionar evento".
-  isOwner: z.boolean(),
-  events: z.array(VehicleEventSchema),
-  // Foto de capa (do anúncio mais recente) e onde cada anúncio foi publicado
-  // — cidade/UF já são públicas no anúncio; nunca o endereço nem o dono.
-  capaUrl: z.string().optional(),
-  anuncios: z.array(z.object({ publicadoEm: z.string(), cidade: z.string(), uf: z.string() })).default([]),
-  // Seguir o carro: quantas pessoas seguem e se quem está vendo segue.
-  seguidores: z.number().default(0),
-  seguindo: z.boolean().default(false),
-  // "A história em 30 segundos" (IA, só com fatos), quando está em dia.
-  resumo: z.string().optional(),
-});
-export type VehicleProfile = z.infer<typeof VehicleProfileSchema>;
-
-// Tipos que o próprio dono pode registrar — troca de dono e publicação de
-// anúncio ficam de fora de propósito (ver comentário da seção acima). Vem
-// sempre como multipart (ver VehiclesController.addEvent): o comprovante
-// (foto) é obrigatório e validado à parte, não dá pra expressar "pelo menos
-// um arquivo" neste schema de metadados.
-export const CreateVehicleEventInputSchema = z.object({
-  type: z.enum(["revision", "repair", "inspection", "other", "moment"]),
-  title: z.string().min(3, "Dê um título pro evento").max(120),
-  description: z.string().max(2_000).optional(),
-  mileageAtEvent: z.number().int().min(0).optional(),
-  occurredAt: z.string().optional(),
-  // Oficina cadastrada (ver PartnerType.workshop) marcada como responsável
-  // pelo serviço — opcional; quando informada, vira uma confirmação
-  // pendente até a própria oficina validar (ver VehiclesService.confirmService).
-  workshopPartnerId: z.string().optional(),
-});
-// Carta do dono para o próximo dono (Diário do Carro) — uma por dono.
-export const VehicleLetterInputSchema = z.object({
-  texto: z.string().trim().min(10, "Escreva pelo menos uma frase").max(1500, "A carta pode ter até 1.500 caracteres"),
-});
-export type VehicleLetterInput = z.infer<typeof VehicleLetterInputSchema>;
-
-export type CreateVehicleEventInput = z.infer<typeof CreateVehicleEventInputSchema>;
-
-export const WorkshopOptionSchema = z.object({
-  id: z.string(),
-  legalName: z.string(),
-});
-export type WorkshopOption = z.infer<typeof WorkshopOptionSchema>;
-
-// Linha da fila de confirmação de uma oficina — ver /parceiro/servicos.
-export const PendingServiceConfirmationSchema = z.object({
-  eventId: z.string(),
-  vehicleId: z.string(),
-  vehicleLabel: z.string(),
-  title: z.string(),
-  description: z.string().optional(),
-  mileageAtEvent: z.number().optional(),
-  occurredAt: z.string(),
-  photos: z.array(z.string()),
-});
-export type PendingServiceConfirmation = z.infer<typeof PendingServiceConfirmationSchema>;
-
-// Cadastrar um veículo direto, sem precisar anunciar — pra quem quer começar
-// o Passaporte Digital do carro enquanto ainda é dono (construindo o
-// histórico ao longo do tempo), não só no momento de vender. Marca e modelo
-// obrigatórios, resto opcional de propósito: menos campos pra preencher,
-// maior chance da pessoa concluir o cadastro na hora.
-export const RegisterVehicleInputSchema = z.object({
-  plate: z.string().min(7, "Informe uma placa válida").max(8),
-  brand: z.string().min(1, "Informe a marca"),
-  model: z.string().min(1, "Informe o modelo"),
-  yearManufacture: z.number().int().min(1950).max(2100).optional(),
-  yearModel: z.number().int().min(1950).max(2100).optional(),
-  color: z.string().optional(),
-});
-export type RegisterVehicleInput = z.infer<typeof RegisterVehicleInputSchema>;
 
 // ---------- IA no anúncio (Fase 3) ----------
 
@@ -1692,7 +1561,6 @@ export const NotificationType = z.enum([
   "partner_verified",
   "new_review",
   "saved_search_match",
-  "service_confirmation_requested",
   "financing_lead_created",
   "partner_trial_ending",
   "partner_offline",
@@ -1709,7 +1577,9 @@ export const NotificationType = z.enum([
   "listing_removed",
   "reply_reminder",
   "listing_contact",
-  "vehicle_follow_update",
+  // vehicle_follow_update e service_confirmation_requested saíram em
+  // 08/11/2026 (fim do perfil público do carro); avisos antigos ficam
+  // escondidos (RETIRED_NOTIFICATION_TYPES na API).
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
@@ -3152,5 +3022,4 @@ export const MktApproveInputSchema = z.object({ publicarEm: z.string().datetime(
 export const MktPublishedInputSchema = z.object({ rede: z.string().trim().min(1).max(20), link: z.string().trim().url().max(500).refine((u) => /^https:\/\//.test(u), "O link precisa começar com https://") });
 export const MktBudgetInputSchema = z.object({ mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), plataforma: z.enum(["meta_ads", "google_ads", "tiktok_ads"]), valor: z.number().min(0).max(10_000_000) });
 
-export * from "./historia";
 export * from "./vitrine";

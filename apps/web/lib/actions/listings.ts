@@ -209,7 +209,7 @@ function num(formData: FormData, key: string): number | undefined {
 // Gera o rascunho e manda de volta pro próprio /anunciar via querystring
 // (?draftTitle=...), que o formulário lê como defaultValue — evita
 // transformar a tela inteira num client component só pra pré-preencher
-// título/descrição (mesma técnica do "preset" no Passaporte Digital).
+// título/descrição.
 export async function generateListingDraftAction(formData: FormData): Promise<void> {
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");

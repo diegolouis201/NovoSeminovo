@@ -29,6 +29,14 @@ const nextConfig = {
       { source: "/recompensas", destination: "/como-funciona", statusCode: 301 },
       { source: "/conta/recompensas", destination: "/conta", statusCode: 301 },
       { source: "/admin/recompensas", destination: "/admin/comissoes", statusCode: 301 },
+      // Passaporte Digital / Diário do Carro descontinuado (08/11/2026,
+      // decisão do Diego): consulta por placa, página do carro, ficha técnica,
+      // "Meus veículos" e a fila de serviços da oficina saíram do ar.
+      { source: "/consultar-veiculo", destination: "/carros", statusCode: 301 },
+      { source: "/veiculo/:path*", destination: "/carros", statusCode: 301 },
+      { source: "/ficha-tecnica", destination: "/carros", statusCode: 301 },
+      { source: "/conta/veiculos/:path*", destination: "/conta", statusCode: 301 },
+      { source: "/parceiro/servicos", destination: "/parceiro", statusCode: 301 },
     ];
   },
   // Links do site abrindo direto no app do celular (ver mobile/README.md).

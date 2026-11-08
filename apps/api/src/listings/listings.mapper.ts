@@ -418,7 +418,6 @@ export function toListingDetail(
           }
       : undefined,
     photos: visiblePhotos.map((photo) => ({ id: photo.id, url: photo.url })),
-    vehicleId: listing.type === "vehicle" ? listing.vehicleDetails?.vehicleId ?? undefined : undefined,
     youtubeVideoId: benefits.video || fullView ? youtubeVideoId(listing.videoUrl ?? undefined) : undefined,
     planTier: listingTier(listing.planTier).id,
     isPartnerListing: Boolean(listing.partnerId),

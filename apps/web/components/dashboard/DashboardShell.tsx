@@ -36,7 +36,6 @@ function partnerItems(partner: Partner): SidebarItem[] {
     { href: "/parceiro/leads", label: "Leads", icon: "chart" },
     { href: "/parceiro/vendas", label: "Vendas", icon: "card" },
     { href: "/conta/mensagens", label: "Chat", icon: "chat" },
-    ...(partner.type === "workshop" ? [{ href: "/parceiro/servicos", label: "Serviços", icon: "wrench" as const }] : []),
     ...(partner.isOwner
       ? [
           { href: "/parceiro/plano", label: "Plano", icon: "store" as const },
@@ -55,7 +54,6 @@ const PERSON_ITEMS: SidebarItem[] = [
   { href: "/conta/favoritos", label: "Favoritos", icon: "heart" },
   { href: "/conta/buscas-salvas", label: "Buscas salvas", icon: "search" },
   { href: "/conta/notificacoes", label: "Notificações", icon: "bell" },
-  { href: "/conta/veiculos", label: "Passaporte dos meus carros", icon: "id" },
   { href: "/afiliado", label: "Programa de afiliados", icon: "chart" },
   { href: "/conta/perfil", label: "Meus dados", icon: "user" },
   { href: "/parceiro", label: "Sou loja ou imobiliária", icon: "store" },

@@ -111,7 +111,7 @@ export default function HowItWorksPage() {
               "Veja o carro ou o imóvel pessoalmente antes de fechar negócio.",
               "Desconfie de preço muito abaixo do mercado e de pressa para fechar.",
               "Nunca faça pagamento antecipado, sinal ou depósito sem contrato e garantias.",
-              "Confira a documentação: no carro, use a consulta do Passaporte Digital; no imóvel, peça a matrícula atualizada.",
+              "Confira a documentação: no carro, consulte a situação do veículo no Detran do estado; no imóvel, peça a matrícula atualizada.",
               "O NovoSeminovo nunca pede senha, código de verificação ou dados bancários por mensagem.",
             ].map((tip) => (
               <li key={tip} className="flex gap-2">
@@ -120,9 +120,6 @@ export default function HowItWorksPage() {
               </li>
             ))}
           </ul>
-          <Link href="/consultar-veiculo" className="mt-4 inline-block text-sm font-semibold text-brand-blue hover:underline">
-            Consultar o Passaporte Digital de um veículo →
-          </Link>
         </div>
       </Section>
 

@@ -190,7 +190,6 @@ export function buildBuyerAgent(
           ficha: detail.specs.map((spec) => `${spec.label}: ${spec.value}`),
           descricao: detail.description.slice(0, 1500),
           financiamento_estimado: detail.financing,
-          tem_historico_do_veiculo: Boolean(detail.vehicleId),
           link: linkFor(detail.id),
         };
       },

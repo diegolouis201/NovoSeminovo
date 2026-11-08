@@ -169,8 +169,8 @@ enum VehicleEventType {
   inspection
   listing_published
   other
-  moment // Diário do Carro: momento do dono (viagem, conquista), com foto
-  letter // Diário do Carro: carta do dono para o próximo dono (texto)
+  moment // descontinuado (08/11/2026): momento do dono, com foto
+  letter // descontinuado (08/11/2026): carta do dono para o próximo dono
 }
 
 enum VehicleEventSource {
@@ -552,6 +552,11 @@ model VehicleDetails {
 // pra exibir). Ver VehiclesService.resolveForListing: anúncio novo com a
 // mesma placa de um Vehicle existente vira um evento no histórico dele, em
 // vez de um registro novo do zero.
+// DESCONTINUADO (08/11/2026, decisão do Diego, risco jurídico): o perfil
+// público do carro (Passaporte Digital / Diário do Carro) saiu do ar. Esta
+// tabela e vehicle_events/vehicle_follows ficam só como registro (não apagar,
+// para o `prisma db push` não perder dados); hoje só o cadastro do anúncio
+// grava aqui (placa em hash), sem tela nem rota pública.
 model Vehicle {
   id              String        @id @default(cuid())
   plateHash       String?       @unique @map("plate_hash")
@@ -571,8 +576,8 @@ model Vehicle {
   events   VehicleEvent[]
   follows  VehicleFollow[]
 
-  // "A história em 30 segundos" (IA, só com fatos) e a chave dos fatos que a
-  // geraram — história mudou, chave muda e o resumo antigo não aparece.
+  // Descontinuado (08/11/2026): resumo por IA do perfil público do carro.
+  // Colunas mantidas só para não perder dados; nada lê nem grava.
   resumoIa      String? @map("resumo_ia")
   resumoIaChave String? @map("resumo_ia_chave")
 
@@ -585,8 +590,8 @@ model Vehicle {
 // virarem algo que o dono forja sobre si mesmo. revision/repair/inspection/
 // other são autoanunciados (source=owner_reported) até existir parceiro
 // verificado (oficina, despachante) alimentando isso de verdade.
-// Quem segue o carro recebe aviso quando ele volta a ser anunciado ou
-// baixa de preço (Diário do Carro).
+// Descontinuado (08/11/2026): "seguir o carro". Tabela mantida só como
+// registro; ninguém mais recebe aviso.
 model VehicleFollow {
   id        String   @id @default(cuid())
   vehicleId String   @map("vehicle_id")

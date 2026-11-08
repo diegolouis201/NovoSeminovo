@@ -143,8 +143,8 @@ async function main() {
     create: { brandId: toyota.id, name: "Corolla" },
   });
 
-  // Vehicle separado do Listing (ver Passaporte Digital): mesmo carro citado
-  // no plano de negócio ("Corolla 2020 na cor prata... nunca bati").
+  // Vehicle separado do Listing: uso interno (placa só em hash). O perfil
+  // público do carro foi descontinuado em 08/11/2026.
   const corollaVehicle = await prisma.vehicle.upsert({
     where: { plateHash: hashPlate("ABC1D23") },
     update: {},

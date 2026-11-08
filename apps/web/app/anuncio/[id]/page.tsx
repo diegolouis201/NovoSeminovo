@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { listingTier } from "@novoseminovo/shared-types";
 import { cache } from "react";
-import { IdentificationCard, PaintBrushHousehold, WhatsappLogo } from "@phosphor-icons/react/dist/ssr";
+import { PaintBrushHousehold, WhatsappLogo } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
@@ -199,15 +199,6 @@ export default async function ListingDetailPage({
               className="self-start text-sm font-semibold text-brand-blue hover:underline"
             >
               {listing.photos.length > 0 ? "Gerenciar fotos" : "Adicionar fotos"}
-            </Link>
-          )}
-          {listing.vehicleId && (
-            <Link
-              href={`/veiculo/${listing.vehicleId}`}
-              className="inline-flex w-fit items-center gap-1.5 self-start rounded-full bg-surface-sober px-3 py-1.5 text-sm font-semibold text-brand-blue hover:underline"
-            >
-              <IdentificationCard size={16} weight="bold" />
-              Ver histórico completo deste veículo
             </Link>
           )}
 

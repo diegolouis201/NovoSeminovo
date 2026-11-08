@@ -20,7 +20,7 @@ const VALUES = [
   { title: "Transparência", text: "Preço claro, informação completa e nada escondido — nem do comprador, nem do vendedor." },
   {
     title: "Informação gera confiança",
-    text: "Quanto mais se sabe sobre o bem — histórico, conservação, procedência —, melhor a decisão. É a razão de existir do Passaporte do Carro.",
+    text: "Quanto mais se sabe sobre o bem — conservação, procedência, documentação —, melhor a decisão.",
   },
   {
     title: "Escolha consciente",
@@ -53,15 +53,6 @@ export default function AboutPage() {
             e possibilidades, oferecendo o máximo de informações para que possa tomar decisões com confiança.
           </p>
           <p>
-            Foi com esse propósito que criamos o{" "}
-            <Link href="/consultar-veiculo" className="font-semibold text-brand-blue hover:underline">
-              Passaporte do Carro
-            </Link>
-            , uma solução que reúne informações importantes sobre o histórico, os cuidados e a conservação do veículo. A
-            ferramenta ajuda tanto o comprador, que busca mais segurança na hora de escolher seu próximo carro, quanto o
-            vendedor, que pode demonstrar a procedência e o cuidado dedicado ao veículo.
-          </p>
-          <p>
             Além do mercado automotivo, também atuamos no setor imobiliário, conectando pessoas a oportunidades e
             buscando tornar os processos de compra, venda e negociação de imóveis mais transparentes, acessíveis e
             seguros.
@@ -76,8 +67,8 @@ export default function AboutPage() {
           </p>
         </div>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link href="/consultar-veiculo" className="rounded-brand bg-brand-green px-5 py-3 text-sm font-bold text-on-green">
-            Consultar o Passaporte de um carro
+          <Link href="/carros" className="rounded-brand bg-brand-green px-5 py-3 text-sm font-bold text-on-green">
+            Ver carros à venda
           </Link>
           <Link href="/como-funciona" className="rounded-brand border border-border px-5 py-3 text-sm font-bold text-ink hover:bg-surface-sober">
             Como funciona

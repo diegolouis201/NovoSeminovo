@@ -45,7 +45,8 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>Anúncios:</strong> dados do veículo ou imóvel, fotos, localização aproximada e, para veículos, a placa
-          (usada no histórico do veículo — “Passaporte Digital”).
+          (opcional; nunca aparece no anúncio: guardamos só uma versão protegida para reconhecer o mesmo veículo em
+          outro anúncio e procuramos borrar a placa nas fotos).
         </li>
         <li>
           <strong>Conversas:</strong> mensagens trocadas no chat com anunciantes e com o assistente virtual do site e do

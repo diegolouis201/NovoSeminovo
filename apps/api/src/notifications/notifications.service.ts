@@ -20,8 +20,15 @@ type NotificationRow = {
 // Um tipo novo é só mais um `case` aqui, sem mexer em nenhuma tela.
 // Avisos de programas que acabaram: continuam no banco (histórico), mas não
 // aparecem mais na lista nem contam como não lidos. O cashback no
-// financiamento acabou em 06/11/2026.
-export const RETIRED_NOTIFICATION_TYPES = ["cashback_registered", "cashback_released", "cashback_paid"];
+// financiamento acabou em 06/11/2026; o perfil público do carro (seguir o
+// carro e confirmação de serviço pela oficina) acabou em 08/11/2026.
+export const RETIRED_NOTIFICATION_TYPES = [
+  "cashback_registered",
+  "cashback_released",
+  "cashback_paid",
+  "vehicle_follow_update",
+  "service_confirmation_requested",
+];
 const activeTypes = { notIn: RETIRED_NOTIFICATION_TYPES };
 
 function toNotification(row: NotificationRow): Notification {
@@ -144,18 +151,6 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         body: `Você recebeu uma avaliação de ${payload.rating} estrela(s) sobre "${payload.listingTitle}".`,
         link: `/anuncio/${payload.listingId}`,
       };
-    case "vehicle_follow_update":
-      return payload.motivo === "preco"
-        ? {
-            title: "O carro que você segue baixou de preço",
-            body: `${payload.nome} agora está anunciado por ${Number(payload.preco).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}.`,
-            link: payload.listingId ? `/anuncio/${payload.listingId}` : `/veiculo/${payload.vehicleId}`,
-          }
-        : {
-            title: "O carro que você segue voltou a ser anunciado",
-            body: `${payload.nome} foi anunciado de novo no NovoSeminovo. Veja o Diário do Carro e o anúncio.`,
-            link: `/veiculo/${payload.vehicleId}`,
-          };
     case "saved_search_match":
       return {
         title: "Novo anúncio compatível com sua busca",
@@ -197,12 +192,6 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
         title: "Seus anúncios saíram do ar",
         body: `"${payload.partnerName}" está sem plano ativo, então a vitrine e ${payload.count} anúncio(s) foram pausados — nada foi apagado. Contrate um plano e eles voltam na hora.`,
         link: "/parceiro/plano",
-      };
-    case "service_confirmation_requested":
-      return {
-        title: "Confirmação de serviço pendente",
-        body: `${payload.ownerName ?? "Um cliente"} registrou "${payload.eventTitle}" no veículo ${payload.vehicleLabel} e pediu a sua confirmação.`,
-        link: "/parceiro/servicos",
       };
     default:
       // Tipo desconhecido (ex.: aviso antigo): nunca quebra a lista.

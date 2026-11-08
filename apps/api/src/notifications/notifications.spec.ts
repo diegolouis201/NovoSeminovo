@@ -7,7 +7,9 @@ import { NotificationsService } from "./notifications.service";
 
 // O cashback no financiamento acabou (06/11/2026). Aviso antigo de cashback
 // que tenha ficado no banco não aparece mais para ninguém (nem quebra a
-// lista), e o contador de não lidas ignora esses avisos.
+// lista), e o contador de não lidas ignora esses avisos. O mesmo vale para
+// os avisos do Passaporte Digital / Diário do Carro, descontinuado em
+// 08/11/2026 (seguir o carro e confirmação de serviço pela oficina).
 const withDb = Boolean(process.env.DATABASE_URL);
 
 describe("Avisos antigos de cashback (banco local)", { skip: !withDb && "sem DATABASE_URL" }, () => {
@@ -22,6 +24,8 @@ describe("Avisos antigos de cashback (banco local)", { skip: !withDb && "sem DAT
       data: [
         { userId, type: "cashback_registered", payload: { amountLabel: "R$ 160,00" } },
         { userId, type: "cashback_paid", payload: { amountLabel: "R$ 160,00" } },
+        { userId, type: "vehicle_follow_update", payload: { vehicleId: "v1", motivo: "anunciado", nome: "VW Gol 2020" } },
+        { userId, type: "service_confirmation_requested", payload: { eventId: "e1", eventTitle: "Revisão", vehicleLabel: "2020" } },
         { userId, type: "listing_approved", payload: { listingTitle: "Gol", listingId: "abc" } },
       ],
     });
@@ -39,7 +43,7 @@ describe("Avisos antigos de cashback (banco local)", { skip: !withDb && "sem DAT
       mine.map((n) => n.type),
       ["listing_approved"],
     );
-    assert.doesNotMatch(JSON.stringify(mine), /cashback|recompensa/i);
+    assert.doesNotMatch(JSON.stringify(mine), /cashback|recompensa|Diário|segue|oficina|\/veiculo\/|parceiro\/servicos/i);
     assert.equal(await service.unreadCount(userId), 1);
   });
 });

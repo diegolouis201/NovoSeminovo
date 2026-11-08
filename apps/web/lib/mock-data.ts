@@ -1,4 +1,4 @@
-import { formatBRL, type ListingDetail, type VehicleProfile } from "@novoseminovo/shared-types";
+import { formatBRL, type ListingDetail } from "@novoseminovo/shared-types";
 
 export type { ListingDetail };
 
@@ -10,7 +10,6 @@ const LISTINGS: ListingDetail[] = [
   {
     id: "corolla-xei-2020",
     assetType: "vehicle",
-    vehicleId: "mock-vehicle-corolla",
     title: "Corolla XEi 2020",
     subtitle: "42.000 km · Automático · Flex",
     priceLabel: formatBRL(94500),
@@ -147,61 +146,6 @@ const LISTINGS: ListingDetail[] = [
 export function listListings(assetType?: "vehicle" | "property"): ListingDetail[] {
   if (!assetType) return LISTINGS;
   return LISTINGS.filter((listing) => listing.assetType === assetType);
-}
-
-// Passaporte Digital de exemplo — mesmo carro citado como exemplo no plano de
-// negócio ("Corolla 2020 na cor prata... nunca bati").
-const VEHICLE_PROFILES: VehicleProfile[] = [
-  {
-    id: "mock-vehicle-corolla",
-    brand: "Toyota",
-    model: "Corolla",
-    yearManufacture: 2020,
-    yearModel: 2020,
-    color: "Prata",
-    plateMasked: "ABC**34",
-    ownersCount: 1,
-    isOwner: false,
-    anuncios: [],
-    seguidores: 0,
-    seguindo: false,
-    events: [
-      {
-        id: "mock-event-3",
-        type: "listing_published",
-        source: "system",
-        title: "Anúncio publicado",
-        description: "Corolla XEi 2020",
-        occurredAt: "2025-09-10T12:00:00.000Z",
-        photos: [],
-      },
-      {
-        id: "mock-event-2",
-        type: "revision",
-        source: "partner_verified",
-        title: "Revisão na concessionária",
-        description: "Revisão dos 40.000 km, troca de óleo e filtros.",
-        mileageAtEvent: 40000,
-        occurredAt: "2025-06-02T12:00:00.000Z",
-        photos: [],
-        verifiedByPartnerName: "Toyota BH Concessionária",
-      },
-      {
-        id: "mock-event-1",
-        type: "revision",
-        source: "owner_reported",
-        title: "Revisão na concessionária",
-        description: "Revisão dos 20.000 km.",
-        mileageAtEvent: 20000,
-        occurredAt: "2022-08-15T12:00:00.000Z",
-        photos: [],
-      },
-    ],
-  },
-];
-
-export function getVehicleProfile(id: string): VehicleProfile | undefined {
-  return VEHICLE_PROFILES.find((vehicle) => vehicle.id === id);
 }
 
 export function getListing(id: string): ListingDetail | undefined {

@@ -361,7 +361,6 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
 
   private async updateListing(listingId: string, input: IntegrationListingInput, currentPhotos: string[]) {
     const { externalId: _externalId, photos, ...listingInput } = input;
-    const antes = await this.prisma.listing.findUnique({ where: { id: listingId }, select: { price: true } });
     const core = {
       title: listingInput.title,
       description: listingInput.description,
@@ -425,10 +424,6 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
           ]
         : []),
     ]);
-    // Quem segue o carro no Diário recebe aviso se o preço baixou.
-    if (antes && listingInput.price !== undefined) {
-      await this.vehicles.avisarSeBaixouPreco(listingId, Number(antes.price), Number(listingInput.price)).catch(() => undefined);
-    }
   }
 
   // ---------- Feeds ----------

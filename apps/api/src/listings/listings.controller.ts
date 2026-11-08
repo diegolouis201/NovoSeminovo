@@ -189,22 +189,6 @@ export class ListingsController {
     return (await this.fipe.priceForVersion(query.brand, code, year)) ?? null;
   }
 
-  // Página "Ficha técnica": anos de uma versão e os dados da FIPE dela.
-  @Get("fipe-years")
-  fipeYears(@Query() query: unknown) {
-    const q = parseOrBadRequest(z.object({ brand: z.string().trim().min(1).max(60), modelCode: z.coerce.number().int().positive() }), query);
-    return this.fipe.listYears(q.brand, q.modelCode);
-  }
-
-  @Get("fipe-ficha")
-  async fipeFicha(@Query() query: unknown) {
-    const q = parseOrBadRequest(
-      z.object({ brand: z.string().trim().min(1).max(60), modelCode: z.coerce.number().int().positive(), yearCode: z.string().regex(/^\d{4}-\d$/) }),
-      query,
-    );
-    return (await this.fipe.ficha(q.brand, q.modelCode, q.yearCode)) ?? null;
-  }
-
   // Filtro "Marca" e "Modelo" da busca de carros: FIPE + o que já tem
   // anúncio. FIPE fora do ar não derruba a busca (fica só o dos anúncios).
   @Get("search-brands")

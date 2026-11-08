@@ -601,7 +601,7 @@ export function VehicleListingWizard({
         {current === "intro1" && <ImportShortcut />}
 
         {current === "plate" && (
-          <Step title="Qual é a placa?" hint="Ela não aparece no anúncio. Serve para ligar o carro ao Passaporte Digital (histórico do veículo) — é opcional.">
+          <Step title="Qual é a placa?" hint="Ela não aparece no anúncio. Serve só para reconhecermos o veículo — é opcional.">
             <div className="mx-auto mt-6 w-full max-w-sm overflow-hidden rounded-xl border-4 border-ink/80 bg-white shadow-card">
               <div className="flex items-center justify-between bg-brand-blue px-4 py-1.5 text-[11px] font-bold tracking-widest text-on-blue">
                 <span>BRASIL</span>
