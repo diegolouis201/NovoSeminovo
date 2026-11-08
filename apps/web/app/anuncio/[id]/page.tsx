@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { listingTier } from "@novoseminovo/shared-types";
 import { cache } from "react";
-import { PaintBrushHousehold, WhatsappLogo } from "@phosphor-icons/react/dist/ssr";
+import { PaintBrushHousehold, Storefront, WhatsappLogo } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
@@ -227,7 +227,20 @@ export default async function ListingDetailPage({
                 </Link>
               )}
             </div>
-            <ShareListingButton title={listing.title} priceLabel={listing.priceLabel} />
+            <div className="flex flex-wrap items-center gap-2">
+              <ShareListingButton title={listing.title} priceLabel={listing.priceLabel} />
+              {/* Vitrine: o anúncio em card (Instagram/WhatsApp) e cartaz para imprimir. */}
+              <Link
+                href={`/anuncio/${listing.id}/vitrine`}
+                className="inline-flex items-center gap-2 rounded-full border border-brand-orange px-4 py-1.5 text-brand-orange hover:bg-surface-sober"
+              >
+                <Storefront size={20} weight="bold" className="shrink-0" />
+                <span className="flex flex-col leading-tight">
+                  <span className="text-sm font-bold">{listing.assetType === "vehicle" ? "Vitrine do carro" : "Vitrine do imóvel"}</span>
+                  <span className="text-xs">Compartilhe no Insta, no Zap ou imprima</span>
+                </span>
+              </Link>
+            </div>
           </div>
 
           <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-brand border border-border bg-surface-raised p-4 sm:grid-cols-3">
