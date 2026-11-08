@@ -13,7 +13,6 @@ import { CredihomeSimulator } from "@/components/CredihomeSimulator";
 import { MarkVertical } from "@/components/ActiveVertical";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
-import { ShareListingButton } from "@/components/ShareListingButton";
 import { ListingContactCard } from "@/components/ListingContactCard";
 import { PhotoCarousel } from "@/components/PhotoCarousel";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
@@ -228,7 +227,6 @@ export default async function ListingDetailPage({
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <ShareListingButton title={listing.title} priceLabel={listing.priceLabel} />
               {/* Vitrine: o anúncio em card (Instagram/WhatsApp) e cartaz para imprimir. */}
               <Link
                 href={`/anuncio/${listing.id}/vitrine`}
