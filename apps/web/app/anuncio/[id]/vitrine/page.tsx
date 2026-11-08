@@ -32,7 +32,7 @@ export default async function VitrinePage({ params }: { params: { id: string } }
       </Link>
       <h1 className="mt-2 font-display text-2xl font-bold text-ink">{v.selo}</h1>
       <p className="mt-1 text-sm text-ink-muted">
-        Mande no WhatsApp, poste no Instagram ou imprima o cartaz e cole no {anuncio.assetType === "vehicle" ? "vidro do carro" : "portão ou na janela"}. Quem
+        Mande no WhatsApp, poste no Instagram ou imprima o cartaz e cole no {anuncio.assetType === "vehicle" ? "vidro do carro" : "portão ou na janela"}. Os cards digitais levam o link do anúncio; no cartaz impresso, quem
         apontar a câmera para o QR cai direto no anúncio.
       </p>
 

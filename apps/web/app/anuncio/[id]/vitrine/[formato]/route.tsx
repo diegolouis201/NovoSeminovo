@@ -8,7 +8,8 @@ import { SITE_URL } from "@/lib/company";
 
 // Vitrine do carro / do imóvel em imagem: card (Instagram/WhatsApp), story e
 // cartaz A4 para imprimir e colar no vidro do carro ou no portão. Só dados
-// públicos do anúncio; o contato acontece pelo site (QR leva ao anúncio).
+// públicos do anúncio; o contato acontece pelo site: no cartaz, QR para o
+// anúncio; nos cards digitais, o link escrito (decisão do Diego).
 const FORMATOS = {
   card: { width: 1080, height: 1350 },
   story: { width: 1080, height: 1920 },
@@ -40,10 +41,10 @@ async function fotoDeCapa(url?: string): Promise<string | undefined> {
   }
 }
 
-function Arte({ v, formato, foto, qr, logo }: { v: Vitrine; formato: Formato; foto?: string; qr: string; logo: string }) {
+function Arte({ v, formato, foto, qr, logo, linkCurto }: { v: Vitrine; formato: Formato; foto?: string; qr: string; logo: string; linkCurto: string }) {
   const { width, height } = FORMATOS[formato];
-  const s = formato === "cartaz" ? 1.5 : formato === "story" ? 1.25 : 1; // escala do texto
-  const fotoAltura = formato === "card" ? 600 : formato === "story" ? 860 : 860;
+  const s = formato === "cartaz" ? 1.5 : formato === "story" ? 1.1 : 1; // escala do texto
+  const fotoAltura = formato === "card" ? 600 : formato === "story" ? 820 : 860;
   const qrTam = formato === "cartaz" ? 520 : formato === "story" ? 300 : 230;
   return (
     <div style={{ width, height, display: "flex", flexDirection: "column", background: "#f7f8f3", color: TINTA }}>
@@ -77,17 +78,27 @@ function Arte({ v, formato, foto, qr, logo }: { v: Vitrine; formato: Formato; fo
           </div>
         )}
         <div style={{ display: "flex", fontSize: 32 * s, color: "#5a6152", marginTop: 6 * s }}>{v.local}</div>
-        <div style={{ display: "flex", marginTop: "auto", alignItems: "flex-end", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", flexDirection: "column", maxWidth: width - qrTam - 200 * s }}>
-            {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
-            <img src={logo} width={199 * s} height={140 * s} />
-            <div style={{ display: "flex", fontSize: 28 * s, color: "#5a6152", marginTop: 12 * s }}>
-              Aponte a câmera para ver as fotos e falar com o anunciante
+        {formato === "cartaz" ? (
+          <div style={{ display: "flex", marginTop: "auto", alignItems: "flex-end", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", flexDirection: "column", maxWidth: width - qrTam - 200 * s }}>
+              {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
+              <img src={logo} width={199 * s} height={140 * s} />
+              <div style={{ display: "flex", fontSize: 28 * s, color: "#5a6152", marginTop: 12 * s }}>
+                Aponte a câmera para ver as fotos e falar com o anunciante
+              </div>
             </div>
+            {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
+            <img src={qr} width={qrTam} height={qrTam} style={{ borderRadius: 16 }} />
           </div>
-          {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
-          <img src={qr} width={qrTam} height={qrTam} style={{ borderRadius: 16 }} />
-        </div>
+        ) : (
+          // Card digital (Instagram, story, WhatsApp): sem QR, com o link do anúncio.
+          <div style={{ display: "flex", flexDirection: "column", marginTop: "auto" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
+            <img src={logo} width={170 * s} height={120 * s} />
+            <div style={{ display: "flex", fontSize: 26 * s, color: "#5a6152", marginTop: 14 * s }}>Veja as fotos e fale com o anunciante:</div>
+            <div style={{ display: "flex", fontSize: 28 * s, fontWeight: 800, color: AZUL, marginTop: 4 * s }}>{linkCurto}</div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -105,7 +116,7 @@ export async function GET(_req: Request, { params }: { params: { id: string; for
     fotoDeCapa(v.foto),
     QRCode.toDataURL(link, { margin: 1, width: 600, color: { dark: TINTA, light: "#ffffff" } }),
   ]);
-  return new ImageResponse(<Arte v={v} formato={formato} foto={foto} qr={qr} logo={logo} />, {
+  return new ImageResponse(<Arte v={v} formato={formato} foto={foto} qr={qr} logo={logo} linkCurto={link.replace(/^https?:\/\/(www\.)?/, "")} />, {
     ...FORMATOS[formato],
     headers: { "Cache-Control": "public, max-age=600" },
   });
