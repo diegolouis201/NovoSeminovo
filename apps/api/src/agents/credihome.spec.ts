@@ -2,7 +2,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { CredihomeProposalInputSchema, CredihomeSimulateInputSchema, SendToCredihomeInputSchema } from "@novoseminovo/shared-types";
+import { CONSENTIMENTO_CREDITO, CredihomeProposalInputSchema, CredihomeSimulateInputSchema, SendToCredihomeInputSchema } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import type { ContactsService } from "../marketing/contacts.service";
 import type { NotificationsService } from "../notifications/notifications.service";
@@ -244,6 +244,9 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
     assert.equal(lead.credihomeLeadId, "lead-novo");
     assert.equal(Number(lead.downPayment), 100000);
     assert.match(lead.notes ?? "", /360 meses/);
+    // Prova do consentimento: versão do texto aceito (o texto de cada versão
+    // fica em CONSENTIMENTO_CREDITO, no histórico do código) e data/hora.
+    assert.match(lead.notes ?? "", new RegExp(`Autorização de crédito versão ${CONSENTIMENTO_CREDITO.versao} aceita em \\d{2}/\\d{2}/\\d{4}`));
     assert.equal(calls.filter((call) => call.path === "/simulations").at(-1)?.body?.duration, 360);
     assert.equal(notified.at(-1)?.channel, "simulador");
 

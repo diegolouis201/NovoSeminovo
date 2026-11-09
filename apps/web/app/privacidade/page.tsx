@@ -100,11 +100,15 @@ export default function PrivacyPage() {
           responsável por esses dados nesse atendimento.
         </li>
         <li>
-          <strong>Credihome (Loft), plataforma de crédito imobiliário:</strong> se você pedir uma proposta no simulador
-          de crédito de um imóvel e autorizar, enviamos nome, CPF, data de nascimento, celular, e-mail e os valores da
-          simulação à Credihome, que compara os bancos, faz a análise de crédito e entra em contato com você. O CPF e a
-          data de nascimento não ficam guardados no {COMPANY.brand}. Na simulação sem pedido de proposta, só os valores e
-          a data de nascimento são enviados, sem dados de contato.
+          <strong>Crédito imobiliário e de veículos:</strong> se você pedir uma proposta de crédito e marcar a
+          autorização, enviamos nome, CPF, data de nascimento, celular, e-mail e os valores da simulação à{" "}
+          <strong>{CORBAN.legalName}</strong>, CNPJ {CORBAN.cnpj}, que cuida do atendimento e pode compartilhá-los com a
+          Loft/Credihome (imóveis), a Creditas (veículos) e outras instituições financeiras, fintechs e parceiros dela para
+          simulação e análise de crédito. O pedido entra na plataforma da Credihome ou da Creditas em nome da IBS, e a
+          partir do envio a IBS é a responsável pelo uso desses dados no atendimento de crédito. Guardamos a versão e a
+          data da autorização que você aceitou, como prova. O CPF e a data de nascimento não ficam guardados no{" "}
+          {COMPANY.brand}. Na simulação sem pedido de proposta, só os valores e a data de nascimento são enviados, sem
+          dados de contato. Você pode retirar a autorização quando quiser, pelos contatos do item 10.
         </li>
         <li>
           <strong>Anunciantes:</strong> quando você conversa sobre um anúncio ou clica para chamar no WhatsApp, o

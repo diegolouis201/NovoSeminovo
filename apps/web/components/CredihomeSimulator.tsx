@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Bank, CheckCircle } from "@phosphor-icons/react";
 import {
+  CONSENTIMENTO_CREDITO,
   CREDIHOME_PURCHASE_WINDOWS,
   CredihomeProposalInputSchema,
   CredihomeSimulateInputSchema,
@@ -304,8 +305,7 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
           <label className="flex items-start gap-2 text-xs text-ink">
             <input name="consent" type="checkbox" required className="mt-0.5" />
             <span>
-              Autorizo o NovoSeminovo a enviar meus dados à Credihome (Loft) para simulação, análise de crédito e contato sobre
-              a proposta. Veja a{" "}
+              {CONSENTIMENTO_CREDITO.imovel} Veja a{" "}
               <Link href="/privacidade" target="_blank" className="font-semibold text-brand-blue underline">
                 política de privacidade
               </Link>

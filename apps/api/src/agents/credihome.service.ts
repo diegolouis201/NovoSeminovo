@@ -10,6 +10,7 @@ import {
   type OnModuleInit,
 } from "@nestjs/common";
 import {
+  CONSENTIMENTO_CREDITO,
   CREDIHOME_PURCHASE_WINDOWS,
   formatBRL,
   type Acquisition,
@@ -126,6 +127,7 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
       `Financiar ${formatBRL(input.mortgageValue)} em ${input.months} meses.`,
       `Quando pretende comprar: ${window}.`,
       input.useFgts ? "Vai usar FGTS." : undefined,
+      `Autorização de crédito versão ${CONSENTIMENTO_CREDITO.versao} aceita em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`,
     ]
       .filter(Boolean)
       .join(" ");

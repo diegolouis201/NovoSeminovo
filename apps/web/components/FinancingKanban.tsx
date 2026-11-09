@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { WhatsappLogo } from "@phosphor-icons/react";
-import type { FinancingLeadStatus, FinancingLeadSummary } from "@novoseminovo/shared-types";
+import { CONSENTIMENTO_CREDITO, type FinancingLeadStatus, type FinancingLeadSummary } from "@novoseminovo/shared-types";
 import {
   moveFinancingLeadAction,
   refreshCredihomeAction,
@@ -156,7 +156,7 @@ function CredihomeBox({ lead }: { lead: FinancingLeadSummary }) {
       </label>
       <label className="flex items-start gap-2 text-ink">
         <input name="consent" type="checkbox" required className="mt-0.5" />
-        <span>O cliente autorizou enviar nome, CPF, nascimento, telefone e e-mail à Credihome para simulação e análise de crédito.</span>
+        <span>O cliente aceitou a autorização de crédito (versão {CONSENTIMENTO_CREDITO.versao}): dados vão à IBS Capital, que envia à Credihome na base dela, para simulação e análise de crédito.</span>
       </label>
       {message?.tone === "error" && <p className="text-status-danger">{message.text}</p>}
       <div className="flex gap-2">
