@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import QRCode from "qrcode";
 import { vitrineDoAnuncio, type Vitrine } from "@novoseminovo/shared-types";
+import { auth } from "@/auth";
 import { fetchListing, resolveMediaUrl } from "@/lib/api";
 import { SITE_URL } from "@/lib/company";
 
@@ -17,7 +18,7 @@ const FORMATOS = {
 } as const;
 type Formato = keyof typeof FORMATOS;
 const LOGO_FILE = join(process.cwd(), "public/marca/novoseminovo-logo-recortado.png");
-const FOTO_MAX = 8_000_000;
+const FOTO_MAX = 4_000_000;
 const AZUL = "#1b4f8f";
 const LARANJA = "#f07d00";
 const VERDE = "#76b82a";
@@ -107,7 +108,10 @@ function Arte({ v, formato, foto, qr, logo, linkCurto }: { v: Vitrine; formato: 
 export async function GET(_req: Request, { params }: { params: { id: string; formato: string } }) {
   const formato = params.formato as Formato;
   if (!/^[A-Za-z0-9_-]{1,40}$/.test(params.id) || !(formato in FORMATOS)) return new Response("Não encontrado", { status: 404 });
-  const anuncio = await fetchListing(params.id);
+  // Com a sessão: o dono vê a Vitrine do anúncio ainda não publicado
+  // (aguardando aprovação, pausado); visitante só vê anúncio no ar.
+  const session = await auth();
+  const anuncio = await fetchListing(params.id, session?.accessToken);
   if (!anuncio) return new Response("Não encontrado", { status: 404 });
   const v = vitrineDoAnuncio(anuncio);
   const link = `${SITE_URL}/anuncio/${anuncio.id}`;
@@ -116,8 +120,20 @@ export async function GET(_req: Request, { params }: { params: { id: string; for
     fotoDeCapa(v.foto),
     QRCode.toDataURL(link, { margin: 1, width: 600, color: { dark: TINTA, light: "#ffffff" } }),
   ]);
-  return new ImageResponse(<Arte v={v} formato={formato} foto={foto} qr={qr} logo={logo} linkCurto={link.replace(/^https?:\/\/(www\.)?/, "")} />, {
-    ...FORMATOS[formato],
-    headers: { "Cache-Control": "public, max-age=600" },
-  });
+  const linkCurto = link.replace(/^https?:\/\/(www\.)?/, "");
+  // Gera a imagem inteira antes de responder: se a foto (grande ou num
+  // formato que o gerador não lê) quebrar, tenta de novo sem a foto em vez
+  // de devolver erro e deixar a Vitrine em branco.
+  const gerar = async (comFoto: boolean) => {
+    const res = new ImageResponse(<Arte v={v} formato={formato} foto={comFoto ? foto : undefined} qr={qr} logo={logo} linkCurto={linkCurto} />, FORMATOS[formato]);
+    return Buffer.from(await res.arrayBuffer());
+  };
+  let png: Buffer;
+  try {
+    png = await gerar(true);
+  } catch (error) {
+    console.error(`Vitrine ${params.id}/${formato}: falha com a foto, gerando sem foto`, error);
+    png = await gerar(false);
+  }
+  return new Response(new Uint8Array(png), { headers: { "Content-Type": "image/png", "Cache-Control": "private, max-age=300" } });
 }

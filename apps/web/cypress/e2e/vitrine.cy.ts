@@ -17,4 +17,8 @@ describe("Vitrine do anúncio", () => {
       cy.request({ url: `/anuncio/${id}/vitrine/qualquer`, failOnStatusCode: false }).its("status").should("eq", 404);
     });
   });
+
+  it("anúncio que não está no ar: visitante não vê a imagem da Vitrine", () => {
+    cy.request({ url: "/anuncio/nao-existe-123/vitrine/card", failOnStatusCode: false }).its("status").should("eq", 404);
+  });
 });
