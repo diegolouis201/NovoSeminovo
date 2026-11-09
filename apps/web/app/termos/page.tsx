@@ -66,17 +66,17 @@ export default function TermsPage() {
 
       <H2>5. Financiamento</H2>
       <p>
-        Quando você pede contato sobre financiamento, o atendimento é feito pela correspondente parceira{" "}
-        <strong>{CORBAN.legalName}</strong> ({CORBAN.brand}), CNPJ {CORBAN.cnpj}, em nome das instituições financeiras
-        que ela representa. O {COMPANY.brand} não é
+        Quando você pede contato sobre financiamento, o atendimento é feito pela parceira de crédito{" "}
+        <strong>{CORBAN.legalName}</strong> ({CORBAN.brand}), CNPJ {CORBAN.cnpj}, que leva o pedido às instituições
+        financeiras parceiras dela. O {COMPANY.brand} não é
         instituição financeira e não concede crédito.
       </p>
 
       <H2>6. Planos de parceiros e remuneração no financiamento</H2>
       <p>
         Planos pagos e limites de anúncios seguem as condições exibidas no painel do parceiro. Quando um financiamento é
-        contratado por indicação do site, o {COMPANY.brand} pode ser remunerado pelo banco ou pelo correspondente
-        bancário parceiro; essa remuneração é da empresa e não é repassada a quem contratou o financiamento.
+        contratado por indicação do site, o {COMPANY.brand} pode ser remunerado pelo banco ou pela parceira de
+        crédito; essa remuneração é da empresa e não é repassada a quem contratou o financiamento.
       </p>
 
       <H2>7. Condutas proibidas</H2>

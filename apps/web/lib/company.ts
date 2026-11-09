@@ -18,7 +18,7 @@ export const COMPANY = {
   city: "Belo Horizonte/MG",
 } as const;
 
-// Correspondente bancário parceiro — empresa separada, que atende os pedidos
+// Parceira de crédito — empresa separada, que atende os pedidos
 // de financiamento captados pelo assistente e recebe a comissão dos bancos.
 // Mesmos dados ficam em apps/api/src/agents/buyer-agent.ts (CORBAN).
 export const CORBAN = {

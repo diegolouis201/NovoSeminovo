@@ -78,7 +78,7 @@ export default function AboutPage() {
 
       <Section title="Financiamento com acompanhamento">
         <p className="mt-4 max-w-3xl text-base text-ink">
-          O financiamento é feito com a <strong>{CORBAN.brand}</strong>, correspondente bancário parceiro, que leva o
+          O financiamento é feito com a <strong>{CORBAN.brand}</strong>, parceira de crédito, que leva o
           pedido aos bancos e financeiras e acompanha o cliente até a assinatura.
         </p>
       </Section>
@@ -118,7 +118,7 @@ export default function AboutPage() {
             </dd>
           </div>
           <div>
-            <dt className="text-ink-muted">Correspondente bancário parceiro</dt>
+            <dt className="text-ink-muted">Parceira de crédito</dt>
             <dd className="font-semibold text-ink">
               {CORBAN.brand} — {CORBAN.legalName}
               <br />

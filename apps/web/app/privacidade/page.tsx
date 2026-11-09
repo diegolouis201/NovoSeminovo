@@ -94,10 +94,10 @@ export default function PrivacyPage() {
       <H2>4. Com quem compartilhamos</H2>
       <ul>
         <li>
-          <strong>Correspondente bancário parceiro:</strong> se você pedir contato sobre financiamento, seus dados do
-          pedido são enviados à <strong>{CORBAN.legalName}</strong> ({CORBAN.brand}), CNPJ {CORBAN.cnpj}, correspondente
-          parceira do {COMPANY.brand}, que fará o atendimento e a análise com bancos e financeiras e passa a ser
-          responsável por esses dados nesse atendimento.
+          <strong>Parceira de crédito:</strong> se você pedir contato sobre financiamento pelo assistente, seus dados do
+          pedido são enviados à <strong>{CORBAN.legalName}</strong> ({CORBAN.brand}), CNPJ {CORBAN.cnpj}, parceira de
+          crédito do {COMPANY.brand}, que fará o atendimento com bancos e financeiras e passa a ser responsável por esses
+          dados nesse atendimento.
         </li>
         <li>
           <strong>Crédito imobiliário e de veículos:</strong> se você pedir uma proposta de crédito e marcar a

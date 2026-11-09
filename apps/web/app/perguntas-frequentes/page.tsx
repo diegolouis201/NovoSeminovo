@@ -51,7 +51,7 @@ const GROUPS: { title: string; items: Faq[] }[] = [
     items: [
       {
         q: "Quem faz o financiamento?",
-        a: `O atendimento é feito pela ${CORBAN.brand} (${CORBAN.legalName}, CNPJ ${CORBAN.cnpj}), correspondente bancário parceiro, que leva o seu pedido a bancos e financeiras. O NovoSeminovo não é banco e não concede crédito.`,
+        a: `O atendimento é feito pela ${CORBAN.brand} (${CORBAN.legalName}, CNPJ ${CORBAN.cnpj}), parceira de crédito do NovoSeminovo, que leva o seu pedido a bancos e financeiras. O NovoSeminovo não é banco e não concede crédito.`,
       },
       {
         q: "A simulação garante a aprovação?",

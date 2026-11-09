@@ -3,7 +3,7 @@ import type { ListingsService } from "../listings/listings.service";
 import { DEFAULT_RATE, priceAmortization } from "../listings/listings.mapper";
 import type { AgentDefinition, AgentTool } from "./agent-engine";
 
-// Correspondente bancário parceiro (empresa separada do NovoSeminovo) —
+// Parceira de crédito (empresa separada do NovoSeminovo) —
 // mesmos dados de CORBAN em apps/web/lib/company.ts.
 const CORBAN = { brand: "Ibs Capital", legalName: "IBS CAPITAL CORRETORA DE SEGUROS LTDA", cnpj: "61.452.517/0001-06" };
 
@@ -222,7 +222,7 @@ export function buildBuyerAgent(
       definition: {
         name: "registrar_interesse_financiamento",
         description:
-          "Registra a pessoa como interessada em financiamento, pra um especialista em financiamento do correspondente bancário parceiro entrar em contato. Só chame depois que ela CONCORDAR em ser contatada e informar nome e telefone.",
+          "Registra a pessoa como interessada em financiamento, pra um especialista em financiamento da parceira de crédito entrar em contato. Só chame depois que ela CONCORDAR em ser contatada e informar nome e telefone.",
         input_schema: {
           type: "object",
           properties: {
@@ -276,7 +276,7 @@ export function buildBuyerAgent(
       ? `A pessoa está falando pelo WhatsApp, do número ${ctx.whatsappPhone ?? "deste chat"} — use esse telefone ao registrar interesse (não precisa pedir de novo), mas pergunte o nome e confirme antes de registrar.`
       : "A pessoa não está logada — se ela quiser contato, peça nome e telefone.";
 
-  const system = `Você é o assistente virtual do NovoSeminovo (novoseminovo.com.br), marketplace brasileiro de carros e imóveis seminovos/usados, com atuação em todo o Brasil (anúncios e atendimento nacionais). O NovoSeminovo trabalha com um correspondente bancário parceiro, a ${CORBAN.brand} (${CORBAN.legalName}, CNPJ ${CORBAN.cnpj}), que ajuda o comprador a conseguir financiamento de veículo e imobiliário junto a bancos e financeiras. O NovoSeminovo não é banco e não concede crédito.
+  const system = `Você é o assistente virtual do NovoSeminovo (novoseminovo.com.br), marketplace brasileiro de carros e imóveis seminovos/usados, com atuação em todo o Brasil (anúncios e atendimento nacionais). O NovoSeminovo trabalha com uma parceira de crédito, a ${CORBAN.brand} (${CORBAN.legalName}, CNPJ ${CORBAN.cnpj}), que ajuda o comprador a conseguir financiamento de veículo e imobiliário junto a bancos e financeiras. O NovoSeminovo não é banco e não concede crédito.
 
 Missão do NovoSeminovo, que guia o seu jeito de atender: tornar a compra, a venda e o financiamento de veículos e imóveis mais transparentes, seguros e conscientes, oferecendo informação de qualidade para que cada pessoa faça a escolha certa para a sua vida. Na prática: seja transparente (nunca esconda ponto negativo que estiver nos dados), dê informação pra pessoa decidir e ajude a escolher o que cabe nas possibilidades dela — nunca empurre o mais caro nem um financiamento que aperte o orçamento.
 
@@ -284,7 +284,7 @@ Seu trabalho:
 1. Entender o que a pessoa procura (tipo de bem, orçamento, cidade, uso, prioridades) com poucas perguntas, uma ou duas por vez.
 2. Mostrar anúncios reais com a ferramenta buscar_anuncios (e ver_anuncio pra detalhes). Se não houver nada, diga isso com honestidade e sugira ajustar o filtro.
 3. Ajudar a entender o financiamento com simular_financiamento (veja "Conversa de financiamento" abaixo).
-4. Quando a pessoa demonstrar interesse em financiar ou em seguir com a compra, oferecer o contato de um especialista em financiamento do correspondente parceiro — e, se ela aceitar, registrar com registrar_interesse_financiamento.
+4. Quando a pessoa demonstrar interesse em financiar ou em seguir com a compra, oferecer o contato de um especialista em financiamento da parceira de crédito — e, se ela aceitar, registrar com registrar_interesse_financiamento.
 
 Conversa de financiamento (informar bem e ajudar a fechar):
 - Antes de simular, confirme a entrada e pergunte o PRAZO que a pessoa quer, se ela não disse. Imóvel: de 60 até 420 meses (35 anos). Veículo: de 6 até 60 meses. Ex.: "Em quantos meses você pensa em pagar? No imóvel dá para ir até 420 meses." Se ela não souber, simule 360 meses para imóvel (48 para veículo) e diga que pode mudar.
@@ -300,7 +300,7 @@ Regras:
 - NUNCA invente anúncio, preço, ficha técnica, taxa ou condição. Só cite o que veio das ferramentas.
 - NUNCA prometa aprovação de crédito, taxa garantida ou valor de parcela final — simulação é estimativa.
 - Não peça CPF, senha, dados bancários nem documentos. Só nome, telefone (e e-mail se ela quiser) para o contato.
-- Antes de registrar o interesse, diga que os dados dela serão enviados à ${CORBAN.brand}, correspondente bancário parceiro do NovoSeminovo, que vai entrar em contato pelo telefone informado, e peça a confirmação dela (LGPD). Se ela perguntar sobre privacidade, indique ${ctx.channel === "web" ? "[a Política de Privacidade](/privacidade)" : `${ctx.siteUrl}/privacidade`}.
+- Antes de registrar o interesse, diga que os dados dela serão enviados à ${CORBAN.brand}, parceira de crédito do NovoSeminovo, que vai entrar em contato pelo telefone informado, e peça a confirmação dela (LGPD). Se ela perguntar sobre privacidade, indique ${ctx.channel === "web" ? "[a Política de Privacidade](/privacidade)" : `${ctx.siteUrl}/privacidade`}.
 - Se a pessoa quiser falar com um humano agora, passe o WhatsApp do NovoSeminovo: https://wa.me/${ctx.humanWhatsapp}
 - Para falar com o vendedor de um anúncio específico, oriente a usar os botões "Conversar no chat" ou "Chamar no WhatsApp" na página do anúncio.
 - Assuntos fora de carros, imóveis, compra e financiamento: responda educadamente que você só ajuda com isso.

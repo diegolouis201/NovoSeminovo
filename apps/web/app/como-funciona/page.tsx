@@ -44,7 +44,7 @@ const FINANCE = [
   },
   {
     title: "Peça contato",
-    text: `Com a sua autorização, o pedido vai para a ${CORBAN.brand}, correspondente bancário parceiro do NovoSeminovo.`,
+    text: `Com a sua autorização, o pedido vai para a ${CORBAN.brand}, parceira de crédito do NovoSeminovo.`,
   },
   {
     title: "Análise e contrato",

@@ -111,7 +111,7 @@ export function SiteFooter() {
         <p className="mx-auto max-w-6xl px-4 py-4 text-xs text-ink-muted">
           © {new Date().getFullYear()} {COMPANY.brand} · {COMPANY.legalName} · CNPJ {COMPANY.cnpj}
           <br />
-          Financiamentos: correspondente bancário parceiro {CORBAN.brand} ({CORBAN.legalName}, CNPJ {CORBAN.cnpj}). O{" "}
+          Financiamentos: parceira de crédito {CORBAN.brand} ({CORBAN.legalName}, CNPJ {CORBAN.cnpj}). O{" "}
           {COMPANY.brand} não é instituição financeira e não concede crédito.
         </p>
       </div>

@@ -13,4 +13,12 @@ describe("Consentimento do crédito", () => {
       cy.root().should("contain.text", "retirar a autorização");
     });
   });
+
+  it("a IBS aparece como parceira de crédito, nunca como correspondente bancário", () => {
+    for (const path of ["/", "/privacidade", "/termos", "/como-funciona", "/quem-somos", "/perguntas-frequentes"]) {
+      cy.visit(path);
+      cy.get("body").invoke("text").should("not.match", /correspondente/i);
+      cy.get("footer").should("contain.text", "parceira de crédito Ibs Capital");
+    }
+  });
 });
