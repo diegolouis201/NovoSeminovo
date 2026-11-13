@@ -102,9 +102,9 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
-        # Formulário da Creditas no anúncio de veículo (desligado até o termo
-        # BACEN ser confirmado). Ligar: NEXT_PUBLIC_CREDITAS_FORM=1 no .env e rebuild do web.
-        NEXT_PUBLIC_CREDITAS_FORM: ${NEXT_PUBLIC_CREDITAS_FORM:-0}
+        # Formulário da Creditas no anúncio de veículo: padrão "admin" = só
+        # administrador vê (teste). 1 = todos (após liberar o termo BACEN), 0 = ninguém.
+        NEXT_PUBLIC_CREDITAS_FORM: ${NEXT_PUBLIC_CREDITAS_FORM:-admin}
     restart: unless-stopped
     depends_on:
       - api

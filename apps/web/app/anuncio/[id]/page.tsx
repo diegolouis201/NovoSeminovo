@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { isAppRequest } from "@/lib/app-context";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { listingTier } from "@novoseminovo/shared-types";
+import { listingTier, mostrarFormularioCreditas } from "@novoseminovo/shared-types";
 import { cache } from "react";
 import { PaintBrushHousehold, Storefront, WhatsappLogo } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
@@ -23,7 +23,6 @@ import { startConversationAction } from "@/lib/actions/conversations";
 
 
 // Pedido de financiamento de veículo pela Creditas (desligado por padrão).
-const CREDITAS_FORM_ENABLED = process.env.NEXT_PUBLIC_CREDITAS_FORM === "1";
 
 // A prévia (generateMetadata) e a página pedem o mesmo anúncio na mesma
 // requisição — cache() faz uma chamada só à API. Sem isso cada visita
@@ -92,6 +91,7 @@ export default async function ListingDetailPage({
   if (!listing) notFound();
 
   const isOwnListing = session?.user?.id === listing.ownerUserId;
+  const CREDITAS_FORM_ENABLED = mostrarFormularioCreditas(process.env.NEXT_PUBLIC_CREDITAS_FORM, session?.user?.role);
   // Dentro do app não aparece compra de plano (lib/app-context.ts).
   const inApp = isAppRequest();
   // Formulário de contato já vem preenchido para quem entrou na conta.
@@ -349,7 +349,7 @@ export default async function ListingDetailPage({
           )}
 
           {/* Formulário da Creditas: desligado até o termo BACEN ser confirmado
-              (advogado + Creditas). Liga com NEXT_PUBLIC_CREDITAS_FORM=1 no build. */}
+              (advogado + Creditas). Padrão: só administrador vê (teste); NEXT_PUBLIC_CREDITAS_FORM=1 liga para todos, 0 desliga. */}
           {listing.financingEnabled && listing.assetType === "vehicle" && CREDITAS_FORM_ENABLED && (
             <CreditasSimulator listingId={listing.id} price={listing.financing.priceValue} />
           )}

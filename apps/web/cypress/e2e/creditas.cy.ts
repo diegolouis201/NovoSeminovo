@@ -1,6 +1,6 @@
 // Formulário de financiamento da Creditas no anúncio de veículo: fica
-// desligado até o termo BACEN ser confirmado (advogado + Creditas). Sem
-// NEXT_PUBLIC_CREDITAS_FORM=1 no build, o anúncio continua com a calculadora
+// só para administrador até o termo BACEN ser confirmado (advogado + Creditas). Sem
+// NEXT_PUBLIC_CREDITAS_FORM=1 no build, visitante comum continua vendo a calculadora
 // de sempre e não pede CPF nem mostra o termo.
 describe("Creditas desligada por padrão", () => {
   it("anúncio de carro não mostra o formulário da Creditas", () => {

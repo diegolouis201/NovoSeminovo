@@ -131,8 +131,9 @@ endereço padrão é o de **homologação** (`CREDITAS_AUTH_URL` e
   troque nome/CPF/nascimento/celular/e-mail pelos seus (`nano scripts/creditas-lead-teste.json`;
   esse arquivo nunca vai para o GitHub) e rode o comando acima com `--enviar` no final.
   Mostra o código HTTP e o id do lead (ou o erro da Creditas).
-- **Formulário no site**: desligado até a redação do termo BACEN ser confirmada
-  (advogado + Creditas). Para ligar: `NEXT_PUBLIC_CREDITAS_FORM=1` no `.env` e
+- **Formulário no site**: por padrão só administrador logado vê (teste), até a
+  redação do termo BACEN ser confirmada (advogado + Creditas). Para ligar para
+  todos: `NEXT_PUBLIC_CREDITAS_FORM=1` no `.env` (`0` desliga até para admin) e
   `docker compose build web && docker compose up -d web`.
 
 ## Antivírus (opcional, ClamAV)

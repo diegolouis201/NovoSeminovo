@@ -45,3 +45,12 @@ export const TERMO_BACEN_CREDITAS = {
   versao: "2026-11-13",
   texto: termoBacenCreditas(),
 } as const;
+
+// Quem vê o formulário da Creditas no anúncio de carro (NEXT_PUBLIC_CREDITAS_FORM):
+// "1" = todos; "0" = ninguém; qualquer outro valor ou vazio ("admin", o padrão)
+// = só administrador logado, para testar no site antes de liberar o termo.
+export function mostrarFormularioCreditas(flag: string | undefined, role: string | undefined): boolean {
+  if (flag === "1") return true;
+  if (flag === "0") return false;
+  return role === "admin";
+}

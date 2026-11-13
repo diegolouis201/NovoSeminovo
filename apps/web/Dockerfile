@@ -8,7 +8,7 @@ ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 # Formulário de financiamento da Creditas na página do veículo: "1" liga,
 # qualquer outra coisa (padrão) deixa a calculadora de sempre.
-ARG NEXT_PUBLIC_CREDITAS_FORM=0
+ARG NEXT_PUBLIC_CREDITAS_FORM=admin
 ENV NEXT_PUBLIC_CREDITAS_FORM=${NEXT_PUBLIC_CREDITAS_FORM}
 # "pnpm install" na raiz do monorepo processa o workspace inteiro, incluindo
 # @novoseminovo/db — o postinstall do @prisma/client roda "prisma generate"
