@@ -230,12 +230,12 @@ export function TermsDialog({ onCancel, onAccept }: { onCancel: () => void; onAc
         <p className="mt-2 text-sm text-ink-muted">Para publicar, confirme que leu e concorda com os documentos abaixo.</p>
         <ul className="mt-3 list-disc pl-5 text-sm">
           <li>
-            <Link href="/termos" target="_blank" className="font-semibold text-brand-blue underline">
+            <Link href="/termos" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-blue underline">
               Termos de Uso
             </Link>
           </li>
           <li>
-            <Link href="/privacidade" target="_blank" className="font-semibold text-brand-blue underline">
+            <Link href="/privacidade" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-blue underline">
               Política de Privacidade
             </Link>
           </li>

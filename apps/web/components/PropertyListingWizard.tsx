@@ -557,7 +557,7 @@ export function PropertyListingWizard({
             <a
               href="https://buscacepinter.correios.com.br/app/endereco/index.php"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="text-xs font-semibold text-ink-muted underline"
             >
               Não sei o CEP
@@ -733,7 +733,7 @@ export function PropertyListingWizard({
                 <ul className="mt-3 flex flex-col gap-2">
                   {similar.map((listing) => (
                     <li key={listing.id}>
-                      <a href={`/anuncio/${listing.id}`} target="_blank" rel="noreferrer" className="flex gap-3 rounded-brand border border-border bg-surface-raised p-2 hover:bg-surface-sober">
+                      <a href={`/anuncio/${listing.id}`} target="_blank" rel="noopener noreferrer" className="flex gap-3 rounded-brand border border-border bg-surface-raised p-2 hover:bg-surface-sober">
                         {listing.image ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={listing.image} alt="" className="h-16 w-20 shrink-0 rounded object-cover" />

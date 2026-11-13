@@ -62,7 +62,7 @@ export function AffiliateApplyForm({
           <input id="aff-terms" type="checkbox" name="acceptTerms" required className="mt-1" />
           <span>
             Li e aceito as{" "}
-            <Link href="/afiliados#regras" target="_blank" className="font-semibold text-brand-blue underline">
+            <Link href="/afiliados#regras" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-blue underline">
               regras do programa de afiliados
             </Link>
             .

@@ -43,7 +43,7 @@ export function AdminListingsTable({ rows, returnTo }: { rows: AdminListingRow[]
                     <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-brand bg-surface-sober text-xs text-ink-muted">sem foto</div>
                   )}
                   <div className="min-w-0">
-                    <Link href={`/anuncio/${row.id}`} target="_blank" className="line-clamp-2 font-semibold text-ink hover:text-brand-blue hover:underline">
+                    <Link href={`/anuncio/${row.id}`} target="_blank" rel="noopener noreferrer" className="line-clamp-2 font-semibold text-ink hover:text-brand-blue hover:underline">
                       {row.title}
                     </Link>
                     <p className="text-xs text-ink">
