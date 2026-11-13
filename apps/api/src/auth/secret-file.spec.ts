@@ -36,6 +36,18 @@ describe("Chave secreta lida de arquivo", () => {
     assert.throws(() => readSecret("JWT_SECRET", { JWT_SECRET_FILE: file, NODE_ENV: "production" }), /openssl rand/);
   });
 
+  test("chave de parceiro (ex.: Creditas) aceita tamanho mínimo menor e não manda gerar com openssl", () => {
+    const file = join(dir, "creditas_consumer_key");
+    writeFileSync(file, "abc12345\n", { mode: 0o600 });
+    const env = { CREDITAS_CONSUMER_KEY_FILE: file, NODE_ENV: "production" };
+    assert.equal(readSecret("CREDITAS_CONSUMER_KEY", env, undefined, { minLength: 8, howTo: "peça à Creditas" }), "abc12345");
+    writeFileSync(file, "abc", { mode: 0o600 });
+    assert.throws(
+      () => readSecret("CREDITAS_CONSUMER_KEY", env, undefined, { minLength: 8, howTo: "peça à Creditas" }),
+      (error: Error) => /peça à Creditas/.test(error.message) && !/openssl/.test(error.message) && !error.message.includes("abc"),
+    );
+  });
+
   test("arquivo que outros usuários do servidor conseguem ler é recusado", () => {
     const file = join(dir, "aberto");
     writeFileSync(file, strong);

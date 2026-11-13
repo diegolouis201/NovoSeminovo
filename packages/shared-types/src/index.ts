@@ -1926,6 +1926,59 @@ export const CredihomeProposalInputSchema = CredihomeSimulationFields.extend({
 });
 export type CredihomeProposalInput = z.input<typeof CredihomeProposalInputSchema>;
 
+// ---------- Creditas (financiamento de veículo, Autofin C2C) ----------
+// Formulário na página do anúncio de veículo (atrás de NEXT_PUBLIC_CREDITAS_FORM).
+// CPF e nascimento vão direto para a Creditas e não ficam guardados. A
+// entrada menor que o preço do anúncio é conferida na API (o preço vem do
+// banco, não do formulário).
+export const CREDITAS_TIME_TO_PURCHASE = {
+  ONE_WEEK: "Nesta semana",
+  ONE_MONTH: "Em até 1 mês",
+  SIX_MONTHS: "Em até 6 meses",
+  JUST_RESEARCHING: "Só estou pesquisando",
+} as const;
+export const CreditasTimeToPurchase = z.enum(
+  Object.keys(CREDITAS_TIME_TO_PURCHASE) as [keyof typeof CREDITAS_TIME_TO_PURCHASE, ...Array<keyof typeof CREDITAS_TIME_TO_PURCHASE>],
+  { errorMap: () => ({ message: "Diga quando pretende comprar" }) },
+);
+export type CreditasTimeToPurchase = z.infer<typeof CreditasTimeToPurchase>;
+
+// AAAA-MM-DD de uma data que existe (sem 31/02), idade entre 18 e 80 anos.
+function ageOn(birthDate: string, today = new Date()): number {
+  const [year, month, day] = birthDate.split("-").map(Number) as [number, number, number];
+  let age = today.getUTCFullYear() - year;
+  if (today.getUTCMonth() + 1 < month || (today.getUTCMonth() + 1 === month && today.getUTCDate() < day)) age--;
+  return age;
+}
+const CreditasBirthDateSchema = z
+  .string({ required_error: "Informe sua data de nascimento" })
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Data de nascimento inválida")
+  .refine((value) => {
+    const date = new Date(`${value}T12:00:00Z`);
+    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  }, "Data de nascimento inválida")
+  .refine((value) => ageOn(value) >= 18, "Você precisa ter 18 anos ou mais")
+  .refine((value) => ageOn(value) <= 80, "Idade máxima de 80 anos para este financiamento");
+
+export const CreditasProposalInputSchema = z.object({
+  name: z.string().trim().min(3, "Informe seu nome completo").max(120, "Nome longo demais"),
+  cpf: z.string().max(20).refine((value) => isValidCpf(value), "CPF inválido"),
+  birthDate: CreditasBirthDateSchema,
+  phone: z
+    .string()
+    .max(30)
+    .transform((value) => value.replace(/\D/g, ""))
+    .transform((value) => (value.length >= 12 && value.startsWith("55") ? value.slice(2) : value))
+    .refine((value) => value.length === 10 || value.length === 11, "Celular com DDD"),
+  email: z.string().trim().toLowerCase().max(200).email("E-mail inválido"),
+  downValue: z.number({ invalid_type_error: "Valor de entrada inválido" }).min(0, "A entrada não pode ser negativa").max(100_000_000).optional(),
+  timeToPurchase: CreditasTimeToPurchase,
+  consent: z.literal(true, { errorMap: () => ({ message: "Autorize o envio dos dados para receber a proposta" }) }),
+  bacenConsent: z.literal(true, { errorMap: () => ({ message: "Autorize a consulta ao SCR (Banco Central) para a análise de crédito" }) }),
+});
+export type CreditasProposalInput = z.output<typeof CreditasProposalInputSchema>;
+export type CreditasProposalFormInput = z.input<typeof CreditasProposalInputSchema>;
+
 // ---------- Integração com CRMs ----------
 
 // Um anúncio vindo do CRM: os mesmos campos de "Anunciar" + o código do
@@ -3024,3 +3077,4 @@ export const MktBudgetInputSchema = z.object({ mes: z.string().regex(/^\d{4}-(0[
 
 export * from "./vitrine";
 export * from "./consentimento-credito";
+export * from "./creditas-termo";

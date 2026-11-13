@@ -24,7 +24,15 @@ export function secretFilePath(name: string, env: Env = process.env): string {
   return env[`${name}_FILE`] || `/run/secrets/${name.toLowerCase()}`;
 }
 
-export function readSecret(name: string, env: Env = process.env, reader: Reader = defaultReader): string {
+// Chave gerada por nós: mínimo de 32 caracteres e instrução do openssl.
+// Chave de parceiro (ex.: Creditas), que vem pronta deles: o tamanho mínimo
+// e a instrução mudam (options) — o resto da regra (arquivo em produção,
+// chmod 600) é o mesmo. A mensagem de erro nunca traz o valor lido.
+export type SecretOptions = { minLength?: number; howTo?: string };
+
+export function readSecret(name: string, env: Env = process.env, reader: Reader = defaultReader, options: SecretOptions = {}): string {
+  const minLength = options.minLength ?? MIN_LENGTH;
+  const howTo = options.howTo ?? HOW_TO;
   const path = secretFilePath(name, env);
   let value: string | undefined;
   try {
@@ -33,12 +41,12 @@ export function readSecret(name: string, env: Env = process.env, reader: Reader 
     const code = (error as { code?: string }).code;
     if (code === "EPERM_OPEN") throw new Error(`${path} pode ser lido por outros usuários do servidor — rode \`chmod 600 ${path}\`.`);
     if (env.NODE_ENV === "production") {
-      throw new Error(`${name}: arquivo ${path} não encontrado — em produção a chave só é lida do arquivo; ${HOW_TO}.`);
+      throw new Error(`${name}: arquivo ${path} não encontrado — em produção a chave só é lida do arquivo; ${howTo}.`);
     }
     value = env[name]?.trim();
   }
-  if (!value || value.length < MIN_LENGTH) {
-    throw new Error(`${name} ausente ou curta demais (mínimo ${MIN_LENGTH} caracteres) — ${HOW_TO}.`);
+  if (!value || value.length < minLength) {
+    throw new Error(`${name} ausente ou curta demais (mínimo ${minLength} caracteres) — ${howTo}.`);
   }
   return value;
 }

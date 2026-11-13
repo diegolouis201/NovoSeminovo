@@ -10,6 +10,7 @@ import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { ConsorcioCallout } from "@/components/ConsorcioCallout";
 import { CredihomeSimulator } from "@/components/CredihomeSimulator";
+import { CreditasSimulator } from "@/components/CreditasSimulator";
 import { MarkVertical } from "@/components/ActiveVertical";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
@@ -20,6 +21,9 @@ import { confirmListingBoost, fetchListing, fetchProfile, resolveMediaUrl } from
 import { getFavoriteContext } from "@/lib/favorites";
 import { startConversationAction } from "@/lib/actions/conversations";
 
+
+// Pedido de financiamento de veículo pela Creditas (desligado por padrão).
+const CREDITAS_FORM_ENABLED = process.env.NEXT_PUBLIC_CREDITAS_FORM === "1";
 
 // A prévia (generateMetadata) e a página pedem o mesmo anúncio na mesma
 // requisição — cache() faz uma chamada só à API. Sem isso cada visita
@@ -338,13 +342,19 @@ export default async function ListingDetailPage({
 
           {/* Imóvel: um bloco só de financiamento — parcelas dos bancos pela
               Credihome e, se o cliente quiser, o pedido de proposta. Veículo:
-              calculadora local (ainda sem parceiro de crédito). */}
+              calculadora local, ou o pedido à Creditas quando ligado. */}
           <div id="financiamento" className="scroll-mt-24" />
           {listing.financingEnabled && listing.assetType === "property" && (
             <CredihomeSimulator listingId={listing.id} price={listing.financing.priceValue} />
           )}
 
-          {listing.financingEnabled && listing.assetType === "vehicle" && (
+          {/* Formulário da Creditas: desligado até o termo BACEN ser confirmado
+              (advogado + Creditas). Liga com NEXT_PUBLIC_CREDITAS_FORM=1 no build. */}
+          {listing.financingEnabled && listing.assetType === "vehicle" && CREDITAS_FORM_ENABLED && (
+            <CreditasSimulator listingId={listing.id} price={listing.financing.priceValue} />
+          )}
+
+          {listing.financingEnabled && listing.assetType === "vehicle" && !CREDITAS_FORM_ENABLED && (
           <FinancingCallout
             listingId={listing.id}
             assetType={listing.assetType}

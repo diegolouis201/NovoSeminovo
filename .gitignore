@@ -12,3 +12,6 @@ apps/api/uploads
 
 # Chaves secretas: só no servidor de produção, nunca no GitHub (ver DEPLOY.md, "Chaves secretas")
 secrets/
+
+# Lead de teste da Creditas com dados reais: só no servidor (modelo: scripts/creditas-lead-teste.exemplo.json)
+scripts/creditas-lead-teste.json

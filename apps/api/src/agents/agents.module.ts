@@ -9,13 +9,14 @@ import { FinancingDealsModule } from "../financing-deals/financing-deals.module"
 import { AgentsController } from "./agents.controller";
 import { AgentsService } from "./agents.service";
 import { CredihomeService } from "./credihome.service";
+import { CreditasService } from "./creditas.service";
 import { WhatsAppController } from "./whatsapp.controller";
 import { WhatsAppService } from "./whatsapp.service";
 
 @Module({
   imports: [AuthModule, ListingsModule, NotificationsModule, PartnersModule, AdminModule, FinancingDealsModule, ContactsModule],
   controllers: [AgentsController, WhatsAppController],
-  providers: [AgentsService, WhatsAppService, CredihomeService],
+  providers: [AgentsService, WhatsAppService, CredihomeService, CreditasService],
   exports: [AgentsService],
 })
 export class AgentsModule {}

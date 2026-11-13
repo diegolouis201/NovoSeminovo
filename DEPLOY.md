@@ -108,6 +108,33 @@ ignorada: sem o arquivo, o sistema não sobe.
   podem ser geradas de novo (só obriga todos a entrar de novo); a `data_key`
   vem da sua cópia.
 
+## Creditas (financiamento de veículo, Autofin C2C)
+
+As duas chaves que a Creditas envia (consumer key e consumer secret) ficam em
+arquivos na mesma pasta `secrets/` (nunca no `.env`, nunca no GitHub). A API lê
+`/run/secrets/creditas_consumer_key` e `/run/secrets/creditas_consumer_secret`
+(o docker já monta `secrets/` ali). Sem os dois arquivos, a integração fica
+desligada: o pedido vira card no quadro com o motivo, sem quebrar nada. O
+endereço padrão é o de **homologação** (`CREDITAS_AUTH_URL` e
+`CREDITAS_API_URL` no `.env` trocam para produção quando a Creditas liberar).
+
+- **Salvar as chaves** (dentro de `~/NovoSeminovo`; o que você cola não aparece na tela):
+  ```sh
+  cd ~/NovoSeminovo && umask 077 && mkdir -p secrets && chmod 700 secrets
+  read -rsp "Cole a consumer key e aperte Enter: " K; echo; printf '%s' "$K" > secrets/creditas_consumer_key; unset K
+  read -rsp "Cole o consumer secret e aperte Enter: " S; echo; printf '%s' "$S" > secrets/creditas_consumer_secret; unset S
+  chmod 600 secrets/creditas_consumer_key secrets/creditas_consumer_secret && ls -l secrets/creditas_*
+  ```
+- **Testar o login na Creditas** (mostra só `token ok (expira em 7200s)`, nunca a chave):
+  `docker run --rm -v ~/NovoSeminovo/scripts:/s -v ~/NovoSeminovo/secrets:/secrets:ro -w /s node:20-alpine node creditas-teste.mjs /s/creditas-lead-teste.json`
+- **Enviar um lead de teste**: copie o modelo (`cp scripts/creditas-lead-teste.exemplo.json scripts/creditas-lead-teste.json`),
+  troque nome/CPF/nascimento/celular/e-mail pelos seus (`nano scripts/creditas-lead-teste.json`;
+  esse arquivo nunca vai para o GitHub) e rode o comando acima com `--enviar` no final.
+  Mostra o código HTTP e o id do lead (ou o erro da Creditas).
+- **Formulário no site**: desligado até a redação do termo BACEN ser confirmada
+  (advogado + Creditas). Para ligar: `NEXT_PUBLIC_CREDITAS_FORM=1` no `.env` e
+  `docker compose build web && docker compose up -d web`.
+
 ## Antivírus (opcional, ClamAV)
 
 Toda imagem enviada já é conferida pelo tipo real (bytes, não pela extensão),

@@ -78,6 +78,11 @@ services:
       CREDIHOME_PASSWORD: ${CREDIHOME_PASSWORD:-}
       CREDIHOME_PARTNER_ID: ${CREDIHOME_PARTNER_ID:-}
       CREDIHOME_API_URL: ${CREDIHOME_API_URL:-https://api-partner.credihome.com.br/v1/production}
+      # Creditas (financiamento de veículo, Autofin C2C). As chaves NÃO vão aqui:
+      # ficam nos arquivos secrets/creditas_consumer_key e
+      # secrets/creditas_consumer_secret (montados em /run/secrets abaixo).
+      CREDITAS_AUTH_URL: ${CREDITAS_AUTH_URL:-https://auth-staging.creditas.com.br}
+      CREDITAS_API_URL: ${CREDITAS_API_URL:-https://stg-api.creditas.io}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_PUBLIC_URL_BASE: ${S3_PUBLIC_URL_BASE:-}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
@@ -97,6 +102,9 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
+        # Formulário da Creditas no anúncio de veículo (desligado até o termo
+        # BACEN ser confirmado). Ligar: NEXT_PUBLIC_CREDITAS_FORM=1 no .env e rebuild do web.
+        NEXT_PUBLIC_CREDITAS_FORM: ${NEXT_PUBLIC_CREDITAS_FORM:-0}
     restart: unless-stopped
     depends_on:
       - api

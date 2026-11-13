@@ -166,7 +166,7 @@ function describe(type: NotificationType, payload: Record<string, unknown>): { t
           payload.channel === "simulador"
             ? " pelo simulador de crédito do anúncio"
             : ` pelo assistente de IA (${payload.channel === "whatsapp" ? "WhatsApp" : "site"})`
-        }.${payload.credihome ? ` ${payload.credihome}` : ""}`,
+        }.${payload.credihome ? ` ${payload.credihome}` : ""}${payload.creditas ? ` ${payload.creditas}` : ""}`,
         link: `/admin/financiamentos?tipo=${payload.assetType === "vehicle" ? "veicular" : "imobiliario"}`,
       };
     case "partner_trial_ending":

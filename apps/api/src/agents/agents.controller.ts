@@ -5,6 +5,7 @@ import {
   AgentMessageInputSchema,
   CredihomeProposalInputSchema,
   CredihomeSimulateInputSchema,
+  CreditasProposalInputSchema,
   FinancingLeadStatus,
   SendToCredihomeInputSchema,
   UpdateFinancingLeadInputSchema,
@@ -17,6 +18,7 @@ import { acquisitionFrom } from "../common/acquisition";
 import { parseOrBadRequest } from "../common/parse";
 import { AgentsService, type AgentRequester } from "./agents.service";
 import { CredihomeService } from "./credihome.service";
+import { CreditasService } from "./creditas.service";
 
 // Agentes liberados pelo chat do site até agora — os outros entram aqui
 // conforme forem construídos (ver AgentsService.buildAgent).
@@ -38,11 +40,20 @@ function clientIp(request: Request): string {
   return value?.split(",")[0]?.trim() || request.ip || "desconhecido";
 }
 
+// Navegador do visitante, para a autorização BACEN da Creditas. Pelo mesmo
+// motivo do IP, o site repassa o do visitante em x-client-user-agent; sem
+// ele, vale o da própria requisição. Cortado em 500 caracteres no service.
+function clientUserAgent(request: Request): string {
+  const pick = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value)?.trim();
+  return (pick(request.headers["x-client-user-agent"]) || pick(request.headers["user-agent"]) || "desconhecido").slice(0, 2000);
+}
+
 @Controller()
 export class AgentsController {
   constructor(
     private readonly agentsService: AgentsService,
     private readonly credihome: CredihomeService,
+    private readonly creditas: CreditasService,
   ) {}
 
   @Get("agents/status")
@@ -118,6 +129,27 @@ export class AgentsController {
       id,
       parseOrBadRequest(CredihomeProposalInputSchema, body),
       clientIp(request),
+      acquisitionFrom(request),
+      user?.id,
+    );
+  }
+
+  // Pedido de financiamento de veículo pela Creditas (público; o formulário
+  // só aparece no site com NEXT_PUBLIC_CREDITAS_FORM=1).
+  @UseGuards(OptionalJwtAuthGuard)
+  @Post("listings/:id/creditas/proposal")
+  requestCreditasProposal(
+    @Param("id") id: string,
+    @Body() body: unknown,
+    @Req() request: Request,
+    @CurrentUser() user: { id: string } | undefined,
+  ) {
+    const ip = clientIp(request);
+    return this.creditas.requestProposal(
+      id,
+      parseOrBadRequest(CreditasProposalInputSchema, body),
+      ip,
+      { ip, userAgent: clientUserAgent(request) },
       acquisitionFrom(request),
       user?.id,
     );

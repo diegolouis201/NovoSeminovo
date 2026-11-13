@@ -52,6 +52,7 @@ import type {
   UpdateFinancingLeadInput,
   SendToCredihomeInput,
   CredihomeProposalInput,
+  CreditasProposalFormInput,
   CredihomeSimulateInput,
   CredihomeSimulationView,
   ConversationDetail,
@@ -1649,6 +1650,39 @@ export async function requestCredihomeProposal(
           "Content-Type": "application/json",
           ...options.extraHeaders,
           ...(options.clientIp ? { "x-client-ip": options.clientIp } : {}),
+        },
+        body: JSON.stringify(input),
+      },
+      60_000,
+    );
+    const data = (await res.json().catch(() => ({}))) as { message?: string | string[]; outcome?: "sent" | "already_sent" | "saved" };
+    if (!res.ok) {
+      const message = Array.isArray(data.message) ? data.message[0] : data.message;
+      return { ok: false, error: message ?? "Não foi possível enviar seu pedido agora." };
+    }
+    return { ok: true, outcome: data.outcome ?? "saved" };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor agora. Tente de novo em instantes." };
+  }
+}
+
+// Creditas (veículo): IP e navegador do visitante vão nos cabeçalhos — a
+// Creditas pede os dois junto com o termo BACEN aceito.
+export async function requestCreditasProposal(
+  listingId: string,
+  input: CreditasProposalFormInput,
+  options: { clientIp?: string; userAgent?: string; extraHeaders?: Record<string, string> },
+): Promise<{ ok: true; outcome: "sent" | "already_sent" | "saved" } | { ok: false; error: string }> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/listings/${encodeURIComponent(listingId)}/creditas/proposal`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...options.extraHeaders,
+          ...(options.clientIp ? { "x-client-ip": options.clientIp } : {}),
+          ...(options.userAgent ? { "x-client-user-agent": options.userAgent.slice(0, 500) } : {}),
         },
         body: JSON.stringify(input),
       },

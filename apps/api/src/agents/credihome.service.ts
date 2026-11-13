@@ -33,11 +33,11 @@ const SYNC_WINDOW_DAYS = 180;
 // Simulador público na página do imóvel: limite por visitante (IP que o site
 // repassa) numa janela de 10 minutos. Pedido de proposta vira lead real na
 // Credihome, então o limite é bem mais apertado.
-const LIMITS = { simulate: 20, proposal: 3 };
-const LIMIT_WINDOW_MS = 10 * 60 * 1000;
+export const LIMITS = { simulate: 20, proposal: 3 };
+export const LIMIT_WINDOW_MS = 10 * 60 * 1000;
 // Mesmo telefone pedindo de novo no mesmo anúncio dentro de 7 dias (a mesma
 // janela em que a Credihome recusa lead repetido) não gera outro card.
-const REPEAT_DAYS = 7;
+export const REPEAT_DAYS = 7;
 
 export type ProposalOutcome = "sent" | "already_sent" | "saved";
 

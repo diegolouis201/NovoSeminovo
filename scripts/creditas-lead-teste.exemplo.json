@@ -1,0 +1,28 @@
+{
+  "lead": {
+    "name": "Fulano de Tal Exemplo",
+    "cpf": "00000000000",
+    "birthDate": "1990-01-31",
+    "phone": "31900000000",
+    "email": "fulano@exemplo.com"
+  },
+  "vehicle": {
+    "brand": "Volkswagen",
+    "model": "Gol",
+    "modelVersion": "1.0 MPI",
+    "modelYear": 2021,
+    "manufacturingYear": 2020,
+    "fipeCode": "000000-0"
+  },
+  "simulationParameters": {
+    "financingValue": 50000,
+    "downValue": 10000,
+    "purchasePhase": "CONTACT_SELLER",
+    "timeToPurchase": "JUST_RESEARCHING"
+  },
+  "bacenAuthorization": {
+    "userIp": "127.0.0.1",
+    "userAgent": "teste-servidor",
+    "authorizationTerm": "__TERMO_IBS__"
+  }
+}

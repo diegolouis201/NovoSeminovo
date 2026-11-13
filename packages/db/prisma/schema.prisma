@@ -1088,11 +1088,18 @@ model FinancingLead {
   credihomeSentAt    DateTime?           @map("credihome_sent_at")
   credihomeSyncedAt  DateTime?           @map("credihome_synced_at")
   credihomeConsentAt DateTime?           @map("credihome_consent_at")
+  // Envio à Creditas (só veículo, Autofin C2C; ver apps/api/src/agents/creditas.ts).
+  // Mesmo cuidado: CPF e nascimento vão direto e não ficam aqui — só o id do
+  // lead lá, quando foi e quando o cliente aceitou as autorizações.
+  creditasLeadId     String?             @map("creditas_lead_id")
+  creditasSentAt     DateTime?           @map("creditas_sent_at")
+  creditasConsentAt  DateTime?           @map("creditas_consent_at")
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
 
   @@index([status])
   @@index([credihomeLeadId])
+  @@index([creditasLeadId])
   @@map("financing_leads")
 }
 
