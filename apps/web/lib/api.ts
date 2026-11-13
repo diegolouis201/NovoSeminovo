@@ -1569,6 +1569,42 @@ export async function fetchAgentConversation(
   }
 }
 
+type PartnerTotals = { count: number; financingValue: number; potentialCommission: number };
+export type PartnerSendsReport = {
+  month: string;
+  total: PartnerTotals;
+  byPartner: { Creditas: PartnerTotals; Credihome: PartnerTotals };
+  notSent: number;
+  rows: {
+    sentAt: string;
+    partner: "Creditas" | "Credihome";
+    partnerLeadId: string;
+    partnerPhase: string;
+    client: string;
+    listingTitle: string;
+    assetType: string;
+    assetValue: number;
+    downPayment: number;
+    financingValue: number;
+    commissionRate: number;
+    potentialCommission: number;
+    status: string;
+  }[];
+};
+
+// Envios aos parceiros de crédito da IBS no mês (só admin).
+export async function fetchPartnerSends(month: string, accessToken: string): Promise<PartnerSendsReport | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/admin/partner-sends?month=${encodeURIComponent(month)}`, {
+      headers: authHeaders(accessToken),
+    });
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return (await res.json()) as PartnerSendsReport;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function fetchFinancingLeads(
   filter: { status?: FinancingLeadStatus; assetType?: "vehicle" | "property" },
   accessToken: string,

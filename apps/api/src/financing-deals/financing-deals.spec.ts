@@ -25,7 +25,7 @@ describe("Rotas de financiamento fechado (sem cashback)", () => {
   test("o admin ainda lista os negócios, marca a comissão recebida e baixa o fechamento do mês", () => {
     assert.deepEqual(
       [...routes].sort(),
-      ["admin/financing-deals", "admin/financing-deals/:id/commission-received", "admin/financing-report"].sort(),
+      ["admin/financing-deals", "admin/financing-deals/:id/commission-received", "admin/financing-report", "admin/partner-sends"].sort(),
     );
   });
 });

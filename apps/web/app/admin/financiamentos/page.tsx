@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import type { FinancingLeadSummary } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { FinancingKanban, type KanbanColumn } from "@/components/FinancingKanban";
-import { fetchFinancingLeads } from "@/lib/api";
+import { fetchFinancingLeads, fetchPartnerSends } from "@/lib/api";
 
 // Etapas do funil do correspondente bancário. Avaliação do imóvel
 // (engenharia do banco) só existe no imobiliário. "converted" = Concluído.
@@ -64,7 +64,7 @@ function summarize(leads: FinancingLeadSummary[]) {
   };
 }
 
-export default async function AdminFinancingLeadsPage({ searchParams }: { searchParams: { tipo?: string } }) {
+export default async function AdminFinancingLeadsPage({ searchParams }: { searchParams: { tipo?: string; envios?: string } }) {
   const session = await auth();
   if (!session?.user) redirect("/entrar");
   if (session.user.role !== "admin") {
@@ -78,9 +78,11 @@ export default async function AdminFinancingLeadsPage({ searchParams }: { search
 
   const tabKey = searchParams.tipo === "veicular" ? "veicular" : "imobiliario";
   const tab = TABS[tabKey];
-  const [propertyLeads, vehicleLeads] = await Promise.all([
+  const sendsMonth = /^\d{4}-\d{2}$/.test(searchParams.envios ?? "") ? (searchParams.envios as string) : currentMonth();
+  const [propertyLeads, vehicleLeads, sends] = await Promise.all([
     fetchFinancingLeads({ assetType: "property" }, session.accessToken),
     fetchFinancingLeads({ assetType: "vehicle" }, session.accessToken),
+    fetchPartnerSends(sendsMonth, session.accessToken),
   ]);
   const leads = tab.assetType === "property" ? propertyLeads : vehicleLeads;
   const openBy = (list: FinancingLeadSummary[]) => list.filter((lead) => lead.status !== "converted" && lead.status !== "lost").length;
@@ -134,6 +136,61 @@ export default async function AdminFinancingLeadsPage({ searchParams }: { search
         <Stat label="Comissão a receber" value={brl(stats.doneAwaiting)} hint="concluídos que o banco ainda não pagou" />
         <Stat label="Comissão recebida" value={brl(stats.doneReceived)} hint="marcada como recebida em Comissões" />
       </div>
+
+      <section className="mt-6 rounded-brand border border-border bg-surface-raised p-4">
+        <h2 className="font-display text-lg font-semibold text-ink">Envios aos parceiros (IBS)</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Pedidos enviados no mês à Creditas (veículos) e à Credihome (imóveis) pela IBS Capital. Volume potencial é o
+          valor a financiar desses pedidos; a comissão potencial usa o percentual de cada card. Baixe a planilha para
+          conferir com a IBS pelo id do lead no parceiro.
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Stat
+            label="Creditas"
+            value={`${sends?.byPartner.Creditas.count ?? 0} envio(s)`}
+            hint={brl(sends?.byPartner.Creditas.financingValue ?? 0)}
+          />
+          <Stat
+            label="Credihome"
+            value={`${sends?.byPartner.Credihome.count ?? 0} envio(s)`}
+            hint={brl(sends?.byPartner.Credihome.financingValue ?? 0)}
+          />
+          <Stat
+            label="Volume potencial"
+            value={brl(sends?.total.financingValue ?? 0)}
+            hint={`comissão potencial ${brl(sends?.total.potentialCommission ?? 0)}`}
+          />
+          <Stat
+            label="Ficaram só no quadro"
+            value={String(sends?.notSent ?? 0)}
+            hint="pedidos do mês que não foram ao parceiro"
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <form action="/admin/financiamentos" method="get" className="flex flex-wrap items-end gap-3">
+            <input type="hidden" name="tipo" value={tabKey} />
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-semibold text-ink">Mês</span>
+              <input
+                type="month"
+                name="envios"
+                required
+                defaultValue={sendsMonth}
+                className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink"
+              />
+            </label>
+            <button type="submit" className="rounded-brand border border-border px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-sober">
+              Ver mês
+            </button>
+          </form>
+          <a
+            href={`/api/admin/envios-parceiros?mes=${sendsMonth}`}
+            className="rounded-brand bg-brand-green px-4 py-2 text-sm font-bold text-on-green hover:opacity-90"
+          >
+            Baixar planilha para a IBS
+          </a>
+        </div>
+      </section>
 
       <section className="mt-6 rounded-brand border border-border bg-surface-raised p-4">
         <h2 className="font-display text-lg font-semibold text-ink">Fechamento mensal</h2>

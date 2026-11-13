@@ -175,11 +175,7 @@ export class FinancingDealsService implements OnModuleInit {
   // Fechamento mensal: financiamentos registrados no mês e a comissão de
   // cada um.
   async monthlyReport(month: string) {
-    const match = /^(\d{4})-(\d{2})$/.exec(month);
-    if (!match || Number(match[2]) < 1 || Number(match[2]) > 12) throw new BadRequestException("Mês inválido — use AAAA-MM.");
-    // Mês no horário de Brasília (UTC−3, sem horário de verão desde 2019).
-    const start = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1, 3));
-    const end = new Date(Date.UTC(Number(match[1]), Number(match[2]), 1, 3));
+    const { start, end } = monthRange(month);
 
     const deals = await this.prisma.financingDeal.findMany({
       where: { createdAt: { gte: start, lt: end } },
@@ -202,4 +198,68 @@ export class FinancingDealsService implements OnModuleInit {
       stage: commissionStage(deal),
     }));
   }
+
+  // Envios aos parceiros de crédito da IBS no mês (Creditas: veículo;
+  // Credihome: imóvel), pela data do envio. Volume potencial = valor a
+  // financiar (o negociado, ou bem menos entrada) e comissão estimada pelo
+  // percentual do card. Uma linha por envio, com o id do lead no parceiro,
+  // para conferir com a IBS. CPF e nascimento não existem aqui.
+  async partnerSends(month: string) {
+    const { start, end } = monthRange(month);
+    const leads = await this.prisma.financingLead.findMany({
+      where: { OR: [{ creditasSentAt: { gte: start, lt: end } }, { credihomeSentAt: { gte: start, lt: end } }] },
+      orderBy: { createdAt: "asc" },
+      include: { listing: { select: { title: true } } },
+    });
+    const notSent = await this.prisma.financingLead.count({
+      where: { createdAt: { gte: start, lt: end }, creditasLeadId: null, credihomeLeadId: null },
+    });
+
+    const money = (value: number) => Math.round(value * 100) / 100;
+    const rows = leads.map((lead) => {
+      const creditas = Boolean(lead.creditasLeadId && lead.creditasSentAt);
+      const assetValue = lead.assetValue === null ? 0 : Number(lead.assetValue);
+      const downPayment = lead.downPayment === null ? 0 : Number(lead.downPayment);
+      const financingValue = money(lead.negotiatedValue === null ? Math.max(0, assetValue - downPayment) : Number(lead.negotiatedValue));
+      const rate = Number(lead.commissionRate);
+      return {
+        sentAt: ((creditas ? lead.creditasSentAt : lead.credihomeSentAt) ?? lead.createdAt).toISOString(),
+        partner: creditas ? ("Creditas" as const) : ("Credihome" as const),
+        partnerLeadId: (creditas ? lead.creditasLeadId : lead.credihomeLeadId) ?? "",
+        partnerPhase: creditas ? "" : (lead.credihomePhase ?? ""),
+        client: lead.name,
+        listingTitle: lead.listing?.title ?? "",
+        assetType: lead.assetType,
+        assetValue,
+        downPayment,
+        financingValue,
+        commissionRate: rate,
+        potentialCommission: money((financingValue * rate) / 100),
+        status: lead.status,
+      };
+    });
+
+    const sum = (list: typeof rows) => ({
+      count: list.length,
+      financingValue: money(list.reduce((t, r) => t + r.financingValue, 0)),
+      potentialCommission: money(list.reduce((t, r) => t + r.potentialCommission, 0)),
+    });
+    return {
+      month,
+      total: sum(rows),
+      byPartner: { Creditas: sum(rows.filter((r) => r.partner === "Creditas")), Credihome: sum(rows.filter((r) => r.partner === "Credihome")) },
+      notSent,
+      rows,
+    };
+  }
+}
+
+// Mês AAAA-MM no horário de Brasília (UTC−3, sem horário de verão desde 2019).
+function monthRange(month: string): { start: Date; end: Date } {
+  const match = /^(\d{4})-(\d{2})$/.exec(month);
+  if (!match || Number(match[2]) < 1 || Number(match[2]) > 12) throw new BadRequestException("Mês inválido — use AAAA-MM.");
+  return {
+    start: new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1, 3)),
+    end: new Date(Date.UTC(Number(match[1]), Number(match[2]), 1, 3)),
+  };
 }

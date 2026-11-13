@@ -16,6 +16,11 @@ export class FinancingDealsController {
     return this.financingDeals.monthlyReport(typeof month === "string" ? month.slice(0, 7) : "");
   }
 
+  @Get("admin/partner-sends")
+  partnerSends(@Query("month") month?: string) {
+    return this.financingDeals.partnerSends(typeof month === "string" ? month.slice(0, 7) : "");
+  }
+
   @Get("admin/financing-deals")
   listDeals(@Query("etapa") stage?: string) {
     const parsed = FinancingCommissionStage.safeParse(stage);
