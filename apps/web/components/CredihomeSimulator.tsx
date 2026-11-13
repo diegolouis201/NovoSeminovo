@@ -306,7 +306,7 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
             <input name="consent" type="checkbox" required className="mt-0.5" />
             <span>
               {CONSENTIMENTO_CREDITO.imovel} Veja a{" "}
-              <Link href="/privacidade" target="_blank" className="font-semibold text-brand-blue underline">
+              <Link href="/privacidade" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-blue underline">
                 política de privacidade
               </Link>
               .
