@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, HttpStatus, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, HttpException, HttpStatus, Injectable, Logger, NotFoundException, Optional } from "@nestjs/common";
 import {
   CONSENTIMENTO_CREDITO,
   CREDITAS_TIME_TO_PURCHASE,
@@ -8,6 +8,8 @@ import {
   type CreditasProposalInput,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import type { MetaEventContext } from "../meta/meta-conversions";
+import { MetaConversionsService } from "../meta/meta-conversions.service";
 import { ContactsService } from "../marketing/contacts.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { LIMITS, LIMIT_WINDOW_MS, REPEAT_DAYS, type ProposalOutcome } from "./credihome.service";
@@ -36,6 +38,7 @@ export class CreditasService {
     private readonly prisma: PrismaService,
     private readonly contacts: ContactsService,
     private readonly notifications: NotificationsService,
+    @Optional() private readonly meta?: MetaConversionsService,
   ) {}
 
   // Mesmo limite do pedido de proposta da Credihome (pedido vira lead real).
@@ -91,6 +94,8 @@ export class CreditasService {
     consentContext: ConsentContext,
     acquisition?: Acquisition,
     buyerUserId?: string,
+    // Conversão para a Meta (só existe com aceite dos cookies).
+    metaContext?: MetaEventContext,
   ): Promise<{ outcome: ProposalOutcome }> {
     const listing = await this.vehicleListing(listingId);
     const price = Number(listing.price);
@@ -133,6 +138,7 @@ export class CreditasService {
         },
         select: { id: true, creditasLeadId: true, adminNotes: true },
       }));
+    if (!repeated) void this.meta?.track("Lead", metaContext, { email: input.email, phone: input.phone }, "veiculo");
 
     await this.contacts
       .capture({

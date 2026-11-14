@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type { Conversation, Message } from "@novoseminovo/db";
 import type {
   ConversationDetail,
@@ -8,6 +8,8 @@ import type {
 } from "@novoseminovo/shared-types";
 import { leadOrigin } from "../common/acquisition";
 import { PrismaService } from "../prisma/prisma.service";
+import type { MetaEventContext } from "../meta/meta-conversions";
+import { MetaConversionsService } from "../meta/meta-conversions.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { ConversationsGateway } from "./conversations.gateway";
 import { canAccessConversation, isPartnerTeam } from "./access";
@@ -47,6 +49,7 @@ export class ConversationsService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly gateway: ConversationsGateway,
+    @Optional() private readonly meta?: MetaConversionsService,
   ) {}
 
   private async assertParticipant(conversation: { buyerId: string; sellerUserId: string | null; listingId: string }, userId: string) {
@@ -77,7 +80,7 @@ export class ConversationsService {
     });
   }
 
-  async startConversation(buyerId: string, listingId: string, acquisition?: Acquisition): Promise<ConversationSummary> {
+  async startConversation(buyerId: string, listingId: string, acquisition?: Acquisition, metaContext?: MetaEventContext): Promise<ConversationSummary> {
     const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
     if (listing.ownerUserId === buyerId) {
@@ -85,7 +88,8 @@ export class ConversationsService {
     }
 
     if (listing.partnerId) {
-      await this.upsertLead(listing.partnerId, listingId, buyerId, acquisition);
+      const created = await this.upsertLead(listing.partnerId, listingId, buyerId, acquisition);
+      if (created) void this.meta?.track("Lead", metaContext, { userId: buyerId }, listing.type === "property" ? "imovel" : "veiculo");
     }
 
     const existing = await this.prisma.conversation.findFirst({
@@ -110,11 +114,12 @@ export class ConversationsService {
   // source): busca antes de criar, como o resto da base já faz.
   private async upsertLead(partnerId: string, listingId: string, buyerId: string, acquisition?: Acquisition) {
     const existing = await this.prisma.lead.findFirst({ where: { listingId, buyerId, source: "chat" } });
-    if (existing) return;
+    if (existing) return false;
     const origin = await leadOrigin(this.prisma, buyerId, acquisition);
     await this.prisma.lead.create({
       data: { partnerId, listingId, buyerId, source: "chat", status: "new", ...origin },
     });
+    return true;
   }
 
   async listMine(userId: string): Promise<ConversationSummary[]> {

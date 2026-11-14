@@ -8,6 +8,7 @@ import {
   Logger,
   NotFoundException,
   ServiceUnavailableException,
+  Optional,
 } from "@nestjs/common";
 import Anthropic from "@anthropic-ai/sdk";
 import { Prisma, type AgentConversation } from "@novoseminovo/db";
@@ -24,6 +25,8 @@ import {
   type Acquisition,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import type { MetaEventContext } from "../meta/meta-conversions";
+import { MetaConversionsService } from "../meta/meta-conversions.service";
 import { ContactsService } from "../marketing/contacts.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { ListingsService } from "../listings/listings.service";
@@ -64,6 +67,10 @@ export type AgentRequester = { id: string; role: string };
 // atendem visitante anônimo, e a conversa nasce presa ao usuário logado.
 const LOGIN_REQUIRED = new Set<AgentKind>(["partner", "admin"]);
 
+// Estado de uma rodada do assistente: se nasceu pedido de financiamento novo
+// (para o Lead da Meta) e o contexto da conversão que o site mandou.
+type TurnState = { metaContext?: MetaEventContext; financingLeadCreated: boolean };
+
 @Injectable()
 export class AgentsService {
   private readonly logger = new Logger(AgentsService.name);
@@ -79,6 +86,7 @@ export class AgentsService {
     private readonly admin: AdminService,
     private readonly financingDeals: FinancingDealsService,
     private readonly contacts: ContactsService,
+    @Optional() private readonly meta?: MetaConversionsService,
   ) {}
 
   isEnabled(): boolean {
@@ -157,6 +165,8 @@ export class AgentsService {
     requester: AgentRequester | undefined,
     clientIp: string,
     acquisition?: Acquisition,
+    // Conversão para a Meta se esta mensagem virar pedido de financiamento.
+    metaContext?: MetaEventContext,
   ): Promise<AgentReply> {
     if (!this.isEnabled()) throw new ServiceUnavailableException("Assistente de IA indisponível no momento.");
     if (LOGIN_REQUIRED.has(kind) && !requester) throw new UnauthorizedException("Entre na sua conta para usar este assistente.");
@@ -177,7 +187,7 @@ export class AgentsService {
       });
     }
 
-    return this.respond(conversation, input.message);
+    return this.respond(conversation, input.message, metaContext);
   }
 
   // Mensagem que chegou pelo WhatsApp (ver WhatsAppService) — mesmo limite
@@ -190,13 +200,14 @@ export class AgentsService {
 
   // Comum ao site e ao WhatsApp: monta o agente certo, roda a rodada e
   // grava o histórico.
-  async respond(conversation: AgentConversation, message: string): Promise<AgentReply> {
+  async respond(conversation: AgentConversation, message: string, metaContext?: MetaEventContext): Promise<AgentReply> {
     if (conversation.turnCount >= MAX_TURNS_PER_CONVERSATION) {
       throw new BadRequestException("Essa conversa ficou longa demais. Comece uma nova conversa para continuar.");
     }
 
     const seenListings = new Map<string, ListingSummary>();
-    const agent = await this.buildAgent(conversation, seenListings);
+    const turn: TurnState = { metaContext, financingLeadCreated: false };
+    const agent = await this.buildAgent(conversation, seenListings, turn);
     const history = conversation.messages as unknown as Anthropic.MessageParam[];
 
     let result: { messages: Anthropic.MessageParam[]; reply: string };
@@ -226,12 +237,14 @@ export class AgentsService {
       return listing ? [listing] : [];
     });
 
-    return { conversationId: conversation.id, reply, listings };
+    // O site dispara o Lead no navegador (pixel) só quando nasceu um pedido novo.
+    return { conversationId: conversation.id, reply, listings, ...(turn.financingLeadCreated ? { financingLeadCreated: true } : {}) };
   }
 
   private async buildAgent(
     conversation: AgentConversation,
     seenListings: Map<string, ListingSummary>,
+    turn: TurnState = { financingLeadCreated: false },
   ): Promise<AgentDefinition> {
     const user = conversation.userId
       ? await this.prisma.user.findUnique({
@@ -253,7 +266,7 @@ export class AgentsService {
           },
           {
             listings: this.listings,
-            saveFinancingLead: (input) => this.saveFinancingLead(conversation, input),
+            saveFinancingLead: (input) => this.saveFinancingLead(conversation, input, turn),
           },
         );
       case "partner": {
@@ -303,7 +316,7 @@ export class AgentsService {
     }
   }
 
-  private async saveFinancingLead(conversation: AgentConversation, input: FinancingLeadInput): Promise<{ id: string }> {
+  private async saveFinancingLead(conversation: AgentConversation, input: FinancingLeadInput, turn?: TurnState): Promise<{ id: string }> {
     const listing = input.listingId
       ? await this.prisma.listing.findUnique({ where: { id: input.listingId }, select: { id: true, title: true } })
       : null;
@@ -342,6 +355,10 @@ export class AgentsService {
       },
       select: { id: true },
     });
+    if (turn) {
+      turn.financingLeadCreated = true;
+      void this.meta?.track("Lead", turn.metaContext, { email: input.email, phone: input.phone }, input.assetType === "property" ? "imovel" : "veiculo");
+    }
 
     // Quem pediu financiamento pediu contato sobre comprar: entra na jornada de compra.
     await this.contacts.capture({

@@ -1,7 +1,9 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from "@nestjs/common";
 import type { Acquisition, ListingContactInput } from "@novoseminovo/shared-types";
 import { leadOrigin } from "../common/acquisition";
 import { PrismaService } from "../prisma/prisma.service";
+import type { MetaEventContext } from "../meta/meta-conversions";
+import { MetaConversionsService } from "../meta/meta-conversions.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { ContactsService } from "../marketing/contacts.service";
 import { ConversationsGateway } from "./conversations.gateway";
@@ -25,9 +27,17 @@ export class ListingContactService {
     private readonly notifications: NotificationsService,
     private readonly contacts: ContactsService,
     private readonly gateway: ConversationsGateway,
+    @Optional() private readonly meta?: MetaConversionsService,
   ) {}
 
-  async send(listingId: string, input: ListingContactInput, buyerId?: string, acquisition?: Acquisition): Promise<{ ok: true; conversationId?: string }> {
+  async send(
+    listingId: string,
+    input: ListingContactInput,
+    buyerId?: string,
+    acquisition?: Acquisition,
+    // Conversão para a Meta (só existe com aceite dos cookies).
+    metaContext?: MetaEventContext,
+  ): Promise<{ ok: true; conversationId?: string }> {
     // Robô preencheu o campo escondido: responde ok e não faz nada.
     if (input.site) return { ok: true };
 
@@ -43,6 +53,7 @@ export class ListingContactService {
     await this.prisma.listingContact.create({
       data: { listingId, buyerId: buyerId ?? null, name: input.name, email: input.email, phone: input.phone, message: input.message, wantsSimilar: input.wantsSimilar },
     });
+    void this.meta?.track("Lead", metaContext, { email: input.email, phone: input.phone }, listing.type === "property" ? "imovel" : "veiculo");
 
     if (listing.partnerId) {
       const notes = `Mensagem: ${input.message}`;

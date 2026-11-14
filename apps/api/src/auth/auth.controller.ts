@@ -1,8 +1,10 @@
-import { Body, Controller, Post, Req } from "@nestjs/common";
+import { Body, Controller, Post, Req, Optional } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
 import { ForgotPasswordInputSchema, LoginInputSchema, RegisterInputSchema, ResetPasswordInputSchema } from "@novoseminovo/shared-types";
 import { acquisitionFrom } from "../common/acquisition";
+import { metaContextFrom } from "../meta/meta-conversions";
+import { MetaConversionsService } from "../meta/meta-conversions.service";
 import { parseOrBadRequest } from "../common/parse";
 import { AuthService } from "./auth.service";
 import { PasswordResetService } from "./password-reset.service";
@@ -16,13 +18,17 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly passwordReset: PasswordResetService,
+    @Optional() private readonly meta?: MetaConversionsService,
   ) {}
 
   @Throttle(AUTH_THROTTLE)
   @Post("register")
-  register(@Body() body: unknown, @Req() request: Request) {
+  async register(@Body() body: unknown, @Req() request: Request) {
     const input = parseOrBadRequest(RegisterInputSchema, body);
-    return this.authService.register(input, acquisitionFrom(request));
+    const user = await this.authService.register(input, acquisitionFrom(request));
+    // Conversão para a Meta (só com aceite dos cookies; não espera a resposta).
+    void this.meta?.track("CompleteRegistration", metaContextFrom(request), { userId: user.id, email: input.email, phone: input.phone }, "conta");
+    return user;
   }
 
   @Throttle(AUTH_THROTTLE)

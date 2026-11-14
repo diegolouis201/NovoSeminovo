@@ -28,6 +28,7 @@ import { NewsletterModule } from "./marketing/newsletter.module";
 import { FinanceFeedModule } from "./finance-feed/finance-feed.module";
 import { ReviewsModule } from "./reviews/reviews.module";
 import { HealthController } from "./common/health.controller";
+import { MetaModule } from "./meta/meta.module";
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { HealthController } from "./common/health.controller";
     // chama lá é o Stripe/WhatsApp/Resend, não uma pessoa num navegador.
     ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 120 }]),
     PrismaModule,
+    MetaModule,
     ListingsModule,
     AuthModule,
     FavoritesModule,

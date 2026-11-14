@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, Param, Post, Query, Req, UseGuards, Optional } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import type { Request } from "express";
 import {
@@ -20,6 +20,8 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PasswordResetService } from "../auth/password-reset.service";
 import { AdminGuard } from "../admin/admin.guard";
 import { acquisitionFrom } from "../common/acquisition";
+import { metaContextFrom } from "../meta/meta-conversions";
+import { MetaConversionsService } from "../meta/meta-conversions.service";
 import { parseOrBadRequest } from "../common/parse";
 import { SalesGuard } from "./sales.guard";
 import { SalesService } from "./sales.service";
@@ -170,7 +172,10 @@ export function campaignLeadRateLimited(ip: string, now = Date.now()): boolean {
 @SkipThrottle()
 @Controller("sales")
 export class SalesCampaignController {
-  constructor(private readonly sales: SalesService) {}
+  constructor(
+    private readonly sales: SalesService,
+    @Optional() private readonly meta?: MetaConversionsService,
+  ) {}
 
   @Post("campaign-lead")
   @HttpCode(200)
@@ -182,6 +187,8 @@ export class SalesCampaignController {
     if (body && typeof body === "object" && typeof (body as { website?: unknown }).website === "string" && (body as { website: string }).website.trim()) return { ok: true };
     const input = parseOrBadRequest(CampaignLeadInputSchema, body);
     await this.sales.campaignLead(input, acquisitionFrom(request));
+    // Conversão para a Meta (só com aceite dos cookies; não espera a resposta).
+    void this.meta?.track("Lead", metaContextFrom(request), { email: input.email, phone: input.phone }, "lojas");
     return { ok: true };
   }
 }

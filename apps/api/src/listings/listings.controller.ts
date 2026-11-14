@@ -19,6 +19,7 @@ import {
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import type { Request, Response } from "express";
 import { acquisitionFrom } from "../common/acquisition";
+import { metaContextFrom } from "../meta/meta-conversions";
 import { memoryStorage } from "multer";
 import {
   CreateListingInputSchema,
@@ -283,7 +284,7 @@ export class ListingsController {
   @UseGuards(JwtAuthGuard)
   @Post(":id/whatsapp-clicks")
   registerWhatsappClick(@CurrentUser() user: { id: string }, @Param("id") id: string, @Req() request: Request) {
-    return this.listingsService.registerWhatsappClick(id, user.id, acquisitionFrom(request));
+    return this.listingsService.registerWhatsappClick(id, user.id, acquisitionFrom(request), metaContextFrom(request));
   }
 
   @UseGuards(JwtAuthGuard)

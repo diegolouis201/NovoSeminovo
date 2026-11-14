@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from "@nestjs/common";
 import { Prisma, type PropertyType } from "@novoseminovo/db";
 import {
   VEHICLE_BODY_TYPE_OPTIONS,
@@ -34,6 +34,8 @@ import {
 import { vehicleBrandVariants } from "@novoseminovo/shared-types";
 import { leadOrigin } from "../common/acquisition";
 import { PrismaService } from "../prisma/prisma.service";
+import type { MetaEventContext } from "../meta/meta-conversions";
+import { MetaConversionsService } from "../meta/meta-conversions.service";
 import { listingEvents } from "../common/listing-events";
 import { assertNotImportedYet } from "./import-origin";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -194,6 +196,7 @@ export class ListingsService {
     private readonly payments: PaymentsService,
     private readonly geocoding: GeocodingService,
     private readonly affiliates: AffiliatesService,
+    @Optional() private readonly meta?: MetaConversionsService,
   ) {}
 
   // ---------- Planos por anúncio (pessoa física) ----------
@@ -837,7 +840,7 @@ export class ListingsService {
   // vendedor nem chega a quem não entrou), então todo lead tem comprador.
   // Anúncio de vendedor individual não gera lead (Lead exige partnerId),
   // igual ao chat em ConversationsService.startConversation.
-  async registerWhatsappClick(listingId: string, buyerId: string, acquisition?: Acquisition): Promise<void> {
+  async registerWhatsappClick(listingId: string, buyerId: string, acquisition?: Acquisition, metaContext?: MetaEventContext): Promise<void> {
     const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
     if (!listing.partnerId) return;
@@ -850,6 +853,7 @@ export class ListingsService {
     await this.prisma.lead.create({
       data: { partnerId: listing.partnerId, listingId, buyerId, source: "whatsapp", status: "new", ...(await leadOrigin(this.prisma, buyerId, acquisition)) },
     });
+    void this.meta?.track("Lead", metaContext, { userId: buyerId }, listing.type === "property" ? "imovel" : "veiculo");
   }
 
   // Denúncia de anúncio. Sem dedupe por enquanto: se a mesma pessoa denunciar

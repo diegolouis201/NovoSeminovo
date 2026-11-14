@@ -8,6 +8,7 @@ import {
   ServiceUnavailableException,
   type OnModuleDestroy,
   type OnModuleInit,
+  Optional,
 } from "@nestjs/common";
 import {
   CONSENTIMENTO_CREDITO,
@@ -20,6 +21,8 @@ import {
   type SendToCredihomeInput,
 } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
+import type { MetaEventContext } from "../meta/meta-conversions";
+import { MetaConversionsService } from "../meta/meta-conversions.service";
 import { ContactsService } from "../marketing/contacts.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { trackRoutine } from "../operations/routine-health";
@@ -57,6 +60,7 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly contacts: ContactsService,
     private readonly notifications: NotificationsService,
+    @Optional() private readonly meta?: MetaConversionsService,
   ) {}
 
   private checkLimit(kind: keyof typeof LIMITS, visitor: string): void {
@@ -111,6 +115,8 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
     acquisition?: Acquisition,
     // Conta de quem pediu (se estava logado) — o pedido fica ligado a ela.
     buyerUserId?: string,
+    // Conversão para a Meta (só existe com aceite dos cookies).
+    metaContext?: MetaEventContext,
   ): Promise<{ outcome: ProposalOutcome }> {
     const listing = await this.propertyListing(listingId);
     this.checkLimit("proposal", visitor);
@@ -152,6 +158,7 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
         },
         select: { id: true, credihomeLeadId: true },
       }));
+    if (!repeated) void this.meta?.track("Lead", metaContext, { email: input.email, phone: input.phone }, "imovel");
 
     await this.contacts
       .capture({

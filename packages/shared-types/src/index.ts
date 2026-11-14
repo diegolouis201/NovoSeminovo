@@ -1741,6 +1741,9 @@ export const AgentReplySchema = z.object({
   // card logo abaixo da mensagem — nunca um anúncio que o agente não
   // encontrou de verdade numa ferramenta.
   listings: z.array(ListingSummarySchema),
+  // Esta mensagem virou pedido de financiamento novo: o site conta o Lead no
+  // pixel da Meta (com o mesmo id que a API mandou pela API de Conversões).
+  financingLeadCreated: z.boolean().optional(),
 });
 export type AgentReply = z.infer<typeof AgentReplySchema>;
 
@@ -2410,6 +2413,78 @@ export function parseAcquisition(raw: string | null | undefined): Acquisition | 
     term: cleanPart(term, 100),
     clickId: cleanClickId(clickId),
   });
+}
+
+// Meta Pixel + API de Conversões (Etapa 2a de marketing). Dormente até o
+// ID do pixel e o token estarem configurados; só com o "Aceitar" dos cookies.
+// O site repassa à API, nos cabeçalhos META_HEADERS, o aceite, o id do evento
+// (o mesmo que o navegador usa no fbq — a Meta junta os dois e conta uma vez),
+// os cookies _fbp/_fbc da Meta e a página. CONSENT_COOKIE espelha a escolha
+// do aviso de cookies para o servidor do site conseguir ler.
+export const CONSENT_COOKIE = "ns_consent";
+export const META_EVENT_COOKIE = "ns_meta_evt";
+export const META_HEADERS = {
+  consent: "x-ns-consent",
+  eventId: "x-ns-event-id",
+  fbp: "x-ns-fbp",
+  fbc: "x-ns-fbc",
+  pageUrl: "x-ns-page-url",
+} as const;
+export const META_EVENT_NAMES = ["Lead", "CompleteRegistration"] as const;
+export type MetaEventName = (typeof META_EVENT_NAMES)[number];
+// Categoria do evento (custom_data.content_category) — nunca dado pessoal.
+export const META_CONTENT_CATEGORIES = ["lojas", "veiculo", "imovel", "conta"] as const;
+export type MetaContentCategory = (typeof META_CONTENT_CATEGORIES)[number];
+export type MetaQueuedEvent = { name: MetaEventName; eventId: string; category?: MetaContentCategory };
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isMetaPixelId(value: string | null | undefined): boolean {
+  return typeof value === "string" && /^\d{5,20}$/.test(value);
+}
+
+export function cleanMetaEventId(value: string | null | undefined): string | undefined {
+  return typeof value === "string" && value.length <= 64 && UUID_RE.test(value) ? value : undefined;
+}
+
+// Cookie _fbp do pixel: fb.<subdomínio>.<criação em ms>.<aleatório>.
+export function cleanFbp(value: string | null | undefined): string | undefined {
+  return typeof value === "string" && value.length <= 100 && /^fb\.[0-2]\.\d{10,16}\.\d{1,25}$/.test(value) ? value : undefined;
+}
+
+// Cookie _fbc: fb.<subdomínio>.<criação em ms>.<fbclid>.
+export function cleanFbc(value: string | null | undefined): string | undefined {
+  return typeof value === "string" && value.length <= 600 && /^fb\.[0-2]\.\d{10,16}\.[A-Za-z0-9_-]{1,500}$/.test(value) ? value : undefined;
+}
+
+// Fila de eventos para o navegador disparar depois de uma ação que deu certo
+// (inclusive quando a página muda, como no cadastro): "nome:id:categoria,...".
+export function serializeMetaEventQueue(events: MetaQueuedEvent[]): string {
+  return events
+    .slice(-5)
+    .map((event) => `${event.name}:${event.eventId}:${event.category ?? ""}`)
+    .join(",");
+}
+
+export function parseMetaEventQueue(raw: string | null | undefined): MetaQueuedEvent[] {
+  if (!raw) return [];
+  let text = raw;
+  try {
+    text = decodeURIComponent(raw);
+  } catch {
+    // já veio decodificado
+  }
+  return text
+    .slice(0, 1000)
+    .split(",")
+    .flatMap((item): MetaQueuedEvent[] => {
+      const [name, id, category] = item.split(":");
+      const eventId = cleanMetaEventId(id);
+      if (!eventId || !name || !(META_EVENT_NAMES as readonly string[]).includes(name)) return [];
+      if (category && !(META_CONTENT_CATEGORIES as readonly string[]).includes(category)) return [];
+      return [category ? { name: name as MetaEventName, eventId, category: category as MetaContentCategory } : { name: name as MetaEventName, eventId }];
+    })
+    .slice(0, 5);
 }
 
 // Receita das lojas parceiras (Amazon, Mercado Livre…): o valor vem do painel

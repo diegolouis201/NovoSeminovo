@@ -15,6 +15,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { acquisitionFrom } from "../common/acquisition";
+import { metaContextFrom } from "../meta/meta-conversions";
 import { parseOrBadRequest } from "../common/parse";
 import { AgentsService, type AgentRequester } from "./agents.service";
 import { CredihomeService } from "./credihome.service";
@@ -70,7 +71,7 @@ export class AgentsController {
     @Req() request: Request,
   ) {
     const input = parseOrBadRequest(AgentMessageInputSchema, body);
-    return this.agentsService.sendWebMessage(parseKind(kind), input, user, clientIp(request), acquisitionFrom(request));
+    return this.agentsService.sendWebMessage(parseKind(kind), input, user, clientIp(request), acquisitionFrom(request), metaContextFrom(request));
   }
 
   @UseGuards(OptionalJwtAuthGuard)
@@ -131,6 +132,7 @@ export class AgentsController {
       clientIp(request),
       acquisitionFrom(request),
       user?.id,
+      metaContextFrom(request),
     );
   }
 
@@ -152,6 +154,7 @@ export class AgentsController {
       { ip, userAgent: clientUserAgent(request) },
       acquisitionFrom(request),
       user?.id,
+      metaContextFrom(request),
     );
   }
 }

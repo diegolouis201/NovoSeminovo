@@ -12,10 +12,13 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  Optional,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Request } from "express";
 import { acquisitionFrom } from "../common/acquisition";
+import { metaContextFrom } from "../meta/meta-conversions";
+import { MetaConversionsService } from "../meta/meta-conversions.service";
 import { SalesService } from "../sales/sales.service";
 import { memoryStorage } from "multer";
 import {
@@ -66,6 +69,7 @@ export class PartnersController {
     private readonly auth: AuthService,
     private readonly sales: SalesService,
     private readonly prisma: PrismaService,
+    @Optional() private readonly meta?: MetaConversionsService,
   ) {}
 
   // Consulta do CNPJ na tela de cadastro (pública: a pessoa ainda não tem conta).
@@ -90,6 +94,7 @@ export class PartnersController {
     }
     // Entra no quadro da área Comercial (na carteira do vendedor, se veio pelo link dele).
     await this.sales.linkOwnerSignup(user.id, input.salesCode).catch(() => undefined);
+    void this.meta?.track("CompleteRegistration", metaContextFrom(request), { userId: user.id, email: input.email, phone: input.phone }, "lojas");
     return { ok: true, partnerType: company.type };
   }
 

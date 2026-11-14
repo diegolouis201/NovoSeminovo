@@ -6,6 +6,7 @@ import { SkipThrottle } from "@nestjs/throttler";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { acquisitionFrom } from "../common/acquisition";
+import { metaContextFrom } from "../meta/meta-conversions";
 import { parseOrBadRequest } from "../common/parse";
 import { ConversationsService } from "./conversations.service";
 import { ListingContactService } from "./listing-contact.service";
@@ -17,7 +18,7 @@ export class ConversationsController {
 
   @Post("listings/:id/conversations")
   start(@CurrentUser() user: { id: string }, @Param("id") listingId: string, @Req() request: Request) {
-    return this.conversationsService.startConversation(user.id, listingId, acquisitionFrom(request));
+    return this.conversationsService.startConversation(user.id, listingId, acquisitionFrom(request), metaContextFrom(request));
   }
 
   @Post("leads/:id/conversation")
@@ -74,6 +75,6 @@ export class ListingContactController {
     const ip = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim() || request.ip || "desconhecido";
     if (contactRateLimited(ip)) throw new HttpException("Muitas mensagens em pouco tempo. Tente de novo daqui a alguns minutos.", HttpStatus.TOO_MANY_REQUESTS);
     const input = parseOrBadRequest(ListingContactInputSchema, body);
-    return this.contact.send(listingId, { ...input, wantsSimilar: input.wantsSimilar ?? false }, user?.id, acquisitionFrom(request));
+    return this.contact.send(listingId, { ...input, wantsSimilar: input.wantsSimilar ?? false }, user?.id, acquisitionFrom(request), metaContextFrom(request));
   }
 }
