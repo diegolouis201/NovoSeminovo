@@ -1563,6 +1563,13 @@ model MarketingContact {
   stage            String               @default("novo")
   unsubscribeToken String               @unique @default(cuid()) @map("unsubscribe_token")
   lastEmailAt      DateTime?            @map("last_email_at")
+  // Origem do anúncio (hoje só os formulários de Lead Ads da Meta preenchem):
+  // canal, meio (lead_form), campanha (campaignKey), anúncio e público.
+  acqSource        String?              @map("acq_source")
+  acqMedium        String?              @map("acq_medium")
+  acqCampaign      String?              @map("acq_campaign")
+  acqContent       String?              @map("acq_content")
+  acqTerm          String?              @map("acq_term")
   createdAt        DateTime             @default(now()) @map("created_at")
   updatedAt        DateTime             @updatedAt @map("updated_at")
   sends            EmailSend[]
@@ -1570,7 +1577,25 @@ model MarketingContact {
 
   @@index([phoneHash])
   @@index([interest, consent, status])
+  @@index([acqCampaign])
   @@map("marketing_contacts")
+}
+
+// Leads dos formulários de Lead Ads da Meta já recebidos (webhook ou rotina
+// de segurança): o mesmo leadgen_id nunca é processado duas vezes. Sem dado
+// pessoal aqui — só ids da Meta e o destino (b2b = funil, comprador = contatos).
+model MetaLeadgen {
+  leadgenId String   @id @map("leadgen_id")
+  pageId    String?  @map("page_id")
+  formId    String?  @map("form_id")
+  // processing | done | skipped
+  status    String   @default("processing")
+  route     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status, updatedAt])
+  @@map("meta_leadgens")
 }
 
 // Campanha de e-mail para um segmento (interesses/origens). Só vai para quem

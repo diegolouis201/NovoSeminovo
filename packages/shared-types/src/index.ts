@@ -2302,6 +2302,14 @@ export const ACQUISITION_SOURCES = {
   direto: "Direto (digitou o endereço)",
 } as const;
 export type AcquisitionSource = keyof typeof ACQUISITION_SOURCES;
+// Meio "lead_form" = a pessoa preencheu o formulário dentro do Instagram/
+// Facebook (Lead Ads), sem passar pelo site.
+export const META_LEAD_FORM_MEDIUM = "lead_form";
+export function originChannelLabel(canal: string | null | undefined, meio?: string | null): string | undefined {
+  if (!canal) return undefined;
+  if (meio === META_LEAD_FORM_MEDIUM) return "Formulário Meta (Instagram/Facebook)";
+  return ACQUISITION_SOURCES[canal as AcquisitionSource] ?? canal;
+}
 // content = anúncio (utm_content), term = público/conjunto (utm_term),
 // clickId = id do clique da Meta (fbclid). Todos opcionais: cookie antigo
 // (origem|meio|campanha) continua valendo.
@@ -2599,6 +2607,7 @@ export const OPS_ROUTINE_LABELS: Record<string, string> = {
   "periodo-gratis": "Aviso de fim do período grátis",
   "fila-agentes": "Fila de tarefas dos agentes",
   marketing: "Marketing (Instagram e e-mails)",
+  "meta-lead-ads": "Formulários da Meta (Lead Ads)",
 };
 export const OPS_FEATURE_LABELS: Record<string, string> = {
   assistentes: "Assistentes (chat e WhatsApp)",
@@ -3080,12 +3089,12 @@ export const HubBuyerLeadsQuerySchema = z
     ate: IsoDay.optional(),
     canal: z.string().regex(/^[a-z_]{2,40}$/, "Canal inválido").optional(),
     campanha: z.string().trim().max(100).optional(),
-    tipo: z.enum(["contato_anuncio", "financiamento", "novidades"]).optional(),
+    tipo: z.enum(["contato_anuncio", "financiamento", "novidades", "formulario_meta"]).optional(),
   })
   .refine((q) => !q.de || !q.ate || q.de <= q.ate, "A data inicial vem antes da final")
   .refine((q) => !q.de || !q.ate || (Date.parse(q.ate) - Date.parse(q.de)) / 86_400_000 <= 366, "Escolha um período de até 1 ano");
 export type HubBuyerLeadsQuery = z.infer<typeof HubBuyerLeadsQuerySchema>;
-export const HUB_BUYER_LEAD_TYPES = { contato_anuncio: "Contato de anúncio", financiamento: "Financiamento", novidades: "Novidades por e-mail" } as const;
+export const HUB_BUYER_LEAD_TYPES = { contato_anuncio: "Contato de anúncio", financiamento: "Financiamento", novidades: "Novidades por e-mail", formulario_meta: "Formulário Meta (Instagram/Facebook)" } as const;
 export type HubBuyerLeadType = keyof typeof HUB_BUYER_LEAD_TYPES;
 export type HubBuyerLead = {
   id: string;

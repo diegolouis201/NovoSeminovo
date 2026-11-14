@@ -65,7 +65,25 @@ const digits = (value?: string | null) => (value ?? "").replace(/\D/g, "") || un
 
 // Tarefa automática do Hub: quem criou é o site (não é uma pessoa da equipe).
 export const CAMPAIGN_TASK_CREATOR = "site";
-const CAMPAIGN_SEGMENT: Record<keyof typeof CAMPAIGN_BUSINESS_TYPES, SalesSegment> = { loja: "vehicle", imobiliaria: "property", corretor: "property" };
+export const CAMPAIGN_SEGMENT: Record<keyof typeof CAMPAIGN_BUSINESS_TYPES, SalesSegment> = { loja: "vehicle", imobiliaria: "property", corretor: "property" };
+
+// Lead de campanha já validado (site ou formulário da Meta). Só nome e
+// segmento são obrigatórios aqui; e-mail ou telefone, pelo menos um.
+export type CampaignLeadRecord = {
+  name: string;
+  segment: SalesSegment;
+  company?: string;
+  businessType?: keyof typeof CAMPAIGN_BUSINESS_TYPES;
+  city?: string;
+  state?: string;
+  phone?: string;
+  email?: string;
+  cnpj?: string;
+  contactRole?: string;
+};
+// heading = começo da anotação (o resumo vem depois de ":" ou na linha de
+// baixo); consentText = autorização registrada; taskNote = fim da tarefa.
+export type CampaignLeadVia = { heading: string; consentText: string; taskNote?: string; detailsOnNextLine?: boolean };
 
 const prospectInclude = {
   owner: { select: { id: true, name: true } },
@@ -132,29 +150,48 @@ export class SalesService {
   // ganha uma tarefa de chamar no WhatsApp (uma aberta por card).
   async campaignLead(raw: CampaignLeadInput, origin: Acquisition | undefined): Promise<{ id: string }> {
     const input = CampaignLeadInputSchema.parse(raw);
-    const segment = CAMPAIGN_SEGMENT[input.businessType];
-    if (input.cnpj) {
+    return this.recordCampaignLead(
+      { ...input, segment: CAMPAIGN_SEGMENT[input.businessType] },
+      origin,
+      { heading: "Preencheu o formulário de campanha (/para-lojas/comecar)", consentText: CAMPAIGN_CONSENT_TEXT },
+    );
+  }
+
+  // Núcleo do lead de campanha, usado pelo formulário do site e pelos
+  // formulários de Lead Ads da Meta (meta/meta-leads.service.ts). Quem chama
+  // já validou e limpou os dados; e-mail ou telefone é obrigatório.
+  async recordCampaignLead(lead: CampaignLeadRecord, origin: Acquisition | undefined, via: CampaignLeadVia): Promise<{ id: string }> {
+    if (!lead.email && !lead.phone) throw new BadRequestException("Lead sem e-mail e sem telefone.");
+    const typeLabel = lead.businessType ? CAMPAIGN_BUSINESS_TYPES[lead.businessType] : undefined;
+    const place = [lead.city, lead.state].filter(Boolean).join("/");
+    if (lead.cnpj) {
       // Empresa já cadastrada no site e ainda sem card: liga primeiro.
-      const partner = await this.prisma.partner.findFirst({ where: { document: input.cnpj, salesProspect: null }, select: { id: true } });
+      const partner = await this.prisma.partner.findFirst({ where: { document: lead.cnpj, salesProspect: null }, select: { id: true } });
       if (partner) await this.linkSignup(partner.id);
     }
+    // Só filtra pelo que veio: { phone: undefined } no Prisma casaria com tudo.
+    const ownerMatch: Prisma.UserWhereInput[] = [...(lead.email ? [{ email: lead.email }] : []), ...(lead.phone ? [{ phone: lead.phone }] : [])];
+    const cardMatch: Prisma.SalesProspectWhereInput[] = [
+      ...(lead.cnpj ? [{ cnpj: lead.cnpj }] : []),
+      ...(lead.phone ? [{ phone: lead.phone }] : []),
+      ...(lead.email ? [{ email: lead.email }] : []),
+    ];
     const owners = await this.prisma.partner.findMany({
-      where: { OR: [{ owner: { email: input.email } }, { owner: { phone: input.phone } }], salesProspect: { isNot: null } },
+      where: { OR: ownerMatch.map((owner) => ({ owner })), salesProspect: { isNot: null } },
       select: { salesProspect: { select: { id: true } } },
       take: 1,
     });
     const existing =
-      (await this.prisma.salesProspect.findFirst({
-        where: { OR: [...(input.cnpj ? [{ cnpj: input.cnpj }] : []), { phone: input.phone }, { email: input.email }] },
-        orderBy: { createdAt: "asc" },
-      })) ?? (owners[0]?.salesProspect ? await this.prisma.salesProspect.findUnique({ where: { id: owners[0].salesProspect.id } }) : null);
+      (await this.prisma.salesProspect.findFirst({ where: { OR: cardMatch }, orderBy: { createdAt: "asc" } })) ??
+      (owners[0]?.salesProspect ? await this.prisma.salesProspect.findUnique({ where: { id: owners[0].salesProspect.id } }) : null);
     const acq = acquisitionFields(origin);
+    const details = `${[lead.name, lead.company].filter(Boolean).join(" — ")}${typeLabel ? ` (${typeLabel})` : ""}${place ? `, ${place}` : ""}.`;
     const summary = [
-      `Preencheu o formulário de campanha (/para-lojas/comecar): ${input.name} — ${input.company} (${CAMPAIGN_BUSINESS_TYPES[input.businessType]}), ${input.city}/${input.state}.`,
+      via.detailsOnNextLine ? `${via.heading}\n${details}` : `${via.heading}: ${details}`,
       // Telefone fica só na coluna criptografada do card, nunca no texto da anotação.
-      `E-mail ${input.email}${input.cnpj ? ` · CNPJ ${input.cnpj}` : ""}.`,
+      lead.email || lead.cnpj ? `${[lead.email && `E-mail ${lead.email}`, lead.cnpj && `CNPJ ${lead.cnpj}`].filter(Boolean).join(" · ")}.` : "",
       origin ? `Origem: ${[origin.source, origin.campaign && `campanha ${origin.campaign}`, origin.content && `anúncio ${origin.content}`, origin.term && `público ${origin.term}`].filter(Boolean).join(" · ")}.` : "",
-      `Autorizou contato em ${new Date().toISOString()}: "${CAMPAIGN_CONSENT_TEXT}"`,
+      `Autorizou contato em ${new Date().toISOString()}: "${via.consentText}"`,
     ]
       .filter(Boolean)
       .join("\n")
@@ -165,28 +202,31 @@ export class SalesService {
       id = existing.id;
       // Completa só o que está vazio; etapa, fonte e origem do 1º contato ficam.
       const fill: Prisma.SalesProspectUpdateInput = {
-        ...(existing.contactName ? {} : { contactName: input.name }),
-        ...(existing.phone ? {} : { phone: input.phone }),
-        ...(existing.email ? {} : { email: input.email }),
-        ...(existing.city ? {} : { city: input.city }),
-        ...(existing.state ? {} : { state: input.state }),
-        ...(existing.businessType ? {} : { businessType: input.businessType }),
+        ...(existing.contactName ? {} : { contactName: lead.name }),
+        ...(existing.phone || !lead.phone ? {} : { phone: lead.phone }),
+        ...(existing.email || !lead.email ? {} : { email: lead.email }),
+        ...(existing.city || !lead.city ? {} : { city: lead.city }),
+        ...(existing.state || !lead.state ? {} : { state: lead.state }),
+        ...(existing.businessType || !lead.businessType ? {} : { businessType: lead.businessType }),
+        ...(existing.contactRole || !lead.contactRole ? {} : { contactRole: lead.contactRole }),
         ...(existing.acqSource ? {} : acq),
-        ...(!existing.cnpj && input.cnpj && !(await this.prisma.salesProspect.findUnique({ where: { cnpj: input.cnpj }, select: { id: true } })) ? { cnpj: input.cnpj } : {}),
+        ...(!existing.cnpj && lead.cnpj && !(await this.prisma.salesProspect.findUnique({ where: { cnpj: lead.cnpj }, select: { id: true } })) ? { cnpj: lead.cnpj } : {}),
       };
       await this.prisma.salesProspect.update({ where: { id }, data: { ...fill, updatedAt: new Date() } });
     } else {
       const created = await this.prisma.salesProspect.create({
         data: {
-          name: input.company,
-          segment,
-          businessType: input.businessType,
-          cnpj: input.cnpj,
-          city: input.city,
-          state: input.state,
-          contactName: input.name,
-          phone: input.phone,
-          email: input.email,
+          // Sem empresa informada (formulário da Meta sem a pergunta): o nome da pessoa.
+          name: lead.company || lead.name,
+          segment: lead.segment,
+          businessType: lead.businessType,
+          cnpj: lead.cnpj,
+          city: lead.city,
+          state: lead.state,
+          contactName: lead.name,
+          contactRole: lead.contactRole,
+          phone: lead.phone,
+          email: lead.email,
           source: "campanha",
           stage: "a_abordar",
           ...acq,
@@ -198,12 +238,13 @@ export class SalesService {
     await this.prisma.salesNote.create({ data: { prospectId: id, kind: "note", body: summary } });
     const openTask = await this.prisma.hubTask.findFirst({ where: { prospectId: id, doneAt: null, createdById: CAMPAIGN_TASK_CREATOR }, select: { id: true } });
     if (!openTask) {
+      const who = `${lead.name}${lead.company ? ` (${lead.company})` : ""}`;
       await this.prisma.hubTask.create({
         data: {
-          title: `Lead de campanha: chamar ${input.name} (${input.company}) no WhatsApp`.slice(0, 200),
-          kind: "whatsapp",
+          title: (lead.phone ? `Lead de campanha: chamar ${who} no WhatsApp` : `Lead de campanha: escrever para ${who} por e-mail`).slice(0, 200),
+          kind: lead.phone ? "whatsapp" : "email",
           dueAt: new Date(),
-          notes: `${CAMPAIGN_BUSINESS_TYPES[input.businessType]} em ${input.city}/${input.state}. O WhatsApp está na ficha da empresa.`,
+          notes: `${typeLabel ?? "Empresa"}${place ? ` em ${place}` : ""}. ${lead.phone ? "O WhatsApp está na ficha da empresa." : "O e-mail está na ficha da empresa."}${via.taskNote ? ` ${via.taskNote}` : ""}`.slice(0, 2000),
           prospectId: id,
           createdById: CAMPAIGN_TASK_CREATOR,
         },

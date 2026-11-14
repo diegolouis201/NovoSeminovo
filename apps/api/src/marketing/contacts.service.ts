@@ -15,7 +15,14 @@ export type ContactInput = {
   sourceDetail?: string | null;
   consent: ContactConsent;
   consentText?: string;
+  // Origem do anúncio (formulário de Lead Ads da Meta): fica a do 1º contato.
+  acquisition?: { source: string; medium?: string; campaign?: string; content?: string; term?: string };
 };
+
+function acquisitionColumns(acq: ContactInput["acquisition"]) {
+  if (!acq) return {};
+  return { acqSource: acq.source, acqMedium: acq.medium ?? null, acqCampaign: acq.campaign ?? null, acqContent: acq.content ?? null, acqTerm: acq.term ?? null };
+}
 
 const CONSENT_RANK: Record<string, number> = { none: 0, legitimate_interest: 1, opt_in: 2 };
 
@@ -69,6 +76,7 @@ export class ContactsService {
           consent: input.consent,
           consentAt: input.consent === "none" ? null : new Date(),
           consentText: input.consentText,
+          ...acquisitionColumns(input.acquisition),
         },
       });
       return { contact, created: true };
@@ -80,6 +88,7 @@ export class ContactsService {
     if (!existing.name && input.name) data.name = input.name.trim();
     if (!existing.userId && input.userId) data.userId = input.userId;
     if (existing.interest === "geral" && input.interest && input.interest !== "geral") data.interest = input.interest;
+    if (!existing.acqSource && input.acquisition) Object.assign(data, acquisitionColumns(input.acquisition));
     const upgradesConsent = (CONSENT_RANK[input.consent] ?? 0) > (CONSENT_RANK[existing.consent] ?? 0);
     if (upgradesConsent) {
       data.consent = input.consent;
