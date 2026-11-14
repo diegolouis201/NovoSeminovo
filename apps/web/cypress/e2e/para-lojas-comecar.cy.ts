@@ -22,11 +22,11 @@ describe("Campanha para lojas: /para-lojas/comecar", () => {
 
   it("autorização de contato começa desmarcada, é obrigatória e o link da privacidade abre com segurança", () => {
     cy.visit("/para-lojas/comecar");
-    cy.get('input[name="consent"]').should("not.be.checked").and("have.attr", "required");
+    cy.get('main input[name="consent"]').should("not.be.checked").and("have.attr", "required");
     cy.get('a[href="/privacidade"]').each(($a) => {
       if ($a.attr("target") === "_blank") expect($a.attr("rel")).to.contain("noopener").and.contain("noreferrer");
     });
-    cy.get('input[name="website"]').should("not.be.visible");
+    cy.get('main input[name="website"]').should("not.be.visible");
   });
 
   it("envia o formulário (com origem da campanha) e mostra a confirmação com o botão de criar conta", () => {
@@ -35,15 +35,15 @@ describe("Campanha para lojas: /para-lojas/comecar", () => {
     // O cookie é gravado depois que a página carrega no navegador; cy.getCookie
     // não repete a tentativa, document.cookie com .its/.should repete.
     cy.document().its("cookie").should("contain", "ns_origem=").and("contain", "teste_cypress");
-    cy.get('input[name="name"]').type("Maria Teste");
-    cy.get('input[name="company"]').type(`Loja Cypress ${sufixo}`);
-    cy.get('select[name="businessType"]').select("loja");
-    cy.get('input[name="city"]').type("Goiânia");
-    cy.get('select[name="state"]').select("GO");
-    cy.get('input[name="phone"]').type(`6299${sufixo}0`);
-    cy.get('input[name="email"]').type(`cypress-${sufixo}@teste.local`);
-    cy.get('input[name="consent"]').check();
-    cy.contains("button", /enviar|quero/i).click();
+    cy.get("#cl-name").type("Maria Teste");
+    cy.get("#cl-company").type(`Loja Cypress ${sufixo}`);
+    cy.get("#cl-type").select("loja");
+    cy.get("#cl-city").type("Goiânia");
+    cy.get("#cl-state").select("GO");
+    cy.get("#cl-phone").type(`6299${sufixo}0`);
+    cy.get("#cl-email").type(`cypress-${sufixo}@teste.local`);
+    cy.get('main input[name="consent"]').check();
+    cy.get("main form").contains("button", /enviar|quero/i).click();
     cy.contains("Recebemos!").should("be.visible");
     cy.contains("Vamos te chamar no WhatsApp");
     cy.contains("a", /criar (minha )?conta/i).should("have.attr", "href").and("match", /^\/(parceiro|cadastro)/);
