@@ -121,6 +121,15 @@ export default function PrivacyPage() {
           mensagens de WhatsApp (Meta) e estatísticas de uso (Google Analytics, só com seu aceite). Alguns desses fornecedores podem tratar dados fora do Brasil, com
           as garantias exigidas pela LGPD.
         </li>
+        <li>
+          <strong>Meta (Facebook e Instagram), só com seu aceite dos cookies:</strong> para medir e melhorar os nossos
+          anúncios, contamos à Meta quando um anúncio dela gerou um contato ou um cadastro no {COMPANY.brand}, pelo Pixel
+          da Meta (no navegador) e pela API de Conversões (do nosso servidor). Vão o tipo do evento (contato ou
+          cadastro), a página, o identificador do clique no anúncio, o endereço IP e o navegador, e o seu e-mail e
+          telefone apenas em forma criptografada irreversível (hash SHA-256) — a Meta só consegue comparar com contas
+          que ela já tem, sem ler o dado. Sem o seu aceite, nada disso é enviado. A Meta trata esses dados conforme a
+          política de privacidade dela, podendo ser fora do Brasil, com as garantias exigidas pela LGPD.
+        </li>
         <li>Autoridades, quando exigido por lei ou ordem judicial.</li>
       </ul>
       <p>
@@ -135,8 +144,9 @@ export default function PrivacyPage() {
         conversa com o assistente e a sua escolha sobre cookies. <strong>Somente se você aceitar</strong> no aviso de
         cookies, usamos o Google Analytics (Google), que coleta dados de navegação de forma estatística — páginas
         visitadas, tempo, tipo de aparelho e região aproximada — para entendermos o uso do site. Você pode recusar sem
-        prejuízo nenhum, e mudar de ideia limpando os dados do site no seu navegador. Não usamos cookies de
-        publicidade.
+        prejuízo nenhum, e mudar de ideia limpando os dados do site no seu navegador. Com o mesmo aceite, usamos o
+        Pixel da Meta e a API de Conversões da Meta, que guardam os cookies da Meta (_fbp e _fbc) para medir e
+        melhorar os nossos anúncios no Facebook e no Instagram (ver item 4). Sem o aceite, nenhum desses é usado.
       </p>
 
       <H2>6. Por quanto tempo guardamos</H2>
