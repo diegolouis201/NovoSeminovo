@@ -136,6 +136,62 @@ endereço padrão é o de **homologação** (`CREDITAS_AUTH_URL` e
   todos: `NEXT_PUBLIC_CREDITAS_FORM=1` no `.env` (`0` desliga até para admin) e
   `docker compose build web && docker compose up -d web`.
 
+## Meta Pixel e API de Conversões
+
+Conta para a Meta os leads e cadastros que vieram dos anúncios (eventos `Lead`
+e `CompleteRegistration`), pelo navegador (pixel) e pelo servidor (API de
+Conversões), com o mesmo id — a Meta junta e conta uma vez. Só de quem clicou
+em "Aceitar" no aviso de cookies. **Fica desligado** até os dois passos abaixo;
+sem eles o site funciona igual.
+
+1. **ID do pixel** (Gerenciador de Eventos da Meta → Conectar dados → Web; é o
+   número do conjunto de dados, só algarismos). No servidor, troque
+   `123456789012345` pelo seu ID e cole:
+   ```sh
+   cd ~/NovoSeminovo && sed -i '/^NEXT_PUBLIC_META_PIXEL_ID=/d' .env && echo 'NEXT_PUBLIC_META_PIXEL_ID=123456789012345' >> .env && grep META_PIXEL .env
+   ```
+   Se tiver letra, espaço ou outro sinal, o site considera inválido e deixa
+   desligado.
+2. **Token da API de Conversões** (Gerenciador de Eventos → o conjunto de
+   dados → Configurações → API de Conversões → "Gerar token de acesso").
+   Nunca no `.env`, no GitHub nem em chat — só no arquivo:
+   ```sh
+   cd ~/NovoSeminovo && umask 077 && mkdir -p secrets && chmod 700 secrets && nano secrets/meta_capi_token
+   ```
+   No nano: cole o token (botão direito ou Ctrl+Shift+V), salve com **Ctrl+O**,
+   **Enter** e saia com **Ctrl+X**. Depois tire espaços/quebras de linha que
+   vierem juntos na colagem, proteja o arquivo e confira o tamanho (mostra só
+   o número de caracteres e as 3 primeiras letras, nunca o token):
+   ```sh
+   cd ~/NovoSeminovo && tr -d ' \t\r\n' < secrets/meta_capi_token > secrets/meta_capi_token.novo && mv secrets/meta_capi_token.novo secrets/meta_capi_token && chmod 600 secrets/meta_capi_token && wc -c < secrets/meta_capi_token && head -c 3 secrets/meta_capi_token; echo
+   ```
+   O certo: um número grande (em geral mais de 150) e `EAA`. Número pequeno ou
+   outras letras = colou errado; rode o `nano` de novo.
+3. **Publicar** (o ID fica gravado no site no build; a API lê o token sozinha):
+   ```sh
+   cd ~/NovoSeminovo && nohup sh -c 'docker compose build web && docker compose up -d && echo PRONTO-OK' > ~/deploy.log 2>&1 &
+   ```
+   Conferir com `tail -3 ~/deploy.log` (precisa terminar em `PRONTO-OK`).
+4. **Verificar no Gerenciador de Eventos** → o conjunto de dados → **Testar
+   eventos**: copie o código de teste (ex.: `TEST12345`) e, trocando pelo seu:
+   ```sh
+   cd ~/NovoSeminovo && sed -i '/^META_TEST_EVENT_CODE=/d' .env && echo 'META_TEST_EVENT_CODE=TEST12345' >> .env && docker compose up -d api
+   ```
+   Na mesma tela, abra o site pelo campo "Testar eventos do navegador" (ou numa
+   aba anônima), clique em **Aceitar** no aviso de cookies e envie o formulário
+   de `https://novoseminovo.com.br/para-lojas/comecar` com dados de teste.
+   Devem aparecer `PageView` (Navegador) e `Lead` duas vezes — Navegador e
+   Servidor — marcado como desduplicado. Erro do lado do servidor aparece no
+   log sem o token: `docker compose logs api --since 15m | grep -i "Conversões"`
+   (vazio = sem erro). Terminou o teste: apague o código e reinicie a API
+   (senão os eventos reais ficam só na aba de teste):
+   ```sh
+   cd ~/NovoSeminovo && sed -i '/^META_TEST_EVENT_CODE=/d' .env && docker compose up -d api
+   ```
+- **Trocar o token**: rode de novo o passo 2; a API passa a usar o novo no próximo evento.
+- **Desligar**: apague a linha `NEXT_PUBLIC_META_PIXEL_ID` do `.env` (ou o
+  arquivo `secrets/meta_capi_token`, que desliga só o servidor) e rode o passo 3.
+
 ## Antivírus (opcional, ClamAV)
 
 Toda imagem enviada já é conferida pelo tipo real (bytes, não pela extensão),

@@ -105,6 +105,18 @@ Exemplos:
 - Compradores (busca de carros; o contato no anúncio vira lead de comprador):
   `https://novoseminovo.com.br/carros?utm_source=meta&utm_medium=paid&utm_campaign=compradores_suv_novembro&utm_content=carrossel_suv_01&utm_term=interesse_carros_sp`
 
+## Conversões da Meta (otimizar campanha por lead e cadastro)
+Quando o Diego configurar o pixel (ver DEPLOY.md, "Meta Pixel e API de
+Conversões"), o site passa a contar para a Meta, pelo navegador e pelo
+servidor (mesmo evento, contado uma vez):
+- `Lead`: formulário de `/para-lojas/comecar` (categoria `lojas`), contato
+  e WhatsApp no anúncio (`veiculo`/`imovel`) e pedidos de financiamento.
+- `CompleteRegistration`: cadastro de pessoa (`conta`) e de empresa (`lojas`).
+Só de quem aceitou os cookies. Com isso, a campanha pode usar o objetivo
+"Leads"/"Cadastros" no Gerenciador (otimizar por conversão no site, com o
+pixel do NovoSeminovo) em vez de só cliques. Até o pixel existir, continue
+otimizando por clique/visita e medindo pelos leads do Hub.
+
 ## Rotina sugerida
 - Toda segunda: montar o calendário da semana e enviar tudo ao Hub.
 - Todo dia: olhar `status=ajuste` e mandar as novas versões.
