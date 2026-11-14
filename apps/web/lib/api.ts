@@ -1250,14 +1250,17 @@ export async function createReview(
 // Fogo-e-esquece: só alimenta o funil de leads do parceiro (ver
 // ListingsService.registerWhatsappClick) — nunca deve travar a abertura do
 // WhatsApp no navegador da pessoa, por isso engole qualquer erro.
-export async function registerWhatsappClick(listingId: string, accessToken?: string, extraHeaders: Record<string, string> = {}): Promise<void> {
+export async function registerWhatsappClick(listingId: string, accessToken?: string, extraHeaders: Record<string, string> = {}): Promise<{ leadCreated: boolean }> {
   try {
-    await fetchWithTimeout(`${API_URL}/listings/${listingId}/whatsapp-clicks`, {
+    const res = await fetchWithTimeout(`${API_URL}/listings/${listingId}/whatsapp-clicks`, {
       method: "POST",
       headers: { ...(accessToken ? authHeaders(accessToken) : {}), ...extraHeaders },
     });
+    const body = (await res.json().catch(() => ({}))) as { leadCreated?: unknown };
+    return { leadCreated: res.ok && body.leadCreated === true };
   } catch {
     // ignorado de propósito
+    return { leadCreated: false };
   }
 }
 
@@ -1375,7 +1378,7 @@ export async function sendListingContact(
   listingId: string,
   input: ListingContactInput,
   options: { accessToken?: string; clientIp?: string; extraHeaders?: Record<string, string> },
-): Promise<{ ok: true; conversationId?: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; conversationId?: string; leadCreated?: boolean } | { ok: false; error: string }> {
   try {
     const res = await fetchWithTimeout(
       `${API_URL}/listings/${listingId}/contact`,
@@ -1396,7 +1399,7 @@ export async function sendListingContact(
       const message = Array.isArray(body.message) ? body.message[0] : body.message;
       return { ok: false, error: typeof message === "string" ? message : "Não foi possível enviar agora. Tente de novo." };
     }
-    return { ok: true, conversationId: body.conversationId };
+    return { ok: true, conversationId: body.conversationId, leadCreated: body.leadCreated === true };
   } catch {
     return { ok: false, error: "Não foi possível falar com o servidor. Tente de novo." };
   }

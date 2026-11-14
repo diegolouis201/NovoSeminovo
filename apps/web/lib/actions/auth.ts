@@ -6,6 +6,7 @@ import { AuthError } from "next-auth";
 import { safeInternalPath, type PartnerType } from "@novoseminovo/shared-types";
 import { signIn } from "@/auth";
 import { acquisitionHeaders } from "@/lib/acquisition";
+import { metaTracking } from "@/lib/meta-server";
 import { signupCompany } from "@/lib/api";
 import { REFERRAL_COOKIE, SALES_COOKIE, cleanReferralCode, cleanSalesCode } from "@/lib/referral";
 
@@ -34,17 +35,18 @@ export async function registerAction(_prev: RegisterState, formData: FormData): 
     marketingOptIn: formData.get("marketingOptIn") === "1",
   };
   const isCompany = field("accountType") === "pj";
+  const meta = metaTracking("CompleteRegistration", isCompany ? "lojas" : "conta");
 
   if (isCompany) {
     const result = await signupCompany(
       { ...account, cnpj: field("cnpj"), partnerType: (field("partnerType") || undefined) as PartnerType | undefined, legalName: field("legalName") || undefined, salesCode: cleanSalesCode(cookies().get(SALES_COOKIE)?.value) },
-      acquisitionHeaders(),
+      { ...acquisitionHeaders(), ...meta.headers },
     );
     if (!result.ok) return { error: result.error };
   } else {
     const res = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...acquisitionHeaders() },
+      headers: { "Content-Type": "application/json", ...acquisitionHeaders(), ...meta.headers },
       body: JSON.stringify(account),
     }).catch(() => undefined);
     if (!res) return { error: "Não foi possível falar com o servidor. Tente novamente." };
@@ -53,6 +55,9 @@ export async function registerAction(_prev: RegisterState, formData: FormData): 
       return { error: body.message ?? "Não foi possível criar a conta." };
     }
   }
+
+  // O navegador dispara o pixel na próxima página (com o mesmo id da API).
+  meta.queue();
 
   try {
     await signIn("credentials", { email: account.email, password: account.password, redirectTo: isCompany ? "/parceiro" : returnPath(field("voltar")) });

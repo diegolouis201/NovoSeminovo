@@ -840,20 +840,21 @@ export class ListingsService {
   // vendedor nem chega a quem não entrou), então todo lead tem comprador.
   // Anúncio de vendedor individual não gera lead (Lead exige partnerId),
   // igual ao chat em ConversationsService.startConversation.
-  async registerWhatsappClick(listingId: string, buyerId: string, acquisition?: Acquisition, metaContext?: MetaEventContext): Promise<void> {
+  async registerWhatsappClick(listingId: string, buyerId: string, acquisition?: Acquisition, metaContext?: MetaEventContext): Promise<{ leadCreated: boolean }> {
     const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing) throw new NotFoundException(`Anúncio ${listingId} não encontrado`);
-    if (!listing.partnerId) return;
+    if (!listing.partnerId) return { leadCreated: false };
 
     const existing = await this.prisma.lead.findFirst({
       where: { listingId, partnerId: listing.partnerId, source: "whatsapp", buyerId },
     });
-    if (existing) return;
+    if (existing) return { leadCreated: false };
 
     await this.prisma.lead.create({
       data: { partnerId: listing.partnerId, listingId, buyerId, source: "whatsapp", status: "new", ...(await leadOrigin(this.prisma, buyerId, acquisition)) },
     });
     void this.meta?.track("Lead", metaContext, { userId: buyerId }, listing.type === "property" ? "imovel" : "veiculo");
+    return { leadCreated: true };
   }
 
   // Denúncia de anúncio. Sem dedupe por enquanto: se a mesma pessoa denunciar

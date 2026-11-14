@@ -10,6 +10,7 @@ import {
   TERMO_BACEN_CREDITAS,
 } from "@novoseminovo/shared-types";
 import { requestCreditasProposalAction } from "@/lib/actions/creditas";
+import { flushMetaEvents } from "@/lib/meta-events";
 
 // Pedido de financiamento de veículo pela Creditas (Autofin C2C), na página
 // do anúncio. Só aparece com NEXT_PUBLIC_CREDITAS_FORM=1 (ver a página do
@@ -96,6 +97,7 @@ export function CreditasSimulator({ listingId, price }: { listingId: string; pri
                 setError(result.error);
                 return;
               }
+              flushMetaEvents();
               setError(undefined);
               setOutcome(result.outcome);
             });

@@ -2,6 +2,7 @@
 
 import { WhatsappLogo } from "@phosphor-icons/react";
 import { registerWhatsappClickAction } from "@/lib/actions/whatsapp";
+import { flushMetaEvents } from "@/lib/meta-events";
 
 function toWhatsappDigits(phone: string): string {
   const digits = phone.replace(/\D/g, "");
@@ -19,7 +20,7 @@ export function WhatsAppButton({ listingId, phone, listingTitle }: { listingId: 
       rel="noopener noreferrer"
       onClick={() => {
         // Fogo-e-esquece: não bloqueia a navegação nem espera resposta.
-        void registerWhatsappClickAction(listingId);
+        void registerWhatsappClickAction(listingId).then(flushMetaEvents, () => undefined);
       }}
       className="inline-flex items-center gap-2 rounded-brand border border-border bg-transparent px-4 py-3 text-sm font-bold text-ink transition-opacity hover:opacity-90"
     >

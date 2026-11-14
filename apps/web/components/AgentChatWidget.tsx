@@ -8,6 +8,7 @@ import type { AgentChatMessage, AgentKind, ListingSummary } from "@novoseminovo/
 import { resolveMediaUrl } from "@/lib/api";
 import { HIDE_TAB_BAR_PREFIXES } from "@/components/AppTabBar";
 import { agentStatusAction, loadAgentConversationAction, sendAgentMessageAction } from "@/lib/actions/agents";
+import { flushMetaEvents } from "@/lib/meta-events";
 import { isTrustedExternalLink, safeInternalPath } from "@novoseminovo/shared-types";
 
 type AgentConfig = {
@@ -246,6 +247,7 @@ function AgentChat({ config, inApp }: { config: AgentConfig; inApp: boolean }) {
       return;
     }
 
+    if (result.reply.financingLeadCreated) flushMetaEvents();
     setConversationId(result.reply.conversationId);
     storeId(config.kind, result.reply.conversationId);
     setEntries((current) => [

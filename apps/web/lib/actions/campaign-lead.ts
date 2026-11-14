@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { CampaignLeadInputSchema } from "@novoseminovo/shared-types";
 import { acquisitionHeaders } from "@/lib/acquisition";
+import { metaTracking } from "@/lib/meta-server";
 import { sendCampaignLead } from "@/lib/api";
 
 export type CampaignLeadState = { status: "idle" } | { status: "sent" } | { status: "error"; error: string };
@@ -33,6 +34,8 @@ export async function sendCampaignLeadAction(_state: CampaignLeadState, formData
     consent: formData.get("consent") === "on",
   });
   if (!parsed.success) return { status: "error", error: parsed.error.issues[0]?.message ?? "Confira os dados do formulário." };
-  const result = await sendCampaignLead(parsed.data, { clientIp: visitorIp(), extraHeaders: acquisitionHeaders() });
+  const meta = metaTracking("Lead", "lojas");
+  const result = await sendCampaignLead(parsed.data, { clientIp: visitorIp(), extraHeaders: { ...acquisitionHeaders(), ...meta.headers } });
+  if (result.ok) meta.queue();
   return result.ok ? { status: "sent" } : { status: "error", error: result.error };
 }

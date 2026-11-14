@@ -12,6 +12,7 @@ import {
   type CredihomeSimulationView,
 } from "@novoseminovo/shared-types";
 import { requestCredihomeProposalAction, simulateCredihomeAction } from "@/lib/actions/credihome";
+import { flushMetaEvents } from "@/lib/meta-events";
 
 // Simulador da Credihome usado quando a API não responde — o mesmo link que
 // a página tinha antes do simulador próprio.
@@ -271,6 +272,7 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
                 setUnavailable(false);
                 return;
               }
+              flushMetaEvents();
               setError(undefined);
               setOutcome(result.outcome);
               setStep("done");

@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import Script from "next/script";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { CONSENT_COOKIE } from "@novoseminovo/shared-types";
+import { MetaPixel } from "@/components/MetaPixel";
+import { META_PIXEL_ID } from "@/lib/meta-pixel";
 
 // Google Analytics 4 do NovoSeminovo. ID público (vai no HTML de qualquer
 // jeito) — NEXT_PUBLIC_GA_ID troca sem mexer no código.
@@ -24,7 +27,14 @@ function readConsent(): Consent | undefined {
   }
 }
 
+// Cópia da escolha num cookie: o servidor do site lê para só mandar a
+// conversão à Meta (API de Conversões) de quem aceitou (lib/meta-server.ts).
+function mirrorConsent(value: Consent) {
+  document.cookie = `${CONSENT_COOKIE}=${value}; Max-Age=${365 * 24 * 60 * 60}; Path=/; SameSite=Lax`;
+}
+
 function saveConsent(value: Consent) {
+  mirrorConsent(value);
   try {
     window.localStorage.setItem(CONSENT_KEY, value);
   } catch {
@@ -37,7 +47,9 @@ export function Analytics() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setConsent(readConsent());
+    const saved = readConsent();
+    if (saved) mirrorConsent(saved);
+    setConsent(saved);
     setReady(true);
   }, []);
 
@@ -60,6 +72,13 @@ gtag('config', '${GA_ID}');`}
         </>
       )}
 
+      {/* Pixel da Meta: mesmo aceite do Google Analytics, só com ID configurado. */}
+      {consent === "granted" && META_PIXEL_ID && (
+        <Suspense fallback={null}>
+          <MetaPixel />
+        </Suspense>
+      )}
+
       {ready && !consent && (
         <div
           role="dialog"
@@ -67,8 +86,9 @@ gtag('config', '${GA_ID}');`}
           className="fixed inset-x-2 bottom-20 z-50 mx-auto max-w-xl rounded-brand border border-border bg-surface-raised p-4 shadow-pop sm:bottom-4"
         >
           <p className="text-sm text-ink">
-            Usamos cookies de estatística (Google Analytics) para entender como o site é usado e melhorá-lo. Você pode
-            aceitar ou recusar — o site funciona igual.{" "}
+            {META_PIXEL_ID
+              ? "Usamos cookies de estatística e de anúncios (Google Analytics e Meta) para entender como o site é usado, melhorá-lo e medir nossos anúncios. Você pode aceitar ou recusar — o site funciona igual."
+              : "Usamos cookies de estatística (Google Analytics) para entender como o site é usado e melhorá-lo. Você pode aceitar ou recusar — o site funciona igual."}{" "}
             <Link href="/privacidade" className="font-semibold text-brand-blue hover:underline">
               Política de Privacidade
             </Link>

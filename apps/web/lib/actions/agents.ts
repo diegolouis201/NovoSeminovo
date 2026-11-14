@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import type { AgentConversationView, AgentKind, FinancingLeadStatus } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { acquisitionHeaders } from "@/lib/acquisition";
+import { metaTracking } from "@/lib/meta-server";
 import {
   fetchAgentConversation,
   fetchAgentStatus,
@@ -33,11 +34,15 @@ export async function sendAgentMessageAction(
   message: string,
 ): Promise<SendAgentMessageResult> {
   const session = await auth();
-  return sendAgentMessage(
+  const meta = metaTracking("Lead");
+  const result = await sendAgentMessage(
     kind,
     { conversationId, message },
-    { accessToken: session?.accessToken, clientIp: visitorIp(), extraHeaders: acquisitionHeaders() },
+    { accessToken: session?.accessToken, clientIp: visitorIp(), extraHeaders: { ...acquisitionHeaders(), ...meta.headers } },
   );
+  // A mensagem virou pedido de financiamento novo: a API já contou o Lead.
+  if (result.ok && result.reply.financingLeadCreated) meta.queue();
+  return result;
 }
 
 export async function loadAgentConversationAction(

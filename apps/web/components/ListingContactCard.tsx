@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { CheckCircle, SealCheck, Star, Storefront, House, Car, CalendarBlank, User } from "@phosphor-icons/react";
 import type { ListingDetail } from "@novoseminovo/shared-types";
 import { resolveMediaUrl } from "@/lib/api";
 import { sendListingContactAction, type ListingContactState } from "@/lib/actions/listing-contact";
+import { flushMetaEvents } from "@/lib/meta-events";
 
 type Seller = NonNullable<ListingDetail["seller"]>;
 
@@ -91,6 +93,9 @@ export function ListingContactCard({
   isLoggedIn: boolean;
 }) {
   const [state, action] = useFormState<ListingContactState, FormData>(sendListingContactAction.bind(null, listingId), { status: "idle" });
+  useEffect(() => {
+    if (state.status === "sent") flushMetaEvents();
+  }, [state]);
   const defaultMessage =
     assetType === "property"
       ? `Olá, gostaria de mais informações sobre o imóvel "${title}" que encontrei no NovoSeminovo.`

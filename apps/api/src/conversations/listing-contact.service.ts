@@ -37,7 +37,7 @@ export class ListingContactService {
     acquisition?: Acquisition,
     // Conversão para a Meta (só existe com aceite dos cookies).
     metaContext?: MetaEventContext,
-  ): Promise<{ ok: true; conversationId?: string }> {
+  ): Promise<{ ok: true; conversationId?: string; leadCreated?: true }> {
     // Robô preencheu o campo escondido: responde ok e não faz nada.
     if (input.site) return { ok: true };
 
@@ -106,7 +106,8 @@ export class ListingContactService {
       });
     }
 
-    return { ok: true, conversationId };
+    // leadCreated: o site dispara o Lead no pixel só quando a API contou este contato.
+    return { ok: true, conversationId, ...(metaContext ? { leadCreated: true as const } : {}) };
   }
 
   private async postToChat(listingId: string, sellerUserId: string, buyerId: string, body: string): Promise<string | undefined> {

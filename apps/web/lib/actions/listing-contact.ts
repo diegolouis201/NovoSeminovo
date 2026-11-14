@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { ListingContactInputSchema } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { acquisitionHeaders } from "@/lib/acquisition";
+import { metaTracking } from "@/lib/meta-server";
 import { sendListingContact } from "@/lib/api";
 
 export type ListingContactState = { status: "idle" } | { status: "sent"; conversationId?: string } | { status: "error"; error: string };
@@ -27,10 +28,13 @@ export async function sendListingContactAction(listingId: string, _state: Listin
   if (!parsed.success) return { status: "error", error: parsed.error.issues[0]?.message ?? "Confira os dados do formulário." };
 
   const session = await auth();
+  const meta = metaTracking("Lead");
   const result = await sendListingContact(listingId, parsed.data, {
     accessToken: session?.accessToken,
     clientIp: visitorIp(),
-    extraHeaders: acquisitionHeaders(),
+    extraHeaders: { ...acquisitionHeaders(), ...meta.headers },
   });
+  // Pixel só quando a API contou o lead (reenvio em seguida não conta de novo).
+  if (result.ok && result.leadCreated) meta.queue();
   return result.ok ? { status: "sent", conversationId: result.conversationId } : { status: "error", error: result.error };
 }

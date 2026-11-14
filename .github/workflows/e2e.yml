@@ -37,6 +37,9 @@ jobs:
       OPERATIONS_DISABLED: "1"
       AUTO_MODERATION_DISABLED: "1"
       GEOCODING_DISABLED: "1"
+      # Pixel da Meta de teste (só números, não existe na Meta): liga o pixel no
+      # site para o Cypress conferir; sem token, a API de Conversões fica desligada.
+      NEXT_PUBLIC_META_PIXEL_ID: "123456789012345"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

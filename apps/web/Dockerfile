@@ -10,6 +10,10 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 # qualquer outra coisa (padrão) deixa a calculadora de sempre.
 ARG NEXT_PUBLIC_CREDITAS_FORM=admin
 ENV NEXT_PUBLIC_CREDITAS_FORM=${NEXT_PUBLIC_CREDITAS_FORM}
+# Pixel da Meta (só números). Vazio ou inválido = pixel desligado; trocar pede
+# "docker compose build web" (o ID fica gravado no código do navegador).
+ARG NEXT_PUBLIC_META_PIXEL_ID=
+ENV NEXT_PUBLIC_META_PIXEL_ID=${NEXT_PUBLIC_META_PIXEL_ID}
 # "pnpm install" na raiz do monorepo processa o workspace inteiro, incluindo
 # @novoseminovo/db — o postinstall do @prisma/client roda "prisma generate"
 # sozinho nesse passo e erra sem isso, mesmo o apps/web não usando o pacote.

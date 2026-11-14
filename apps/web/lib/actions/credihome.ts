@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import type { CredihomeProposalInput, CredihomeSimulateInput } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { acquisitionHeaders } from "@/lib/acquisition";
+import { metaTracking } from "@/lib/meta-server";
 import { requestCredihomeProposal, simulateCredihome } from "@/lib/api";
 
 // Mesmo motivo de lib/actions/agents.ts: a API precisa do IP do visitante,
@@ -20,7 +21,10 @@ export async function simulateCredihomeAction(listingId: string, input: Credihom
 export async function requestCredihomeProposalAction(listingId: string, input: CredihomeProposalInput) {
   // Logado: o pedido fica ligado à conta da pessoa.
   const session = await auth();
-  const extraHeaders: Record<string, string> = { ...acquisitionHeaders() };
+  const meta = metaTracking("Lead", "imovel");
+  const extraHeaders: Record<string, string> = { ...acquisitionHeaders(), ...meta.headers };
   if (session?.accessToken) extraHeaders.Authorization = `Bearer ${session.accessToken}`;
-  return requestCredihomeProposal(listingId, input, { clientIp: visitorIp(), extraHeaders });
+  const result = await requestCredihomeProposal(listingId, input, { clientIp: visitorIp(), extraHeaders });
+  if (result.ok && result.outcome !== "already_sent") meta.queue();
+  return result;
 }

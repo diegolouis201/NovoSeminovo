@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { CheckCircle } from "@phosphor-icons/react";
 import { CAMPAIGN_BUSINESS_TYPES, CAMPAIGN_CONSENT_TEXT } from "@novoseminovo/shared-types";
 import { sendCampaignLeadAction, type CampaignLeadState } from "@/lib/actions/campaign-lead";
 import { BRAZIL_STATES } from "@/lib/brazil-states";
+import { flushMetaEvents } from "@/lib/meta-events";
 
 const inputClass =
   "w-full rounded-brand border border-border bg-surface-page px-4 py-3 text-base text-ink placeholder:text-ink-muted focus:border-brand-blue focus:outline-none";
@@ -24,6 +26,10 @@ function SubmitButton() {
 // comercial recebe na hora e chama no WhatsApp.
 export function CampaignLeadForm() {
   const [state, action] = useFormState<CampaignLeadState, FormData>(sendCampaignLeadAction, { status: "idle" });
+  // Lead no pixel da Meta (só com aceite dos cookies), com o id que a API usou.
+  useEffect(() => {
+    if (state.status === "sent") flushMetaEvents();
+  }, [state]);
 
   if (state.status === "sent") {
     return (

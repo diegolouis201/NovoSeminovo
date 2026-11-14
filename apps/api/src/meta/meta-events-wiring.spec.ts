@@ -151,8 +151,11 @@ describe("Conversões dos leads de anúncio e financiamento (banco local)", { sk
     const { meta, tracked } = fakeMeta();
     const service = new ListingContactService(prisma, notifications, contacts, { emitNewMessage: () => undefined } as never, meta);
     const input = { name: "Ana Souza", email: `${tag}-a@teste.local`, phone: "31999990000", message: "Olá, tenho interesse no anúncio.", wantsSimilar: false };
-    await service.send(ids.house, input, undefined, undefined, ctx);
-    await service.send(ids.house, input, undefined, undefined, ctx);
+    const first = await service.send(ids.house, input, undefined, undefined, ctx);
+    const again = await service.send(ids.house, input, undefined, undefined, ctx);
+    // O site só dispara o pixel quando a API contou o lead (mesmo id, contado uma vez).
+    assert.equal(first.leadCreated, true);
+    assert.equal(again.leadCreated, undefined);
     assert.equal(tracked.length, 1);
     assert.equal(tracked[0].name, "Lead");
     assert.equal(tracked[0].ctx?.eventId, EVENT_ID);
@@ -165,8 +168,9 @@ describe("Conversões dos leads de anúncio e financiamento (banco local)", { sk
     const { meta, tracked } = fakeMeta();
     const unused = {} as never;
     const listings = new ListingsService(prisma, unused, unused, unused, unused, unused, unused, unused, meta);
-    await listings.registerWhatsappClick(ids.storeCar, ids.buyer, undefined, ctx);
-    await listings.registerWhatsappClick(ids.storeCar, ids.buyer, undefined, ctx);
+    assert.deepEqual(await listings.registerWhatsappClick(ids.storeCar, ids.buyer, undefined, ctx), { leadCreated: true });
+    assert.deepEqual(await listings.registerWhatsappClick(ids.storeCar, ids.buyer, undefined, ctx), { leadCreated: false });
+    assert.deepEqual(await listings.registerWhatsappClick(ids.house, ids.buyer, undefined, ctx), { leadCreated: false }, "anúncio de particular não vira lead");
     assert.equal(tracked.length, 1);
     assert.equal(tracked[0].category, "veiculo");
     assert.equal(tracked[0].person.userId, ids.buyer);
