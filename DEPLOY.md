@@ -192,6 +192,94 @@ sem eles o site funciona igual.
 - **Desligar**: apague a linha `NEXT_PUBLIC_META_PIXEL_ID` do `.env` (ou o
   arquivo `secrets/meta_capi_token`, que desliga só o servidor) e rode o passo 3.
 
+## Lead Ads da Meta (formulários do Instagram e Facebook)
+
+Quem preenche um formulário de anúncio (Lead Ads) da página do NovoSeminovo
+cai no CRM em segundos: loja/imobiliária/corretor vira card "Lead de
+campanha" no funil do Hub (com tarefa para o Comercial); comprador aparece em
+Marketing → Leads de compradores como "Formulário Meta". **Fica desligado**
+até os passos abaixo (sem eles, o endereço do webhook responde "não
+encontrado" e nada é lido da Meta).
+
+São três segredos, cada um num arquivo (nunca no `.env`, no GitHub ou em chat):
+
+| Arquivo | O que é | Onde pegar |
+|---|---|---|
+| `secrets/meta_app_secret` | Chave secreta do app | developers.facebook.com → seu app → Configurações do app → Básico → "Chave secreta do app" → Mostrar |
+| `secrets/meta_webhook_verify_token` | Senha do webhook (você cria) | gerada no servidor (passo 2) |
+| `secrets/meta_page_token` | Token da página com permissão `leads_retrieval` (de preferência de um usuário do sistema, que não expira) | business.facebook.com → Configurações do negócio → Usuários do sistema → Gerar token (app acima; permissões `leads_retrieval`, `pages_show_list`, `pages_read_engagement`, `pages_manage_metadata`, `ads_read`) |
+
+1. **Chave secreta do app** (a 1ª linha cria a pasta protegida):
+   ```sh
+   cd ~/NovoSeminovo && umask 077 && mkdir -p secrets && chmod 700 secrets && nano secrets/meta_app_secret
+   ```
+   No nano: cole a chave (botão direito ou Ctrl+Shift+V), salve com **Ctrl+O**,
+   **Enter** e saia com **Ctrl+X**. Depois limpe espaços/quebras de linha,
+   proteja e confira (mostra só o número de caracteres, nunca a chave):
+   ```sh
+   cd ~/NovoSeminovo && tr -d ' \t\r\n' < secrets/meta_app_secret > secrets/meta_app_secret.novo && mv secrets/meta_app_secret.novo secrets/meta_app_secret && chmod 600 secrets/meta_app_secret && wc -c < secrets/meta_app_secret
+   ```
+   O certo: `32`.
+2. **Senha do webhook**: gere no próprio servidor e veja **uma vez** para colar
+   na Meta no passo 5 (é a única vez que ela aparece na tela):
+   ```sh
+   cd ~/NovoSeminovo && umask 077 && openssl rand -hex 24 > secrets/meta_webhook_verify_token && chmod 600 secrets/meta_webhook_verify_token && cat secrets/meta_webhook_verify_token
+   ```
+   Copie as 48 letras/números que aparecerem e limpe a tela com `clear`.
+3. **Token da página**:
+   ```sh
+   cd ~/NovoSeminovo && umask 077 && nano secrets/meta_page_token
+   ```
+   Cole, salve (**Ctrl+O**, **Enter**, **Ctrl+X**) e limpe/confira:
+   ```sh
+   cd ~/NovoSeminovo && tr -d ' \t\r\n' < secrets/meta_page_token > secrets/meta_page_token.novo && mv secrets/meta_page_token.novo secrets/meta_page_token && chmod 600 secrets/meta_page_token && wc -c < secrets/meta_page_token && head -c 3 secrets/meta_page_token; echo
+   ```
+   O certo: um número grande (em geral mais de 150) e `EAA`.
+4. **Id da página e publicar** (o id não é segredo; a API precisa ser
+   reconstruída porque o código é novo, e o banco ganha a tabela
+   `meta_leadgens` e colunas novas em `marketing_contacts`):
+   ```sh
+   cd ~/NovoSeminovo && sed -i '/^META_PAGE_ID=/d' .env && echo 'META_PAGE_ID=828845163855705' >> .env && grep META_PAGE_ID .env
+   ```
+   Depois rode o comando de deploy de sempre (o do HANDOFF.md, "Deploy —
+   comandos corrigidos", que já faz o `prisma db push`) e confira com
+   `tail -3 ~/deploy.log` (precisa terminar em `PRONTO-OK`).
+5. **Cadastrar o webhook na Meta**: developers.facebook.com → seu app →
+   Webhooks (ou "Casos de uso" → Webhooks) → escolha **Page** (Página) →
+   "Assinar este objeto":
+   - URL de retorno: `https://api.novoseminovo.com.br/webhooks/meta/leadgen`
+   - Token de verificação: a senha do passo 2
+   - Clique em **Verificar e salvar** e depois em **Assinar** no campo `leadgen`.
+
+   Em seguida ligue o app à página (uma vez), pelo Explorador da Graph API
+   (developers.facebook.com/tools/explorer): escolha o app, em "Usuário ou
+   página" escolha a página do NovoSeminovo, troque o método para **POST**,
+   escreva `828845163855705/subscribed_apps?subscribed_fields=leadgen` e
+   clique em **Enviar**; a resposta certa é `"success": true`.
+   Se a página tiver "Acesso a leads" restrito (Configurações da página →
+   Configurações avançadas de mensagens/Leads → Acesso a leads), dê acesso ao
+   app e ao usuário do sistema.
+6. **Testar** com a ferramenta da Meta:
+   developers.facebook.com/tools/lead-ads-testing → escolha a página e o
+   formulário → **Criar lead** (ou "Excluir lead" antes, se já houver um de
+   teste). Em segundos ele aparece no Hub (funil, se o nome do formulário ou da
+   campanha tiver "lojas", "imobiliarias", "corretores", "parceiros" ou "b2b";
+   senão em Marketing → Leads de compradores). Conferir no servidor (sem token
+   nem dado pessoal no log):
+   ```sh
+   cd ~/NovoSeminovo && docker compose logs api --since 15m | grep -i "Lead Ads"
+   ```
+   Vazio = tudo certo. "HTTP 400 (OAuthException 190)" = token da página
+   errado ou vencido (refaça o passo 3); "sem e-mail e sem telefone" = o
+   formulário não pediu nenhum dos dois.
+- **Rede de segurança**: de 30 em 30 minutos a API lista os formulários da
+  página e busca os leads das últimas 24h que o webhook não entregou. Para
+  desligar só ela: `META_LEADS_SYNC_DISABLED=1` no `.env` e `docker compose up -d api`.
+- **Trocar um segredo**: refaça o passo correspondente; a API lê o arquivo de
+  novo a cada lead (trocou a senha do webhook, troque também na Meta).
+- **Desligar tudo**: `rm ~/NovoSeminovo/secrets/meta_app_secret` (o webhook
+  volta a responder "não encontrado").
+
 ## Antivírus (opcional, ClamAV)
 
 Toda imagem enviada já é conferida pelo tipo real (bytes, não pela extensão),

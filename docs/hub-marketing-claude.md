@@ -117,6 +117,24 @@ Só de quem aceitou os cookies. Com isso, a campanha pode usar o objetivo
 pixel do NovoSeminovo) em vez de só cliques. Até o pixel existir, continue
 otimizando por clique/visita e medindo pelos leads do Hub.
 
+## Formulários de Lead Ads (Instagram/Facebook) caem no CRM
+Quando o Diego configurar (ver DEPLOY.md, "Lead Ads da Meta"), todo
+formulário de anúncio da página do NovoSeminovo entra sozinho no CRM, em
+poucos segundos (e uma rotina confere de 30 em 30 minutos o que faltou):
+- **Lojas, imobiliárias e corretores** viram card "Lead de campanha" no funil,
+  com tarefa para o Comercial chamar. Para o site saber que é B2B, o **nome
+  do formulário ou da campanha precisa ter** "lojas", "imobiliarias",
+  "corretores", "parceiros" ou "b2b" (sem diferença de acento ou maiúscula) —
+  ou o formulário pergunta o nome da empresa.
+- **Compradores** (carros, imóveis, financiamento) aparecem em Marketing →
+  Leads de compradores como "Formulário Meta", com campanha e anúncio.
+- A campanha é ligada ao gasto pelo **nome da campanha no Gerenciador**, com a
+  mesma regra do `utm_campaign` (minúsculas, espaços viram `_`): siga o padrão
+  de UTM acima também para nomear campanhas de formulário.
+- Perguntas personalizadas reconhecidas: nome, empresa, cidade, UF/estado,
+  WhatsApp/telefone, e-mail, cargo, CNPJ e "tipo de empresa" (loja,
+  imobiliária ou corretor). Lead sem e-mail e sem telefone é descartado.
+
 ## Rotina sugerida
 - Toda segunda: montar o calendário da semana e enviar tudo ao Hub.
 - Todo dia: olhar `status=ajuste` e mandar as novas versões.
