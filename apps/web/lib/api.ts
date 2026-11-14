@@ -1402,6 +1402,31 @@ export async function sendListingContact(
   }
 }
 
+// Formulário da campanha para lojas (/para-lojas/comecar): vira card no funil
+// do Comercial. IP e origem do visitante vão nos cabeçalhos.
+export async function sendCampaignLead(
+  input: unknown,
+  options: { clientIp?: string; extraHeaders?: Record<string, string> },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/sales/campaign-lead`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(options.clientIp ? { "x-client-ip": options.clientIp } : {}), ...options.extraHeaders },
+        body: JSON.stringify(input),
+      },
+      10_000,
+    );
+    if (res.ok) return { ok: true };
+    const body = await res.json().catch(() => ({}));
+    const message = Array.isArray(body.message) ? body.message[0] : body.message;
+    return { ok: false, error: typeof message === "string" ? message : "Não foi possível enviar agora. Tente de novo." };
+  } catch {
+    return { ok: false, error: "Não foi possível falar com o servidor. Tente de novo." };
+  }
+}
+
 // Minha conta → Excluir minha conta.
 export async function deleteMyAccount(password: string, accessToken: string): Promise<{ ok: true } | { ok: false; error: string }> {
   try {

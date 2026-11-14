@@ -1,5 +1,8 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
+import type { Request } from "express";
 import {
+  CampaignLeadInputSchema,
   CreateProspectInputSchema,
   CreateSalesMemberInputSchema,
   MoveProspectInputSchema,
@@ -16,6 +19,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PasswordResetService } from "../auth/password-reset.service";
 import { AdminGuard } from "../admin/admin.guard";
+import { acquisitionFrom } from "../common/acquisition";
 import { parseOrBadRequest } from "../common/parse";
 import { SalesGuard } from "./sales.guard";
 import { SalesService } from "./sales.service";
@@ -140,6 +144,44 @@ export class SalesTeamController {
   @Post(":id/invite")
   async invite(@Param("id") id: string) {
     await this.passwordReset.invite(id);
+    return { ok: true };
+  }
+}
+
+// Formulário de campanha /para-lojas/comecar (público, sem login): no máximo
+// 5 envios por visitante a cada 10 minutos. O site chama pela server action e
+// repassa o IP do visitante em x-client-ip e a origem em x-ns-origem.
+const CAMPAIGN_LIMIT = 5;
+const CAMPAIGN_WINDOW_MS = 10 * 60 * 1000;
+const campaignHits = new Map<string, number[]>();
+
+export function campaignLeadRateLimited(ip: string, now = Date.now()): boolean {
+  const hits = (campaignHits.get(ip) ?? []).filter((at) => now - at < CAMPAIGN_WINDOW_MS);
+  if (hits.length >= CAMPAIGN_LIMIT) {
+    campaignHits.set(ip, hits);
+    return true;
+  }
+  hits.push(now);
+  campaignHits.set(ip, hits);
+  if (campaignHits.size > 5000) campaignHits.clear();
+  return false;
+}
+
+@SkipThrottle()
+@Controller("sales")
+export class SalesCampaignController {
+  constructor(private readonly sales: SalesService) {}
+
+  @Post("campaign-lead")
+  @HttpCode(200)
+  async campaignLead(@Body() body: unknown, @Req() request: Request) {
+    const forwarded = request.headers["x-client-ip"];
+    const ip = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim() || request.ip || "desconhecido";
+    if (campaignLeadRateLimited(ip)) throw new HttpException("Muitos envios em pouco tempo. Tente de novo daqui a alguns minutos.", HttpStatus.TOO_MANY_REQUESTS);
+    // Campo isca preenchido = robô: responde como se tivesse dado certo.
+    if (body && typeof body === "object" && typeof (body as { website?: unknown }).website === "string" && (body as { website: string }).website.trim()) return { ok: true };
+    const input = parseOrBadRequest(CampaignLeadInputSchema, body);
+    await this.sales.campaignLead(input, acquisitionFrom(request));
     return { ok: true };
   }
 }

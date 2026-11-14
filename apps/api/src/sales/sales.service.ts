@@ -2,6 +2,11 @@ import { randomInt } from "node:crypto";
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@novoseminovo/db";
 import {
+  type Acquisition,
+  CAMPAIGN_BUSINESS_TYPES,
+  CAMPAIGN_CONSENT_TEXT,
+  CampaignLeadInputSchema,
+  type CampaignLeadInput,
   AddSocioInputSchema,
   CancelReasonInputSchema,
   CreateProspectInputSchema,
@@ -28,6 +33,7 @@ import {
   type SalesSegment,
   type SalesStageId,
 } from "@novoseminovo/shared-types";
+import { acquisitionFields } from "../common/acquisition";
 import { PrismaService } from "../prisma/prisma.service";
 
 // Funil comercial das empresas (área /comercial). Antes do cadastro o
@@ -56,6 +62,10 @@ export function segmentOf(partnerType: string): SalesSegment | undefined {
 }
 
 const digits = (value?: string | null) => (value ?? "").replace(/\D/g, "") || undefined;
+
+// Tarefa automática do Hub: quem criou é o site (não é uma pessoa da equipe).
+export const CAMPAIGN_TASK_CREATOR = "site";
+const CAMPAIGN_SEGMENT: Record<keyof typeof CAMPAIGN_BUSINESS_TYPES, SalesSegment> = { loja: "vehicle", imobiliaria: "property", corretor: "property" };
 
 const prospectInclude = {
   owner: { select: { id: true, name: true } },
@@ -115,6 +125,93 @@ export class SalesService {
     return { id: created.id };
   }
 
+  // Formulário de campanha (/para-lojas/comecar). Mesmo CNPJ, telefone ou
+  // e-mail de um card que já existe: usa esse card (sem voltar a etapa nem
+  // trocar a origem). Novo: card "A abordar", origem "campanha". Em todo
+  // envio fica anotado o formulário e a autorização de contato; e o Comercial
+  // ganha uma tarefa de chamar no WhatsApp (uma aberta por card).
+  async campaignLead(raw: CampaignLeadInput, origin: Acquisition | undefined): Promise<{ id: string }> {
+    const input = CampaignLeadInputSchema.parse(raw);
+    const segment = CAMPAIGN_SEGMENT[input.businessType];
+    if (input.cnpj) {
+      // Empresa já cadastrada no site e ainda sem card: liga primeiro.
+      const partner = await this.prisma.partner.findFirst({ where: { document: input.cnpj, salesProspect: null }, select: { id: true } });
+      if (partner) await this.linkSignup(partner.id);
+    }
+    const owners = await this.prisma.partner.findMany({
+      where: { OR: [{ owner: { email: input.email } }, { owner: { phone: input.phone } }], salesProspect: { isNot: null } },
+      select: { salesProspect: { select: { id: true } } },
+      take: 1,
+    });
+    const existing =
+      (await this.prisma.salesProspect.findFirst({
+        where: { OR: [...(input.cnpj ? [{ cnpj: input.cnpj }] : []), { phone: input.phone }, { email: input.email }] },
+        orderBy: { createdAt: "asc" },
+      })) ?? (owners[0]?.salesProspect ? await this.prisma.salesProspect.findUnique({ where: { id: owners[0].salesProspect.id } }) : null);
+    const acq = acquisitionFields(origin);
+    const summary = [
+      `Preencheu o formulário de campanha (/para-lojas/comecar): ${input.name} — ${input.company} (${CAMPAIGN_BUSINESS_TYPES[input.businessType]}), ${input.city}/${input.state}.`,
+      // Telefone fica só na coluna criptografada do card, nunca no texto da anotação.
+      `E-mail ${input.email}${input.cnpj ? ` · CNPJ ${input.cnpj}` : ""}.`,
+      origin ? `Origem: ${[origin.source, origin.campaign && `campanha ${origin.campaign}`, origin.content && `anúncio ${origin.content}`, origin.term && `público ${origin.term}`].filter(Boolean).join(" · ")}.` : "",
+      `Autorizou contato em ${new Date().toISOString()}: "${CAMPAIGN_CONSENT_TEXT}"`,
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .slice(0, 2000);
+
+    let id: string;
+    if (existing) {
+      id = existing.id;
+      // Completa só o que está vazio; etapa, fonte e origem do 1º contato ficam.
+      const fill: Prisma.SalesProspectUpdateInput = {
+        ...(existing.contactName ? {} : { contactName: input.name }),
+        ...(existing.phone ? {} : { phone: input.phone }),
+        ...(existing.email ? {} : { email: input.email }),
+        ...(existing.city ? {} : { city: input.city }),
+        ...(existing.state ? {} : { state: input.state }),
+        ...(existing.businessType ? {} : { businessType: input.businessType }),
+        ...(existing.acqSource ? {} : acq),
+        ...(!existing.cnpj && input.cnpj && !(await this.prisma.salesProspect.findUnique({ where: { cnpj: input.cnpj }, select: { id: true } })) ? { cnpj: input.cnpj } : {}),
+      };
+      await this.prisma.salesProspect.update({ where: { id }, data: { ...fill, updatedAt: new Date() } });
+    } else {
+      const created = await this.prisma.salesProspect.create({
+        data: {
+          name: input.company,
+          segment,
+          businessType: input.businessType,
+          cnpj: input.cnpj,
+          city: input.city,
+          state: input.state,
+          contactName: input.name,
+          phone: input.phone,
+          email: input.email,
+          source: "campanha",
+          stage: "a_abordar",
+          ...acq,
+        },
+        select: { id: true },
+      });
+      id = created.id;
+    }
+    await this.prisma.salesNote.create({ data: { prospectId: id, kind: "note", body: summary } });
+    const openTask = await this.prisma.hubTask.findFirst({ where: { prospectId: id, doneAt: null, createdById: CAMPAIGN_TASK_CREATOR }, select: { id: true } });
+    if (!openTask) {
+      await this.prisma.hubTask.create({
+        data: {
+          title: `Lead de campanha: chamar ${input.name} (${input.company}) no WhatsApp`.slice(0, 200),
+          kind: "whatsapp",
+          dueAt: new Date(),
+          notes: `${CAMPAIGN_BUSINESS_TYPES[input.businessType]} em ${input.city}/${input.state}. O WhatsApp está na ficha da empresa.`,
+          prospectId: id,
+          createdById: CAMPAIGN_TASK_CREATOR,
+        },
+      });
+    }
+    return { id };
+  }
+
   // Liga empresas cadastradas no site ao quadro (sem duplicar).
   async syncPartners(): Promise<void> {
     const partners = await this.prisma.partner.findMany({
@@ -127,7 +224,7 @@ export class SalesService {
 
   // Chamado no cadastro da empresa (e na sincronização). salesCode = link do vendedor.
   async linkSignup(partnerId: string, salesCode?: string): Promise<void> {
-    const partner = await this.prisma.partner.findUnique({ where: { id: partnerId }, include: { owner: { select: { name: true, email: true } } } });
+    const partner = await this.prisma.partner.findUnique({ where: { id: partnerId }, include: { owner: { select: { name: true, email: true, phone: true } } } });
     if (!partner) return;
     const segment = segmentOf(partner.type);
     if (!segment) return;
@@ -143,11 +240,28 @@ export class SalesService {
     const linked = await this.prisma.salesProspect.findUnique({ where: { partnerId } });
     if (linked) return adoptLinked(linked);
     const cnpj = digits(partner.document);
-    const manual = cnpj ? await this.prisma.salesProspect.findFirst({ where: { cnpj, partnerId: null } }) : null;
+    // Mesmo CNPJ; ou lead de campanha que deixou o e-mail/WhatsApp do dono.
+    const manual =
+      (cnpj ? await this.prisma.salesProspect.findFirst({ where: { cnpj, partnerId: null } }) : null) ??
+      (await this.prisma.salesProspect.findFirst({
+        where: {
+          partnerId: null,
+          source: "campanha",
+          OR: [{ email: partner.owner.email.toLowerCase() }, ...(partner.owner.phone ? [{ phone: partner.owner.phone }] : [])],
+        },
+        orderBy: { createdAt: "asc" },
+      }));
     if (manual) {
       await this.prisma.salesProspect.update({
         where: { id: manual.id },
-        data: { partnerId, ownerId: manual.ownerId ?? seller?.id, city: manual.city ?? partner.city, state: manual.state ?? partner.state },
+        data: {
+          partnerId,
+          ownerId: manual.ownerId ?? seller?.id,
+          city: manual.city ?? partner.city,
+          state: manual.state ?? partner.state,
+          // CNPJ do cadastro entra no card de campanha que não tinha (se ninguém mais usa).
+          ...(!manual.cnpj && cnpj && !(await this.prisma.salesProspect.findUnique({ where: { cnpj }, select: { id: true } })) ? { cnpj } : {}),
+        },
       });
       await this.prisma.salesNote.create({ data: { prospectId: manual.id, kind: "stage", fromStage: manual.stage, toStage: "cadastrou", body: "A empresa se cadastrou no site." } });
       return;

@@ -173,7 +173,7 @@ function Card({ card, showSegment, moveAction }: { card: SalesCard; showSegment:
         {[card.city, card.state].filter(Boolean).join(" - ") || "Cidade não informada"}
         {showSegment ? ` · ${SEGMENT_LABEL[card.segment]}` : ""}
       </p>
-      <p className="text-ink-muted">{card.ownerName ? `Dono: ${card.ownerName}` : "Sem dono"}{card.source === "link" ? " · veio pelo link" : ""}</p>
+      <p className="text-ink-muted">{card.ownerName ? `Dono: ${card.ownerName}` : "Sem dono"}{card.source === "link" ? " · veio pelo link" : card.source === "campanha" ? " · lead de campanha" : ""}</p>
       {card.nextContactAt && (
         <p className={overdue ? "font-semibold text-status-danger" : "text-ink"}>Próximo contato: {dateLabel(card.nextContactAt)}</p>
       )}

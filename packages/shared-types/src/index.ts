@@ -2735,12 +2735,22 @@ export const ProspectProfileInputSchema = z.object({
 export type ProspectProfileInput = z.input<typeof ProspectProfileInputSchema>;
 export const CancelReasonInputSchema = z.object({ category: LossCategorySchema, reason: z.string().trim().max(500).optional() });
 
+// De onde veio o card do funil (rótulos para as telas do Comercial e do Hub).
+export const SALES_SOURCE_LABELS = {
+  manual: "Cadastrado pela equipe",
+  site: "Cadastro no site",
+  link: "Link do vendedor",
+  prospeccao: "Lista de prospecção",
+  campanha: "Lead de campanha",
+} as const;
+export type SalesSource = keyof typeof SALES_SOURCE_LABELS;
+
 export type SalesCard = {
   id: string;
   name: string;
   segment: SalesSegment;
   stage: SalesStageId;
-  source: "manual" | "site" | "link";
+  source: SalesSource;
   ownerId?: string;
   ownerName?: string;
   partnerId?: string;
@@ -2808,6 +2818,49 @@ export type SalesGoals = { month: string; approaches: number; signups: number; n
 export type SalesMember = { id: string; name: string; email: string; salesCode: string; status: string };
 
 const digitsOnly = (value: string) => value.replace(/\D/g, "");
+// Formulário de campanha (/para-lojas/comecar): loja, imobiliária ou corretor
+// que chegou pelo anúncio pago. Vira card "A abordar" no funil (origem
+// "campanha"). consent = autorizou o NovoSeminovo a entrar em contato sobre a
+// plataforma (LGPD); website = campo isca escondido (robô preenche).
+export const BRAZIL_UFS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"] as const;
+export const CAMPAIGN_BUSINESS_TYPES = { loja: "Loja de veículos", imobiliaria: "Imobiliária", corretor: "Corretor de imóveis" } as const;
+export type CampaignBusinessType = keyof typeof CAMPAIGN_BUSINESS_TYPES;
+export const CAMPAIGN_CONSENT_TEXT = "Autorizo o NovoSeminovo a entrar em contato comigo por WhatsApp, telefone ou e-mail para falar sobre a plataforma.";
+const plainText = (label: string, min: number, max: number) =>
+  z
+    .string({ required_error: `Informe ${label}` })
+    .trim()
+    .min(min, `Informe ${label}`)
+    .max(max, `Texto muito longo (máx. ${max} caracteres)`)
+    .refine((v) => !/[<>]/.test(v), "Use só letras, números e pontuação comum");
+export const CampaignLeadInputSchema = z.object({
+  name: plainText("seu nome", 2, 120),
+  company: plainText("o nome da empresa", 2, 160),
+  businessType: z.enum(Object.keys(CAMPAIGN_BUSINESS_TYPES) as [CampaignBusinessType, ...CampaignBusinessType[]], { errorMap: () => ({ message: "Escolha o tipo de empresa" }) }),
+  city: plainText("a cidade", 2, 80),
+  state: z
+    .string({ required_error: "Escolha a UF" })
+    .trim()
+    .toUpperCase()
+    .refine((v) => (BRAZIL_UFS as readonly string[]).includes(v), "Escolha a UF"),
+  phone: z
+    .string({ required_error: "Informe o WhatsApp com DDD" })
+    .max(30)
+    .transform((v) => v.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, ""))
+    .refine((v) => /^\d{10,11}$/.test(v), "Informe o WhatsApp com DDD"),
+  email: z.string({ required_error: "Informe o e-mail" }).trim().toLowerCase().max(160, "E-mail muito longo").email("Informe um e-mail válido"),
+  cnpj: z
+    .string()
+    .max(30)
+    .transform(digitsOnly)
+    .refine((v) => v === "" || isValidCnpj(v), "CNPJ inválido")
+    .optional()
+    .transform((v) => v || undefined),
+  consent: z.literal(true, { errorMap: () => ({ message: "Marque a autorização de contato para enviar" }) }),
+  website: z.string().max(200).optional(),
+});
+export type CampaignLeadInput = z.infer<typeof CampaignLeadInputSchema>;
+
 export const CreateProspectInputSchema = z.object({
   name: z.string().trim().min(2, "Nome da empresa muito curto").max(160),
   segment: z.enum(["vehicle", "property"]),

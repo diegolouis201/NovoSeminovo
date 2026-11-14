@@ -23,7 +23,7 @@ export type CrmEmpresa = {
   logo?: string;
   redesSociais: { instagram?: string; facebook?: string };
   autorizaDivulgacaoEm?: string;
-  origemMarketing?: { canal: string; meio?: string; campanha?: string };
+  origemMarketing?: OrigemMarketing;
   uso: { ultimoAcesso?: string; diasSemAcesso?: number; visualizacoes: number };
   chamados: { total: number; abertos: number; abertoDesde?: string; tempoMedioResolucaoHoras?: number; ultimoAssunto?: string };
   nps?: { nota: number; data: string; comentario?: string; classificacao: "promotor" | "neutro" | "detrator" };
@@ -60,6 +60,10 @@ export type CrmProspeccao = {
   proximoContatoTipo?: string;
   motivoPerda?: { categoria?: string; texto?: string };
   ultimoContato?: { data: string; tipo: string };
+  // manual | prospeccao | campanha (SALES_SOURCE_LABELS).
+  origem: string;
+  origemMarketing?: OrigemMarketing;
   criadoEm: string;
 };
+export type OrigemMarketing = { canal: string; meio?: string; campanha?: string; anuncio?: string; publico?: string };
 export type CrmFeed = { geradoEm: string; empresas: CrmEmpresa[]; prospeccao: CrmProspeccao[] };

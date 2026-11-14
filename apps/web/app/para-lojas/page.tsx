@@ -92,6 +92,9 @@ export default async function ForPartnersPage() {
         <Link href="/parceiro" className="rounded-brand bg-brand-green px-5 py-3 text-sm font-bold text-on-green">
           Cadastrar minha empresa
         </Link>
+        <Link href="/para-lojas/comecar" className="rounded-brand border border-brand-green px-5 py-3 text-sm font-bold text-brand-green hover:bg-surface-sober">
+          Quero que a equipe me chame
+        </Link>
         <a
           href={talkToSales}
           target="_blank"

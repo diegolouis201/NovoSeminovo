@@ -57,7 +57,7 @@ export type CrmEmpresa = {
   logo?: string;
   redesSociais: { instagram?: string; facebook?: string };
   autorizaDivulgacaoEm?: string;
-  origemMarketing?: { canal: string; meio?: string; campanha?: string };
+  origemMarketing?: { canal: string; meio?: string; campanha?: string; anuncio?: string; publico?: string };
   uso: { ultimoAcesso?: string; diasSemAcesso?: number; visualizacoes: number };
   chamados: { total: number; abertos: number; abertoDesde?: string; tempoMedioResolucaoHoras?: number; ultimoAssunto?: string };
   nps?: { nota: number; data: string; comentario?: string; classificacao: "promotor" | "neutro" | "detrator" };
@@ -94,9 +94,20 @@ export type CrmProspeccao = {
   proximoContatoTipo?: string;
   motivoPerda?: { categoria?: string; texto?: string };
   ultimoContato?: { data: string; tipo: string };
+  // manual | prospeccao | campanha (formulário do anúncio pago).
+  origem: string;
+  origemMarketing?: { canal: string; meio?: string; campanha?: string; anuncio?: string; publico?: string };
   criadoEm: string;
 };
 export type CrmFeed = { geradoEm: string; empresas: CrmEmpresa[]; prospeccao: CrmProspeccao[] };
+
+type AcqRow = { acqSource: string | null; acqMedium: string | null; acqCampaign: string | null; acqContent: string | null; acqTerm: string | null };
+// Origem de marketing (canal, campanha, anúncio, público) só com o que existe.
+function origemDe(row: AcqRow | null | undefined): CrmEmpresa["origemMarketing"] {
+  if (!row?.acqSource) return undefined;
+  const extra = { meio: row.acqMedium, campanha: row.acqCampaign, anuncio: row.acqContent, publico: row.acqTerm };
+  return { canal: row.acqSource, ...Object.fromEntries(Object.entries(extra).filter(([, v]) => v)) };
+}
 
 @Injectable()
 export class CrmService {
@@ -125,7 +136,7 @@ export class CrmService {
         take: 5000,
         orderBy: { createdAt: "asc" },
         include: {
-          owner: { select: { name: true, email: true, phone: true, acqSource: true, acqMedium: true, acqCampaign: true, lastActiveAt: true } },
+          owner: { select: { name: true, email: true, phone: true, acqSource: true, acqMedium: true, acqCampaign: true, acqContent: true, acqTerm: true, lastActiveAt: true } },
           socios: { orderBy: { createdAt: "asc" } },
           subscriptions: { orderBy: { statusChangedAt: "desc" }, take: 1, include: { plan: { select: { name: true, priceMonth: true } } } },
           salesProspect: {
@@ -196,7 +207,8 @@ export class CrmService {
         logo: p.logoUrl ?? undefined,
         redesSociais: { instagram: p.instagram ?? undefined, facebook: p.facebook ?? undefined },
         autorizaDivulgacaoEm: p.socialConsentAt?.toISOString(),
-        origemMarketing: p.owner.acqSource ? { canal: p.owner.acqSource, meio: p.owner.acqMedium ?? undefined, campanha: p.owner.acqCampaign ?? undefined } : undefined,
+        // Origem do cadastro do dono; sem ela, a do formulário de campanha do card.
+        origemMarketing: origemDe(p.owner.acqSource ? p.owner : prospect),
         uso: {
           ultimoAcesso: p.owner.lastActiveAt?.toISOString(),
           diasSemAcesso: p.owner.lastActiveAt ? Math.floor((now - p.owner.lastActiveAt.getTime()) / DAY_MS) : undefined,
@@ -243,7 +255,7 @@ export class CrmService {
     });
 
     const open = await this.prisma.salesProspect.findMany({
-      where: { partnerId: null, source: { in: ["manual", "prospeccao"] } },
+      where: { partnerId: null, source: { in: ["manual", "prospeccao", "campanha"] } },
       include: { owner: { select: { name: true } } },
       orderBy: { createdAt: "asc" },
       take: 5000,
@@ -266,6 +278,8 @@ export class CrmService {
         proximoContatoTipo: r.nextContactKind ?? undefined,
         motivoPerda: r.lostCategory || r.lostReason ? { categoria: label(LOSS_CATEGORIES, r.lostCategory), texto: r.lostReason ?? undefined } : undefined,
         ultimoContato: contatos.get(r.id),
+        origem: r.source,
+        origemMarketing: origemDe(r),
         criadoEm: r.createdAt.toISOString(),
       }),
     );

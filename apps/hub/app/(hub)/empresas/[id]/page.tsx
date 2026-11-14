@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { HUB_TASK_KINDS, INTERACTION_KINDS, LOSS_CATEGORIES, NEXT_CONTACT_KINDS } from "@novoseminovo/shared-types";
+import { ACQUISITION_SOURCES, HUB_TASK_KINDS, INTERACTION_KINDS, LOSS_CATEGORIES, NEXT_CONTACT_KINDS, SALES_SOURCE_LABELS } from "@novoseminovo/shared-types";
 import { Contato } from "@/components/Contato";
 import { Form } from "@/components/Form";
 import { ListaTarefas } from "@/components/Tarefas";
@@ -9,6 +9,7 @@ import { HubApiError, hubFetch } from "@/lib/api";
 import { marcar, marcarContato, moverEtapa, novaTarefa, registrarAtividade } from "@/lib/actions";
 import { acharFicha, feed, hoje, marcacoes, me, tarefas } from "@/lib/crm";
 import { brl, data, dataHora } from "@/lib/format";
+import type { OrigemMarketing } from "@/lib/types";
 
 type Nota = { id: string; kind: string; body: string; authorName?: string; createdAt: string };
 type Detalhe = { notes: Nota[]; tickets: { id: string; subject: string; channel: string; status: string; resolution?: string; openedAt: string; resolvedAt?: string }[] };
@@ -20,6 +21,12 @@ const ABAS = [
   ["posvenda", "NPS e chamados"],
   ["marcacoes", "Marcações"],
 ] as const;
+const rotuloOrigem = (o?: string) => (o ? (SALES_SOURCE_LABELS[o as keyof typeof SALES_SOURCE_LABELS] ?? o) : undefined);
+function textoOrigem(o?: OrigemMarketing) {
+  if (!o) return undefined;
+  const canal = ACQUISITION_SOURCES[o.canal as keyof typeof ACQUISITION_SOURCES] ?? o.canal;
+  return [canal, o.campanha && `campanha ${o.campanha}`, o.anuncio && `anúncio ${o.anuncio}`, o.publico && `público ${o.publico}`].filter(Boolean).join(" · ");
+}
 const TIPO_NOTA: Record<string, string> = { ...INTERACTION_KINDS, stage: "Mudança de etapa", contact: "Próximo contato" };
 
 function Linha({ k, v }: { k: string; v?: React.ReactNode }) {
@@ -296,13 +303,16 @@ export default async function Ficha({ params, searchParams }: { params: { id: st
                   <Linha k="Cliente desde" v={data(e.cadastroNoSiteEm)} />
                   <Linha k="Funcionários" v={e.perfil.funcionarios} />
                   <Linha k="Faturamento" v={e.perfil.faturamento} />
-                  <Linha k="Origem" v={e.origemMarketing ? [e.origemMarketing.canal, e.origemMarketing.meio, e.origemMarketing.campanha].filter(Boolean).join(" · ") : e.origem} />
+                  <Linha k="Entrou no funil por" v={rotuloOrigem(e.origem)} />
+                  <Linha k="Origem" v={textoOrigem(e.origemMarketing)} />
                   <Linha k="Instagram" v={e.redesSociais.instagram ? `@${e.redesSociais.instagram}` : undefined} />
                   <Linha k="Sócios" v={e.socios.length ? e.socios.map((s) => `${s.nome}${s.aniversario ? ` (aniv. ${s.aniversario})` : ""}`).join("; ") : undefined} />
                 </>
               ) : (
                 <>
                   <Linha k="Segmento" v={p!.segmento === "property" ? "Imóveis" : "Veículos"} />
+                  <Linha k="Entrou no funil por" v={rotuloOrigem(p!.origem)} />
+                  <Linha k="Origem" v={textoOrigem(p!.origemMarketing)} />
                   <Linha k="Cidade" v={[p!.cidade, p!.uf].filter(Boolean).join("/")} />
                   <Linha k="Funcionários" v={p!.perfil.funcionarios} />
                   <Linha k="Faturamento" v={p!.perfil.faturamento} />

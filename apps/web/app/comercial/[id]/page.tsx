@@ -5,6 +5,7 @@ import {
   LOSS_CATEGORIES,
   NEXT_CONTACT_KINDS,
   REVENUE_RANGES,
+  SALES_SOURCE_LABELS,
   SALES_STAGES,
   SALES_STAGE_LABEL,
   TICKET_CHANNELS,
@@ -95,7 +96,7 @@ export default async function ProspectPage({ params, searchParams }: { params: {
             <dt className="text-ink-muted">Dono do card</dt>
             <dd className="text-ink">{card.ownerName ?? "Sem dono"}</dd>
             <dt className="text-ink-muted">Origem</dt>
-            <dd className="text-ink">{card.source === "manual" ? "Cadastrado pela equipe" : card.source === "link" ? "Link do vendedor" : "Cadastro direto no site"}</dd>
+            <dd className="text-ink">{SALES_SOURCE_LABELS[card.source] ?? card.source}</dd>
           </dl>
           {!mine && (
             <form action={assignAction.bind(null, card.id)} className="mt-3">
