@@ -29,12 +29,13 @@ import {
   Star,
   Table,
   UploadSimple,
+  UserList,
   UsersThree,
   X,
 } from "@phosphor-icons/react";
 import type { HubPermission } from "@novoseminovo/shared-types";
 
-type Item = { href: string; label: string; icon: typeof House; need?: HubPermission; badge?: number };
+type Item = { href: string; label: string; icon: typeof House; need?: HubPermission | HubPermission[]; badge?: number };
 
 export function Sidebar({ name, profile, permissions, badges, sair }: { name: string; profile: string; permissions: HubPermission[]; badges: Record<string, number>; sair: () => Promise<void> }) {
   const path = usePathname();
@@ -67,6 +68,7 @@ export function Sidebar({ name, profile, permissions, badges, sair }: { name: st
         { href: "/marketing/conteudos", label: "Conteúdos", icon: ImagesSquare, need: "marketing" },
         { href: "/marketing/estrategia", label: "Estratégia por plataforma", icon: Strategy, need: "marketing" },
         { href: "/marketing/impulsionamento", label: "Impulsionamento", icon: Lightning, need: "marketing" },
+        { href: "/marketing/compradores", label: "Leads de compradores", icon: UserList, need: ["marketing", "crm.ver"] },
         { href: "/marketing/gastos", label: "Gastos e orçamento", icon: Coins, need: "marketing" },
         { href: "/marketing/analises", label: "Análises", icon: ChartBar, need: "marketing" },
       ],
@@ -85,7 +87,7 @@ export function Sidebar({ name, profile, permissions, badges, sair }: { name: st
     },
     { title: "Administração", items: [{ href: "/equipe", label: "Equipe e acessos", icon: UsersThree, need: "equipe" }] },
   ];
-  const can = (p?: HubPermission) => !p || permissions.includes(p);
+  const can = (p?: HubPermission | HubPermission[]) => !p || (Array.isArray(p) ? p.some((x) => permissions.includes(x)) : permissions.includes(p));
   const active = (href: string) => (href === "/" ? path === "/" : href === "/financeiro" || href === "/marketing" ? path === href : path.startsWith(href));
 
   const nav = (

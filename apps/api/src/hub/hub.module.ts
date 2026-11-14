@@ -8,10 +8,11 @@ import { MarketingFeedController, MarketingHubController } from "./marketing.con
 import { MarketingHubService } from "./marketing.service";
 import { HubGuard } from "./hub.guard";
 import { HubService } from "./hub.service";
+import { BuyerLeadsService } from "./compradores.service";
 
 @Module({
   imports: [AuthModule, CrmModule],
   controllers: [HubController, FinanceiroController, MarketingHubController, MarketingFeedController],
-  providers: [HubService, HubGuard, FinanceiroService, MarketingHubService],
+  providers: [HubService, BuyerLeadsService, HubGuard, FinanceiroService, MarketingHubService],
 })
 export class HubModule {}

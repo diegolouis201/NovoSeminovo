@@ -1,11 +1,12 @@
 import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
-import { type HubAccess, HubGoalInputSchema, HubMarkInputSchema, HubMemberInputSchema, HubTaskInputSchema } from "@novoseminovo/shared-types";
+import { type HubAccess, HubBuyerLeadsQuerySchema, HubGoalInputSchema, HubMarkInputSchema, HubMemberInputSchema, HubTaskInputSchema } from "@novoseminovo/shared-types";
 import { z } from "zod";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { CrmService } from "../crm/crm.service";
 import { HubGuard, HubPermissionRequired } from "./hub.guard";
+import { BuyerLeadsService } from "./compradores.service";
 import { HubService } from "./hub.service";
 
 type Me = { id: string };
@@ -21,7 +22,15 @@ export class HubController {
   constructor(
     private readonly hub: HubService,
     private readonly crm: CrmService,
+    private readonly buyers: BuyerLeadsService,
   ) {}
+
+  // Leads de compradores: marketing (sem contato) ou quem vê o CRM (com
+  // contato). A permissão é conferida no serviço.
+  @Get("compradores")
+  compradores(@Req() req: { hub: HubAccess }, @Query() query: unknown) {
+    return this.buyers.list(req.hub, parseOrBadRequest(HubBuyerLeadsQuerySchema, query));
+  }
 
   @Get("me")
   me(@Req() req: { hub: HubAccess }) {

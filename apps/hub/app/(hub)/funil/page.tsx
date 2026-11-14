@@ -6,15 +6,18 @@ import { brl, data } from "@/lib/format";
 
 export const metadata = { title: "Funil" };
 
-type Card = { chave: string; nome: string; vendedor?: string; cidade?: string; proximo?: string; plano?: string; valor?: number; importante?: boolean; campanha?: boolean };
+type Card = { chave: string; nome: string; vendedor?: string; cidade?: string; proximo?: string; plano?: string; valor?: number; importante?: boolean; campanha?: boolean; criadoEm: string };
 
 export default async function Funil({ searchParams }: { searchParams: { segmento?: string } }) {
   const [f, m] = await Promise.all([feed(), marcacoes()]);
   const seg = searchParams.segmento;
   const hojeIso = hoje().toISOString().slice(0, 10);
   const colunas = new Map<string, Card[]>(ETAPAS.map((e: { id: string }) => [e.id, []]));
-  for (const p of f.prospeccao) if (!seg || p.segmento === seg) colunas.get(p.etapa.id)?.push({ chave: p.cardId, nome: p.nome, vendedor: p.vendedor, cidade: p.cidade, proximo: p.proximoContato, importante: m[p.cardId]?.importante, campanha: p.origem === "campanha" });
-  for (const e of f.empresas) if (!seg || e.segmento === seg) colunas.get(e.etapa.id)?.push({ chave: e.cardId ?? e.id, nome: e.nome, vendedor: e.vendedor, cidade: e.cidade, proximo: e.proximoContato, plano: e.plano?.nome, valor: e.plano?.valorMensal, importante: m[e.id]?.importante || (e.cardId ? m[e.cardId]?.importante : false) });
+  for (const p of f.prospeccao) if (!seg || p.segmento === seg) colunas.get(p.etapa.id)?.push({ chave: p.cardId, nome: p.nome, vendedor: p.vendedor, cidade: p.cidade, proximo: p.proximoContato, importante: m[p.cardId]?.importante, campanha: p.origem === "campanha", criadoEm: p.criadoEm });
+  for (const e of f.empresas) if (!seg || e.segmento === seg) colunas.get(e.etapa.id)?.push({ chave: e.cardId ?? e.id, nome: e.nome, vendedor: e.vendedor, cidade: e.cidade, proximo: e.proximoContato, plano: e.plano?.nome, valor: e.plano?.valorMensal, importante: m[e.id]?.importante || (e.cardId ? m[e.cardId]?.importante : false), criadoEm: e.cadastroNoSiteEm });
+
+  // Lead de campanha é quente: aparece primeiro na coluna, o mais novo antes.
+  for (const lista of colunas.values()) lista.sort((a, b) => Number(Boolean(b.campanha)) - Number(Boolean(a.campanha)) || (b.campanha ? b.criadoEm.localeCompare(a.criadoEm) : 0));
 
   return (
     <>

@@ -43,6 +43,12 @@ describe("NovoSeminovo Hub", { baseUrl: "http://localhost:3100" }, () => {
     cy.contains("h1", "Régua de relacionamento");
     cy.visit("/vendas");
     cy.contains("h1", "Dashboard de vendas");
+    // Leads de compradores (site) com origem; o dono vê o contato.
+    cy.visit("/marketing/compradores");
+    cy.contains("h1", "Leads de compradores");
+    cy.contains("Por canal");
+    cy.contains("Por campanha");
+    cy.get("aside").contains("Leads de compradores");
 
     // Financeiro: conta, lançamento manual e as telas de indicadores.
     // Expandir: abre só se estiver fechado, e depois que a página carregou.

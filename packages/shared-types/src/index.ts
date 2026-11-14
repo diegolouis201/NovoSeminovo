@@ -2995,6 +2995,46 @@ export function hubPermissionsOf(profile: string): HubPermission[] {
 }
 export type HubAccess = { userId: string; name: string; email: string; profile: HubProfile; permissions: HubPermission[] };
 
+// Leads de compradores no Hub (contatos de anúncio, financiamento e
+// novidades que chegaram pelo site). Marketing vê origem e números; quem tem
+// acesso ao CRM vê também o contato.
+const IsoDay = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, "Data no formato AAAA-MM-DD");
+export const HubBuyerLeadsQuerySchema = z
+  .object({
+    de: IsoDay.optional(),
+    ate: IsoDay.optional(),
+    canal: z.string().regex(/^[a-z_]{2,40}$/, "Canal inválido").optional(),
+    campanha: z.string().trim().max(100).optional(),
+    tipo: z.enum(["contato_anuncio", "financiamento", "novidades"]).optional(),
+  })
+  .refine((q) => !q.de || !q.ate || q.de <= q.ate, "A data inicial vem antes da final")
+  .refine((q) => !q.de || !q.ate || (Date.parse(q.ate) - Date.parse(q.de)) / 86_400_000 <= 366, "Escolha um período de até 1 ano");
+export type HubBuyerLeadsQuery = z.infer<typeof HubBuyerLeadsQuerySchema>;
+export const HUB_BUYER_LEAD_TYPES = { contato_anuncio: "Contato de anúncio", financiamento: "Financiamento", novidades: "Novidades por e-mail" } as const;
+export type HubBuyerLeadType = keyof typeof HUB_BUYER_LEAD_TYPES;
+export type HubBuyerLead = {
+  id: string;
+  tipo: HubBuyerLeadType;
+  criadoEm: string;
+  nome?: string;
+  telefone?: string;
+  email?: string;
+  anuncio?: { id: string; titulo: string };
+  origem: { canal?: string; canalRotulo?: string; campanha?: string; anuncio?: string };
+};
+export type HubBuyerLeads = {
+  de: string;
+  ate: string;
+  contatosVisiveis: boolean;
+  itens: HubBuyerLead[];
+  totais: {
+    total: number;
+    porTipo: Record<HubBuyerLeadType, number>;
+    porCanal: { canal: string; rotulo: string; total: number }[];
+    porCampanha: { campanha: string; total: number }[];
+  };
+};
+
 export const HUB_TASK_KINDS = { tarefa: "Tarefa", ligacao: "Ligação", whatsapp: "WhatsApp", email: "E-mail", reuniao: "Reunião" } as const;
 export const HubTaskInputSchema = z.object({
   title: z.string().trim().min(1, "Escreva a tarefa").max(200),
