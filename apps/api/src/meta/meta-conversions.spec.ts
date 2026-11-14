@@ -226,6 +226,8 @@ describe("Meta: API de Conversões contra um servidor falso", () => {
       META_GRAPH_URL: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
       META_TEST_EVENT_CODE: "",
     };
+    // O CI liga o pixel do site (NEXT_PUBLIC_META_PIXEL_ID) para o Cypress: aqui só vale o do teste.
+    delete process.env.NEXT_PUBLIC_META_PIXEL_ID;
   });
 
   test("Lead: formato do evento, hash do e-mail/telefone e o mesmo event_id do navegador", async () => {
