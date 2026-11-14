@@ -2,7 +2,7 @@
 // Instagram já conectados na conta do NovoSeminovo; Meta Ads e Google Ads
 // entram do mesmo jeito quando forem conectados lá). Só leitura.
 // WINDSOR_API_KEY no .env liga; WINDSOR_API_URL só pra teste local.
-const BASE_URL = (process.env.WINDSOR_API_URL ?? "https://connectors.windsor.ai").replace(/\/$/, "");
+const baseUrl = () => (process.env.WINDSOR_API_URL ?? "https://connectors.windsor.ai").replace(/\/$/, "");
 const CACHE_MS = 60 * 60 * 1000;
 const cache = new Map<string, { at: number; rows: Record<string, unknown>[] }>();
 
@@ -13,7 +13,7 @@ export function windsorEnabled(): boolean {
 export async function windsorRows(connector: string, fields: string[], datePreset: string): Promise<Record<string, unknown>[]> {
   const key = process.env.WINDSOR_API_KEY;
   if (!key) throw new Error("Windsor.ai não configurado (WINDSOR_API_KEY)");
-  const query = `${BASE_URL}/${encodeURIComponent(connector)}?fields=${encodeURIComponent(fields.join(","))}&date_preset=${encodeURIComponent(datePreset)}`;
+  const query = `${baseUrl()}/${encodeURIComponent(connector)}?fields=${encodeURIComponent(fields.join(","))}&date_preset=${encodeURIComponent(datePreset)}`;
   const hit = cache.get(query);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.rows;
 

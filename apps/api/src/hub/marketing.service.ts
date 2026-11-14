@@ -12,12 +12,13 @@ import {
   type MktContentInput,
 } from "@novoseminovo/shared-types";
 import type { Prisma } from "@novoseminovo/db";
+import { campaignKey } from "@novoseminovo/shared-types";
 import type { z } from "zod";
 import { assertNoMalware, safeSharp, sanitizeUpload } from "../common/image-safety";
 import { getPhotoStorage } from "../common/storage";
 import { windsorEnabled, windsorRows } from "../operations/windsor";
 import { PrismaService } from "../prisma/prisma.service";
-import { type LinhaGasto, calendarioMes, custoPorCadastro, proximoStatus, publicacaoAutomatica, resumoGastos } from "./marketing-regras";
+import { type ContagemCampanha, type LinhaGasto, atribuirConversoes, calendarioMes, custoPorCadastro, proximoStatus, publicacaoAutomatica, resumoGastos } from "./marketing-regras";
 import { MetaError, facebookEnabled, instagramEnabled, metricasInstagram, publicarFacebook, publicarInstagram } from "./meta-graph";
 
 // Marketing do Hub: o Claude do Marketing envia os conteúdos (chave do
@@ -399,14 +400,40 @@ export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
         }
       }
     }
-    const resumo = resumoGastos(linhas, orc);
     const inicio = new Date(`${mes}-01T03:00:00Z`);
     const fim = new Date(new Date(inicio).setUTCMonth(inicio.getUTCMonth() + 1));
+    const resumo = atribuirConversoes(resumoGastos(linhas, orc), await this.contagensPorCampanha(inicio, fim));
     const [cadastros, assinaturas] = await Promise.all([
       this.prisma.partner.count({ where: { createdAt: { gte: inicio, lt: fim } } }),
       this.prisma.subscriptionPayment.groupBy({ by: ["partnerId"], having: { paidAt: { _min: { gte: inicio, lt: fim } } } }).then((r) => r.length),
     ]);
     return { mes, windsor: windsorEnabled(), periodoDisponivel: Boolean(preset), conexoes, orcamentos: orc, ...resumo, cadastros, assinaturas, custo: custoPorCadastro(resumo.total.gasto, { cadastros, assinaturas }) };
+  }
+
+  // Leads e cadastros do mês por utm_campaign (chave de campaignKey):
+  // leads de campanha (formulário /para-lojas/comecar), empresas cadastradas
+  // (origem do dono; sem ela, a do card de campanha) e leads de compradores
+  // (contato de anúncio pelo site e pedido de financiamento).
+  private async contagensPorCampanha(inicio: Date, fim: Date): Promise<Record<string, ContagemCampanha>> {
+    const createdAt = { gte: inicio, lt: fim };
+    const [prospects, partners, leads, financing] = await Promise.all([
+      this.prisma.salesProspect.groupBy({ by: ["acqCampaign"], where: { source: "campanha", createdAt, acqCampaign: { not: null } }, _count: { _all: true } }),
+      this.prisma.partner.findMany({ where: { createdAt }, select: { owner: { select: { acqCampaign: true } }, salesProspect: { select: { acqCampaign: true } } }, take: 5000 }),
+      this.prisma.lead.groupBy({ by: ["acqCampaign"], where: { createdAt, source: { in: ["chat", "whatsapp", "form"] }, acqCampaign: { not: null } }, _count: { _all: true } }),
+      this.prisma.financingLead.groupBy({ by: ["acqCampaign"], where: { createdAt, acqCampaign: { not: null } }, _count: { _all: true } }),
+    ]);
+    const out: Record<string, ContagemCampanha> = {};
+    const add = (campanha: string | null | undefined, campo: keyof ContagemCampanha, n: number) => {
+      const k = campaignKey(campanha);
+      if (!k) return;
+      out[k] ??= { leadsCampanha: 0, cadastros: 0, leadsCompradores: 0 };
+      out[k][campo] += n;
+    };
+    for (const r of prospects) add(r.acqCampaign, "leadsCampanha", r._count._all);
+    for (const p of partners) add(p.owner.acqCampaign ?? p.salesProspect?.acqCampaign, "cadastros", 1);
+    for (const r of leads) add(r.acqCampaign, "leadsCompradores", r._count._all);
+    for (const r of financing) add(r.acqCampaign, "leadsCompradores", r._count._all);
+    return out;
   }
 
   // Análises: Instagram orgânico (Windsor), visitas do site por origem

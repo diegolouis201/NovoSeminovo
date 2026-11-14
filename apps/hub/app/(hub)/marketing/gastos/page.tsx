@@ -31,7 +31,7 @@ export default async function Gastos({ searchParams }: { searchParams: { mes?: s
         <Kpi valor={g.total.cliques.toLocaleString("pt-BR")} rotulo="Cliques" detalhe={g.total.cpc ? `CPC ${brl(g.total.cpc)}` : undefined} />
         <Kpi valor={g.cadastros} rotulo="Empresas cadastradas no mês" detalhe={g.custo.porCadastro ? `${brl(g.custo.porCadastro)} por cadastro` : undefined} />
         <Kpi valor={g.assinaturas} rotulo="Novas assinaturas no mês" detalhe={g.custo.porAssinatura ? `${brl(g.custo.porAssinatura)} por assinatura` : undefined} tom="green" />
-        <Kpi valor={g.total.impressoes.toLocaleString("pt-BR")} rotulo="Impressões" detalhe={g.total.ctr !== undefined ? `CTR ${g.total.ctr.toLocaleString("pt-BR")}%` : undefined} />
+        <Kpi valor={g.total.conversoes} rotulo="Leads e cadastros das campanhas" detalhe={g.total.custoPorConversao ? `${brl(g.total.custoPorConversao)} cada` : `${g.total.impressoes.toLocaleString("pt-BR")} impressões`} />
       </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
         <Secao titulo="Por plataforma">
@@ -62,14 +62,28 @@ export default async function Gastos({ searchParams }: { searchParams: { mes?: s
           </Secao>
         ) : null}
       </div>
-      <Secao titulo="Campanhas" className="mt-6">
+      <Secao titulo="Custo por campanha" className="mt-6">
+        <p className="mb-3 text-xs text-muted">
+          Leads e cadastros contam para a campanha quando o link do anúncio tem utm_campaign igual ao nome da campanha no gerenciador (maiúsculas e espaços não importam). Leads de campanha = lojas e imobiliárias do formulário; leads de compradores = contatos de anúncio e pedidos de financiamento.
+        </p>
         {g.porCampanha.length ? (
           <div className="overflow-x-auto">
-            <table className="tabela min-w-[720px]">
-              <thead><tr><th>Campanha</th><th>Plataforma</th><th className="text-right">Gasto</th><th className="text-right">Cliques</th><th className="text-right">CPC</th><th className="text-right">CTR</th></tr></thead>
+            <table className="tabela min-w-[1000px]">
+              <thead><tr><th>Campanha</th><th>Plataforma</th><th className="text-right">Gasto</th><th className="text-right">Cliques</th><th className="text-right">CPC</th><th className="text-right">Leads de campanha</th><th className="text-right">Cadastros de empresas</th><th className="text-right">Leads de compradores</th><th className="text-right">Custo por lead</th><th className="text-right">Custo por cadastro</th></tr></thead>
               <tbody>
                 {g.porCampanha.map((c) => (
-                  <tr key={`${c.plataforma}${c.campanha}`}><td className="font-semibold">{c.campanha}</td><td className="text-xs">{NOME[c.plataforma] ?? c.plataforma}</td><td className="text-right">{brl(c.gasto)}</td><td className="text-right">{c.cliques}</td><td className="text-right">{c.cpc ? brl(c.cpc) : "—"}</td><td className="text-right">{c.ctr !== undefined ? `${c.ctr.toLocaleString("pt-BR")}%` : "—"}</td></tr>
+                  <tr key={`${c.plataforma}${c.campanha}`}>
+                    <td className="font-semibold">{c.campanha}</td>
+                    <td className="text-xs">{NOME[c.plataforma] ?? c.plataforma}</td>
+                    <td className="text-right">{brl(c.gasto)}</td>
+                    <td className="text-right">{c.cliques}</td>
+                    <td className="text-right">{c.cpc ? brl(c.cpc) : "—"}</td>
+                    <td className="text-right">{c.leadsCampanha}</td>
+                    <td className="text-right">{c.cadastros}</td>
+                    <td className="text-right">{c.leadsCompradores}</td>
+                    <td className="text-right">{c.custoPorLead ? brl(c.custoPorLead) : "—"}</td>
+                    <td className="text-right">{c.custoPorCadastro ? brl(c.custoPorCadastro) : "—"}</td>
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -78,6 +92,21 @@ export default async function Gastos({ searchParams }: { searchParams: { mes?: s
           <p className="text-sm text-muted">Nenhuma campanha com gasto neste mês.</p>
         )}
       </Secao>
+      {g.semGasto.length ? (
+        <Secao titulo="Campanhas do site sem gasto no período" className="mt-6">
+          <p className="mb-3 text-xs text-muted">Chegaram leads com estes utm_campaign, mas nenhuma campanha com esse nome teve gasto no mês. Confira se o nome no link é igual ao da campanha no gerenciador.</p>
+          <div className="overflow-x-auto">
+            <table className="tabela min-w-[560px]">
+              <thead><tr><th>utm_campaign</th><th className="text-right">Leads de campanha</th><th className="text-right">Cadastros de empresas</th><th className="text-right">Leads de compradores</th></tr></thead>
+              <tbody>
+                {g.semGasto.map((c) => (
+                  <tr key={c.campanha}><td className="font-semibold">{c.campanha}</td><td className="text-right">{c.leadsCampanha}</td><td className="text-right">{c.cadastros}</td><td className="text-right">{c.leadsCompradores}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Secao>
+      ) : null}
     </>
   );
 }

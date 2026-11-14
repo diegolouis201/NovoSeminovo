@@ -1,3 +1,4 @@
+import { campaignKey } from "@novoseminovo/shared-types";
 // Marketing do NovoSeminovo Hub: regras puras (testes em
 // marketing-regras.spec.ts). Nada publica sem aprovação do Diego.
 
@@ -69,6 +70,46 @@ export function resumoGastos(linhas: LinhaGasto[], orcamentos: Record<string, nu
 
 export function custoPorCadastro(gasto: number, r: { cadastros: number; assinaturas: number }) {
   return { porCadastro: r.cadastros ? cents(gasto / r.cadastros) : undefined, porAssinatura: r.assinaturas ? cents(gasto / r.assinaturas) : undefined };
+}
+
+// Leads e cadastros que chegaram com cada utm_campaign (chave de
+// campaignKey, em shared-types) no mês.
+export type ContagemCampanha = { leadsCampanha: number; cadastros: number; leadsCompradores: number };
+
+// Cruza as campanhas do Windsor com os leads/cadastros do site pela mesma
+// chave (minúsculas, espaços viram "_"): utm_campaign tem que ser o nome da
+// campanha no gerenciador de anúncios. As conversões deixam de ser 0 fixo:
+// leads de campanha (empresas) + cadastros de empresas + leads de compradores.
+export function atribuirConversoes(resumo: ReturnType<typeof resumoGastos>, contagens: Record<string, ContagemCampanha>) {
+  const zero: ContagemCampanha = { leadsCampanha: 0, cadastros: 0, leadsCompradores: 0 };
+  const usadas = new Set<string>();
+  const porCampanha = resumo.porCampanha.map((c) => {
+    const chave = campaignKey(c.campanha);
+    const n = (chave && contagens[chave]) || zero;
+    if (chave && contagens[chave]) usadas.add(chave);
+    const leads = n.leadsCampanha + n.leadsCompradores;
+    const conversoes = leads + n.cadastros;
+    return {
+      ...c,
+      ...n,
+      conversoes,
+      custoPorConversao: conversoes ? cents(c.gasto / conversoes) : undefined,
+      custoPorLead: leads ? cents(c.gasto / leads) : undefined,
+      custoPorCadastro: n.cadastros ? cents(c.gasto / n.cadastros) : undefined,
+    };
+  });
+  const somar = (chaves: Iterable<string>) => [...chaves].reduce((s, k) => s + contagens[k]!.leadsCampanha + contagens[k]!.leadsCompradores + contagens[k]!.cadastros, 0);
+  const porPlataforma = resumo.porPlataforma.map((p) => {
+    const chaves = new Set(porCampanha.filter((c) => c.plataforma === p.plataforma).map((c) => campaignKey(c.campanha)).filter((k): k is string => Boolean(k && contagens[k])));
+    const conversoes = somar(chaves);
+    return { ...p, conversoes, custoPorConversao: conversoes ? cents(p.gasto / conversoes) : undefined };
+  });
+  const conversoes = somar(usadas);
+  const semGasto = Object.entries(contagens)
+    .filter(([k]) => !usadas.has(k))
+    .map(([campanha, n]) => ({ campanha, ...n }))
+    .sort((a, b) => b.leadsCampanha + b.cadastros + b.leadsCompradores - (a.leadsCampanha + a.cadastros + a.leadsCompradores));
+  return { porPlataforma, porCampanha, total: { ...resumo.total, conversoes, custoPorConversao: conversoes ? cents(resumo.total.gasto / conversoes) : undefined }, semGasto };
 }
 
 // --------------------------------------------------------------- Calendário

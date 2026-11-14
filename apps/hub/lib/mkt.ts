@@ -50,7 +50,8 @@ export const mkt = {
       conexoes: Record<string, string>;
       orcamentos: Record<string, number>;
       porPlataforma: (Agregado & { plataforma: string })[];
-      porCampanha: (Agregado & { plataforma: string; campanha: string })[];
+      porCampanha: (Agregado & { plataforma: string; campanha: string; leadsCampanha: number; cadastros: number; leadsCompradores: number; custoPorLead?: number; custoPorCadastro?: number })[];
+      semGasto: { campanha: string; leadsCampanha: number; cadastros: number; leadsCompradores: number }[];
       total: Agregado;
       cadastros: number;
       assinaturas: number;
