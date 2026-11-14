@@ -75,6 +75,36 @@ Base: `https://api.novoseminovo.com.br`, cabeçalho
    site, endereco, nota, avaliacoes}`. Viram cards "A abordar" no CRM do Hub,
    sem duplicar pelo `id`.
 
+## Padrão de UTM (todo link de anúncio pago)
+O Hub cruza o gasto de cada campanha (Windsor) com os leads e cadastros que
+chegaram pelo link, e mostra custo por lead e por cadastro em Marketing →
+Gastos e orçamento. Para isso, todo link de anúncio leva:
+
+| Parâmetro | Valor | Observação |
+|---|---|---|
+| `utm_source` | `meta` | (também vale `instagram` ou `facebook`) |
+| `utm_medium` | `paid` | com `paid` o site classifica como "Anúncio Meta" |
+| `utm_campaign` | nome **exato** da campanha no Gerenciador de Anúncios | é o que liga o gasto aos leads |
+| `utm_content` | nome do anúncio | ex.: `video_vitrine_01` |
+| `utm_term` | nome do público / conjunto de anúncios | ex.: `donos_de_loja_go` |
+
+- O site guarda tudo em minúsculas e troca espaços por `_`, e faz o mesmo com
+  o nome da campanha que vem do Windsor. Então "Lojas Novembro" no Gerenciador
+  e `utm_campaign=Lojas%20Novembro` (ou `lojas_novembro`) casam. Qualquer
+  outra diferença (acento, hífen no lugar de espaço, palavra a mais) não casa.
+  Mais simples: dar à campanha um nome sem acento, como `lojas_novembro`, e
+  usar o mesmo texto no link.
+- Campanha com leads mas sem gasto aparece no Hub em "Campanhas do site sem
+  gasto no período": é sinal de nome diferente entre o link e o Gerenciador.
+- O `fbclid` que a Meta põe no link é guardado sozinho; não precisa fazer nada.
+- Até 60 caracteres no nome da campanha; anúncio e público até 100.
+
+Exemplos:
+- Lojas e imobiliárias (formulário que vira lead no funil do Comercial):
+  `https://novoseminovo.com.br/para-lojas/comecar?utm_source=meta&utm_medium=paid&utm_campaign=lojas_novembro&utm_content=video_vitrine_01&utm_term=donos_de_loja_go`
+- Compradores (busca de carros; o contato no anúncio vira lead de comprador):
+  `https://novoseminovo.com.br/carros?utm_source=meta&utm_medium=paid&utm_campaign=compradores_suv_novembro&utm_content=carrossel_suv_01&utm_term=interesse_carros_sp`
+
 ## Rotina sugerida
 - Toda segunda: montar o calendário da semana e enviar tudo ao Hub.
 - Todo dia: olhar `status=ajuste` e mandar as novas versões.
