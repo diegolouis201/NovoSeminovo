@@ -413,14 +413,17 @@ export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
   // Leads e cadastros do mês por utm_campaign (chave de campaignKey):
   // leads de campanha (formulário /para-lojas/comecar), empresas cadastradas
   // (origem do dono; sem ela, a do card de campanha) e leads de compradores
-  // (contato de anúncio pelo site e pedido de financiamento).
+  // (contato de anúncio pelo site, pedido de financiamento e formulário de
+  // Lead Ads da Meta). Card B2B vindo do formulário da Meta já é "campanha".
   private async contagensPorCampanha(inicio: Date, fim: Date): Promise<Record<string, ContagemCampanha>> {
     const createdAt = { gte: inicio, lt: fim };
-    const [prospects, partners, leads, financing] = await Promise.all([
+    const [prospects, partners, leads, financing, contacts] = await Promise.all([
       this.prisma.salesProspect.groupBy({ by: ["acqCampaign"], where: { source: "campanha", createdAt, acqCampaign: { not: null } }, _count: { _all: true } }),
       this.prisma.partner.findMany({ where: { createdAt }, select: { owner: { select: { acqCampaign: true } }, salesProspect: { select: { acqCampaign: true } } }, take: 5000 }),
       this.prisma.lead.groupBy({ by: ["acqCampaign"], where: { createdAt, source: { in: ["chat", "whatsapp", "form"] }, acqCampaign: { not: null } }, _count: { _all: true } }),
       this.prisma.financingLead.groupBy({ by: ["acqCampaign"], where: { createdAt, acqCampaign: { not: null } }, _count: { _all: true } }),
+      // Comprador que preencheu o formulário de Lead Ads da Meta.
+      this.prisma.marketingContact.groupBy({ by: ["acqCampaign"], where: { createdAt, acqCampaign: { not: null } }, _count: { _all: true } }),
     ]);
     const out: Record<string, ContagemCampanha> = {};
     const add = (campanha: string | null | undefined, campo: keyof ContagemCampanha, n: number) => {
@@ -433,6 +436,7 @@ export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
     for (const p of partners) add(p.owner.acqCampaign ?? p.salesProspect?.acqCampaign, "cadastros", 1);
     for (const r of leads) add(r.acqCampaign, "leadsCompradores", r._count._all);
     for (const r of financing) add(r.acqCampaign, "leadsCompradores", r._count._all);
+    for (const r of contacts) add(r.acqCampaign, "leadsCompradores", r._count._all);
     return out;
   }
 

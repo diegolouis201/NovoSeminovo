@@ -101,7 +101,7 @@ describe("Leads de compradores (banco local)", { skip: !withDb && "sem DATABASE_
     const r = await service.list(access("dono"), { campanha: campaign.toUpperCase() });
     assert.equal(r.itens.length, 2);
     assert.equal(r.totais.total, 2);
-    assert.deepEqual(r.totais.porTipo, { contato_anuncio: 1, financiamento: 1, novidades: 0 });
+    assert.deepEqual(r.totais.porTipo, { contato_anuncio: 1, financiamento: 1, novidades: 0, formulario_meta: 0 });
     assert.deepEqual(r.totais.porCanal, [{ canal: "meta_ads", rotulo: "Anúncio Meta (Instagram/Facebook)", total: 2 }]);
     assert.deepEqual(r.totais.porCampanha, [{ campanha: campaign, total: 2 }]);
     const google = await service.list(access("dono"), { canal: "google" });

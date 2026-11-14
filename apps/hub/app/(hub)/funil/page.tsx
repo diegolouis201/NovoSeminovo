@@ -1,19 +1,19 @@
 import Link from "next/link";
-import { SALES_SOURCE_LABELS } from "@novoseminovo/shared-types";
+import { META_LEAD_FORM_MEDIUM, SALES_SOURCE_LABELS } from "@novoseminovo/shared-types";
 import { Cabecalho } from "@/components/ui";
 import { ETAPAS, feed, hoje, marcacoes } from "@/lib/crm";
 import { brl, data } from "@/lib/format";
 
 export const metadata = { title: "Funil" };
 
-type Card = { chave: string; nome: string; vendedor?: string; cidade?: string; proximo?: string; plano?: string; valor?: number; importante?: boolean; campanha?: boolean; criadoEm: string };
+type Card = { chave: string; nome: string; vendedor?: string; cidade?: string; proximo?: string; plano?: string; valor?: number; importante?: boolean; campanha?: boolean; formularioMeta?: boolean; criadoEm: string };
 
 export default async function Funil({ searchParams }: { searchParams: { segmento?: string } }) {
   const [f, m] = await Promise.all([feed(), marcacoes()]);
   const seg = searchParams.segmento;
   const hojeIso = hoje().toISOString().slice(0, 10);
   const colunas = new Map<string, Card[]>(ETAPAS.map((e: { id: string }) => [e.id, []]));
-  for (const p of f.prospeccao) if (!seg || p.segmento === seg) colunas.get(p.etapa.id)?.push({ chave: p.cardId, nome: p.nome, vendedor: p.vendedor, cidade: p.cidade, proximo: p.proximoContato, importante: m[p.cardId]?.importante, campanha: p.origem === "campanha", criadoEm: p.criadoEm });
+  for (const p of f.prospeccao) if (!seg || p.segmento === seg) colunas.get(p.etapa.id)?.push({ chave: p.cardId, nome: p.nome, vendedor: p.vendedor, cidade: p.cidade, proximo: p.proximoContato, importante: m[p.cardId]?.importante, campanha: p.origem === "campanha", formularioMeta: p.origemMarketing?.meio === META_LEAD_FORM_MEDIUM, criadoEm: p.criadoEm });
   for (const e of f.empresas) if (!seg || e.segmento === seg) colunas.get(e.etapa.id)?.push({ chave: e.cardId ?? e.id, nome: e.nome, vendedor: e.vendedor, cidade: e.cidade, proximo: e.proximoContato, plano: e.plano?.nome, valor: e.plano?.valorMensal, importante: m[e.id]?.importante || (e.cardId ? m[e.cardId]?.importante : false), criadoEm: e.cadastroNoSiteEm });
 
   // Lead de campanha é quente: aparece primeiro na coluna, o mais novo antes.
@@ -48,7 +48,7 @@ export default async function Funil({ searchParams }: { searchParams: { segmento
                 {cards.slice(0, 60).map((c) => (
                   <Link key={c.chave} href={`/empresas/${c.chave}`} className="block rounded-xl border border-line bg-white p-3 text-sm shadow-sm hover:border-blue">
                     <p className="font-semibold text-navy">{c.importante ? "⭐ " : ""}{c.nome}</p>
-                    {c.campanha ? <span className="pill mt-1 bg-orange/15 text-navy">{SALES_SOURCE_LABELS.campanha}</span> : null}
+                    {c.campanha ? <span className="pill mt-1 bg-orange/15 text-navy">{SALES_SOURCE_LABELS.campanha}{c.formularioMeta ? " · Formulário Meta" : ""}</span> : null}
                     <p className="text-xs text-muted">{[c.cidade, c.vendedor ?? "Sem dono"].filter(Boolean).join(" · ")}</p>
                     {c.plano ? <p className="mt-1 text-xs">{c.plano} · {brl(c.valor)}/mês</p> : null}
                     {c.proximo ? <p className={`mt-1 text-xs font-semibold ${c.proximo.slice(0, 10) < hojeIso ? "text-danger" : "text-blue"}`}>Contato: {data(c.proximo)}</p> : null}

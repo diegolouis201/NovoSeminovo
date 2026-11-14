@@ -10,7 +10,7 @@ const SITE = "https://novoseminovo.com.br";
 const CAMPOS = ["de", "ate", "canal", "campanha", "tipo"] as const;
 
 // Quem quer comprar e chegou pelo site: contato de anúncio, pedido de
-// financiamento e inscrição de novidades, com a origem (canal, campanha,
+// financiamento, inscrição de novidades e formulário de Lead Ads da Meta, com a origem (canal, campanha,
 // anúncio). Marketing vê números e origem; contato só para quem vê o CRM.
 export default async function Compradores({ searchParams }: { searchParams: Record<string, string | undefined> }) {
   const access = await me();
@@ -33,7 +33,7 @@ export default async function Compradores({ searchParams }: { searchParams: Reco
     <>
       <Cabecalho
         titulo="Leads de compradores"
-        subtitulo="Contatos de anúncio, pedidos de financiamento e inscrições de novidades que chegaram pelo site, com a campanha e o anúncio de origem."
+        subtitulo="Contatos de anúncio, pedidos de financiamento e inscrições de novidades que chegaram pelo site, e formulários de anúncio do Instagram/Facebook, com a campanha e o anúncio de origem."
       />
       <form className="card mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
         <div>
@@ -72,7 +72,7 @@ export default async function Compradores({ searchParams }: { searchParams: Reco
       {erro ? <p className="mb-4 rounded-xl bg-orange/10 p-3 text-sm">{erro}</p> : null}
       {r ? (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <Kpi valor={r.totais.total} rotulo="Leads no período" />
             {Object.entries(HUB_BUYER_LEAD_TYPES).map(([k, v]) => (
               <Kpi key={k} valor={r!.totais.porTipo[k as keyof typeof HUB_BUYER_LEAD_TYPES]} rotulo={v} />

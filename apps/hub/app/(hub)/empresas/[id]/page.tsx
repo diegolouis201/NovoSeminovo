@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ACQUISITION_SOURCES, HUB_TASK_KINDS, INTERACTION_KINDS, LOSS_CATEGORIES, NEXT_CONTACT_KINDS, SALES_SOURCE_LABELS } from "@novoseminovo/shared-types";
+import { HUB_TASK_KINDS, INTERACTION_KINDS, LOSS_CATEGORIES, NEXT_CONTACT_KINDS, SALES_SOURCE_LABELS, originChannelLabel } from "@novoseminovo/shared-types";
 import { Contato } from "@/components/Contato";
 import { Form } from "@/components/Form";
 import { ListaTarefas } from "@/components/Tarefas";
@@ -24,7 +24,8 @@ const ABAS = [
 const rotuloOrigem = (o?: string) => (o ? (SALES_SOURCE_LABELS[o as keyof typeof SALES_SOURCE_LABELS] ?? o) : undefined);
 function textoOrigem(o?: OrigemMarketing) {
   if (!o) return undefined;
-  const canal = ACQUISITION_SOURCES[o.canal as keyof typeof ACQUISITION_SOURCES] ?? o.canal;
+  // Formulário de Lead Ads (meio lead_form) aparece como "Formulário Meta", separado do anúncio que leva ao site.
+  const canal = originChannelLabel(o.canal, o.meio) ?? o.canal;
   return [canal, o.campanha && `campanha ${o.campanha}`, o.anuncio && `anúncio ${o.anuncio}`, o.publico && `público ${o.publico}`].filter(Boolean).join(" · ");
 }
 const TIPO_NOTA: Record<string, string> = { ...INTERACTION_KINDS, stage: "Mudança de etapa", contact: "Próximo contato" };

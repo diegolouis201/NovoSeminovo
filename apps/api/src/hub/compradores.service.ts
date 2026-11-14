@@ -19,6 +19,8 @@ import { PrismaService } from "../prisma/prisma.service";
 const DAY_MS = 86_400_000;
 const LIMIT = 2000;
 const SITE_LEAD_SOURCES = ["chat", "whatsapp", "form"] as const;
+// Contato criado por um formulário de Lead Ads da Meta (meta/meta-leads.service.ts).
+const META_LEAD_SOURCE = "meta_lead_ads";
 const brasiliaDay = (date: Date) => new Date(date.getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
 const startOf = (day: string) => new Date(`${day}T00:00:00-03:00`);
 const label = (canal?: string | null) => (canal ? (ACQUISITION_SOURCES[canal as keyof typeof ACQUISITION_SOURCES] ?? canal) : undefined);
@@ -71,13 +73,20 @@ export class BuyerLeadsService {
             take: LIMIT,
             select: { id: true, createdAt: true, name: true, phone: true, email: true, channel: true, acqSource: true, acqCampaign: true, acqContent: true, listing: { select: { id: true, title: true } } },
           }),
-      query.tipo && query.tipo !== "novidades"
+      query.tipo && query.tipo !== "novidades" && query.tipo !== "formulario_meta"
         ? []
         : this.prisma.marketingContact.findMany({
-            where: { createdAt, sourceDetail: { startsWith: "formulario" } },
+            where: {
+              createdAt,
+              ...(query.tipo === "formulario_meta"
+                ? { source: META_LEAD_SOURCE }
+                : query.tipo === "novidades"
+                  ? { sourceDetail: { startsWith: "formulario" }, source: { not: META_LEAD_SOURCE } }
+                  : { sourceDetail: { startsWith: "formulario" } }),
+            },
             orderBy: { createdAt: "desc" },
             take: LIMIT,
-            select: { id: true, createdAt: true, name: true, email: true, source: true, sourceDetail: true },
+            select: { id: true, createdAt: true, name: true, email: true, phone: true, source: true, sourceDetail: true, acqSource: true, acqCampaign: true, acqContent: true },
           }),
     ]);
 
@@ -104,16 +113,30 @@ export class BuyerLeadsService {
         anuncio: f.listing ? { id: f.listing.id, titulo: f.listing.title } : undefined,
         origem: origem(f.acqSource ?? (f.channel === "whatsapp" ? "whatsapp" : null), f.acqCampaign, f.acqContent),
       })),
-      ...contacts.map((c) => ({
-        id: `news:${c.id}`,
-        tipo: "novidades" as const,
-        at: c.createdAt.getTime(),
-        criadoEm: c.createdAt.toISOString(),
-        nome: c.name ?? undefined,
-        email: c.email ?? undefined,
-        // sourceDetail = "formulario" ou "formulario:<campanha>"
-        origem: origem(c.source, c.sourceDetail?.split(":")[1] || null),
-      })),
+      ...contacts.map((c) =>
+        c.source === META_LEAD_SOURCE
+          ? {
+              // Formulário de Lead Ads (Instagram/Facebook): origem do anúncio nas colunas acq*.
+              id: `meta:${c.id}`,
+              tipo: "formulario_meta" as const,
+              at: c.createdAt.getTime(),
+              criadoEm: c.createdAt.toISOString(),
+              nome: c.name ?? undefined,
+              telefone: c.phone ?? undefined,
+              email: c.email ?? undefined,
+              origem: origem(c.acqSource ?? "meta_ads", c.acqCampaign ?? (c.sourceDetail?.split(":")[1] || null), c.acqContent),
+            }
+          : {
+              id: `news:${c.id}`,
+              tipo: "novidades" as const,
+              at: c.createdAt.getTime(),
+              criadoEm: c.createdAt.toISOString(),
+              nome: c.name ?? undefined,
+              email: c.email ?? undefined,
+              // sourceDetail = "formulario" ou "formulario:<campanha>"
+              origem: origem(c.source, c.sourceDetail?.split(":")[1] || null),
+            },
+      ),
     ];
 
     const wanted = campaignKey(query.campanha);
@@ -122,7 +145,7 @@ export class BuyerLeadsService {
       .filter((i) => !wanted || campaignKey(i.origem.campanha) === wanted)
       .sort((a, b) => b.at - a.at);
 
-    const porTipo: Record<HubBuyerLeadType, number> = { contato_anuncio: 0, financiamento: 0, novidades: 0 };
+    const porTipo: Record<HubBuyerLeadType, number> = { contato_anuncio: 0, financiamento: 0, novidades: 0, formulario_meta: 0 };
     const canais = new Map<string, number>();
     const campanhas = new Map<string, number>();
     for (const i of filtered) {
