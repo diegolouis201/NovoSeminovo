@@ -5,6 +5,7 @@ import type { Acquisition, AuthUser, LoginInput, LoginResponse, RegisterInput } 
 import { PrismaService } from "../prisma/prisma.service";
 import { ContactsService } from "../marketing/contacts.service";
 import { normalizeAffiliateCode } from "../affiliates/affiliates.service";
+import { acquisitionFields } from "../common/acquisition";
 import { hashPassword, needsRehash, verifyPassword } from "./password";
 
 
@@ -21,7 +22,7 @@ export class AuthService {
     const cpf = input.cpf.replace(/\D/g, "");
     const affiliateId = await this.referringAffiliate(input.referralCode, cpf);
     // Indicado por afiliado conta como origem "afiliado", mesmo que o cookie diga outra coisa.
-    const origin = affiliateId ? { source: "afiliado", medium: acquisition?.medium ?? "link", campaign: acquisition?.campaign } : acquisition;
+    const origin: Acquisition | undefined = affiliateId ? { ...acquisition, source: "afiliado", medium: acquisition?.medium ?? "link" } : acquisition;
     try {
       const user = await this.prisma.user.create({
         data: {
@@ -32,9 +33,7 @@ export class AuthService {
           passwordHash,
           role: "buyer",
           ...(affiliateId ? { referredByAffiliateId: affiliateId, referredAt: new Date() } : {}),
-          acqSource: origin?.source,
-          acqMedium: origin?.medium,
-          acqCampaign: origin?.campaign,
+          ...acquisitionFields(origin),
         },
       });
       // Contato de marketing: só recebe e-mails de novidades se marcou a caixa.

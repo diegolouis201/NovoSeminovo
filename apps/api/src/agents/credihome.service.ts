@@ -148,6 +148,7 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
           buyerUserId,
           acqSource: acquisition?.source,
           acqCampaign: acquisition?.campaign,
+          acqContent: acquisition?.content,
         },
         select: { id: true, credihomeLeadId: true },
       }));

@@ -165,7 +165,7 @@ export class AgentsService {
     let conversation = input.conversationId
       ? await this.loadWebConversation(kind, input.conversationId, requester)
       : await this.prisma.agentConversation.create({
-          data: { kind, channel: "web", userId: requester?.id, acqSource: acquisition?.source, acqCampaign: acquisition?.campaign },
+          data: { kind, channel: "web", userId: requester?.id, acqSource: acquisition?.source, acqCampaign: acquisition?.campaign, acqContent: acquisition?.content },
         });
 
     // Conversa começada sem login: quem logar depois e continuar passa a ser
@@ -338,6 +338,7 @@ export class AgentsService {
         // Pelo WhatsApp da Meta a origem é o próprio WhatsApp; pelo site, a do visitante.
         acqSource: conversation.channel === "whatsapp" ? "whatsapp" : conversation.acqSource,
         acqCampaign: conversation.acqCampaign,
+        acqContent: conversation.acqContent,
       },
       select: { id: true },
     });

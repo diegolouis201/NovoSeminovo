@@ -2299,13 +2299,29 @@ export const ACQUISITION_SOURCES = {
   direto: "Direto (digitou o endereço)",
 } as const;
 export type AcquisitionSource = keyof typeof ACQUISITION_SOURCES;
-export type Acquisition = { source: AcquisitionSource; medium?: string; campaign?: string };
+// content = anúncio (utm_content), term = público/conjunto (utm_term),
+// clickId = id do clique da Meta (fbclid). Todos opcionais: cookie antigo
+// (origem|meio|campanha) continua valendo.
+export type Acquisition = { source: AcquisitionSource; medium?: string; campaign?: string; content?: string; term?: string; clickId?: string };
 
 const PAID_MEDIUMS = /^(cpc|ppc|paid|paidsocial|paid_social|ads?|display|cpm)$/i;
 
-function cleanPart(value: string | null | undefined): string | undefined {
-  const text = (value ?? "").trim().toLowerCase().replace(/[|\s]+/g, "_").slice(0, 60);
+function cleanPart(value: string | null | undefined, max = 60): string | undefined {
+  const text = (value ?? "").trim().toLowerCase().replace(/[|\s]+/g, "_").replace(/[<>"'`]/g, "").slice(0, max);
   return text || undefined;
+}
+
+// fbclid diferencia maiúsculas: só tira o que não é letra, número, _ ou -.
+function cleanClickId(value: string | null | undefined): string | undefined {
+  const text = (value ?? "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 255);
+  return text || undefined;
+}
+
+// Chave para casar a campanha do site (utm_campaign) com o nome da campanha
+// no gerenciador de anúncios (Windsor): mesma regra do cookie — minúsculas,
+// espaços viram "_", até 60 caracteres. "Lojas Novembro" = "lojas_novembro".
+export function campaignKey(name: string | null | undefined): string | undefined {
+  return cleanPart(name);
 }
 
 // Classifica a chegada: utm_source tem prioridade, depois ?ref= de afiliado,
@@ -2314,10 +2330,23 @@ export function classifyAcquisition(input: {
   utmSource?: string | null;
   utmMedium?: string | null;
   utmCampaign?: string | null;
+  utmContent?: string | null;
+  utmTerm?: string | null;
+  fbclid?: string | null;
   ref?: string | null;
   referrer?: string | null;
   ownHost?: string;
 }): Acquisition {
+  const detail = { content: cleanPart(input.utmContent, 100), term: cleanPart(input.utmTerm, 100), clickId: cleanClickId(input.fbclid) };
+  const base = classifyBase(input);
+  return dropEmpty({ ...base, ...detail });
+}
+
+function dropEmpty(value: Acquisition): Acquisition {
+  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as Acquisition;
+}
+
+function classifyBase(input: Parameters<typeof classifyAcquisition>[0]): Acquisition {
   const medium = cleanPart(input.utmMedium);
   const campaign = cleanPart(input.utmCampaign);
   const utm = cleanPart(input.utmSource);
@@ -2340,7 +2369,11 @@ export function classifyAcquisition(input: {
   } catch {
     host = "";
   }
-  if (!host || (input.ownHost && host.endsWith(input.ownHost.replace(/^www\./, "")))) return { source: "direto" };
+  if (!host || (input.ownHost && host.endsWith(input.ownHost.replace(/^www\./, "")))) {
+    // A Meta põe fbclid em todo link que sai do Facebook/Instagram; sem utm e
+    // sem site de origem (navegador do app não manda), conta como Facebook.
+    return cleanClickId(input.fbclid) ? { source: "facebook", medium: "social" } : { source: "direto" };
+  }
   if (/(^|\.)google\./.test(host)) return { source: "google", medium: "organic" };
   if (/instagram\.com$/.test(host)) return { source: "instagram", medium: "social" };
   if (/(facebook\.com|fb\.me|fb\.com)$/.test(host)) return { source: "facebook", medium: "social" };
@@ -2351,8 +2384,12 @@ export function classifyAcquisition(input: {
   return { source: "outros_sites", medium: "referral", campaign: cleanPart(host) };
 }
 
+// "origem|meio|campanha" e, quando houver, "|anúncio|público|clique". Sem o
+// detalhe novo o texto fica igual ao formato antigo.
 export function serializeAcquisition(value: Acquisition): string {
-  return [value.source, value.medium ?? "", value.campaign ?? ""].join("|");
+  const parts = [value.source, value.medium ?? "", value.campaign ?? ""];
+  if (value.content || value.term || value.clickId) parts.push(value.content ?? "", value.term ?? "", value.clickId ?? "");
+  return parts.join("|");
 }
 
 export function parseAcquisition(raw: string | null | undefined): Acquisition | undefined {
@@ -2363,9 +2400,16 @@ export function parseAcquisition(raw: string | null | undefined): Acquisition | 
   } catch {
     // já veio decodificado
   }
-  const [source, medium, campaign] = text.split("|");
+  const [source, medium, campaign, content, term, clickId] = text.slice(0, 1000).split("|");
   if (!source || !(source in ACQUISITION_SOURCES)) return undefined;
-  return { source: source as AcquisitionSource, medium: cleanPart(medium), campaign: cleanPart(campaign) };
+  return dropEmpty({
+    source: source as AcquisitionSource,
+    medium: cleanPart(medium),
+    campaign: cleanPart(campaign),
+    content: cleanPart(content, 100),
+    term: cleanPart(term, 100),
+    clickId: cleanClickId(clickId),
+  });
 }
 
 // Receita das lojas parceiras (Amazon, Mercado Livre…): o valor vem do painel

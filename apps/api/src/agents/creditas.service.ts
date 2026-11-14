@@ -129,6 +129,7 @@ export class CreditasService {
           buyerUserId,
           acqSource: acquisition?.source,
           acqCampaign: acquisition?.campaign,
+          acqContent: acquisition?.content,
         },
         select: { id: true, creditasLeadId: true, adminNotes: true },
       }));

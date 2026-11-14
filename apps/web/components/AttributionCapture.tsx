@@ -10,11 +10,13 @@ const SESSION_FLAG = "ns_origem_lida";
 // utm_*…). Vale a última origem que não foi "direto": quem chegou pelo
 // Instagram e volta depois digitando o endereço continua contando como
 // Instagram por 90 dias. O site de origem (referrer) só é lido na primeira
-// página da visita; links com utm/ref valem sempre.
+// página da visita; links com utm/ref/fbclid valem sempre. Também guarda o
+// anúncio (utm_content), o público (utm_term) e o clique da Meta (fbclid).
 export function AttributionCapture() {
   const params = useSearchParams();
   const utmSource = params.get("utm_source");
   const ref = params.get("ref");
+  const fbclid = params.get("fbclid");
 
   useEffect(() => {
     let firstPage = true;
@@ -24,11 +26,14 @@ export function AttributionCapture() {
     } catch {
       // sem sessionStorage: trata como primeira página
     }
-    if (!utmSource && !ref && !firstPage) return;
+    if (!utmSource && !ref && !fbclid && !firstPage) return;
     const origin = classifyAcquisition({
       utmSource,
       utmMedium: params.get("utm_medium"),
       utmCampaign: params.get("utm_campaign"),
+      utmContent: params.get("utm_content"),
+      utmTerm: params.get("utm_term"),
+      fbclid,
       ref,
       referrer: firstPage ? document.referrer : undefined,
       ownHost: window.location.hostname,
@@ -36,7 +41,7 @@ export function AttributionCapture() {
     const hasCookie = document.cookie.split("; ").some((item) => item.startsWith(`${ACQUISITION_COOKIE}=`));
     if (origin.source === "direto" && hasCookie) return;
     document.cookie = `${ACQUISITION_COOKIE}=${encodeURIComponent(serializeAcquisition(origin))}; Max-Age=${ACQUISITION_MAX_AGE}; Path=/; SameSite=Lax`;
-  }, [utmSource, ref, params]);
+  }, [utmSource, ref, fbclid, params]);
 
   return null;
 }

@@ -275,6 +275,11 @@ model User {
   acqSource             String?            @map("acq_source")
   acqMedium             String?            @map("acq_medium")
   acqCampaign           String?            @map("acq_campaign")
+  // Detalhe da campanha paga: anúncio (utm_content), público (utm_term) e
+  // id do clique da Meta (fbclid).
+  acqContent            String?            @map("acq_content")
+  acqTerm               String?            @map("acq_term")
+  acqClickId            String?            @map("acq_click_id")
   architectSessions     ArchitectSession[]
 
   @@map("users")
@@ -778,6 +783,8 @@ model Lead {
   // Origem de quem gerou o lead (cookie do site ou cadastro do comprador).
   acqSource        String?    @map("acq_source")
   acqCampaign      String?    @map("acq_campaign")
+  // Anúncio da campanha (utm_content).
+  acqContent       String?    @map("acq_content")
   statusChangedAt  DateTime   @default(now()) @map("status_changed_at")
   createdAt        DateTime   @default(now()) @map("created_at")
   updatedAt        DateTime   @updatedAt @map("updated_at")
@@ -1009,6 +1016,7 @@ model AgentConversation {
   turnCount   Int          @default(0) @map("turn_count")
   acqSource   String?      @map("acq_source")
   acqCampaign String?      @map("acq_campaign")
+  acqContent  String?      @map("acq_content")
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
@@ -1065,6 +1073,7 @@ model FinancingLead {
   negotiatedValue    Decimal?            @map("negotiated_value") @db.Decimal(12, 2)
   acqSource          String?             @map("acq_source")
   acqCampaign        String?             @map("acq_campaign")
+  acqContent         String?             @map("acq_content")
   commissionRate     Decimal             @default(1.00) @map("commission_rate") @db.Decimal(5, 2)
   bank               String?
   adminNotes         String?             @map("admin_notes")
@@ -1705,8 +1714,18 @@ model SalesProspect {
   lostCategory    String?     @map("lost_category")
   nextContactAt   DateTime?   @map("next_contact_at")
   nextContactKind String?     @map("next_contact_kind")
-  // manual = vendedor cadastrou; site = empresa se cadastrou sozinha; link = pelo link do vendedor.
+  // manual = vendedor cadastrou; site = empresa se cadastrou sozinha; link = pelo link do vendedor;
+  // prospeccao = lista do Marketing; campanha = formulário /para-lojas/comecar (anúncio pago).
   source          String      @default("manual")
+  // Origem de quem preencheu o formulário de campanha (cookie ns_origem).
+  acqSource       String?     @map("acq_source")
+  acqMedium       String?     @map("acq_medium")
+  acqCampaign     String?     @map("acq_campaign")
+  acqContent      String?     @map("acq_content")
+  acqTerm         String?     @map("acq_term")
+  acqClickId      String?     @map("acq_click_id")
+  // Tipo informado no formulário de campanha (loja | imobiliaria | corretor).
+  businessType    String?     @map("business_type")
   // Importação de listas de prospecção: a mesma empresa não entra duas vezes.
   externalId      String?     @unique @map("external_id")
   ownerId         String?     @map("owner_id")
@@ -1721,6 +1740,9 @@ model SalesProspect {
 
   @@index([segment])
   @@index([ownerId])
+  @@index([phoneHash])
+  @@index([email])
+  @@index([source, createdAt])
   @@map("sales_prospects")
 }
 
