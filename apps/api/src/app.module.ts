@@ -29,6 +29,7 @@ import { FinanceFeedModule } from "./finance-feed/finance-feed.module";
 import { ReviewsModule } from "./reviews/reviews.module";
 import { HealthController } from "./common/health.controller";
 import { MetaModule } from "./meta/meta.module";
+import { MetaLeadsModule } from "./meta/meta-leads.module";
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { MetaModule } from "./meta/meta.module";
     ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 120 }]),
     PrismaModule,
     MetaModule,
+    MetaLeadsModule,
     ListingsModule,
     AuthModule,
     FavoritesModule,

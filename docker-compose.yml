@@ -89,6 +89,14 @@ services:
       # (montado em /run/secrets abaixo). Sem os dois, nada é enviado à Meta.
       META_PIXEL_ID: ${NEXT_PUBLIC_META_PIXEL_ID:-}
       META_TEST_EVENT_CODE: ${META_TEST_EVENT_CODE:-}
+      # Lead Ads da Meta (DEPLOY.md, "Lead Ads da Meta"). Só o id da página fica
+      # no .env (não é segredo). Segredo do app, token de verificação do webhook
+      # e token da página ficam em secrets/meta_app_secret,
+      # secrets/meta_webhook_verify_token e secrets/meta_page_token (montados em
+      # /run/secrets abaixo). Sem os arquivos, o webhook responde 404.
+      META_PAGE_ID: ${META_PAGE_ID:-}
+      META_LEADS_SYNC_DISABLED: ${META_LEADS_SYNC_DISABLED:-}
+      META_LEADS_B2B_WORDS: ${META_LEADS_B2B_WORDS:-}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_PUBLIC_URL_BASE: ${S3_PUBLIC_URL_BASE:-}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
