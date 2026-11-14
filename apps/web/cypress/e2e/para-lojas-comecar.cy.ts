@@ -10,7 +10,8 @@ describe("Campanha para lojas: /para-lojas/comecar", () => {
 
   it("mostra a oferta sem prometer resultado e sem itens descontinuados", () => {
     cy.visit("/para-lojas/comecar");
-    cy.contains("h1", /loja|imobili/i);
+    cy.contains("h1", "3 meses grátis");
+    cy.get("main").contains(/lojas de veículos, imobiliárias e corretores/i);
     cy.get("main").should("contain.text", "3 meses grátis");
     cy.get("main").should("contain.text", "Vitrine");
     cy.get("main").should("contain.text", "QR");
@@ -31,7 +32,9 @@ describe("Campanha para lojas: /para-lojas/comecar", () => {
   it("envia o formulário (com origem da campanha) e mostra a confirmação com o botão de criar conta", () => {
     const sufixo = Date.now().toString().slice(-6);
     cy.visit("/para-lojas/comecar?utm_source=meta&utm_medium=paid&utm_campaign=Teste%20Cypress&utm_content=Anuncio%201&utm_term=Publico%20A");
-    cy.getCookie("ns_origem").should("exist").its("value").should("contain", "teste_cypress");
+    // O cookie é gravado depois que a página carrega no navegador; cy.getCookie
+    // não repete a tentativa, document.cookie com .its/.should repete.
+    cy.document().its("cookie").should("contain", "ns_origem=").and("contain", "teste_cypress");
     cy.get('input[name="name"]').type("Maria Teste");
     cy.get('input[name="company"]').type(`Loja Cypress ${sufixo}`);
     cy.get('select[name="businessType"]').select("loja");
