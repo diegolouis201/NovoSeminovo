@@ -33,6 +33,14 @@ describe("Chave do Claude do Marketing", () => {
       ["cancelar", "def", "claude", "Post só sobre cashback"],
     ]);
   });
+  test("excluir pela chave: só com a chave e passa pelo serviço", async () => {
+    const chamadas: unknown[][] = [];
+    const c = new MarketingFeedController({ excluir: async (...a: unknown[]) => void chamadas.push(a) } as never);
+    const key = "Bearer chave-do-marketing-para-testes-com-mais-de-32-caracteres";
+    await assert.rejects(c.excluir("Bearer errada", "abc"), /Chave inválida/);
+    assert.deepEqual(await c.excluir(key, "abc"), { ok: true });
+    assert.deepEqual(chamadas, [["abc"]]);
+  });
 });
 const PNG_1X1 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
@@ -161,6 +169,19 @@ describe("Marketing do Hub (banco local)", { skip: !withDb && "sem DATABASE_URL"
     await mkt.aprovarImpulso(a.id, "u1");
     assert.equal((await mkt.detalhe(a.id)).impulso?.status, "aprovado");
     assert.ok((await mkt.impulsos()).some((x) => x.id === a.id));
+  });
+
+  test("excluir: só conteúdo cancelado sai de vez (com o histórico); os outros são recusados", async () => {
+    const midia = await mkt.salvarMidia({ nome: "arte.png", base64: PNG_1X1 });
+    const vivo = await mkt.criar({ tipo: "post", redes: ["instagram"], titulo: `Vivo ${tag}`, legenda: "x", midias: [midia] }, "claude", "Claude Marketing");
+    await assert.rejects(mkt.excluir(vivo.id), /cancelado/i, "em aprovação não pode excluir");
+    const morto = await mkt.criar({ tipo: "post", redes: ["instagram"], titulo: `Morto ${tag}`, legenda: "x", midias: [midia] }, "claude", "Claude Marketing");
+    await mkt.cancelar(morto.id, "claude", "Fora do modelo de negócios");
+    await mkt.excluir(morto.id);
+    assert.equal(await prisma.mktContent.findUnique({ where: { id: morto.id } }), null);
+    assert.equal(await prisma.mktHistory.count({ where: { contentId: morto.id } }), 0);
+    await assert.rejects(mkt.excluir(morto.id), /não encontrado/i);
+    assert.ok(await prisma.mktContent.findUnique({ where: { id: vivo.id } }), "o outro continua");
   });
 
   test("aprovar todos: aprova de uma vez o que está aguardando e tem data; sem data fica", async () => {

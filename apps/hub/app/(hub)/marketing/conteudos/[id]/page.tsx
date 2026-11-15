@@ -2,7 +2,7 @@ import Link from "next/link";
 import { MKT_REDES } from "@novoseminovo/shared-types";
 import { Decisao, MarcarPublicado, RecolherParaAjuste } from "@/components/MktForms";
 import { Previa } from "@/components/Previa";
-import { atualizarMetricas, cancelarConteudo } from "@/lib/actions";
+import { atualizarMetricas, cancelarConteudo, excluirConteudo } from "@/lib/actions";
 import { exigirMarketing, mkt } from "@/lib/mkt";
 import { dataHora } from "@/lib/format";
 
@@ -59,6 +59,9 @@ export default async function ConteudoDetalhe({ params }: { params: { id: string
           </section>
           {!["publicado", "cancelado"].includes(c.status) ? (
             <form action={cancelarConteudo}><input type="hidden" name="id" value={c.id} /><button className="text-sm text-muted hover:text-danger">Cancelar este conteúdo</button></form>
+          ) : null}
+          {c.status === "cancelado" ? (
+            <form action={excluirConteudo}><input type="hidden" name="id" value={c.id} /><button className="text-sm text-muted hover:text-danger">Excluir de vez (some da lista de cancelados)</button></form>
           ) : null}
         </div>
       </div>

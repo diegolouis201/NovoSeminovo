@@ -159,6 +159,15 @@ export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
     await this.historico(id, "cancelado", userId, motivo?.trim() || undefined);
   }
 
+  // Excluir de vez: só conteúdo cancelado (não foi nem vai ao ar). O
+  // histórico sai junto (cascade); a mídia enviada fica no armazenamento.
+  async excluir(id: string) {
+    const { count } = await this.prisma.mktContent.deleteMany({ where: { id, status: "cancelado" } });
+    if (count === 1) return;
+    await this.carregar(id);
+    throw new BadRequestException("Só dá para excluir conteúdo cancelado. Cancele antes, se for o caso.");
+  }
+
   // Rede sem publicação automática (TikTok, YouTube, e-mail...): marca o link.
   async marcarPublicado(id: string, raw: z.input<typeof MktPublishedInputSchema>, userId: string) {
     const i = MktPublishedInputSchema.parse(raw);

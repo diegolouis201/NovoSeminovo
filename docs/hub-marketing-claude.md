@@ -60,6 +60,11 @@ Base: `https://api.novoseminovo.com.br`, cabeçalho
    de aprovação como nova versão.
 5. **Recolher** um conteúdo que ainda não foi ao ar: `POST /marketing/conteudos/<id>/recolher`
    com `{"acao": "ajuste" | "cancelar", "motivo": "..."}`.
+   **Excluir de vez** um conteúdo **cancelado** (limpar a lista de cancelados):
+   `DELETE /marketing/conteudos/<id>` (mesma chave). Só funciona com status
+   `cancelado` — os outros respondem erro; cancele antes com o `recolher`. O
+   histórico do conteúdo sai junto e não dá para desfazer. No Hub, o mesmo
+   botão aparece no conteúdo cancelado ("Excluir de vez").
 6. **Resultados**: `GET /marketing/resultados` → gastos do mês (Meta, Google,
    TikTok contra o orçamento, custo por cadastro e por assinatura) e análises
    (Instagram, origem das visitas, posts publicados). Use para o relatório e

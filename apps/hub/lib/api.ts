@@ -21,7 +21,7 @@ async function token(): Promise<string> {
   return t;
 }
 
-export async function hubFetch<T>(path: string, init: { method?: "GET" | "POST"; body?: unknown } = {}): Promise<T> {
+export async function hubFetch<T>(path: string, init: { method?: "GET" | "POST" | "DELETE"; body?: unknown } = {}): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: init.method ?? "GET",
     headers: { Authorization: `Bearer ${await token()}`, ...(init.body !== undefined ? { "Content-Type": "application/json" } : {}) },

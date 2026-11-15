@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Headers, HttpException, HttpStatus, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpException, HttpStatus, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import { MktApproveInputSchema, MktBoostRulesSchema, MktBudgetInputSchema, MktProspectImportSchema, MktStrategyInputSchema, MktContentInputSchema, MktMediaInputSchema, MktPublishedInputSchema, MktReviseInputSchema } from "@novoseminovo/shared-types";
@@ -68,6 +68,12 @@ export class MarketingHubController {
   @Post("conteudos/:id/cancelar")
   async cancelar(@CurrentUser() me: Me, @Param("id") id: string) {
     await this.mkt.cancelar(parseOrBadRequest(Id, id), me.id);
+    return { ok: true };
+  }
+
+  @Delete("conteudos/:id")
+  async excluir(@Param("id") id: string) {
+    await this.mkt.excluir(parseOrBadRequest(Id, id));
     return { ok: true };
   }
 
@@ -164,6 +170,7 @@ function assertKey(authorization: string | undefined) {
 //   GET  /marketing/conteudos/:id          detalhe com o pedido de ajuste
 //   POST /marketing/conteudos/:id/revisao  nova versão depois do ajuste
 //   POST /marketing/conteudos/:id/recolher {acao: ajuste|cancelar, motivo}
+//   DELETE /marketing/conteudos/:id        exclui de vez (só se cancelado)
 //   GET  /marketing/resultados             gastos do mês e análises
 @Controller("marketing")
 export class MarketingFeedController {
@@ -209,6 +216,14 @@ export class MarketingFeedController {
     const conteudo = parseOrBadRequest(Id, id);
     if (i.acao === "ajuste") await this.mkt.pedirAjuste(conteudo, i.motivo, "claude");
     else await this.mkt.cancelar(conteudo, "claude", i.motivo);
+    return { ok: true };
+  }
+
+  // Excluir de vez um conteúdo cancelado (limpeza da tela de Conteúdos).
+  @Delete("conteudos/:id")
+  async excluir(@Headers("authorization") a: string | undefined, @Param("id") id: string) {
+    assertKey(a);
+    await this.mkt.excluir(parseOrBadRequest(Id, id));
     return { ok: true };
   }
 

@@ -227,6 +227,14 @@ export async function cancelarConteudo(form: FormData) {
   if (c) await run(() => hubFetch(`/hub/marketing/conteudos/${c}/cancelar`, { method: "POST" }), "", ["/marketing"]);
 }
 
+// Excluir de vez um conteúdo cancelado e voltar para a lista.
+export async function excluirConteudo(form: FormData) {
+  const c = id(txt(form, "id", 40));
+  if (!c) return;
+  const r = await run(() => hubFetch(`/hub/marketing/conteudos/${c}`, { method: "DELETE" }), "", ["/marketing"]);
+  if (!r.erro) redirect("/marketing/conteudos?status=cancelado");
+}
+
 export async function marcarPublicadoManual(_: Resultado, form: FormData): Promise<Resultado> {
   const c = id(txt(form, "id", 40));
   return run(() => hubFetch(`/hub/marketing/conteudos/${c}/publicado`, { method: "POST", body: { rede: txt(form, "rede", 20), link: txt(form, "link", 500) } }), "Marcado como publicado.", ["/marketing"]);
