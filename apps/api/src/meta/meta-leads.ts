@@ -353,6 +353,21 @@ async function graphGet(config: GraphConfig, path: string, params: Record<string
   }
 }
 
+// O arquivo secrets/meta_page_token costuma guardar o token do usuário do
+// sistema (não expira); formulários e leads só saem com o token da própria
+// página, que a Graph devolve para quem tem acesso a ela. Se o salvo já for o
+// da página (ou a troca falhar), devolve undefined e quem chama usa o salvo.
+export async function fetchPageAccessToken(config: GraphConfig, pageId: string): Promise<string | undefined> {
+  if (!/^\d{1,30}$/.test(pageId)) return undefined;
+  try {
+    const body = (await graphGet(config, pageId, { fields: "access_token" })) as { access_token?: unknown };
+    const token = typeof body.access_token === "string" ? body.access_token.trim() : "";
+    return token.length >= 20 && token.length <= 2000 && !/\s/.test(token) ? token : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function fetchLead(config: GraphConfig, leadgenId: string): Promise<GraphLead> {
   if (!/^\d{1,30}$/.test(leadgenId)) throw new MetaGraphError("id de lead inválido");
   const parsed = GraphLeadSchema.safeParse(await graphGet(config, leadgenId, { fields: LEAD_FIELDS }));

@@ -9,6 +9,7 @@ import {
   businessTypeOf,
   fetchFormName,
   fetchLead,
+  fetchPageAccessToken,
   guessInterest,
   isB2BLead,
   listFormLeads,
@@ -38,6 +39,21 @@ export type LeadOutcome = "b2b" | "comprador" | "repetido" | "sem_contato" | "er
 @Injectable()
 export class MetaLeadsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MetaLeadsService.name);
+
+  // Token da página tirado do token salvo (usuário do sistema), guardado por 1h.
+  private pageTokenCache: { key: string; token: string; until: number } | undefined;
+
+  private async graph(config: MetaLeadsConfig, saved: string): Promise<MetaLeadsConfig & { pageToken: string }> {
+    const base = { ...config, pageToken: saved };
+    if (!config.pageId) return base;
+    const key = `${config.pageId}:${saved}`;
+    const cached = this.pageTokenCache;
+    if (cached && cached.key === key && cached.until > Date.now()) return { ...config, pageToken: cached.token };
+    const pageToken = await fetchPageAccessToken(base, config.pageId);
+    if (!pageToken) return base;
+    this.pageTokenCache = { key, token: pageToken, until: Date.now() + 60 * 60 * 1000 };
+    return { ...config, pageToken };
+  }
   private readonly pending = new Set<Promise<unknown>>();
   private timer?: NodeJS.Timeout;
 
@@ -98,7 +114,7 @@ export class MetaLeadsService implements OnModuleInit, OnModuleDestroy {
       return "desligado";
     }
     if (!(await this.claim(leadgenId, hint.pageId, hint.formId))) return "repetido";
-    const graph = { ...config, pageToken: config.pageToken };
+    const graph = await this.graph(config, config.pageToken);
     try {
       const lead = prefetched ?? (await fetchLead(graph, leadgenId));
       const formId = lead.form_id ?? hint.formId;
@@ -182,7 +198,7 @@ export class MetaLeadsService implements OnModuleInit, OnModuleDestroy {
   async syncRecent(now = Date.now()): Promise<{ processed: number }> {
     const config = this.config();
     if (config.syncDisabled || !config.pageToken || !config.pageId) return { processed: 0 };
-    const graph = { ...config, pageToken: config.pageToken };
+    const graph = await this.graph(config, config.pageToken);
     const since = Math.floor((now - SYNC_WINDOW_MS) / 1000);
     let processed = 0;
     const forms = await listPageForms(graph, config.pageId);

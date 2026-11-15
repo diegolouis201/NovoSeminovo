@@ -26,6 +26,10 @@ const APP_SECRET = "segredo-do-app-de-teste-0123456789";
 const VERIFY = "token-de-verificacao-de-teste-abc123";
 const PAGE_TOKEN = "EAApageTokenDeTesteMuitoSecreto987654321";
 const PAGE_ID = "828845163855705";
+// O arquivo secrets/meta_page_token guarda o token do usuário do sistema; a
+// Graph só aceita o token da própria página para ler formulários e leads, que
+// o site pega com ele (GET /{página}?fields=access_token).
+const SYSTEM_TOKEN = "EAAsystemUserTokenDeTesteMuitoSecreto123456";
 
 const sign = (body: string, secret = APP_SECRET) => `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
 const missingFile = () => {
@@ -269,6 +273,7 @@ describe("Lead Ads → CRM (banco local + Graph API falsa)", { skip: !withDb && 
   const phone = (n: number) => `319${seed.slice(-4)}${String(n).padStart(4, "0")}`;
   const env = { ...process.env };
   let server: Server;
+  let pageTokenCalls = 0;
   let failLeads = false;
   const calls: Array<{ url: string; auth?: string }> = [];
   const logs: string[] = [];
@@ -304,6 +309,16 @@ describe("Lead Ads → CRM (banco local + Graph API falsa)", { skip: !withDb && 
       const url = new URL(req.url ?? "/", "http://x");
       calls.push({ url: req.url ?? "", auth: req.headers.authorization });
       res.setHeader("Content-Type", "application/json");
+      if (url.pathname === `/v23.0/${PAGE_ID}` && url.searchParams.get("fields") === "access_token") {
+        pageTokenCalls += 1;
+        if (req.headers.authorization === `Bearer ${SYSTEM_TOKEN}`) return res.end(JSON.stringify({ access_token: PAGE_TOKEN, id: PAGE_ID }));
+        res.statusCode = 400;
+        return res.end(JSON.stringify({ error: { message: "only system users", type: "OAuthException", code: 100 } }));
+      }
+      if (req.headers.authorization === `Bearer ${SYSTEM_TOKEN}`) {
+        res.statusCode = 403;
+        return res.end(JSON.stringify({ error: { message: "page token required", type: "OAuthException", code: 200 } }));
+      }
       if (req.headers.authorization !== `Bearer ${PAGE_TOKEN}`) {
         res.statusCode = 401;
         return res.end(JSON.stringify({ error: { message: "bad token", type: "OAuthException", code: 190 } }));
@@ -330,7 +345,7 @@ describe("Lead Ads → CRM (banco local + Graph API falsa)", { skip: !withDb && 
       NODE_ENV: "test",
       META_APP_SECRET: APP_SECRET,
       META_WEBHOOK_VERIFY_TOKEN: VERIFY,
-      META_PAGE_TOKEN: PAGE_TOKEN,
+      META_PAGE_TOKEN: SYSTEM_TOKEN,
       META_APP_SECRET_FILE: "/nao/existe",
       META_WEBHOOK_VERIFY_TOKEN_FILE: "/nao/existe",
       META_PAGE_TOKEN_FILE: "/nao/existe",
@@ -386,7 +401,8 @@ describe("Lead Ads → CRM (banco local + Graph API falsa)", { skip: !withDb && 
     assert.match(card.hubTasks[0]!.title, /lead de campanha/i);
     // token no cabeçalho, nunca na URL
     assert.ok(calls.length > 0);
-    assert.ok(calls.every((c) => !c.url.includes(PAGE_TOKEN) && !c.url.includes("access_token")));
+    // token só no cabeçalho, nunca no endereço (fields=access_token é o nome do campo pedido)
+    assert.ok(calls.every((c) => !c.url.includes(PAGE_TOKEN) && !c.url.includes(SYSTEM_TOKEN) && !/[?&]access_token=/.test(c.url)));
     assert.ok(calls.some((c) => c.url.startsWith(`/v23.0/${leadId(1)}?`) && c.url.includes("field_data")));
     const row = await prisma.metaLeadgen.findUniqueOrThrow({ where: { leadgenId: leadId(1) } });
     assert.equal(row.status, "done");
@@ -515,6 +531,28 @@ describe("Lead Ads → CRM (banco local + Graph API falsa)", { skip: !withDb && 
     assert.equal(davi.name, "Davi Corretor", "sem empresa: o card leva o nome da pessoa");
     // segunda rodada: nada novo
     assert.equal((await s.syncRecent()).processed, 0);
+  });
+
+  test("token do usuário do sistema: pega o token da página uma vez e usa ele; o salvo já sendo da página também serve", async () => {
+    pageTokenCalls = 0;
+    lead(8, "9001", [field("full_name", "Eva Lojista"), field("email", `eva-${tag}@teste.local`), field("company_name", `Eva Motors ${tag}`)], { campaign_name: `Lojas ${tag}` });
+    formLeads.set("9001", [leadId(8)]);
+    formLeads.set("9002", []);
+    formLeads.set("9003", []);
+    const s = service();
+    assert.equal((await s.syncRecent()).processed, 1);
+    assert.ok(pageTokenCalls >= 1, "trocou o token do usuário do sistema pelo da página");
+    assert.ok(!calls.some((c) => c.auth === `Bearer ${SYSTEM_TOKEN}` && !c.url.startsWith(`/v23.0/${PAGE_ID}?`)), "formulários e leads só com o token da página");
+    const before = pageTokenCalls;
+    await s.syncRecent();
+    assert.equal(pageTokenCalls, before, "token da página guardado entre as rodadas");
+    assert.ok(!logs.some((l) => l.includes(SYSTEM_TOKEN) || l.includes(PAGE_TOKEN)));
+    // salvo já é o token da página: a troca falha e ele é usado direto
+    process.env.META_PAGE_TOKEN = PAGE_TOKEN;
+    lead(9, "9001", [field("full_name", "Fábio Lojista"), field("email", `fabio-${tag}@teste.local`), field("company_name", `Fabio Car ${tag}`)], { campaign_name: `Lojas ${tag}` });
+    formLeads.set("9001", [leadId(8), leadId(9)]);
+    assert.equal((await service().syncRecent()).processed, 1);
+    process.env.META_PAGE_TOKEN = SYSTEM_TOKEN;
   });
 
   test("rotina desligada sem configuração ou com META_LEADS_SYNC_DISABLED=1", async () => {
