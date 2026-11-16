@@ -355,3 +355,11 @@ export async function salvarSeguidoresJornada(_: Resultado, form: FormData): Pro
   const valor = Number(bruto.replace(/\./g, ""));
   return run(() => hubFetch("/hub/jornada/seguidores", { method: "POST", body: { rede, valor } }), "Salvo.", ["/jornada"]);
 }
+
+// SEO (Search Console): o dono força a leitura, ignorando o cache de 6 horas.
+// A API limita a uma vez a cada 5 minutos.
+export async function atualizarSeo(_: Resultado, form: FormData): Promise<Resultado> {
+  const dias = Number(txt(form, "dias", 3));
+  if (![7, 28, 90].includes(dias)) return { erro: "Período inválido." };
+  return run(() => hubFetch("/hub/seo/atualizar", { method: "POST", body: { dias } }), "Dados atualizados.", ["/marketing/seo"]);
+}

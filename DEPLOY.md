@@ -336,6 +336,67 @@ conta do Instagram precisa ser profissional e estar ligada à página do
 Facebook. Enquanto isso o painel tenta o Windsor e, sem ele, mostra o
 último número guardado (ou o que você digitar).
 
+## Search Console no Hub (Hub → Marketing → SEO)
+
+A tela **SEO** do Hub mostra cliques, impressões, CTR e posição média das
+buscas do Google (7, 28 ou 90 dias, contra o período anterior), as buscas
+"quase na página 1", as principais buscas e páginas e os guias. Os números
+vêm do Google Search Console por uma **conta de serviço** do Google (um
+"robô" só de leitura). Enquanto não estiver configurado, a tela explica o que
+falta (não dá erro).
+
+**1. Google Cloud (uma vez):**
+
+1. Entre em https://console.cloud.google.com e escolha o projeto
+   "NovoSeminovo" (o mesmo da chave do YouTube serve).
+2. Menu ☰ → **APIs e serviços** → **Biblioteca** → procure
+   **Google Search Console API** → **Ativar**.
+3. Menu ☰ → **IAM e administrador** → **Contas de serviço** →
+   **+ Criar conta de serviço** → nome `hub-seo` → **Concluir** (não precisa
+   dar papel nenhum no projeto).
+4. Clique na conta criada → aba **Chaves** → **Adicionar chave** →
+   **Criar nova chave** → **JSON** → **Criar**. O navegador baixa um arquivo
+   `.json`. Guarde-o: ele é a senha do robô (não mande por chat nem e-mail).
+5. Copie o e-mail da conta (algo como
+   `hub-seo@novoseminovo-123456.iam.gserviceaccount.com`).
+
+**2. Search Console (uma vez):** em https://search.google.com/search-console
+escolha a propriedade **novoseminovo.com.br** → **Configurações** →
+**Usuários e permissões** → **Adicionar usuário** → cole o e-mail do passo 5
+→ permissão **Restrita** → **Adicionar**.
+
+**3. Enviar o arquivo para o servidor.** No Windows, abra o **PowerShell**
+e rode (troque o caminho pelo do arquivo baixado; ele pede a senha do
+servidor):
+
+```powershell
+scp "C:\caminho\arquivo.json" root@177.153.68.113:~/NovoSeminovo/secrets/gsc_service_account
+```
+
+**4. No servidor**, proteja e confira o arquivo:
+
+```sh
+chmod 600 ~/NovoSeminovo/secrets/gsc_service_account && grep -c '"type": "service_account"' ~/NovoSeminovo/secrets/gsc_service_account
+```
+
+O certo é aparecer `1`. Depois diga qual é a propriedade no `.env` e
+reinicie a API:
+
+```sh
+cd ~/NovoSeminovo && grep -q '^GSC_SITE=' .env && sed -i 's/^GSC_SITE=.*/GSC_SITE=sc-domain:novoseminovo.com.br/' .env || echo 'GSC_SITE=sc-domain:novoseminovo.com.br' >> .env
+docker compose up -d api
+```
+
+Abra o Hub → Marketing → **SEO**. Os números ficam guardados por 6 horas;
+o botão **Atualizar** (só o dono) busca de novo, no máximo uma vez a cada 5
+minutos. O Google leva 2 a 3 dias para fechar os números, por isso o período
+termina 3 dias antes de hoje.
+
+Se aparecer "HTTP 403": falta o passo 2 (usuário Restrito na propriedade) ou
+a API do passo 1.2 não foi ativada. "invalid_grant": o arquivo não é o da
+chave atual (crie outra chave e repita o passo 3). Para trocar a chave, basta
+repetir os passos 3 e 4.
+
 ## Antivírus (opcional, ClamAV)
 
 Toda imagem enviada já é conferida pelo tipo real (bytes, não pela extensão),

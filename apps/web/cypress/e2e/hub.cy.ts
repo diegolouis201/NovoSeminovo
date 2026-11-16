@@ -102,6 +102,15 @@ describe("NovoSeminovo Hub", { baseUrl: "http://localhost:3100" }, () => {
     cy.contains("section", "Redes sociais").contains("tr", "LinkedIn").contains(/digitado em \d{2}\/\d{2}/);
     cy.contains("a", "Clientes").click();
     cy.contains("h2", "Marcos de clientes");
+    // SEO (Search Console): sem a chave no servidor, a tela explica como ligar.
+    cy.visit("/marketing/seo");
+    cy.contains("h1", "SEO");
+    cy.get("aside").contains("a", "SEO");
+    cy.contains("Search Console ainda não está ligado");
+    cy.contains("GSC_SITE");
+    cy.contains("a", "90 dias").click();
+    cy.location("search").should("eq", "?dias=90");
+    cy.contains("Search Console ainda não está ligado");
     cy.contains("tr", "Primeira centena").contains("R$ 20.000,00");
     for (const [rota, titulo] of [["/financeiro", "Painel de indicadores"], ["/financeiro/extrato", "Extrato"], ["/financeiro/fluxo", "Fluxo de caixa"], ["/financeiro/dre", "DRE"]]) {
       cy.visit(rota);

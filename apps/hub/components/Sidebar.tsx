@@ -23,6 +23,7 @@ import {
   Funnel,
   House,
   List,
+  MagnifyingGlass,
   Receipt,
   Ruler,
   SignOut,
@@ -77,6 +78,7 @@ export function Sidebar({ name, profile, permissions, badges, sair }: { name: st
         { href: "/marketing/compradores", label: "Leads de compradores", icon: UserList, need: ["marketing", "crm.ver"] },
         { href: "/marketing/gastos", label: "Gastos e orçamento", icon: Coins, need: "marketing" },
         { href: "/marketing/analises", label: "Análises", icon: ChartBar, need: "marketing" },
+        { href: "/marketing/seo", label: "SEO", icon: MagnifyingGlass, need: "marketing" },
       ],
     },
     {

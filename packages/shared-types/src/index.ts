@@ -3304,3 +3304,4 @@ export * from "./consentimento-credito";
 export * from "./creditas-termo";
 export * from "./jornada";
 export * from "./fipe";
+export * from "./seo";

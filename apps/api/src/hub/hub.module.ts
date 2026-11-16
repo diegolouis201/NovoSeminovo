@@ -12,10 +12,12 @@ import { BuyerLeadsService } from "./compradores.service";
 import { JornadaController } from "./jornada.controller";
 import { JornadaService } from "./jornada.service";
 import { SeguidoresService } from "./jornada-seguidores.service";
+import { SeoController } from "./seo.controller";
+import { SeoService } from "./seo.service";
 
 @Module({
   imports: [AuthModule, CrmModule],
-  controllers: [HubController, FinanceiroController, MarketingHubController, MarketingFeedController, JornadaController],
-  providers: [HubService, BuyerLeadsService, HubGuard, FinanceiroService, MarketingHubService, JornadaService, SeguidoresService],
+  controllers: [HubController, FinanceiroController, MarketingHubController, MarketingFeedController, JornadaController, SeoController],
+  providers: [HubService, BuyerLeadsService, HubGuard, FinanceiroService, MarketingHubService, JornadaService, SeguidoresService, SeoService],
 })
 export class HubModule {}
