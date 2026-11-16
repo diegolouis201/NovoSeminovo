@@ -77,6 +77,23 @@ describe("NovoSeminovo Hub", { baseUrl: "http://localhost:3100" }, () => {
       cy.visit(rota);
       cy.contains("h1", titulo);
     }
+    // Jornada: marcos com as duas leituras e premissas que o dono edita.
+    cy.visit("/jornada");
+    cy.contains("h1", "Jornada");
+    cy.get("aside").contains("Jornada");
+    cy.contains("Receita mensal atual");
+    cy.contains("tr", "R$ 10.000,00").contains("50");
+    cy.get("#ticketMedio").clear().type("250");
+    cy.contains("button", "Salvar premissas").click();
+    cy.contains("Premissas salvas.");
+    cy.reload();
+    cy.contains("tr", "R$ 10.000,00").contains("40");
+    cy.get("#ticketMedio").clear().type("200");
+    cy.contains("button", "Salvar premissas").click();
+    cy.contains("Premissas salvas.");
+    cy.contains("a", "Clientes").click();
+    cy.contains("h2", "Marcos de clientes");
+    cy.contains("tr", "Primeira centena").contains("R$ 20.000,00");
     for (const [rota, titulo] of [["/financeiro", "Painel de indicadores"], ["/financeiro/extrato", "Extrato"], ["/financeiro/fluxo", "Fluxo de caixa"], ["/financeiro/dre", "DRE"]]) {
       cy.visit(rota);
       cy.contains("h1", titulo);

@@ -28,6 +28,7 @@ import {
   SignOut,
   Star,
   Table,
+  Trophy,
   UploadSimple,
   UserList,
   UsersThree,
@@ -41,7 +42,12 @@ export function Sidebar({ name, profile, permissions, badges, sair }: { name: st
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const groups: { title?: string; items: Item[] }[] = [
-    { items: [{ href: "/", label: "Início", icon: House, need: "crm.ver" }] },
+    {
+      items: [
+        { href: "/", label: "Início", icon: House, need: "crm.ver" },
+        { href: "/jornada", label: "Jornada", icon: Trophy },
+      ],
+    },
     {
       title: "Vendas",
       items: [

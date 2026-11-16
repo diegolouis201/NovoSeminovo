@@ -322,3 +322,24 @@ export async function novoConteudo(_: Resultado, form: FormData): Promise<Result
   revalidatePath("/marketing", "layout");
   return { ok: "Conteúdo criado e enviado para aprovação." };
 }
+
+// Jornada: premissas (estimativas) do dono. "1.200" = mil e duzentos;
+// "2.5" ou "2,5" = dois e meio. A API valida as faixas de novo (zod).
+const numeroBr = (s: string) => {
+  const v = s.replace(/R\$|\s|×|x/gi, "");
+  if (!v) return Number.NaN;
+  if (v.includes(",")) return Number(v.replace(/\./g, "").replace(",", "."));
+  if (/^\d{1,3}(\.\d{3})+$/.test(v)) return Number(v.replace(/\./g, ""));
+  return Number(v);
+};
+export async function salvarJornada(_: Resultado, form: FormData): Promise<Resultado> {
+  const n = (k: string) => numeroBr(txt(form, k, 20));
+  const body = {
+    ticketMedio: n("ticketMedio"),
+    multiploValuation: n("multiploValuation"),
+    seguidoresPorCliente: { instagram: n("instagram"), facebook: n("facebook"), tiktok: n("tiktok"), youtube: n("youtube"), linkedin: n("linkedin") },
+  };
+  const valores = [body.ticketMedio, body.multiploValuation, ...Object.values(body.seguidoresPorCliente)];
+  if (valores.some((v) => !Number.isFinite(v))) return { erro: "Preencha todos os campos com números." };
+  return run(() => hubFetch("/hub/jornada/premissas", { method: "POST", body }), "Premissas salvas.", ["/jornada"]);
+}
