@@ -6,14 +6,12 @@ import { Suspense, useEffect, useState } from "react";
 import { CONSENT_COOKIE } from "@novoseminovo/shared-types";
 import { MetaPixel } from "@/components/MetaPixel";
 import { META_PIXEL_ID } from "@/lib/meta-pixel";
-import { CONSENT_STORAGE_KEY } from "@/lib/consent";
+import { CONSENT_STORAGE_KEY, type Consent } from "@/lib/consent";
 
 // Google Analytics 4 do NovoSeminovo. ID público (vai no HTML de qualquer
 // jeito) — NEXT_PUBLIC_GA_ID troca sem mexer no código.
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID ?? "G-S75ZFMVLXE";
 const CONSENT_KEY = CONSENT_STORAGE_KEY;
-
-type Consent = "granted" | "denied";
 
 // Cookie de estatística não é essencial pro site funcionar — pela LGPD e
 // pela orientação da ANPD sobre cookies, só carrega depois do "Aceitar".
@@ -43,14 +41,24 @@ function saveConsent(value: Consent) {
   }
 }
 
-export function Analytics() {
+// serverChoice: escolha que o servidor leu no cookie (lib/consent.ts). Só
+// decide se o aviso vem no HTML; o que libera Analytics/Pixel continua sendo a
+// escolha guardada neste navegador, lida depois de carregar.
+export function Analytics({ serverChoice }: { serverChoice?: Consent }) {
   const [consent, setConsent] = useState<Consent | undefined>();
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     const saved = readConsent();
     if (saved) mirrorConsent(saved);
     setConsent(saved);
+    setChecked(true);
   }, []);
+
+  // Antes de ler o navegador: aviso no HTML para quem o servidor não sabe a
+  // escolha (aparece na primeira pintura, sem esperar o JavaScript). Depois:
+  // aviso para quem não escolheu neste navegador.
+  const showBanner = checked ? !consent : !serverChoice;
 
   function choose(value: Consent) {
     saveConsent(value);
@@ -78,13 +86,10 @@ gtag('config', '${GA_ID}');`}
         </Suspense>
       )}
 
-      {/* Vem no HTML do servidor (não espera o JavaScript para aparecer, ver
-          globals.css); some assim que a escolha é lida ou feita. */}
-      {!consent && (
+      {showBanner && (
         <div
           role="dialog"
           aria-label="Aviso de cookies"
-          data-cookie-banner=""
           className="fixed inset-x-2 bottom-20 z-50 mx-auto max-w-xl rounded-brand border border-border bg-surface-raised p-4 shadow-pop sm:bottom-4"
         >
           <p className="text-sm text-ink">

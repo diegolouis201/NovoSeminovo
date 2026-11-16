@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import localFont from "next/font/local";
 import "./globals.css";
 import { SITE_URL } from "@/lib/company";
@@ -16,7 +16,8 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { VerticalProvider } from "@/components/ActiveVertical";
 import { JsonLd } from "@/components/JsonLd";
 import { siteJsonLd } from "@/lib/geo";
-import { CONSENT_HEAD_SCRIPT } from "@/lib/consent";
+import { parseConsent } from "@/lib/consent";
+import { CONSENT_COOKIE } from "@novoseminovo/shared-types";
 
 // Placeholder tipográfico até a Valken Regular (fonte institucional original)
 // chegar como arquivo — ver README do design system (Etapa 4). Arquivos
@@ -67,13 +68,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const inApp = /NovoSeminovoApp/.test(headers().get("user-agent") ?? "");
 
   return (
-    // suppressHydrationWarning: o script do <head> põe data-cookie-consent no
-    // <html> antes de o React assumir a página.
-    <html lang="pt-BR" className={`${display.variable} ${sans.variable}`} suppressHydrationWarning>
-      <head>
-        {/* Texto fixo, sem dado de usuário (lib/consent.ts). */}
-        <script dangerouslySetInnerHTML={{ __html: CONSENT_HEAD_SCRIPT }} />
-      </head>
+    <html lang="pt-BR" className={`${display.variable} ${sans.variable}`}>
       <body className="flex min-h-screen flex-col font-sans">
         {/* Quem é o site (Organization) e a busca (WebSite) — uma vez só, para buscadores e assistentes de IA. */}
         <JsonLd data={siteJsonLd()} />
@@ -84,7 +79,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SiteFooter />
         {/* Espaço para o menu fixo do app não cobrir o fim da página. */}
         {inApp && <div aria-hidden className="h-16 shrink-0" />}
-        <Analytics />
+        <Analytics serverChoice={parseConsent(cookies().get(CONSENT_COOKIE)?.value)} />
         {/* Link de afiliado (?ref=) e origem da visita — useSearchParams pede Suspense no layout. */}
         <Suspense fallback={null}>
           <ReferralCapture />

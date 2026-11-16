@@ -128,10 +128,29 @@ describe("Aviso de cookies no HTML, antes do JavaScript (item 3)", () => {
     cy.request("/busca").its("body").should("contain", 'aria-label="Aviso de cookies"');
   });
 
-  it("quem já escolheu não vê o aviso, nem por um instante", () => {
+  it("quem já escolheu (cookie ns_consent) recebe o HTML sem o aviso, sem script no <head>", () => {
+    ["denied", "granted"].forEach((value) => {
+      cy.request({ url: "/busca", headers: { Cookie: `ns_consent=${value}` } }).its("body").should("not.contain", 'aria-label="Aviso de cookies"');
+    });
+    // Valor estranho no cookie não esconde o aviso.
+    cy.request({ url: "/busca", headers: { Cookie: "ns_consent=talvez" } }).its("body").should("contain", 'aria-label="Aviso de cookies"');
+    cy.request("/busca").its("body").should("not.contain", "data-cookie-consent");
+  });
+
+  it("quem já escolheu não vê o aviso depois que a página carrega", () => {
     // O suporte do Cypress grava "denied" antes de a página carregar.
     cy.visit("/busca");
-    cy.get('[aria-label="Aviso de cookies"]').should("not.be.visible");
+    cy.get('[aria-label="Aviso de cookies"]').should("not.exist");
+  });
+
+  it("cookie de escolha sem a escolha no navegador: o aviso volta (nada carrega sem resposta)", () => {
+    cy.setCookie("ns_consent", "granted");
+    cy.visit("/busca", {
+      onBeforeLoad(win) {
+        win.localStorage.removeItem("ns-cookie-consent");
+      },
+    });
+    cy.get('[aria-label="Aviso de cookies"]').should("be.visible");
   });
 
   it("sem escolha: aviso aparece e Aceitar/Recusar continuam funcionando", () => {

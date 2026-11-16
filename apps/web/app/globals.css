@@ -146,11 +146,3 @@ dialog::backdrop {
   overflow: hidden;
   overscroll-behavior: contain;
 }
-
-/* Aviso de cookies vem pronto no HTML (aparece na primeira pintura, sem
-   esperar o JavaScript); quem já escolheu tem o atributo abaixo, posto por um
-   script curto no <head> antes de pintar (ver lib/consent.ts), e não vê o
-   aviso nem por um instante. */
-html[data-cookie-consent] [data-cookie-banner] {
-  display: none;
-}
