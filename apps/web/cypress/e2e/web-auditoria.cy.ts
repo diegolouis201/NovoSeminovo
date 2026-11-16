@@ -247,7 +247,7 @@ describe("Janela de Termos do anunciar (item 9)", () => {
     price: "300000", iptu: "", condoFee: "", financingEnabled: true, showPhone: false, phone: "", planTier: "free",
   };
 
-  it("abre como <dialog> modal, Esc fecha e o foco volta ao botão; links em nova aba são seguros", () => {
+  it("abre como <dialog> modal, fecha sem publicar (Voltar ou Esc) e o foco volta ao botão; links em nova aba são seguros", () => {
     cy.loginAs(SELLER.email, SELLER.password);
     cy.visit("/anunciar?tipo=property", {
       onBeforeLoad(win) {
@@ -263,16 +263,28 @@ describe("Janela de Termos do anunciar (item 9)", () => {
       });
     advance();
 
-    cy.get("dialog[open]").should("be.visible").and("not.have.attr", "role").then(($dialog) => {
+    // Asserções separadas: "not.have.attr" troca o objeto da cadeia por undefined.
+    cy.get("dialog[open]").should("be.visible");
+    cy.get("dialog[open]").should("not.have.attr", "role");
+    cy.get("dialog[open]").should(($dialog) => {
       expect(($dialog[0] as HTMLDialogElement).matches(":modal"), "aberta com showModal()").to.eq(true);
     });
     cy.get("dialog[open]").within(() => {
       cy.get('a[target="_blank"]').should("have.length", 2).each(($a) => expect($a.attr("rel")).to.contain("noopener").and.contain("noreferrer"));
     });
     cy.focused().closest("dialog").should("exist");
-    cy.get("body").type("{esc}");
+    // "Voltar" fecha e o foco volta ao botão que abriu a janela.
+    cy.get("dialog[open]").contains("button", "Voltar").click();
     cy.get("dialog[open]").should("not.exist");
     cy.focused().should("contain.text", "Publicar anúncio");
+    // Esc: o navegador fecha o <dialog> sem escolha (returnValue vazio). O
+    // Cypress não aperta teclas de verdade (Esc sintético não fecha
+    // <dialog>), então fechamos do mesmo jeito que o Esc fecha: vale "Voltar",
+    // nada é publicado.
+    cy.contains("button", "Publicar anúncio").click();
+    cy.get("dialog[open]").then(($dialog) => ($dialog[0] as HTMLDialogElement).close());
+    cy.get("dialog[open]").should("not.exist");
+    cy.location("pathname").should("eq", "/anunciar");
   });
 });
 
