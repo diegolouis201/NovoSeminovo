@@ -280,6 +280,62 @@ São três segredos, cada um num arquivo (nunca no `.env`, no GitHub ou em chat)
 - **Desligar tudo**: `rm ~/NovoSeminovo/secrets/meta_app_secret` (o webhook
   volta a responder "não encontrado").
 
+## Seguidores da Jornada (Hub → Jornada → Redes sociais)
+
+O painel mostra os seguidores de cada rede. De onde vem cada número:
+
+| Rede | Como chega | O que configurar |
+|---|---|---|
+| Facebook | sozinho, pela Meta (a cada 6 horas) | nada além do Lead Ads (seção acima) |
+| Instagram | sozinho, pela Meta; se a Meta recusar, pelo Windsor | token com as permissões abaixo |
+| YouTube | sozinho, pela API do YouTube | chave + canal (passos abaixo) |
+| TikTok e LinkedIn | **digitado por você** no próprio painel | nada: atualize toda semana |
+
+Em qualquer rede você pode digitar o número (campo "nº hoje" + **Salvar**, só
+aparece para o dono). Quando a leitura automática funciona, ela passa por
+cima do número digitado; ao lado do número aparece "automático" ou
+"digitado em dd/mm".
+
+**YouTube (uma vez):**
+
+1. Entre em https://console.cloud.google.com com a conta Google do canal.
+   No topo, escolha (ou crie) um projeto, ex.: "NovoSeminovo".
+2. Menu ☰ → **APIs e serviços** → **Biblioteca** → procure
+   **YouTube Data API v3** → **Ativar**.
+3. Menu ☰ → **APIs e serviços** → **Credenciais** → **+ Criar credenciais** →
+   **Chave de API**. Copie a chave que aparecer (começa com `AIza`).
+4. Na mesma tela, clique na chave criada → **Restrições de API** →
+   **Restringir chave** → marque só **YouTube Data API v3** → **Salvar**.
+5. No servidor, guarde a chave num arquivo (nunca no `.env` nem em chat):
+   ```sh
+   cd ~/NovoSeminovo && umask 077 && mkdir -p secrets && chmod 700 secrets && nano secrets/youtube_api_key
+   ```
+   Cole, salve (**Ctrl+O**, **Enter**, **Ctrl+X**) e limpe/confira:
+   ```sh
+   cd ~/NovoSeminovo && tr -d ' \t\r\n' < secrets/youtube_api_key > secrets/youtube_api_key.novo && mv secrets/youtube_api_key.novo secrets/youtube_api_key && chmod 600 secrets/youtube_api_key && wc -c < secrets/youtube_api_key && head -c 4 secrets/youtube_api_key; echo
+   ```
+   O certo: `39` e `AIza`.
+6. Diga qual é o canal no `.env` (o @ do endereço youtube.com/@... do canal):
+   ```sh
+   cd ~/NovoSeminovo && grep -q '^YOUTUBE_CHANNEL=' .env && sed -i 's/^YOUTUBE_CHANNEL=.*/YOUTUBE_CHANNEL=@novoseminovooficial/' .env || echo 'YOUTUBE_CHANNEL=@novoseminovooficial' >> .env
+   docker compose up -d api
+   ```
+   Também vale o id do canal (`UC...`). Em até 6 horas (ou ao abrir a
+   Jornada, se passou 1 hora da última leitura) o número aparece. O YouTube
+   arredonda o total (ex.: 1.230 em vez de 1.234); se o canal esconde o
+   número de inscritos, a API não informa e fica "—" (digite à mão).
+
+**Instagram:** a leitura direta pela Meta usa o mesmo token da página do Lead
+Ads (`secrets/meta_page_token`). Se o painel mostrar o aviso laranja "A Meta
+recusou a leitura do Instagram", gere de novo o token do usuário do sistema
+(business.facebook.com → Configurações do negócio → Usuários do sistema →
+Gerar token) marcando também **`instagram_basic`**,
+**`instagram_manage_insights`** e **`pages_read_engagement`** (além das que
+já estavam), e troque o arquivo com os comandos do passo 3 do Lead Ads. A
+conta do Instagram precisa ser profissional e estar ligada à página do
+Facebook. Enquanto isso o painel tenta o Windsor e, sem ele, mostra o
+último número guardado (ou o que você digitar).
+
 ## Antivírus (opcional, ClamAV)
 
 Toda imagem enviada já é conferida pelo tipo real (bytes, não pela extensão),

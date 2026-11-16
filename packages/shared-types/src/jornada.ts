@@ -52,6 +52,14 @@ export const JORNADA_PREMISSAS_PADRAO: JornadaPremissas = {
 };
 export const JORNADA_REDES_LISTA = REDES;
 
+// Número de seguidores digitado no Hub (só o dono). Vale para qualquer rede;
+// leitura automática que funcione passa por cima.
+export const JornadaSeguidoresManualSchema = z.object({
+  rede: z.enum(REDES as [JornadaRede, ...JornadaRede[]], { errorMap: () => ({ message: "Rede inválida" }) }),
+  valor: numero().int("Use um número inteiro").min(0, "Use um número de 0 a 1.000.000.000").max(1_000_000_000, "Use um número de 0 a 1.000.000.000"),
+}).strict();
+export type JornadaSeguidoresManual = z.infer<typeof JornadaSeguidoresManualSchema>;
+
 export type JornadaStatus = "conquistado" | "proximo" | "futuro";
 export type JornadaMarco = {
   nivel: number;
@@ -71,14 +79,20 @@ export type JornadaMarco = {
   progressoSeguidores?: Record<JornadaRede, number | null>;
 };
 
-// Seguidores de hoje de uma rede, lidos sozinhos pelo Hub (Windsor.ai e Graph
-// API da Meta). Se a fonte cair, fica o último valor guardado (aoVivo false)
-// com a data em atualizadoEm. variacao30d compara com o ponto do histórico de
-// 30 dias atrás ou mais (desde = dia desse ponto); null sem histórico.
+// Seguidores de hoje de uma rede: lidos sozinhos pelo Hub (Instagram e
+// Facebook pela Graph da Meta, YouTube pela YouTube Data API) ou digitados
+// pelo dono (origem "manual"). Se a fonte cair, fica o último valor guardado
+// (aoVivo false) com a data em atualizadoEm. variacao30d compara com o ponto
+// do histórico de 30 dias atrás ou mais (desde = dia desse ponto); null sem
+// histórico. fonteAutomatica = a rede tem leitura automática configurada;
+// aviso = problema de configuração a mostrar no painel (sem segredo).
 export type JornadaRedeAtual = {
   valor: number | null;
   atualizadoEm: string | null;
   aoVivo: boolean;
+  origem: "automatico" | "manual" | null;
+  fonteAutomatica: boolean;
+  aviso: string | null;
   variacao30d: number | null;
   variacao30dPct: number | null;
   desde: string | null;

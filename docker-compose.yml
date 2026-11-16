@@ -97,6 +97,9 @@ services:
       META_PAGE_ID: ${META_PAGE_ID:-}
       META_LEADS_SYNC_DISABLED: ${META_LEADS_SYNC_DISABLED:-}
       META_LEADS_B2B_WORDS: ${META_LEADS_B2B_WORDS:-}
+      # Seguidores do YouTube na Jornada do Hub (DEPLOY.md, "Seguidores da
+      # Jornada"). A chave fica em secrets/youtube_api_key (montado abaixo).
+      YOUTUBE_CHANNEL: ${YOUTUBE_CHANNEL:-}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_PUBLIC_URL_BASE: ${S3_PUBLIC_URL_BASE:-}
       S3_ENDPOINT: ${S3_ENDPOINT:-}

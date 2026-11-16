@@ -25,7 +25,7 @@ import { JORNADA_REDES, JORNADA_REDES_LISTA, type HubJornada, type JornadaMarco,
 import { Form } from "@/components/Form";
 import { Cabecalho, Kpi, Secao } from "@/components/ui";
 import { hubFetch } from "@/lib/api";
-import { salvarJornada } from "@/lib/actions";
+import { salvarJornada, salvarSeguidoresJornada } from "@/lib/actions";
 import { me } from "@/lib/crm";
 import { brl, brlCurto } from "@/lib/format";
 
@@ -46,6 +46,13 @@ function Crescimento({ rede }: { rede: JornadaRedeAtual }) {
   const cor = v > 0 ? "text-green" : v < 0 ? "text-danger" : "text-muted";
   const pct = rede.variacao30dPct === null ? "" : ` (${v > 0 ? "+" : ""}${dec(rede.variacao30dPct)}%)`;
   return <span className={`font-semibold ${cor}`}>{`${v > 0 ? "+" : ""}${int(v)}${pct}`}</span>;
+}
+
+// De onde veio o número de hoje: leitura automática ou digitado pelo dono.
+function Origem({ rede }: { rede: JornadaRedeAtual }) {
+  if (rede.valor === null || !rede.atualizadoEm) return null;
+  const texto = rede.origem === "manual" ? `digitado em ${diaMes(rede.atualizadoEm)}` : rede.aoVivo ? "automático" : `automático · atualizado em ${diaMes(rede.atualizadoEm)}`;
+  return <span className="block whitespace-nowrap text-[11px] text-muted">{texto}</span>;
 }
 
 export default async function Jornada({ searchParams }: { searchParams: { aba?: string } }) {
@@ -165,7 +172,7 @@ export default async function Jornada({ searchParams }: { searchParams: { aba?: 
       </Secao>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Secao titulo="Redes sociais">
+        <Secao titulo="Redes sociais" className={podeEditar ? "xl:col-span-2" : undefined}>
           <p className="mb-3 text-xs text-muted">Meta de seguidores = clientes do marco × seguidores por cliente (estimativa).</p>
           <div className="overflow-x-auto">
             <table className="tabela">
@@ -177,6 +184,7 @@ export default async function Jornada({ searchParams }: { searchParams: { aba?: 
                   <th className="text-right">Hoje</th>
                   <th className="text-right">% da meta</th>
                   <th className="text-right">30 dias</th>
+                  {podeEditar ? <th className="text-right">Digitar número</th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -187,25 +195,40 @@ export default async function Jornada({ searchParams }: { searchParams: { aba?: 
                     <td className="text-right">{proximo ? int(proximo.seguidores[r]) : "—"}</td>
                     <td className="text-right">
                       {j.atual.redes[r].valor === null ? "—" : int(j.atual.redes[r].valor!)}
-                      {j.atual.redes[r].valor !== null && !j.atual.redes[r].aoVivo && j.atual.redes[r].atualizadoEm ? (
-                        <span className="block text-[11px] text-muted">atualizado em {diaMes(j.atual.redes[r].atualizadoEm!)}</span>
-                      ) : null}
+                      <Origem rede={j.atual.redes[r]} />
                     </td>
                     <td className="text-right">{proximo?.progressoSeguidores?.[r] == null ? "—" : `${proximo.progressoSeguidores[r]}%`}</td>
                     <td className="text-right">
                       <Crescimento rede={j.atual.redes[r]} />
                     </td>
+                    {podeEditar ? (
+                      <td className="text-right">
+                        <Form action={salvarSeguidoresJornada} botao="Salvar" className="flex items-center justify-end gap-2 whitespace-nowrap">
+                          <input type="hidden" name="rede" value={r} />
+                          <label className="sr-only" htmlFor={`seg-${r}`}>Seguidores no {JORNADA_REDES[r]} hoje</label>
+                          <input id={`seg-${r}`} name="valor" inputMode="numeric" pattern="[0-9.]*" maxLength={13} required placeholder="nº hoje" className="input w-28" />
+                        </Form>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {JORNADA_REDES_LISTA.some((r) => j.atual.redes[r].valor === null) ? (
+          {JORNADA_REDES_LISTA.filter((r) => j.atual.redes[r].aviso).map((r) => (
+            <p key={r} role="alert" className="mt-2 rounded-lg border border-orange/50 bg-orange/10 p-2 text-xs text-danger">
+              {JORNADA_REDES[r]}: {j.atual.redes[r].aviso}
+            </p>
+          ))}
+          {JORNADA_REDES_LISTA.some((r) => !j.atual.redes[r].fonteAutomatica) ? (
             <p className="mt-2 text-xs text-muted">
-              {JORNADA_REDES_LISTA.filter((r) => j.atual.redes[r].valor === null).map((r) => JORNADA_REDES[r]).join(", ")}: conecte a conta no Windsor para o número aparecer aqui.
+              {JORNADA_REDES_LISTA.filter((r) => !j.atual.redes[r].fonteAutomatica).map((r) => JORNADA_REDES[r]).join(", ")}: sem leitura automática.{" "}
+              {podeEditar ? "Digite o número aqui (atualize toda semana)." : "O dono digita o número aqui (toda semana)."}
             </p>
           ) : null}
-          <p className="mt-1 text-xs text-muted">Seguidores lidos sozinhos a cada 6 horas. &quot;30 dias&quot; compara com o número guardado há 30 dias (aparece quando houver esse histórico).</p>
+          <p className="mt-1 text-xs text-muted">
+            Leitura automática a cada 6 horas (Facebook e Instagram pela Meta, YouTube pelo Google). Quando ela funciona, passa por cima do número digitado. &quot;30 dias&quot; compara com o número guardado há 30 dias (aparece quando houver esse histórico).
+          </p>
         </Secao>
 
         <Secao titulo="Premissas">

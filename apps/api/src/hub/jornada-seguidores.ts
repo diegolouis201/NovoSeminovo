@@ -4,7 +4,10 @@ import { JORNADA_REDES_LISTA, type JornadaRede, type JornadaRedeAtual } from "@n
 // Seguidores das redes na Jornada do Hub: regras puras (testes em
 // jornada-seguidores.spec.ts). O serviço (jornada-seguidores.service.ts) lê
 // as fontes e guarda o estado em mkt_settings:
-//   "jornada_seguidores"           {rede: {valor, em}}  último valor bom;
+//   "jornada_seguidores"           {rede: {valor, em, origem}} último valor
+//                                   bom (origem "automatico" ou "manual" =
+//                                   digitado pelo dono; sem origem = antigo,
+//                                   automático);
 //   "jornada_seguidores_historico" {rede: [{dia, valor}]} um ponto por dia,
 //                                   no máximo 400 dias.
 
@@ -13,7 +16,8 @@ export const HISTORICO_DIAS = 400;
 
 const Contagem = z.number().int().nonnegative().max(1e12);
 const Dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const LeituraSchema = z.object({ valor: Contagem, em: z.string().datetime() });
+export type Origem = "automatico" | "manual";
+const LeituraSchema = z.object({ valor: Contagem, em: z.string().datetime(), origem: z.enum(["automatico", "manual"]).optional() });
 const PontoSchema = z.object({ dia: Dia, valor: Contagem });
 const porRede = <T extends z.ZodTypeAny>(item: T) =>
   z.object(Object.fromEntries(JORNADA_REDES_LISTA.map((r) => [r, item.optional().catch(undefined)])) as Record<JornadaRede, z.ZodCatch<z.ZodOptional<T>>>);
@@ -21,7 +25,7 @@ export const AtualSchema = porRede(LeituraSchema);
 export const HistoricoSchema = porRede(z.array(PontoSchema).max(HISTORICO_DIAS * 2));
 
 export type SeguidoresEstado = {
-  atual: Partial<Record<JornadaRede, { valor: number; em: string }>>;
+  atual: Partial<Record<JornadaRede, { valor: number; em: string; origem?: Origem }>>;
   historico: Partial<Record<JornadaRede, Array<{ dia: string; valor: number }>>>;
 };
 export const ESTADO_VAZIO: SeguidoresEstado = Object.freeze({ atual: Object.freeze({}), historico: Object.freeze({}) }) as SeguidoresEstado;
@@ -40,31 +44,39 @@ export function diaBrasil(d: Date): string {
 }
 
 // Nova leitura: vira o último valor bom e o ponto do dia (um por dia; a
-// leitura mais nova do dia substitui a anterior). Não altera a entrada.
-export function registrarLeitura(estado: SeguidoresEstado, rede: JornadaRede, valor: number, agora: Date): SeguidoresEstado {
+// leitura mais nova do dia substitui a anterior, venha de onde vier). Não
+// altera a entrada.
+export function registrarLeitura(estado: SeguidoresEstado, rede: JornadaRede, valor: number, agora: Date, origem: Origem = "automatico"): SeguidoresEstado {
   const dia = diaBrasil(agora);
   const limite = diaBrasil(new Date(agora.getTime() - (HISTORICO_DIAS - 1) * DAY_MS));
   const pontos = (estado.historico[rede] ?? []).filter((p) => p.dia !== dia && p.dia >= limite);
   pontos.push({ dia, valor });
   pontos.sort((a, b) => a.dia.localeCompare(b.dia));
   return {
-    atual: { ...estado.atual, [rede]: { valor, em: agora.toISOString() } },
+    atual: { ...estado.atual, [rede]: { valor, em: agora.toISOString(), origem } },
     historico: { ...estado.historico, [rede]: pontos.slice(-HISTORICO_DIAS) },
   };
 }
 
 // O que a tela mostra de uma rede. aoVivo = lida agora (false = fonte fora
-// do ar ou desligada; mostra o último valor guardado com a data).
-export function resumoRede(estado: SeguidoresEstado, rede: JornadaRede, hoje: Date, aoVivo: boolean): JornadaRedeAtual {
+// do ar ou desligada; mostra o último valor guardado com a data). Número
+// digitado nunca é "ao vivo".
+export function resumoRede(estado: SeguidoresEstado, rede: JornadaRede, hoje: Date, aoVivo: boolean, extra: { fonteAutomatica?: boolean; aviso?: string | null } = {}): JornadaRedeAtual {
   const ultimo = estado.atual[rede];
-  if (!ultimo) return { valor: null, atualizadoEm: null, aoVivo: false, variacao30d: null, variacao30dPct: null, desde: null };
+  const fonteAutomatica = extra.fonteAutomatica ?? false;
+  const aviso = extra.aviso ?? null;
+  if (!ultimo) return { valor: null, atualizadoEm: null, aoVivo: false, origem: null, fonteAutomatica, aviso, variacao30d: null, variacao30dPct: null, desde: null };
+  const origem = ultimo.origem ?? "automatico";
   const corte = diaBrasil(new Date(hoje.getTime() - 30 * DAY_MS));
   const base = (estado.historico[rede] ?? []).filter((p) => p.dia <= corte).at(-1);
   const variacao = base ? ultimo.valor - base.valor : null;
   return {
     valor: ultimo.valor,
     atualizadoEm: ultimo.em,
-    aoVivo,
+    aoVivo: aoVivo && origem === "automatico",
+    origem,
+    fonteAutomatica,
+    aviso,
     variacao30d: variacao,
     variacao30dPct: base && base.valor > 0 && variacao !== null ? Math.round((variacao / base.valor) * 1000) / 10 : null,
     desde: base?.dia ?? null,

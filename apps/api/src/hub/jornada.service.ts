@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { JORNADA_PREMISSAS_PADRAO, JornadaPremissasSchema, type HubJornada, type JornadaPremissas } from "@novoseminovo/shared-types";
+import { JORNADA_PREMISSAS_PADRAO, JornadaPremissasSchema, type HubJornada, type JornadaPremissas, type JornadaRede, type JornadaRedeAtual } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { montarJornada } from "./jornada-regras";
 import { SeguidoresService } from "./jornada-seguidores.service";
@@ -26,6 +26,10 @@ export class JornadaService {
     await this.prisma.mktSetting.upsert({ where: { chave: CHAVE }, create: { chave: CHAVE, valor }, update: { valor } });
   }
 
+  salvarSeguidoresManual(rede: JornadaRede, valor: number): Promise<JornadaRedeAtual> {
+    return this.seguidores.registrarManual(rede, valor);
+  }
+
   // Valor estragado ou antigo no banco não derruba a tela: volta ao padrão.
   private async premissasSalvas(): Promise<JornadaPremissas | null> {
     const row = await this.prisma.mktSetting.findUnique({ where: { chave: CHAVE } });
@@ -40,7 +44,8 @@ export class JornadaService {
   //   últimos 30 dias.
   // Clientes pagantes seguem a mesma regra: empresas com assinatura paga
   // ativa + particulares (pessoas diferentes) que pagaram plano em 30 dias.
-  // Seguidores vêm do SeguidoresService (Windsor.ai e Graph da Meta); rede
+  // Seguidores vêm do SeguidoresService (Graph da Meta, YouTube, Windsor como
+  // reserva do Instagram, ou digitados pelo dono); rede
   // sem número fica vazia (a tela mostra "—"), nunca inventada.
   private async numerosReais() {
     const since30 = new Date(Date.now() - 30 * DAY_MS);

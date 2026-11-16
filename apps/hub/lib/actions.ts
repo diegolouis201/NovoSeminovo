@@ -343,3 +343,15 @@ export async function salvarJornada(_: Resultado, form: FormData): Promise<Resul
   if (valores.some((v) => !Number.isFinite(v))) return { erro: "Preencha todos os campos com números." };
   return run(() => hubFetch("/hub/jornada/premissas", { method: "POST", body }), "Premissas salvas.", ["/jornada"]);
 }
+
+// Jornada: número de seguidores digitado pelo dono. "1.520" ou "1520" =
+// mil quinhentos e vinte (seguidor é inteiro). A API valida rede e faixa (zod).
+const REDES_JORNADA = ["instagram", "facebook", "tiktok", "youtube", "linkedin"];
+export async function salvarSeguidoresJornada(_: Resultado, form: FormData): Promise<Resultado> {
+  const rede = txt(form, "rede", 20);
+  const bruto = txt(form, "valor", 20).replace(/\s/g, "");
+  if (!REDES_JORNADA.includes(rede)) return { erro: "Rede inválida." };
+  if (!/^\d{1,3}(\.\d{3})+$|^\d{1,10}$/.test(bruto)) return { erro: "Digite só o número inteiro (ex.: 1520)." };
+  const valor = Number(bruto.replace(/\./g, ""));
+  return run(() => hubFetch("/hub/jornada/seguidores", { method: "POST", body: { rede, valor } }), "Salvo.", ["/jornada"]);
+}

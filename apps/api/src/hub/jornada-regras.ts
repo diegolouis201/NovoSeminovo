@@ -26,7 +26,7 @@ export type JornadaNumerosReais = {
   redes?: Partial<Record<JornadaRede, JornadaRedeAtual>>;
 };
 
-const REDE_VAZIA: JornadaRedeAtual = { valor: null, atualizadoEm: null, aoVivo: false, variacao30d: null, variacao30dPct: null, desde: null };
+const REDE_VAZIA: JornadaRedeAtual = { valor: null, atualizadoEm: null, aoVivo: false, origem: null, fonteAutomatica: false, aviso: null, variacao30d: null, variacao30dPct: null, desde: null };
 
 const cents = (v: number) => Math.round(v * 100) / 100;
 // Tira o ruído de ponto flutuante antes de arredondar para cima

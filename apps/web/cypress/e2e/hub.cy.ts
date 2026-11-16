@@ -91,6 +91,14 @@ describe("NovoSeminovo Hub", { baseUrl: "http://localhost:3100" }, () => {
     cy.get("#ticketMedio").clear().type("200");
     cy.contains("button", "Salvar premissas").click();
     cy.contains("Premissas salvas.");
+    // Seguidores digitados pelo dono (rede sem leitura automática).
+    cy.contains("Digite o número aqui (atualize toda semana)");
+    cy.get("#seg-linkedin").type("1.234");
+    cy.get("#seg-linkedin").parents("form").contains("button", "Salvar").click();
+    cy.contains("Salvo.");
+    cy.reload();
+    cy.contains("tr", "LinkedIn").contains("1.234");
+    cy.contains("tr", "LinkedIn").contains(/digitado em \d{2}\/\d{2}/);
     cy.contains("a", "Clientes").click();
     cy.contains("h2", "Marcos de clientes");
     cy.contains("tr", "Primeira centena").contains("R$ 20.000,00");

@@ -379,6 +379,17 @@ export async function fetchPageFollowers(config: GraphConfig, pageId: string): P
   return undefined;
 }
 
+// Seguidores do Instagram profissional ligado à página (Jornada do Hub).
+// Precisa das permissões instagram_basic (+ pages_read_engagement) no token;
+// sem elas a Graph responde OAuthException. undefined = página sem Instagram
+// ligado ou número ausente.
+export async function fetchInstagramFollowers(config: GraphConfig, pageId: string): Promise<number | undefined> {
+  if (!/^\d{1,30}$/.test(pageId)) throw new MetaGraphError("id de página inválido");
+  const body = (await graphGet(config, pageId, { fields: "instagram_business_account{followers_count,username}" })) as { instagram_business_account?: { followers_count?: unknown } };
+  const v = body?.instagram_business_account?.followers_count;
+  return typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : undefined;
+}
+
 export async function fetchLead(config: GraphConfig, leadgenId: string): Promise<GraphLead> {
   if (!/^\d{1,30}$/.test(leadgenId)) throw new MetaGraphError("id de lead inválido");
   const parsed = GraphLeadSchema.safeParse(await graphGet(config, leadgenId, { fields: LEAD_FIELDS }));
