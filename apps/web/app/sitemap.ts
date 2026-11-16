@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/company";
+import { allGuidePaths } from "@/lib/guias";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -43,6 +44,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${SITE_URL}${page.path === "/" ? "" : page.path}`,
       changeFrequency: page.changeFrequency,
       priority: page.priority,
+    })),
+    ...allGuidePaths().map((path) => ({
+      url: `${SITE_URL}${path}`,
+      changeFrequency: "monthly" as const,
+      priority: path.split("/").length > 3 ? 0.6 : 0.5,
     })),
     ...storefronts.map((storefront) => ({
       url: `${SITE_URL}/lojas/${storefront.slug}`,

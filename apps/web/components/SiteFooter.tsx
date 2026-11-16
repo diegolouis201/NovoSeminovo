@@ -11,6 +11,7 @@ const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/quem-somos", label: "Quem somos" },
       { href: "/como-funciona", label: "Como funciona" },
       { href: "/perguntas-frequentes", label: "Perguntas frequentes" },
+      { href: "/guia", label: "Guias" },
       { href: "/contato", label: "Contato" },
     ],
   },
