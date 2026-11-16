@@ -3299,3 +3299,4 @@ export const MktBudgetInputSchema = z.object({ mes: z.string().regex(/^\d{4}-(0[
 export * from "./vitrine";
 export * from "./consentimento-credito";
 export * from "./creditas-termo";
+export * from "./jornada";
