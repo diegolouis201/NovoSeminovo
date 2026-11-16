@@ -369,6 +369,13 @@ export function listingBenefits(listing: { partnerId: string | null; planTier: s
   return listing.partnerId ? PARTNER_LISTING_TIER : listingTier(listing.planTier);
 }
 
+// FIPE do cadastro, só para veículo e só quando positiva.
+function fipePriceOf(listing: ListingWithDetails): number | undefined {
+  if (listing.type !== "vehicle" || !listing.vehicleDetails?.fipePrice) return undefined;
+  const fipe = Number(listing.vehicleDetails.fipePrice);
+  return Number.isFinite(fipe) && fipe > 0 ? fipe : undefined;
+}
+
 export function toListingDetail(
   listing: ListingWithDetails,
   reviewStatus: ListingDetail["reviewStatus"],
@@ -423,6 +430,7 @@ export function toListingDetail(
     isPartnerListing: Boolean(listing.partnerId),
     hiddenPhotosCount: fullView && hiddenPhotosCount > 0 ? hiddenPhotosCount : undefined,
     financingEnabled: listing.financingEnabled,
+    fipePrice: fipePriceOf(listing),
     finalidade: listing.propertyDetails ? (listing.propertyDetails.purpose === "rent" ? "aluguel" : "venda") : undefined,
     financing: {
       price: formatBRL(price),

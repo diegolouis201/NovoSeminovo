@@ -310,6 +310,9 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
   // Vídeo do YouTube (só o id, pra montar o player) e se o vendedor liberou
   // a simulação/contato de financiamento no anúncio.
   youtubeVideoId: z.string().optional(),
+  // Valor da tabela FIPE guardado no cadastro do anúncio de veículo (não é
+  // dado pessoal). O site compara com o preço (ver referenciaFipe em fipe.ts).
+  fipePrice: z.number().optional(),
   financingEnabled: z.boolean(),
   // Imóvel: venda ou aluguel (Vitrine do imóvel: "VENDE-SE" / "ALUGA-SE").
   finalidade: z.enum(["venda", "aluguel"]).optional(),
@@ -3300,3 +3303,4 @@ export * from "./vitrine";
 export * from "./consentimento-credito";
 export * from "./creditas-termo";
 export * from "./jornada";
+export * from "./fipe";

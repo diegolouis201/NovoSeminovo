@@ -340,6 +340,11 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - Canonical também em `/`, `/carros`, `/imoveis`, `/assistente-compra` (ganhou título/descrição), `/termos`, `/privacidade`.
    - `/quem-somos`: seção "O que é o NovoSeminovo" com `PLATFORM_FACTS`.
    - Teste: `cypress/e2e/geo.cy.ts`.
+50. **Referência FIPE no anúncio (16/11/2026)** — cumpre a promessa do guia 1 ("Preço de referência FIPE no anúncio").
+   - API: `ListingDetail.fipePrice` (número, só veículo com FIPE > 0; `fipePriceOf` em `listings.mapper.ts`). A linha "FIPE" da ficha continua na API (os agentes leem).
+   - shared-types `fipe.ts`: `referenciaFipe(preço, fipe)` → "x% abaixo"/"x% acima"/"na média" (±3%, diferença sobre a FIPE, uma casa decimal).
+   - Site: `components/FipeReference.tsx` logo abaixo do preço em `/anuncio/[id]` (só veículo), com link para veiculos.fipe.org.br (`noopener noreferrer`); a ficha esconde a linha "FIPE" quando o bloco aparece.
+   - Testes: `apps/api/src/listings/fipe-referencia.spec.ts` e `cypress/e2e/fipe-anuncio.cy.ts`. Precisa rebuild de API e site.
 
 ## Pendências e dívidas conhecidas (não esquecer)
 

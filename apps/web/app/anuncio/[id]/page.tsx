@@ -14,6 +14,7 @@ import { CreditasSimulator } from "@/components/CreditasSimulator";
 import { MarkVertical } from "@/components/ActiveVertical";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";
+import { FipeReference } from "@/components/FipeReference";
 import { ListingContactCard } from "@/components/ListingContactCard";
 import { PhotoCarousel } from "@/components/PhotoCarousel";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
@@ -230,6 +231,9 @@ export default async function ListingDetailPage({
                 </Link>
               )}
             </div>
+            {listing.assetType === "vehicle" && (
+              <FipeReference price={listing.financing.priceValue} fipePrice={listing.fipePrice} />
+            )}
             <div className="flex flex-wrap items-center gap-2">
               {/* Vitrine: o anúncio em card (Instagram/WhatsApp) e cartaz para imprimir. */}
               <Link
@@ -246,7 +250,8 @@ export default async function ListingDetailPage({
           </div>
 
           <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-brand border border-border bg-surface-raised p-4 sm:grid-cols-3">
-            {listing.specs.map((spec) => (
+            {/* Com o bloco de Referência FIPE acima, a ficha não repete a FIPE. */}
+            {listing.specs.filter((spec) => !(listing.fipePrice && spec.label === "FIPE")).map((spec) => (
               <div key={spec.label}>
                 <dt className="text-xs text-ink-muted">{spec.label}</dt>
                 <dd className="text-sm font-semibold text-ink">{spec.value}</dd>
