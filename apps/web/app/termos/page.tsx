@@ -5,6 +5,7 @@ import { COMPANY, CORBAN, LEGAL_UPDATED_AT } from "@/lib/company";
 export const metadata: Metadata = {
   title: "Termos de Uso — NovoSeminovo",
   description: "Regras de uso do NovoSeminovo para compradores, anunciantes e parceiros.",
+  alternates: { canonical: "/termos" },
 };
 
 function H2({ children }: { children: string }) {

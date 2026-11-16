@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero, Section } from "@/components/marketing/PageHero";
 import { COMPANY, CORBAN } from "@/lib/company";
+import { PLATFORM_FACTS } from "@/lib/geo";
 
 export const metadata: Metadata = {
   title: "Quem somos",
@@ -40,6 +41,16 @@ export default function AboutPage() {
       <PageHero eyebrow="Quem somos" title="Simplificar mercados, aproximar pessoas">
         Transformar decisões importantes em escolhas mais seguras e conscientes.
       </PageHero>
+
+      {/* Fatos do site em lista curta (os mesmos do /llms.txt, lib/geo.ts) — é o
+          trecho que buscadores e assistentes de IA citam. */}
+      <Section title="O que é o NovoSeminovo">
+        <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-base leading-relaxed text-ink">
+          {PLATFORM_FACTS.map((fact) => (
+            <li key={fact}>{fact}</li>
+          ))}
+        </ul>
+      </Section>
 
       {/* Texto do Diego (fundador) — manter como ele escreveu; mudanças só com ele. */}
       <Section title="Nossa história">

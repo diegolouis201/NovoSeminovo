@@ -39,6 +39,9 @@ export type Guide = {
   publishedAt: string;
 };
 
+/** Última revisão do conteúdo dos guias (dateModified na marcação). Mudou um guia? Atualize. */
+export const GUIDES_UPDATED_AT = "2026-11-16";
+
 export const GUIDE_DISCLAIMER =
   "Conteúdo informativo. Regras de Detran e cartório mudam de estado para estado: confira no órgão do seu estado.";
 

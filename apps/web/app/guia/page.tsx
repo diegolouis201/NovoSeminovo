@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, GuideCard, GuideDisclaimer } from "@/components/guias/GuideParts";
-import { JsonLd } from "@/components/guias/JsonLd";
+import { JsonLd } from "@/components/JsonLd";
 import { SITE_URL } from "@/lib/company";
 import { GUIDE_TOPICS, guidesOfTopic, topicUrl } from "@/lib/guias";
 

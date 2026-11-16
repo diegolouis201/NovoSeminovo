@@ -4,6 +4,7 @@ import { VerticalHome } from "@/components/VerticalHome";
 export const metadata: Metadata = {
   title: "Carros — NovoSeminovo",
   description: "Compre e venda carros com histórico, chat e simulação de financiamento.",
+  alternates: { canonical: "/carros" },
 };
 
 export default function CarrosPage() {

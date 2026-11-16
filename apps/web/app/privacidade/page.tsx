@@ -5,6 +5,7 @@ import { COMPANY, CORBAN, LEGAL_UPDATED_AT } from "@/lib/company";
 export const metadata: Metadata = {
   title: "Política de Privacidade — NovoSeminovo",
   description: "Como o NovoSeminovo coleta, usa, compartilha e protege seus dados pessoais, conforme a LGPD.",
+  alternates: { canonical: "/privacidade" },
 };
 
 function H2({ id, children }: { id?: string; children: string }) {

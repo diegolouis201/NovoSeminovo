@@ -3,10 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { Breadcrumbs, GuideDisclaimer } from "@/components/guias/GuideParts";
-import { JsonLd } from "@/components/guias/JsonLd";
+import { JsonLd } from "@/components/JsonLd";
 import { RichText, plainText } from "@/components/guias/RichText";
 import { COMPANY, SITE_URL } from "@/lib/company";
-import { GUIDES, findGuide, findTopic, guideUrl, resolveLink, topicUrl, type Guide, type GuideTopic } from "@/lib/guias";
+import { ORGANIZATION_ID, LOGO_URL } from "@/lib/geo";
+import { GUIDES, GUIDES_UPDATED_AT, findGuide, findTopic, guideUrl, resolveLink, topicUrl, type Guide, type GuideTopic } from "@/lib/guias";
 
 // Só os guias da lista fixa (lib/guias.ts): qualquer outro endereço é 404.
 export const dynamicParams = false;
@@ -31,13 +32,15 @@ export function generateMetadata({ params }: Params): Metadata {
       description: guide.description,
       url,
       publishedTime: guide.publishedAt,
+      modifiedTime: GUIDES_UPDATED_AT,
     },
   };
 }
 
 function structuredData(guide: Guide, topic: GuideTopic) {
   const url = `${SITE_URL}${guideUrl(guide)}`;
-  const publisher = { "@type": "Organization", name: COMPANY.brand, url: SITE_URL, logo: `${SITE_URL}/icon.png` };
+  // Mesma Organization do layout (lib/geo.ts), ligada pelo @id.
+  const publisher = { "@type": "Organization", "@id": ORGANIZATION_ID, name: COMPANY.brand, url: SITE_URL, logo: LOGO_URL };
   return [
     {
       "@context": "https://schema.org",
@@ -46,7 +49,7 @@ function structuredData(guide: Guide, topic: GuideTopic) {
       description: guide.description,
       inLanguage: "pt-BR",
       datePublished: guide.publishedAt,
-      dateModified: guide.publishedAt,
+      dateModified: GUIDES_UPDATED_AT,
       mainEntityOfPage: url,
       url,
       author: { "@type": "Organization", name: COMPANY.brand, url: SITE_URL },

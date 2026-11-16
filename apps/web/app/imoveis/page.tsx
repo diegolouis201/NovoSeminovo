@@ -4,6 +4,7 @@ import { VerticalHome } from "@/components/VerticalHome";
 export const metadata: Metadata = {
   title: "Imóveis — NovoSeminovo",
   description: "Compre e venda imóveis com histórico, chat e simulação de financiamento.",
+  alternates: { canonical: "/imoveis" },
 };
 
 export default function ImoveisPage() {

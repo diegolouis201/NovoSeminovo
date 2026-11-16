@@ -328,9 +328,18 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
 48. **Guias de SEO, fase 1 (16/11/2026, texto do marketing revisado pelo Diego)** — seção pública "Guias" no site, só front (sem API, sem banco).
    - Conteúdo fixo em `apps/web/lib/guias.ts` (5 guias, 3 temas; `**negrito**` vira `<strong>` em `components/guias/RichText.tsx`, nunca HTML cru). Mudar texto = mudar esse arquivo e refazer o build do site.
    - Rotas: `/guia` (todos), `/guia/comprar-carro-usado`, `/guia/vender-carro`, `/guia/comprar-imovel` (índices) e os guias `/guia/comprar-carro-usado/como-evitar-golpe`, `/guia/vender-carro/documentos`, `/guia/comprar-carro-usado/como-avaliar`, `/guia/comprar-imovel/matricula-atualizada`, `/guia/comprar-imovel/golpes`. `generateStaticParams` + `dynamicParams = false`: qualquer outro endereço em `/guia/...` dá 404.
-   - Cada guia: title/description do PDF, canonical, Open Graph (`article`), JSON-LD Article + FAQPage + BreadcrumbList (`components/guias/JsonLd.tsx`, `<` escapado), aviso "Conteúdo informativo. Regras de Detran e cartório mudam…", Resposta rápida, seções, perguntas frequentes, chamada com botão e "Leia também" ("Guia N" resolvido para a URL real em `resolveLink`).
+   - Cada guia: title/description do PDF, canonical, Open Graph (`article`), JSON-LD Article + FAQPage + BreadcrumbList (`components/JsonLd.tsx`, `<` escapado), aviso "Conteúdo informativo. Regras de Detran e cartório mudam…", Resposta rápida, seções, perguntas frequentes, chamada com botão e "Leia também" ("Guia N" resolvido para a URL real em `resolveLink`).
    - Ajustes aprovados sobre o PDF: selo verificado "(empresa conferida pela nossa equipe)" nos guias 1 e 5; guia 3 "veja as opções de financiamento no próprio anúncio"; o link `/carros/suv` (não existe) virou `/busca?assetType=vehicle&bodyType=suv` (filtro real da busca).
    - Sitemap (`app/sitemap.ts`, `allGuidePaths()`) e link "Guias" no rodapé. Teste: `cypress/e2e/guias.cy.ts`.
+49. **GEO: site legível para assistentes de IA (16/11/2026)** — só front (sem API, sem banco); escopo nacional, sem cashback/Passaporte.
+   - Fonte única dos fatos: `apps/web/lib/geo.ts` (`SITE_SUMMARY`, `PLATFORM_FACTS`, `siteJsonLd()`, `buildLlmsTxt()`). Só fatos que já estavam no site; fato novo sobre a empresa só depois do Diego confirmar.
+   - `app/robots.ts`: `*` e, pelo nome, Googlebot, Bingbot, GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-User, Claude-SearchBot, PerplexityBot, Google-Extended e Applebot-Extended liberados, cada grupo repetindo as áreas privadas (`PRIVATE_PATHS`, as mesmas de antes); linha do sitemap.
+   - `/llms.txt` (`app/llms.txt/route.ts`, texto puro, gerado no build, cache 1h): resumo, fatos, empresa e parceira de crédito, links para as páginas públicas; os guias saem de `lib/guias.ts` (guia novo entra sozinho).
+   - Layout: JSON-LD Organization (nome, razão social, CNPJ em `taxID`, logo `/marca/novoseminovo-logo.png`, `sameAs` = redes do rodapé, `areaServed` Brasil) + WebSite com busca (`/busca?q=`), uma vez só (`components/JsonLd.tsx`, `<` escapado). O `publisher` dos guias aponta para a mesma Organization (`@id`).
+   - Datas: `GUIDES_UPDATED_AT` em `lib/guias.ts` (dateModified dos guias; mudou um guia, atualize); perguntas frequentes com `FAQ_PUBLISHED_AT`/`FAQ_UPDATED_AT` na própria página.
+   - Canonical também em `/`, `/carros`, `/imoveis`, `/assistente-compra` (ganhou título/descrição), `/termos`, `/privacidade`.
+   - `/quem-somos`: seção "O que é o NovoSeminovo" com `PLATFORM_FACTS`.
+   - Teste: `cypress/e2e/geo.cy.ts`.
 
 ## Pendências e dívidas conhecidas (não esquecer)
 

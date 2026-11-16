@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Car, House } from "@phosphor-icons/react/dist/ssr";
 import { PropertyProfileAssistant } from "@/components/PropertyProfileAssistant";
@@ -15,6 +16,12 @@ const COPY = {
       "O imóvel ideal nem sempre é o maior — às vezes vale abrir mão de espaço por uma localização melhor, perto do trabalho, com menos trânsito. Responde algumas perguntas rápidas sobre sua situação financeira e a gente te ajuda a decidir.",
   },
 } as const;
+
+export const metadata: Metadata = {
+  title: "Assistente de compra",
+  description: "Responda perguntas rápidas e descubra o carro ou o imóvel que cabe no seu orçamento.",
+  alternates: { canonical: "/assistente-compra" },
+};
 
 export default function AssistenteCompraPage({ searchParams }: { searchParams: { tipo?: string } }) {
   const assetType = searchParams.tipo === "property" ? "property" : "vehicle";

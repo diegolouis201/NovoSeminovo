@@ -11,6 +11,11 @@ export const metadata: Metadata = {
 
 type Faq = { q: string; a: string };
 
+// Datas na marcação (dateModified): página criada em 21/10/2026; mudou uma
+// resposta, atualize FAQ_UPDATED_AT.
+const FAQ_PUBLISHED_AT = "2026-10-21";
+const FAQ_UPDATED_AT = "2026-11-09";
+
 const GROUPS: { title: string; items: Faq[] }[] = [
   {
     title: "Comprar",
@@ -84,6 +89,9 @@ export default function FaqPage() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
+    inLanguage: "pt-BR",
+    datePublished: FAQ_PUBLISHED_AT,
+    dateModified: FAQ_UPDATED_AT,
     mainEntity: GROUPS.flatMap((group) =>
       group.items.map((item) => ({ "@type": "Question", name: item.q, acceptedAnswer: { "@type": "Answer", text: item.a } })),
     ),
