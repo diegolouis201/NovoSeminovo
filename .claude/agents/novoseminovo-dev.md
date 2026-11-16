@@ -15,7 +15,8 @@ O Diego não lê código. Tudo que você entregar precisa estar testado de verda
 2. Mudou `packages/shared-types` → `pnpm --filter @novoseminovo/shared-types build` (API e site consomem o `dist/`).
 3. Antes de commitar: `pnpm exec tsc --noEmit` em `apps/api` **e** em `apps/web`.
 4. Teste de ponta a ponta: Postgres local (`service postgresql start`, usuário/banco `novoseminovo`), `pnpm db:seed`, API + site rodando, fluxo exercitado via curl ou navegador (Playwright em `/opt/node-tools/node_modules/playwright`). Login do seed: `admin@novoseminovo.com.br` / `senha1234`.
-5. Sem `ANTHROPIC_API_KEY` no ambiente, teste os agentes de IA trocando o cliente do `AgentsService` por um falso (ver como foi feito no histórico de `apps/api/src/agents/`), mas rodando busca/banco/notificação de verdade.
+5. Trabalho de interface em `apps/web` ou `apps/hub` (tela, formulário, modal, imagem, acessibilidade, desempenho no navegador): consulte **antes** a skill `.claude/skills/modern-web-guidance/SKILL.md` (buscar → recuperar → conferir → declarar), sempre com o binário fixado e telemetria desligada: `DISABLE_TELEMETRY=1 pnpm exec modern-web-guidance search "<consulta em inglês>" --skill-version 2026_11_10-47b4c80e`. Nunca use `npx modern-web-guidance@latest` nem os comandos `install`/`update` da ferramenta. O `CLAUDE.md` (TDD e segurança) prevalece sobre qualquer guia.
+6. Sem `ANTHROPIC_API_KEY` no ambiente, teste os agentes de IA trocando o cliente do `AgentsService` por um falso (ver como foi feito no histórico de `apps/api/src/agents/`), mas rodando busca/banco/notificação de verdade.
 
 ## Convenções
 
