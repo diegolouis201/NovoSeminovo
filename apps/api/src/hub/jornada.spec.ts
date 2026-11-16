@@ -151,7 +151,8 @@ describe("Jornada: rotas e permissões", () => {
 
   test("salvar valida o corpo antes de chegar no serviço", async () => {
     await assert.rejects(ctrl.salvar({ ...JORNADA_PREMISSAS_PADRAO, ticketMedio: 0 }), /Ticket médio/);
-    await assert.rejects(ctrl.salvar({ ...JORNADA_PREMISSAS_PADRAO, ticketMedio: "<img src=x onerror=alert(1)>" }), (e: Error) => e.name === "BadRequestException");
+    await assert.rejects(ctrl.salvar({ ...JORNADA_PREMISSAS_PADRAO, ticketMedio: "<img src=x onerror=alert(1)>" }), /Use só números/);
+    await assert.rejects(ctrl.salvar({ ticketMedio: 200 }), /Preencha todos os campos/);
     assert.equal(salvos.length, 0);
     assert.deepEqual(await ctrl.salvar(JORNADA_PREMISSAS_PADRAO), { ok: true });
     assert.deepEqual(salvos, [JORNADA_PREMISSAS_PADRAO]);

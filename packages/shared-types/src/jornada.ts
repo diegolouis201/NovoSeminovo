@@ -36,10 +36,11 @@ export const JORNADA_REDES = { instagram: "Instagram", facebook: "Facebook", tik
 export type JornadaRede = keyof typeof JORNADA_REDES;
 const REDES = Object.keys(JORNADA_REDES) as JornadaRede[];
 
-const Razao = z.number().finite().min(0, "Use um número de 0 a 10.000").max(10_000, "Use um número de 0 a 10.000");
+const numero = () => z.number({ invalid_type_error: "Use só números", required_error: "Preencha todos os campos" });
+const Razao = numero().finite().min(0, "Use um número de 0 a 10.000").max(10_000, "Use um número de 0 a 10.000");
 export const JornadaPremissasSchema = z.object({
-  ticketMedio: z.number().finite().min(1, "Ticket médio entre R$ 1 e R$ 100.000").max(100_000, "Ticket médio entre R$ 1 e R$ 100.000"),
-  multiploValuation: z.number().finite().min(0.5, "Múltiplo entre 0,5 e 50").max(50, "Múltiplo entre 0,5 e 50"),
+  ticketMedio: numero().finite().min(1, "Ticket médio entre R$ 1 e R$ 100.000").max(100_000, "Ticket médio entre R$ 1 e R$ 100.000"),
+  multiploValuation: numero().finite().min(0.5, "Múltiplo entre 0,5 e 50").max(50, "Múltiplo entre 0,5 e 50"),
   seguidoresPorCliente: z.object({ instagram: Razao, facebook: Razao, tiktok: Razao, youtube: Razao, linkedin: Razao }).strict(),
 }).strict();
 export type JornadaPremissas = z.infer<typeof JornadaPremissasSchema>;
