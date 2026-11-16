@@ -318,7 +318,7 @@ export type GraphLead = z.infer<typeof GraphLeadSchema>;
 
 export class MetaGraphError extends Error {}
 
-type GraphConfig = Pick<MetaLeadsConfig, "graphUrl" | "graphVersion" | "timeoutMs"> & { pageToken: string };
+export type GraphConfig = Pick<MetaLeadsConfig, "graphUrl" | "graphVersion" | "timeoutMs"> & { pageToken: string };
 
 // Token no cabeçalho Authorization (nunca na URL, que costuma ir para log).
 async function graphGet(config: GraphConfig, path: string, params: Record<string, string>): Promise<unknown> {
@@ -366,6 +366,17 @@ export async function fetchPageAccessToken(config: GraphConfig, pageId: string):
   } catch {
     return undefined;
   }
+}
+
+// Seguidores da página (Jornada do Hub): followers_count, ou fan_count
+// (curtidas) quando a Graph não devolve o primeiro. undefined = sem número.
+export async function fetchPageFollowers(config: GraphConfig, pageId: string): Promise<number | undefined> {
+  if (!/^\d{1,30}$/.test(pageId)) throw new MetaGraphError("id de página inválido");
+  const body = (await graphGet(config, pageId, { fields: "followers_count,fan_count" })) as { followers_count?: unknown; fan_count?: unknown };
+  for (const v of [body?.followers_count, body?.fan_count]) {
+    if (typeof v === "number" && Number.isSafeInteger(v) && v >= 0) return v;
+  }
+  return undefined;
 }
 
 export async function fetchLead(config: GraphConfig, leadgenId: string): Promise<GraphLead> {

@@ -21,7 +21,7 @@ import {
   TrendUp,
   Trophy,
 } from "@phosphor-icons/react/dist/ssr";
-import { JORNADA_REDES, JORNADA_REDES_LISTA, type HubJornada, type JornadaMarco } from "@novoseminovo/shared-types";
+import { JORNADA_REDES, JORNADA_REDES_LISTA, type HubJornada, type JornadaMarco, type JornadaRedeAtual } from "@novoseminovo/shared-types";
 import { Form } from "@/components/Form";
 import { Cabecalho, Kpi, Secao } from "@/components/ui";
 import { hubFetch } from "@/lib/api";
@@ -37,6 +37,16 @@ const ICONES = [Flag, Plant, TrendUp, RocketLaunch, Lightning, ChartLineUp, Comp
 const int = (n: number) => n.toLocaleString("pt-BR");
 const dec = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 const campo = (n: number) => String(n).replace(".", ",");
+const diaMes = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+
+// Crescimento contra 30 dias atrás (só com histórico guardado).
+function Crescimento({ rede }: { rede: JornadaRedeAtual }) {
+  if (rede.variacao30d === null) return <span className="text-muted">—</span>;
+  const v = rede.variacao30d;
+  const cor = v > 0 ? "text-green" : v < 0 ? "text-danger" : "text-muted";
+  const pct = rede.variacao30dPct === null ? "" : ` (${v > 0 ? "+" : ""}${dec(rede.variacao30dPct)}%)`;
+  return <span className={`font-semibold ${cor}`}>{`${v > 0 ? "+" : ""}${int(v)}${pct}`}</span>;
+}
 
 export default async function Jornada({ searchParams }: { searchParams: { aba?: string } }) {
   const [access, j] = await Promise.all([me(), hubFetch<HubJornada>("/hub/jornada")]);
@@ -165,6 +175,8 @@ export default async function Jornada({ searchParams }: { searchParams: { aba?: 
                   <th className="text-right">Por cliente</th>
                   <th className="text-right">Meta no próximo marco</th>
                   <th className="text-right">Hoje</th>
+                  <th className="text-right">% da meta</th>
+                  <th className="text-right">30 dias</th>
                 </tr>
               </thead>
               <tbody>
@@ -173,13 +185,27 @@ export default async function Jornada({ searchParams }: { searchParams: { aba?: 
                     <td className="font-semibold">{JORNADA_REDES[r]}</td>
                     <td className="text-right">{dec(p.seguidoresPorCliente[r])}</td>
                     <td className="text-right">{proximo ? int(proximo.seguidores[r]) : "—"}</td>
-                    <td className="text-right">{j.atual.seguidores[r] === null ? "—" : int(j.atual.seguidores[r]!)}</td>
+                    <td className="text-right">
+                      {j.atual.redes[r].valor === null ? "—" : int(j.atual.redes[r].valor!)}
+                      {j.atual.redes[r].valor !== null && !j.atual.redes[r].aoVivo && j.atual.redes[r].atualizadoEm ? (
+                        <span className="block text-[11px] text-muted">atualizado em {diaMes(j.atual.redes[r].atualizadoEm!)}</span>
+                      ) : null}
+                    </td>
+                    <td className="text-right">{proximo?.progressoSeguidores?.[r] == null ? "—" : `${proximo.progressoSeguidores[r]}%`}</td>
+                    <td className="text-right">
+                      <Crescimento rede={j.atual.redes[r]} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {JORNADA_REDES_LISTA.some((r) => j.atual.seguidores[r] === null) ? <p className="mt-2 text-xs text-muted">O número de hoje aparece quando a rede for ligada ao Hub.</p> : null}
+          {JORNADA_REDES_LISTA.some((r) => j.atual.redes[r].valor === null) ? (
+            <p className="mt-2 text-xs text-muted">
+              {JORNADA_REDES_LISTA.filter((r) => j.atual.redes[r].valor === null).map((r) => JORNADA_REDES[r]).join(", ")}: conecte a conta no Windsor para o número aparecer aqui.
+            </p>
+          ) : null}
+          <p className="mt-1 text-xs text-muted">Seguidores lidos sozinhos a cada 6 horas. &quot;30 dias&quot; compara com o número guardado há 30 dias (aparece quando houver esse histórico).</p>
         </Secao>
 
         <Secao titulo="Premissas">

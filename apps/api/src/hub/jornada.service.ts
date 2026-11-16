@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { JORNADA_PREMISSAS_PADRAO, JornadaPremissasSchema, type HubJornada, type JornadaPremissas } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { montarJornada } from "./jornada-regras";
+import { SeguidoresService } from "./jornada-seguidores.service";
 
 const DAY_MS = 86_400_000;
 // As premissas ficam na tabela de configurações do Hub (mkt_settings), chave
@@ -10,11 +11,14 @@ const CHAVE = "jornada";
 
 @Injectable()
 export class JornadaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly seguidores: SeguidoresService,
+  ) {}
 
   async ler(): Promise<HubJornada> {
-    const [salvo, reais] = await Promise.all([this.premissasSalvas(), this.numerosReais()]);
-    return { ...montarJornada(reais, salvo ?? JORNADA_PREMISSAS_PADRAO, new Date()), premissasPadrao: !salvo };
+    const [salvo, reais, redes] = await Promise.all([this.premissasSalvas(), this.numerosReais(), this.seguidores.redes()]);
+    return { ...montarJornada({ ...reais, redes }, salvo ?? JORNADA_PREMISSAS_PADRAO, new Date()), premissasPadrao: !salvo };
   }
 
   async salvarPremissas(p: JornadaPremissas) {
@@ -36,8 +40,8 @@ export class JornadaService {
   //   últimos 30 dias.
   // Clientes pagantes seguem a mesma regra: empresas com assinatura paga
   // ativa + particulares (pessoas diferentes) que pagaram plano em 30 dias.
-  // Seguidores: o Hub ainda não lê o número de seguidores de nenhuma rede,
-  // então ficam vazios (a tela mostra "—"), nunca inventados.
+  // Seguidores vêm do SeguidoresService (Windsor.ai e Graph da Meta); rede
+  // sem número fica vazia (a tela mostra "—"), nunca inventada.
   private async numerosReais() {
     const since30 = new Date(Date.now() - 30 * DAY_MS);
     const [subs, planos] = await Promise.all([

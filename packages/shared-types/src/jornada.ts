@@ -66,6 +66,22 @@ export type JornadaMarco = {
   // Só no próximo marco: quanto já foi (0 a 100) e quanto falta.
   progressoPct?: number;
   falta?: number;
+  // Só no próximo marco: % da meta de seguidores de cada rede (0 a 100);
+  // null quando a rede ainda não tem número.
+  progressoSeguidores?: Record<JornadaRede, number | null>;
+};
+
+// Seguidores de hoje de uma rede, lidos sozinhos pelo Hub (Windsor.ai e Graph
+// API da Meta). Se a fonte cair, fica o último valor guardado (aoVivo false)
+// com a data em atualizadoEm. variacao30d compara com o ponto do histórico de
+// 30 dias atrás ou mais (desde = dia desse ponto); null sem histórico.
+export type JornadaRedeAtual = {
+  valor: number | null;
+  atualizadoEm: string | null;
+  aoVivo: boolean;
+  variacao30d: number | null;
+  variacao30dPct: number | null;
+  desde: string | null;
 };
 
 export type HubJornada = {
@@ -81,6 +97,7 @@ export type HubJornada = {
     valuation: number;
     // null = a rede não está ligada ao Hub; nunca inventamos o número.
     seguidores: Record<JornadaRede, number | null>;
+    redes: Record<JornadaRede, JornadaRedeAtual>;
   };
   premissas: JornadaPremissas;
   premissasPadrao: boolean;

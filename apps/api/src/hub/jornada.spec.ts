@@ -166,7 +166,7 @@ const withDb = Boolean(process.env.DATABASE_URL);
 
 describe("Jornada no banco: números reais e premissas salvas", { skip: !withDb && "sem DATABASE_URL" }, () => {
   const prisma = new PrismaService();
-  const jornada = new JornadaService(prisma);
+  const jornada = new JornadaService(prisma, { redes: async () => ({}) } as never);
   const tag = `jornada-${Date.now()}`;
   const ids = { owner: "", pf: "", partner: "", partnerFree: "", plan: "", listing: "" };
   let salvoAntes: unknown = null;
