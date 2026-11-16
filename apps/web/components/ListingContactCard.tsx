@@ -6,11 +6,13 @@ import { useFormState, useFormStatus } from "react-dom";
 import { CheckCircle, SealCheck, Star, Storefront, House, Car, CalendarBlank, User } from "@phosphor-icons/react";
 import type { ListingDetail } from "@novoseminovo/shared-types";
 import { resolveMediaUrl } from "@/lib/api";
-import { sendListingContactAction, type ListingContactState } from "@/lib/actions/listing-contact";
+import { sendListingContactAction, type ListingContactField, type ListingContactState } from "@/lib/actions/listing-contact";
 import { flushMetaEvents } from "@/lib/meta-events";
 
 type Seller = NonNullable<ListingDetail["seller"]>;
 
+const ERROR_ID = "contato-erro";
+const labelClass = "text-sm font-semibold text-ink";
 const inputClass =
   "w-full rounded-brand border border-border bg-surface-page px-4 py-3 text-base text-ink placeholder:text-ink-muted focus:border-brand-blue focus:outline-none";
 
@@ -96,6 +98,10 @@ export function ListingContactCard({
   useEffect(() => {
     if (state.status === "sent") flushMetaEvents();
   }, [state]);
+  // Erro de um campo: o campo fica marcado como inválido e aponta para a
+  // mensagem (leitor de tela lê o erro ao chegar no campo).
+  const errorProps = (field: ListingContactField) =>
+    state.status === "error" && state.field === field ? { "aria-invalid": true as const, "aria-describedby": ERROR_ID } : {};
   const defaultMessage =
     assetType === "property"
       ? `Olá, gostaria de mais informações sobre o imóvel "${title}" que encontrei no NovoSeminovo.`
@@ -136,10 +142,22 @@ export function ListingContactCard({
       ) : (
         <form action={action} className="flex flex-col gap-3">
           <h2 className="font-display text-xl font-semibold text-ink">Enviar mensagem ao anunciante</h2>
-          <input name="name" required autoComplete="name" placeholder="Seu nome" defaultValue={prefill.name} className={inputClass} />
-          <input name="email" type="email" required autoComplete="email" placeholder="Seu e-mail" defaultValue={prefill.email} className={inputClass} />
-          <input name="phone" type="tel" required autoComplete="tel" inputMode="tel" placeholder="Seu telefone com DDD" defaultValue={prefill.phone} className={inputClass} />
-          <textarea name="message" required rows={4} defaultValue={defaultMessage} className={inputClass} />
+          <div className="flex flex-col gap-1">
+            <label htmlFor="contato-nome" className={labelClass}>Nome</label>
+            <input id="contato-nome" name="name" required autoComplete="name" defaultValue={prefill.name} className={inputClass} {...errorProps("name")} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="contato-email" className={labelClass}>E-mail</label>
+            <input id="contato-email" name="email" type="email" required autoComplete="email" spellCheck={false} defaultValue={prefill.email} className={inputClass} {...errorProps("email")} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="contato-telefone" className={labelClass}>Telefone com DDD</label>
+            <input id="contato-telefone" name="phone" type="tel" required autoComplete="tel" inputMode="tel" placeholder="(31) 99999-8888" defaultValue={prefill.phone} className={inputClass} {...errorProps("phone")} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="contato-mensagem" className={labelClass}>Mensagem</label>
+            <textarea id="contato-mensagem" name="message" required rows={4} defaultValue={defaultMessage} className={inputClass} {...errorProps("message")} />
+          </div>
           {/* Campo isca: escondido de pessoas, só robô preenche. */}
           <input name="site" tabIndex={-1} autoComplete="off" aria-hidden className="hidden" />
           <label className="flex items-start gap-2 text-sm text-ink">
@@ -147,7 +165,7 @@ export function ListingContactCard({
             Quero receber ofertas parecidas por e-mail
           </label>
           {state.status === "error" && (
-            <p role="alert" className="rounded-brand bg-status-danger/10 px-3 py-2 text-sm text-status-danger">
+            <p id={ERROR_ID} role="alert" className="rounded-brand bg-status-danger/10 px-3 py-2 text-sm text-status-danger">
               {state.error}
             </p>
           )}

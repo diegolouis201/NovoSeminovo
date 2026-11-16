@@ -9,6 +9,8 @@ export function FormField({
   min,
   step,
   placeholder,
+  autoComplete,
+  inputMode,
 }: {
   label: string;
   name: string;
@@ -18,6 +20,11 @@ export function FormField({
   min?: number;
   step?: number;
   placeholder?: string;
+  // Preenchimento automático e teclado certo no celular (auditoria web,
+  // item 4): "username"/"current-password" no entrar, "new-password" no
+  // cadastro, CPF com teclado numérico.
+  autoComplete?: string;
+  inputMode?: "numeric" | "tel" | "email" | "text" | "decimal";
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
@@ -33,6 +40,9 @@ export function FormField({
         min={min}
         step={step}
         placeholder={placeholder}
+        autoComplete={autoComplete}
+        inputMode={inputMode}
+        spellCheck={type === "email" || autoComplete === "username" ? false : undefined}
         minLength={type === "password" ? 8 : undefined}
         className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink placeholder:text-ink-muted"
       />

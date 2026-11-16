@@ -77,19 +77,19 @@ export function RegisterForm({ initialError, returnTo }: { initialError?: string
         </>
       )}
 
-      <FormField label={isCompany ? "Nome do responsável" : "Nome"} name="name" />
-      <FormField label="E-mail" name="email" type="email" />
+      <FormField label={isCompany ? "Nome do responsável" : "Nome"} name="name" autoComplete="name" />
+      <FormField label="E-mail" name="email" type="email" autoComplete="username" />
       <div className="flex flex-col gap-1">
-        <FormField label={isCompany ? "CPF do responsável" : "CPF"} name="cpf" placeholder="000.000.000-00" />
+        <FormField label={isCompany ? "CPF do responsável" : "CPF"} name="cpf" placeholder="000.000.000-00" inputMode="numeric" autoComplete="off" />
         <p className="text-xs text-ink-muted">Uma conta por pessoa, para a segurança de todos. O CPF nunca aparece no site.</p>
       </div>
-      <FormField label="WhatsApp" name="phone" type="tel" required={false} placeholder="(31) 99999-8888" />
+      <FormField label="WhatsApp" name="phone" type="tel" required={false} placeholder="(31) 99999-8888" autoComplete="tel" />
       <div className="flex flex-col gap-1">
-        <FormField label="Senha" name="password" type="password" />
+        <FormField label="Senha" name="password" type="password" autoComplete="new-password" />
         <p className="text-xs text-ink-muted">{PASSWORD_RULE_HINT}.</p>
       </div>
       {/* Programa de afiliados: vem preenchido quando a pessoa chegou pelo link ?ref=. */}
-      <FormField key={referral ?? "sem-indicacao"} label="Código de indicação" name="referralCode" required={false} defaultValue={referral} placeholder="Ex.: MARIA27" />
+      <FormField key={referral ?? "sem-indicacao"} label="Código de indicação" name="referralCode" required={false} defaultValue={referral} placeholder="Ex.: MARIA27" autoComplete="off" />
       {/* LGPD: desmarcada por padrão; quem marca entra na lista de novidades (pode sair a qualquer momento). */}
       <label className="flex items-start gap-2 text-sm text-ink">
         <input type="checkbox" name="marketingOptIn" value="1" className="mt-1" />

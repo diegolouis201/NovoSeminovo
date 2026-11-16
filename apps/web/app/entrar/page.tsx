@@ -49,8 +49,8 @@ export default async function LoginPage({ searchParams }: { searchParams: { erro
 
       <form action={authenticate} className="flex flex-col gap-3">
         <input type="hidden" name="voltar" value={returnTo} />
-        <FormField label="E-mail" name="email" type="email" />
-        <FormField label="Senha" name="password" type="password" />
+        <FormField label="E-mail" name="email" type="email" autoComplete="username" />
+        <FormField label="Senha" name="password" type="password" autoComplete="current-password" />
         <Button type="submit">Entrar</Button>
       </form>
 

@@ -72,6 +72,7 @@ export function CompanyCnpjFields({ cnpjName = "cnpj", typeName = "partnerType" 
             value={cnpj}
             required
             inputMode="numeric"
+            autoComplete="off"
             placeholder="00.000.000/0000-00"
             onChange={(event) => {
               const next = formatCnpj(event.target.value);
@@ -148,7 +149,7 @@ export function CompanyCnpjFields({ cnpjName = "cnpj", typeName = "partnerType" 
       {unavailable && (
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-semibold text-ink">Razão social ou nome fantasia</span>
-          <input name="legalName" required minLength={3} className={inputClass} />
+          <input name="legalName" required minLength={3} autoComplete="organization" className={inputClass} />
         </label>
       )}
 

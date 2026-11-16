@@ -18,7 +18,7 @@ export function EntrarForm() {
     <form action={action} className="mt-8 space-y-4 text-left">
       <div>
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-white/70" htmlFor="email">E-mail</label>
-        <input id="email" name="email" type="email" required maxLength={200} autoComplete="username" className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-3 text-white outline-none focus:border-orange" />
+        <input id="email" name="email" type="email" required maxLength={200} autoComplete="username" spellCheck={false} className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-3 text-white outline-none focus:border-orange" />
       </div>
       <div>
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-white/70" htmlFor="password">Senha</label>

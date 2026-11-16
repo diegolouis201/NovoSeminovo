@@ -50,10 +50,10 @@ export default function ResetPasswordPage({ searchParams }: { searchParams: { to
           <form action={save} className="flex flex-col gap-3">
             <input type="hidden" name="token" value={token} />
             <div className="flex flex-col gap-1">
-              <FormField label="Nova senha" name="password" type="password" />
+              <FormField label="Nova senha" name="password" type="password" autoComplete="new-password" />
               <p className="text-xs text-ink-muted">{PASSWORD_RULE_HINT}.</p>
             </div>
-            <FormField label="Repita a nova senha" name="confirm" type="password" />
+            <FormField label="Repita a nova senha" name="confirm" type="password" autoComplete="new-password" />
             <Button type="submit">Salvar nova senha</Button>
           </form>
           <p className="text-xs text-ink-muted">Ao salvar, as sessões abertas em outros aparelhos são encerradas.</p>

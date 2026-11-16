@@ -34,7 +34,7 @@ export default function ForgotPasswordPage({ searchParams }: { searchParams: { e
           <p className="text-sm text-ink-muted">Digite o e-mail da sua conta. Vamos mandar um link para você criar uma nova senha.</p>
           {searchParams.erro && <p className="rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">{searchParams.erro}</p>}
           <form action={send} className="flex flex-col gap-3">
-            <FormField label="E-mail" name="email" type="email" />
+            <FormField label="E-mail" name="email" type="email" autoComplete="email" />
             <Button type="submit">Enviar link</Button>
           </form>
           <Link href="/entrar" className="text-sm font-semibold text-brand-blue">
