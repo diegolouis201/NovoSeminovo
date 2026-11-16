@@ -40,3 +40,17 @@ export const STATIC_FILE_HEADERS = {
   "Cross-Origin-Resource-Policy": "same-site",
   "X-Content-Type-Options": "nosniff",
 } as const;
+
+// Opções do express.static de /uploads (main.ts). Toda foto tem nome único
+// (uuid gerado no envio, ver common/storage.ts; a cópia menor tem nome
+// derivado e é gravada uma vez) e nunca é regravada com outro conteúdo:
+// o navegador pode guardar por 1 ano sem perguntar de novo (auditoria web,
+// item 8). Arquivo apagado some do servidor; o anúncio deixa de apontar
+// para ele.
+export const UPLOADS_STATIC_OPTIONS = {
+  maxAge: "365d",
+  immutable: true,
+  setHeaders: (res: { setHeader(name: string, value: string): unknown }) => {
+    for (const [name, value] of Object.entries(STATIC_FILE_HEADERS)) res.setHeader(name, value);
+  },
+};

@@ -11,7 +11,7 @@ import { mkdirSync } from "node:fs";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
-import { corsOptions, STATIC_FILE_HEADERS } from "./common/cors";
+import { corsOptions, UPLOADS_STATIC_OPTIONS } from "./common/cors";
 import { UPLOADS_DIR, UPLOADS_URL_PREFIX } from "./common/storage";
 import { currentDataKeys } from "./common/field-encryption";
 import { PrismaService } from "./prisma/prisma.service";
@@ -32,14 +32,11 @@ async function bootstrap() {
   // integração (até 100 anúncios com descrição, ver IntegrationsController).
   // 12 MB: imagens do marketing (Hub) chegam em base64 (até ~8 MB cada).
   app.useBodyParser("json", { limit: "12mb" });
+  // Não anunciar a tecnologia do servidor (cabeçalho X-Powered-By: Express).
+  app.disable("x-powered-by");
   // Só o próprio site fala com a API pelo navegador (ver common/cors.ts).
   app.enableCors(corsOptions());
-  app.useStaticAssets(UPLOADS_DIR, {
-    prefix: UPLOADS_URL_PREFIX,
-    setHeaders: (res) => {
-      for (const [name, value] of Object.entries(STATIC_FILE_HEADERS)) res.setHeader(name, value);
-    },
-  });
+  app.useStaticAssets(UPLOADS_DIR, { prefix: UPLOADS_URL_PREFIX, ...UPLOADS_STATIC_OPTIONS });
   const port = process.env.PORT ? Number(process.env.PORT) : 4000;
   await app.listen(port);
   // eslint-disable-next-line no-console

@@ -4,6 +4,8 @@
 // isso externalDir: o código fica fora desta pasta.
 const nextConfig = {
   reactStrictMode: true,
+  // Não anunciar a tecnologia do site (cabeçalho X-Powered-By: Next.js).
+  poweredByHeader: false,
   transpilePackages: ["@novoseminovo/shared-types"],
   // Imagens e vídeos do marketing sobem por Server Action (vídeo até 150 MB).
   experimental: { externalDir: true, serverActions: { bodySizeLimit: "160mb" } },

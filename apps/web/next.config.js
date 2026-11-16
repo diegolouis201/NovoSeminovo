@@ -1,6 +1,18 @@
 /** @type {import('next').NextConfig} */
+// Páginas públicas, iguais para todo visitante (o máximo de pessoal é o menu
+// com o nome de quem entrou): sem "no-store", o navegador pode guardar a
+// página no "voltar instantâneo" (bfcache) — quem abre um anúncio e volta
+// para a busca não espera a busca carregar de novo (auditoria web, item 8).
+// "private" (nada de cache compartilhado no caminho) e "no-cache" (sempre
+// confere com o servidor antes de reusar) continuam. Conta, painel, admin,
+// anunciar, entrar e o resto seguem com o padrão do Next (no-store).
+const PUBLIC_PAGE_CACHE = "private, no-cache, max-age=0, must-revalidate";
+const PUBLIC_PAGES = ["/", "/busca", "/carros", "/carros/:path*", "/imoveis", "/imoveis/:path*", "/anuncio/:id", "/guia", "/guia/:path*"];
+
 const nextConfig = {
   reactStrictMode: true,
+  // Não anunciar a tecnologia do site (cabeçalho X-Powered-By: Next.js).
+  poweredByHeader: false,
   transpilePackages: ["@novoseminovo/shared-types"],
   // Fotos do anúncio passam por Server Action (ver uploadWizardPhotosAction):
   // o padrão de 1 MB barraria até uma foto só.
@@ -20,6 +32,7 @@ const nextConfig = {
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self), payment=(self)" },
         ],
       },
+      ...PUBLIC_PAGES.map((source) => ({ source, headers: [{ key: "Cache-Control", value: PUBLIC_PAGE_CACHE }] })),
     ];
   },
   // O cashback no financiamento acabou (06/11/2026): links antigos (Google,
