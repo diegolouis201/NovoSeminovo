@@ -20,7 +20,7 @@ export const JORNADA_NIVEIS = [
   "Expansão",
   "Consolidação",
   "Referência",
-  "Liderança regional",
+  "Liderança",
   "Alta performance",
   "Potência",
   "Meio caminho",

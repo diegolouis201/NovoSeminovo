@@ -15,6 +15,9 @@ describe("Jornada: contas dos marcos", () => {
   test("lista fixa de 19 marcos, cada um com nome de nível", () => {
     assert.equal(JORNADA_MARCOS.length, 19);
     assert.equal(JORNADA_NIVEIS.length, JORNADA_MARCOS.length);
+    // Atuação nacional: nenhum nível chama a empresa de regional.
+    assert.ok(JORNADA_NIVEIS.every((n) => !/regional/i.test(n)), "sem 'regional' nos níveis");
+    assert.equal(JORNADA_NIVEIS.at(9), "Liderança");
     assert.equal(JORNADA_MARCOS[0], 10);
     assert.equal(JORNADA_MARCOS.at(-1), 100_000);
   });
