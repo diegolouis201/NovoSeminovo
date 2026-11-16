@@ -16,6 +16,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { VerticalProvider } from "@/components/ActiveVertical";
 import { JsonLd } from "@/components/JsonLd";
 import { siteJsonLd } from "@/lib/geo";
+import { CONSENT_HEAD_SCRIPT } from "@/lib/consent";
 
 // Placeholder tipográfico até a Valken Regular (fonte institucional original)
 // chegar como arquivo — ver README do design system (Etapa 4). Arquivos
@@ -66,7 +67,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const inApp = /NovoSeminovoApp/.test(headers().get("user-agent") ?? "");
 
   return (
-    <html lang="pt-BR" className={`${display.variable} ${sans.variable}`}>
+    // suppressHydrationWarning: o script do <head> põe data-cookie-consent no
+    // <html> antes de o React assumir a página.
+    <html lang="pt-BR" className={`${display.variable} ${sans.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Texto fixo, sem dado de usuário (lib/consent.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: CONSENT_HEAD_SCRIPT }} />
+      </head>
       <body className="flex min-h-screen flex-col font-sans">
         {/* Quem é o site (Organization) e a busca (WebSite) — uma vez só, para buscadores e assistentes de IA. */}
         <JsonLd data={siteJsonLd()} />
