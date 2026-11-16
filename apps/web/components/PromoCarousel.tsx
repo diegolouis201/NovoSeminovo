@@ -81,15 +81,20 @@ export function PromoCarousel() {
         );
       })}
 
-      <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 gap-1.5">
+      {/* Bolinha pequena no desenho, mas área de toque de 24×24 px (auditoria
+          web, item 7): o botão é o quadrado transparente, a bolinha fica dentro. */}
+      <div className="absolute bottom-1 left-1/2 z-20 flex -translate-x-1/2">
         {SLIDES.map((slide, i) => (
           <button
             key={slide.title}
             type="button"
-            aria-label={`Ir pro slide ${i + 1}`}
+            aria-label={`Destaque ${i + 1} de ${SLIDES.length}: ${slide.title}`}
+            aria-current={i === active ? "true" : undefined}
             onClick={() => setActive(i)}
-            className={`h-1.5 rounded-full transition-all ${i === active ? "w-5 bg-white" : "w-1.5 bg-white/50"}`}
-          />
+            className="group flex h-6 min-w-6 items-center justify-center px-1"
+          >
+            <span aria-hidden className={`block h-1.5 rounded-full transition-all ${i === active ? "w-5 bg-white" : "w-1.5 bg-white/50 group-hover:bg-white/80"}`} />
+          </button>
         ))}
       </div>
     </div>
