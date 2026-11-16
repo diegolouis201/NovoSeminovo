@@ -10,7 +10,7 @@ import {
   reorderPhotosAction,
   updatePhotoCaptionAction,
 } from "@/lib/actions/listings";
-import { resolveMediaUrl } from "@/lib/api";
+import { photoImage } from "@/lib/photos";
 
 // Legendas rápidas (ver uso abaixo) — ajudam a padronizar ângulos comuns sem
 // a pessoa precisar digitar toda vez. Lista diferente pra veículo e imóvel,
@@ -200,7 +200,10 @@ export function PhotoGallery({
             <div className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={resolveMediaUrl(photo.url)}
+                {...photoImage(photo.url, photo.widths)}
+                sizes="(min-width: 640px) 220px, 50vw"
+                loading="lazy"
+                decoding="async"
                 alt={captions[photo.id] || `Foto ${index + 1}`}
                 className="aspect-square w-full object-cover"
               />

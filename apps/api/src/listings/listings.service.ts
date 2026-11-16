@@ -63,9 +63,11 @@ import {
   toListingSummary,
   toMyListingSummary,
   type ListingWithDetails,
+  widthsOf,
 } from "./listings.mapper";
 import { AffiliatesService } from "../affiliates/affiliates.service";
 import { sanitizeUpload } from "../common/image-safety";
+import { removePhotoWithVariants, savePhotoWithVariants } from "../common/photo-variants";
 import { initialReviewStatus, visibleReviewWhere } from "../reviews/review-moderation.service";
 
 // Não existe campo de "tipo de carroceria" (SUV/hatch/sedã) no schema (ver
@@ -1179,12 +1181,15 @@ export class ListingsService {
     // processamento (ver common/image-safety.ts).
     const safe = await Promise.all(files.map((file) => sanitizeUpload(file)));
     const prepared = listing.type === "vehicle" ? await Promise.all(safe.map((file) => this.blurPlates(file as Express.Multer.File))) : safe;
-    const urls = await Promise.all(prepared.map((file) => storage.save(file.buffer, file.originalname, file.mimetype)));
+    // Cópias menores em WebP (320 a 1600 px) feitas da foto já tratada, para
+    // o celular baixar o tamanho certo (ver common/photo-variants.ts).
+    const saved = await Promise.all(prepared.map((file) => savePhotoWithVariants(storage, file)));
 
     await this.prisma.photo.createMany({
-      data: urls.map((url, index) => ({
+      data: saved.map(({ url, widths }, index) => ({
         listingId,
         url,
+        variantWidths: widths,
         position: startPosition + index,
         isCover: !alreadyHasCover && index === 0,
       })),
@@ -1199,7 +1204,7 @@ export class ListingsService {
       where: { listingId },
       orderBy: [{ isCover: "desc" }, { position: "asc" }],
     });
-    return photos.map((photo) => ({ id: photo.id, url: photo.url }));
+    return photos.map((photo) => ({ id: photo.id, url: photo.url, widths: widthsOf(photo) }));
   }
 
   // Foto de carro: a IA localiza a placa e ela é borrada antes de salvar
@@ -1234,7 +1239,7 @@ export class ListingsService {
     await this.prisma.photo.delete({ where: { id: photoId } });
     // PhotoStorage.remove nunca lança (ver common/storage.ts) — um arquivo
     // que já sumiu do backend não deve impedir a remoção do registro.
-    await getPhotoStorage().remove(photo.url);
+    await removePhotoWithVariants(getPhotoStorage(), photo.url, photo.variantWidths);
 
     if (photo.isCover) {
       const next = await this.prisma.photo.findFirst({ where: { listingId }, orderBy: { position: "asc" } });
@@ -1257,7 +1262,7 @@ export class ListingsService {
       throw new ForbiddenException("Você só pode editar os seus próprios anúncios.");
     }
     if (!this.ai.isEnabled() || listing.photos.length === 0) {
-      return listing.photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption ?? undefined }));
+      return listing.photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption ?? undefined, widths: widthsOf(p) }));
     }
 
     const photosForAi = await Promise.all(
@@ -1296,7 +1301,7 @@ export class ListingsService {
     );
 
     const updated = await this.prisma.photo.findMany({ where: { listingId }, orderBy: { position: "asc" } });
-    return updated.map((p) => ({ id: p.id, url: p.url, caption: p.caption ?? undefined }));
+    return updated.map((p) => ({ id: p.id, url: p.url, caption: p.caption ?? undefined, widths: widthsOf(p) }));
   }
 
   // Reordenação manual na galeria (arrastar/soltar, escolher capa) — a
@@ -1337,7 +1342,7 @@ export class ListingsService {
     );
 
     const updated = await this.prisma.photo.findMany({ where: { listingId }, orderBy: { position: "asc" } });
-    return updated.map((p) => ({ id: p.id, url: p.url, caption: p.caption ?? undefined }));
+    return updated.map((p) => ({ id: p.id, url: p.url, caption: p.caption ?? undefined, widths: widthsOf(p) }));
   }
 
   async updatePhotoCaption(listingId: string, ownerUserId: string, photoId: string, caption: string): Promise<void> {

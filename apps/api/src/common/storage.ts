@@ -3,6 +3,7 @@ import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import { Logger } from "@nestjs/common";
 import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { photoVariantUrl } from "@novoseminovo/shared-types";
 import { sniffFileType } from "./image-safety";
 
 // Nunca derivar a extensão do nome de arquivo que a pessoa mandou — esse
@@ -57,6 +58,21 @@ export interface PhotoStorage {
   // Relê o arquivo já salvo (usado por AiService.classifyVehiclePhotos pra
   // mandar as fotos existentes do anúncio pra análise visual).
   read(url: string): Promise<Buffer>;
+  // A foto é deste armazenamento (não um link de CRM/outro site)?
+  owns(url: string): boolean;
+  // Cópia menor em WebP de uma foto já salva (ver common/photo-variants.ts),
+  // gravada com o nome derivado do original (photoVariantUrl). Só WebP e só
+  // para foto que é nossa.
+  saveVariant(originalUrl: string, width: number, buffer: Buffer): Promise<string>;
+}
+
+// Nome do arquivo da cópia, conferido: sem "..", sem barra e só a partir de
+// um nome de arquivo nosso (uuid + extensão de imagem).
+function variantKey(originalKey: string, width: number): string {
+  if (!/^[0-9a-f-]{36}\.(jpg|png|webp)$/i.test(originalKey) || !Number.isInteger(width) || width < 1 || width > 4000) {
+    throw new Error(`Foto fora do armazenamento de fotos: "${originalKey}".`);
+  }
+  return photoVariantUrl(originalKey, width);
 }
 
 // MVP (ver README "Próximos passos"): disco local, servido como estático em
@@ -87,6 +103,19 @@ class LocalDiskStorage implements PhotoStorage {
     if (!url.startsWith(UPLOADS_URL_PREFIX)) throw new Error(`URL de foto fora do diretório de uploads: ${url}`);
     const filename = url.slice(`${UPLOADS_URL_PREFIX}/`.length);
     return readFile(resolveWithinUploadsDir(filename));
+  }
+
+  owns(url: string): boolean {
+    return url.startsWith(`${UPLOADS_URL_PREFIX}/`);
+  }
+
+  async saveVariant(originalUrl: string, width: number, buffer: Buffer): Promise<string> {
+    if (!this.owns(originalUrl)) throw new Error(`Foto fora do diretório de uploads: "${originalUrl}".`);
+    const filename = variantKey(originalUrl.slice(`${UPLOADS_URL_PREFIX}/`.length), width);
+    assertStoredTypeMatches(buffer, "image/webp");
+    await mkdir(UPLOADS_DIR, { recursive: true });
+    await writeFile(resolveWithinUploadsDir(filename), buffer);
+    return `${UPLOADS_URL_PREFIX}/${filename}`;
   }
 }
 
@@ -149,6 +178,28 @@ class S3PhotoStorage implements PhotoStorage {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     }
     return Buffer.concat(chunks);
+  }
+
+  owns(url: string): boolean {
+    return url.startsWith(`${this.publicUrlBase}/`);
+  }
+
+  async saveVariant(originalUrl: string, width: number, buffer: Buffer): Promise<string> {
+    if (!this.owns(originalUrl)) throw new Error(`Foto fora do bucket configurado: "${originalUrl}".`);
+    const key = variantKey(originalUrl.slice(`${this.publicUrlBase}/`.length), width);
+    assertStoredTypeMatches(buffer, "image/webp");
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: buffer,
+        ContentType: "image/webp",
+        // Nome único por foto e nunca regravado com outro conteúdo.
+        CacheControl: "public, max-age=31536000, immutable",
+        ...(this.acl ? { ACL: this.acl as "public-read" } : {}),
+      }),
+    );
+    return `${this.publicUrlBase}/${key}`;
   }
 }
 

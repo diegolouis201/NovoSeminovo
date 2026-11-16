@@ -102,6 +102,8 @@ export const ListingSummarySchema = z.object({
   priceLabel: z.string(),
   location: z.string(),
   image: z.string().url().optional(),
+  // Larguras das cópias menores da capa (srcset do cartão; ver foto-tamanhos.ts).
+  imageWidths: z.array(z.number().int().positive()).optional(),
   badge: BadgeSchema.optional(),
   sellerType: SellerType.optional(),
   // Só quando sellerType é "partner" — link para a vitrine da loja (/lojas/[slug])
@@ -212,6 +214,9 @@ export const PhotoSchema = z.object({
   id: z.string(),
   url: z.string(),
   caption: z.string().optional(),
+  // Larguras das cópias menores em WebP (ver foto-tamanhos.ts); ausente =
+  // só a original.
+  widths: z.array(z.number().int().positive()).optional(),
 });
 export type Photo = z.infer<typeof PhotoSchema>;
 
@@ -3305,3 +3310,4 @@ export * from "./creditas-termo";
 export * from "./jornada";
 export * from "./fipe";
 export * from "./seo";
+export * from "./foto-tamanhos";

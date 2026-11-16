@@ -699,6 +699,11 @@ model Photo {
   // Legenda sugerida pela IA ao classificar/ordenar o lote de fotos (ver
   // AiService.classifyVehiclePhotos) — editável pelo dono na galeria.
   caption      String?
+  // Larguras das cópias menores em WebP geradas no envio (ex.: [320, 640,
+  // 1024, 1600]); arquivo "<nome>-w<largura>.webp" ao lado da original. Vazio
+  // = só a original (foto antiga ainda não convertida ou link de CRM). Ver
+  // apps/api/src/common/photo-variants.ts.
+  variantWidths Int[]  @default([]) @map("variant_widths")
 
   @@index([listingId])
   @@map("photos")

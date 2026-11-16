@@ -412,6 +412,31 @@ metadados nem nada escondido). Para também passar tudo no antivírus ClamAV
 Com `CLAMAV_HOST` preenchido e o antivírus fora do ar, o envio é recusado
 (melhor recusar do que aceitar sem conferir).
 
+## Fotos em vários tamanhos (uma vez, depois do deploy de 16/11/2026)
+
+Desde 16/11/2026 cada foto nova de anúncio ganha, no envio, cópias menores em
+WebP (320, 640, 800, 1024 e 1600 px) ao lado da original; o celular baixa só o
+tamanho que precisa. As fotos que já existiam continuam funcionando (o site
+mostra a original), mas só ficam leves depois desta conversão única. Na pasta
+do projeto no servidor, depois do `git pull && docker compose up --build -d`:
+
+1. Atualizar o banco (coluna nova `variant_widths` nas fotos):
+
+   ```bash
+   docker compose exec api pnpm --filter @novoseminovo/db push
+   ```
+
+2. Converter as fotos antigas (pode demorar alguns minutos; termina com `PRONTO:`):
+
+   ```bash
+   docker compose exec api node dist/scripts/gerar-tamanhos-fotos.js
+   ```
+
+Pode rodar o passo 2 de novo quantas vezes quiser: ele só mexe em foto que
+ainda não tem cópias. Foto que veio do CRM por link (de outro site) fica como
+está. Se aparecer "com erro" no resultado, é foto cujo arquivo sumiu do
+servidor; o anúncio continua mostrando o que tem.
+
 ## Manutenção
 
 - **Atualizar depois de um novo commit**: `git pull && docker compose up --build -d`.

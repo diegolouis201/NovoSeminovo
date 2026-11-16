@@ -236,6 +236,11 @@ export function approximatePoint(id: string, lat: number, lng: number): { lat: n
   return { lat: Math.round((lat + dLat) * 1e5) / 1e5, lng: Math.round((lng + dLng) * 1e5) / 1e5 };
 }
 
+// Cópias menores da foto (srcset no site); sem cópias, o site usa a original.
+export function widthsOf(photo: { variantWidths?: number[] } | undefined): number[] | undefined {
+  return photo?.variantWidths && photo.variantWidths.length > 0 ? photo.variantWidths : undefined;
+}
+
 export function toListingSummary(listing: ListingWithDetails): ListingSummary {
   const point =
     listing.type === "property" && listing.latitude != null && listing.longitude != null
@@ -249,6 +254,7 @@ export function toListingSummary(listing: ListingWithDetails): ListingSummary {
     priceLabel: formatBRL(Number(listing.price)),
     location: location(listing),
     image: listing.photos[0]?.url,
+    imageWidths: widthsOf(listing.photos[0]),
     badge: badge(listing),
     sellerType: sellerType(listing),
     partnerSlug: listing.partner?.slug,
@@ -424,7 +430,7 @@ export function toListingDetail(
             since: listing.owner.createdAt.toISOString(),
           }
       : undefined,
-    photos: visiblePhotos.map((photo) => ({ id: photo.id, url: photo.url })),
+    photos: visiblePhotos.map((photo) => ({ id: photo.id, url: photo.url, widths: widthsOf(photo) })),
     youtubeVideoId: benefits.video || fullView ? youtubeVideoId(listing.videoUrl ?? undefined) : undefined,
     planTier: listingTier(listing.planTier).id,
     isPartnerListing: Boolean(listing.partnerId),

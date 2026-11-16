@@ -4,7 +4,11 @@ import type { ReactNode, TouchEvent } from "react";
 import { useRef, useState } from "react";
 import { CaretLeft, CaretRight, Car, House } from "@phosphor-icons/react/dist/ssr";
 import type { Photo } from "@novoseminovo/shared-types";
-import { resolveMediaUrl } from "@/lib/api";
+import { photoImage } from "@/lib/photos";
+
+// Largura real da foto grande: coluna principal do anúncio (max-w-6xl menos
+// a coluna de 320 px do contato) no computador; a tela toda no celular.
+const MAIN_SIZES = "(min-width: 1152px) 768px, (min-width: 768px) calc(100vw - 384px), calc(100vw - 32px)";
 
 // Carrossel da página de anúncio: antes disso a "miniatura" abaixo da foto
 // principal não fazia nada (só decorativa) e não dava pra passar as fotos —
@@ -49,9 +53,16 @@ export function PhotoCarousel({
         onTouchEnd={handleTouchEnd}
       >
         {photos[index] ? (
+          // Foto principal = maior elemento da tela (LCP): baixa primeiro, com
+          // prioridade alta; as outras esperam (auditoria web, item 2).
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={resolveMediaUrl(photos[index].url)}
+            {...photoImage(photos[index].url, photos[index].widths)}
+            sizes={MAIN_SIZES}
+            width={1600}
+            height={1200}
+            fetchPriority={index === 0 ? "high" : undefined}
+            data-testid="foto-principal"
             alt={photos[index].caption || `Foto ${index + 1} de ${title}`}
             className="h-full w-full object-cover text-[0px]"
           />
@@ -95,16 +106,22 @@ export function PhotoCarousel({
               key={photo.id}
               type="button"
               onClick={() => setIndex(photoIndex)}
-              aria-label={`Ver foto ${photoIndex + 1}`}
-              aria-current={photoIndex === index}
+              aria-label={`Foto ${photoIndex + 1} de ${photos.length}`}
+              aria-current={photoIndex === index ? "true" : undefined}
+              data-testid="miniatura"
               className={`h-16 w-16 shrink-0 overflow-hidden rounded-brand border-2 ${
                 photoIndex === index ? "border-brand-green" : "border-transparent"
               }`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={resolveMediaUrl(photo.url)}
-                alt={`Foto ${photoIndex + 1} de ${title}`}
+                {...photoImage(photo.url, photo.widths)}
+                sizes="64px"
+                width={64}
+                height={64}
+                loading="lazy"
+                decoding="async"
+                alt=""
                 className="h-full w-full object-cover text-[0px]"
               />
             </button>

@@ -300,10 +300,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         </aside>
 
         <div className="flex flex-1 flex-wrap gap-5">
-          {results.map((listing) => (
+          {results.map((listing, index) => (
             <ListingCard
               key={listing.id}
               listing={listing}
+              eager={index < 2}
               isFavorited={favoriteIds.has(listing.id)}
               isAuthenticated={isAuthenticated}
             />

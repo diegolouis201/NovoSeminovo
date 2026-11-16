@@ -3,7 +3,7 @@ import { Car, House } from "@phosphor-icons/react/dist/ssr";
 import type { ListingSummary } from "@novoseminovo/shared-types";
 import { Badge } from "@/components/Badge";
 import { FavoriteButton } from "@/components/FavoriteButton";
-import { resolveMediaUrl } from "@/lib/api";
+import { photoImage } from "@/lib/photos";
 
 // Mesma anatomia para Carro e Imóvel — só o conteúdo injetado muda.
 // Ver components/ListingCard/README.md no design system (Etapa 4).
@@ -15,17 +15,31 @@ export function ListingCard({
   listing,
   isFavorited = false,
   isAuthenticated = false,
+  eager = false,
 }: {
   listing: ListingSummary;
   isFavorited?: boolean;
   isAuthenticated?: boolean;
+  // Só os primeiros cartões de uma lista que aparece logo na primeira tela;
+  // os outros carregam a foto quando a pessoa rola até eles.
+  eager?: boolean;
 }) {
   return (
     <article className="relative w-full max-w-[280px] overflow-hidden rounded-brand bg-surface-raised text-ink shadow-card transition-transform hover:-translate-y-0.5">
       <div className="relative flex h-40 items-center justify-center bg-surface-sober text-4xl">
         {listing.image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={resolveMediaUrl(listing.image)} alt={listing.title} className="h-full w-full object-cover text-[0px]" />
+          <img
+            {...photoImage(listing.image, listing.imageWidths)}
+            // Cartão tem no máximo 280 px de largura (max-w-[280px]).
+            sizes="280px"
+            width={280}
+            height={160}
+            loading={eager ? undefined : "lazy"}
+            decoding="async"
+            alt={listing.title}
+            className="h-full w-full object-cover text-[0px]"
+          />
         ) : listing.assetType === "property" ? (
           <House size={40} weight="duotone" className="text-ink-muted" />
         ) : (
@@ -55,7 +69,8 @@ export function ListingCard({
           {listing.sellerType === "partner" && listing.partnerSlug ? (
             <Link
               href={`/lojas/${listing.partnerSlug}`}
-              className="relative z-10 font-bold text-brand-blue hover:underline"
+              // Área de toque de 24 px de altura (auditoria web, item 7).
+              className="relative z-10 inline-flex min-h-6 items-center font-bold text-brand-blue hover:underline"
             >
               {listing.partnerVerified ? "Loja verificada" : "Ver loja"}
             </Link>

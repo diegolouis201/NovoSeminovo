@@ -1,3 +1,4 @@
+import { photoFileUrls } from "../common/photo-variants";
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { verifyPassword } from "../auth/password";
 import type { AdminDeleteInput, AdminUserProfile } from "@novoseminovo/shared-types";
@@ -101,13 +102,13 @@ export class AdminAccountsService {
     await this.checkPassword(adminId, input.password);
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      include: { photos: { select: { url: true } }, _count: { select: { financingDeals: true } } },
+      include: { photos: { select: { url: true, variantWidths: true } }, _count: { select: { financingDeals: true } } },
     });
     if (!listing) throw new NotFoundException("Anúncio não encontrado");
     const blocked = await this.listingDeleteBlocked(listing.id, listing._count.financingDeals);
     if (blocked) throw new ConflictException(blocked);
     await this.removeListingRows(listing.id);
-    await this.removePhotoFiles(listing.photos.map((photo) => photo.url));
+    await this.removePhotoFiles(listing.photos.flatMap(photoFileUrls));
     this.logger.log(`Admin ${adminId} excluiu o anúncio ${listing.id}. Motivo: ${input.reason}`);
     await this.prisma.opsReport.create({
       data: { agent: `admin:${adminId}`, kind: "exclusao_anuncio", body: `Anúncio ${listing.id} ("${listing.title}") excluído. Motivo: ${input.reason}` },
@@ -145,7 +146,7 @@ export class AdminAccountsService {
     // Anúncios: apaga os que não têm registro financeiro; os outros saem do ar e ficam guardados.
     const listings = await this.prisma.listing.findMany({
       where: { ownerUserId: userId },
-      include: { photos: { select: { url: true } }, _count: { select: { financingDeals: true } } },
+      include: { photos: { select: { url: true, variantWidths: true } }, _count: { select: { financingDeals: true } } },
     });
     let listingsDeleted = 0;
     let listingsKept = 0;
@@ -156,7 +157,7 @@ export class AdminAccountsService {
         listingsKept += 1;
       } else {
         await this.removeListingRows(listing.id);
-        files.push(...listing.photos.map((photo) => photo.url));
+        files.push(...listing.photos.flatMap(photoFileUrls));
         listingsDeleted += 1;
       }
     }

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowClockwise, Car, ChatCircleDots, House, PaperPlaneRight, X } from "@phosphor-icons/react";
 import type { AgentChatMessage, AgentKind, ListingSummary } from "@novoseminovo/shared-types";
-import { resolveMediaUrl } from "@/lib/api";
+import { photoImage } from "@/lib/photos";
 import { HIDE_TAB_BAR_PREFIXES } from "@/components/AppTabBar";
 import { agentStatusAction, loadAgentConversationAction, sendAgentMessageAction } from "@/lib/actions/agents";
 import { flushMetaEvents } from "@/lib/meta-events";
@@ -148,7 +148,7 @@ function MiniListingCard({ listing }: { listing: ListingSummary }) {
       <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-sober bg-surface-sober">
         {listing.image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={resolveMediaUrl(listing.image)} alt="" className="h-full w-full object-cover" />
+          <img {...photoImage(listing.image, listing.imageWidths)} sizes="64px" width={64} height={48} loading="lazy" decoding="async" alt="" className="h-full w-full object-cover" />
         ) : listing.assetType === "property" ? (
           <House size={22} weight="duotone" className="text-ink-muted" />
         ) : (
