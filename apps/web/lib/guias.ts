@@ -1,5 +1,7 @@
-// Guias de SEO, fase 1 (texto do marketing, revisado pelo Diego em
-// 16/11/2026). Conteúdo fixo: mudar um guia é mudar este arquivo.
+// Guias de SEO: fase 1 (guias 1 a 5) e fase 2 (guias 6 a 20), texto do
+// marketing revisado em 16/11/2026. Conteúdo fixo: mudar um guia é mudar
+// este arquivo. Endereços exatamente como nos PDFs do marketing (os posts já
+// usam esses links).
 //
 // Marcação dentro dos textos: **assim** vira negrito. Nada aqui é HTML — a
 // página monta os elementos (ver components/guias/RichText.tsx).
@@ -14,13 +16,34 @@ export type GuideTopic = {
 };
 
 export type GuideSection =
-  | { title: string; kind: "ul" | "ol"; items: string[] }
+  /** note: parágrafo depois da lista (ex.: "confira na Caixa"). */
+  | { title: string; kind: "ul" | "ol"; items: string[]; note?: string }
   | { title: string; kind: "p"; paragraphs: string[] };
 
 /** Link interno: rota do site ou outro guia (resolvido pelo id). */
 export type GuideLink = { href: string; label: string } | { guide: GuideId };
 
-export type GuideId = "como-evitar-golpe" | "documentos" | "como-avaliar" | "matricula-atualizada" | "golpes";
+export type GuideId =
+  | "como-evitar-golpe"
+  | "documentos"
+  | "como-avaliar"
+  | "matricula-atualizada"
+  | "golpes"
+  | "documentos-e-transferencia"
+  | "tabela-fipe"
+  | "financiamento-veiculo"
+  | "loja-ou-particular"
+  | "test-drive"
+  | "custo-de-manter"
+  | "suv-hatch-ou-sedan"
+  | "qual-carro-cabe-no-bolso"
+  | "checklist-da-visita"
+  | "certidoes-do-vendedor"
+  | "itbi-e-escritura"
+  | "financiamento-imovel"
+  | "fgts"
+  | "apartamento-ou-casa"
+  | "arquiteto-novoseminovo";
 
 export type Guide = {
   id: GuideId;
@@ -35,6 +58,8 @@ export type Guide = {
   sections: GuideSection[];
   faq: { q: string; a: string }[];
   cta: { text: string; href: string; label: string };
+  /** Aviso em itálico abaixo da chamada (ex.: "não é instituição financeira"). */
+  ctaNote?: string;
   links: GuideLink[];
   publishedAt: string;
 };
@@ -50,7 +75,8 @@ export const GUIDE_TOPICS: GuideTopic[] = [
     slug: "comprar-carro-usado",
     name: "Comprar carro usado",
     title: "Guias para comprar carro usado",
-    description: "Como evitar golpe e como avaliar um carro usado antes de fechar negócio.",
+    description:
+      "Golpe, documentos e transferência, tabela FIPE, financiamento, test drive e custos: o que saber antes de comprar carro usado.",
   },
   {
     slug: "vender-carro",
@@ -62,7 +88,8 @@ export const GUIDE_TOPICS: GuideTopic[] = [
     slug: "comprar-imovel",
     name: "Comprar imóvel",
     title: "Guias para comprar imóvel",
-    description: "Matrícula atualizada e os golpes mais comuns na compra e no aluguel de imóvel.",
+    description:
+      "Matrícula, certidões, ITBI e escritura, financiamento, FGTS, visita e golpes: o que conferir antes de comprar imóvel.",
   },
 ];
 
@@ -395,6 +422,857 @@ export const GUIDES: Guide[] = [
     links: [
       { href: "/imoveis", label: "Imóveis à venda e para alugar" },
       { guide: "matricula-atualizada" },
+      { href: "/guia/comprar-imovel", label: "Guias para comprar imóvel" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  // ---------------------------------------------------------------- Fase 2
+  // Guias 6 a 20 (PDF "Guias SEO do NovoSeminovo: fase 2"). Ajustes sobre o
+  // texto do marketing estão comentados em cada guia.
+  {
+    id: "documentos-e-transferencia",
+    topic: "comprar-carro-usado",
+    slug: "documentos-e-transferencia",
+    heading: "Documentos na compra e na transferência do carro",
+    title: "Documentos para comprar carro usado e fazer a transferência | NovoSeminovo",
+    description:
+      "O que pedir ao vendedor, como funciona a transferência com a ATPV-e e qual é o prazo para passar o carro para o seu nome.",
+    quickAnswer:
+      "confira o CRLV e a identidade do dono, veja se não há débitos nem restrições, receba a ATPV-e (a autorização de transferência digital) preenchida com os seus dados e faça a transferência no Detran. Pelo Código de Trânsito, o comprador tem 30 dias para passar o carro para o próprio nome.",
+    sections: [
+      {
+        title: "O que pedir ao vendedor?",
+        kind: "ul",
+        items: [
+          "**CRLV** (documento do carro, em geral digital, no app Carteira Digital de Trânsito).",
+          "**Documento de identidade e CPF** de quem está no CRLV.",
+          "**ATPV-e** preenchida com os seus dados e o valor da venda, assinada pelo vendedor (pelo app ou com firma reconhecida, conforme o estado).",
+          "**Comprovante de quitação** do financiamento e baixa do gravame, se o carro foi financiado.",
+        ],
+      },
+      {
+        title: "Como funciona a transferência?",
+        kind: "ol",
+        items: [
+          "Confira no **Detran do seu estado** se há débitos (IPVA, licenciamento, multas) ou restrições. Débito em aberto trava a transferência.",
+          "O vendedor gera a **ATPV-e** com os seus dados.",
+          "Você faz a **vistoria**, quando o seu estado exige.",
+          "Paga as taxas de transferência e o Detran emite o **novo CRLV** no seu nome.",
+          "O vendedor faz a **comunicação de venda**, para multas futuras não irem para ele.",
+        ],
+      },
+      {
+        title: "Quanto tempo eu tenho?",
+        kind: "p",
+        paragraphs: [
+          "Até **30 dias** depois da compra. Passado o prazo, o Detran cobra multa e pontos na carteira de quem comprou.",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "Posso rodar com o carro antes de transferir?",
+        a: "Pode, dentro dos 30 dias e com o CRLV em dia, mas transfira o quanto antes: até lá, o carro continua no nome de outra pessoa.",
+      },
+      {
+        q: "Comprei de loja. Quem faz a transferência?",
+        a: "Muitas lojas cuidam disso para o cliente. Combine por escrito quem faz e em quanto tempo.",
+      },
+    ],
+    cta: {
+      text: "Ache seu carro no NovoSeminovo e veja as opções de financiamento no próprio anúncio.",
+      href: "/carros",
+      label: "Ver carros",
+    },
+    links: [
+      { href: "/carros", label: "Carros à venda" },
+      { guide: "como-evitar-golpe" },
+      { guide: "documentos" },
+      { href: "/guia/comprar-carro-usado", label: "Guias para comprar carro usado" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "tabela-fipe",
+    topic: "comprar-carro-usado",
+    slug: "tabela-fipe",
+    heading: "Tabela FIPE: como usar na negociação",
+    title: "Tabela FIPE: o que é e como usar para negociar carro usado | NovoSeminovo",
+    description:
+      "A FIPE é um preço médio de referência, não um preço fixo. Veja como usar a tabela para saber se o carro está caro, barato ou justo.",
+    quickAnswer:
+      "a tabela FIPE mostra o preço médio de cada modelo, ano e versão, atualizado todo mês. Ela é uma **referência**, não um preço obrigatório: quilometragem, estado de conservação, opcionais e a cidade fazem o preço real subir ou descer.",
+    sections: [
+      {
+        title: "O que é a tabela FIPE?",
+        kind: "p",
+        paragraphs: [
+          "Uma pesquisa mensal da Fundação Instituto de Pesquisas Econômicas com o preço médio de carros no Brasil. É usada por lojas, seguradoras e bancos como base de valor.",
+        ],
+      },
+      {
+        title: "Como usar na negociação?",
+        kind: "ol",
+        items: [
+          "Encontre **modelo, ano e versão exatos**: a diferença entre versões pode ser grande.",
+          "Compare o preço pedido com a FIPE.",
+          "**Acima da FIPE:** pode se justificar por baixa quilometragem, revisões em dia ou acessórios. Peça para ver.",
+          "**Muito abaixo da FIPE:** desconfie. Preço bom demais é o primeiro sinal de golpe (veja o guia de como evitar golpe).",
+          "Use os defeitos que achar na avaliação (pneu, pintura, manutenção atrasada) como argumento para negociar.",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "O vendedor é obrigado a vender pela FIPE?",
+        a: "Não. A FIPE é só uma referência; o preço é combinado entre as partes.",
+      },
+      {
+        q: "A FIPE vale para carro de leilão ou com sinistro?",
+        a: "Esses carros costumam valer menos que a tabela. Pergunte sempre.",
+      },
+    ],
+    // Ajuste: a referência FIPE só aparece no anúncio quando está no cadastro
+    // (components/FipeReference.tsx não mostra nada sem ela).
+    cta: {
+      text: "No NovoSeminovo, o anúncio de carro mostra o preço de referência FIPE, quando ele está no cadastro, para você comparar antes de ligar.",
+      href: "/carros",
+      label: "Ver carros",
+    },
+    links: [
+      { href: "/carros", label: "Carros à venda" },
+      { guide: "como-avaliar" },
+      { guide: "como-evitar-golpe" },
+      { href: "/guia/comprar-carro-usado", label: "Guias para comprar carro usado" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "financiamento-veiculo",
+    topic: "comprar-carro-usado",
+    slug: "financiamento",
+    heading: "Financiamento de veículo: como funciona a simulação",
+    title: "Financiamento de carro usado: como funciona a simulação | NovoSeminovo",
+    description:
+      "Entrada, prazo, juros e CET: entenda o que muda a parcela do financiamento do carro e simule antes de decidir.",
+    quickAnswer:
+      "a parcela depende de quanto você dá de entrada, do prazo e dos juros. Compare sempre o **CET (Custo Efetivo Total)**, que soma juros, tarifas e seguros. A simulação é uma estimativa; o valor final depende da análise da instituição financeira.",
+    sections: [
+      {
+        title: "O que muda a parcela?",
+        kind: "ul",
+        items: [
+          "**Entrada:** quanto maior, menor o valor financiado e menos juros você paga.",
+          "**Prazo:** mais meses deixam a parcela menor, mas o total pago fica maior.",
+          "**Juros e CET:** o CET é o número que permite comparar propostas diferentes.",
+          "**Ano do carro:** carros mais antigos podem ter condições diferentes.",
+        ],
+      },
+      {
+        title: "Passo a passo",
+        kind: "ol",
+        items: [
+          "Defina quanto da sua renda cabe na parcela (veja o guia de qual carro cabe no bolso).",
+          "Simule com entrada e prazos diferentes.",
+          "Peça a proposta e leia o **CET** e o valor total.",
+          "Seguros e serviços extras são opcionais: ninguém pode obrigar você a contratar para liberar o crédito.",
+          "Depois de assinado, o carro fica com **alienação fiduciária** (gravame) até a última parcela.",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "Simular garante a aprovação?",
+        a: "Não. A simulação é uma estimativa; aprovação, taxa e parcela dependem da análise da instituição.",
+      },
+      {
+        q: "Posso quitar antes?",
+        a: "Pode, com desconto dos juros das parcelas que faltam (direito previsto no Código de Defesa do Consumidor).",
+      },
+    ],
+    cta: {
+      text: "Veja as opções de financiamento no próprio anúncio do NovoSeminovo e simule as parcelas sem custo. Atendimento de crédito pela nossa parceira de crédito.",
+      href: "/carros",
+      label: "Ver carros",
+    },
+    ctaNote:
+      "O NovoSeminovo não é instituição financeira e não concede crédito. Simulações são estimativas e dependem da análise da instituição.",
+    links: [
+      { href: "/carros", label: "Carros à venda" },
+      { guide: "qual-carro-cabe-no-bolso" },
+      { guide: "documentos-e-transferencia" },
+      { href: "/guia/comprar-carro-usado", label: "Guias para comprar carro usado" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "loja-ou-particular",
+    topic: "comprar-carro-usado",
+    slug: "loja-ou-particular",
+    heading: "Comprar carro de loja ou de particular: o que muda",
+    title: "Comprar carro usado de loja ou de particular: o que muda | NovoSeminovo",
+    description:
+      "Garantia, preço, documentação e segurança: as diferenças entre comprar carro de loja e de pessoa física.",
+    quickAnswer:
+      "na loja você tem a proteção do Código de Defesa do Consumidor, inclusive a garantia legal de 90 dias para defeitos, e costuma ter ajuda com documentação e financiamento. Com particular, o preço pode ser menor, mas a proteção é menor e você precisa conferir tudo sozinho.",
+    sections: [
+      {
+        title: "Comprando de loja",
+        kind: "ul",
+        items: [
+          "**Garantia legal de 90 dias** para defeitos (Código de Defesa do Consumidor), além de garantias extras que a loja oferecer por escrito.",
+          "Ajuda com **transferência e financiamento**.",
+          "Nota fiscal e empresa com CNPJ para cobrar se der problema.",
+        ],
+      },
+      {
+        title: "Comprando de particular",
+        kind: "ul",
+        items: [
+          "Preço muitas vezes menor.",
+          "A relação segue o **Código Civil**: a proteção contra defeito escondido existe, mas é mais curta e mais difícil de cobrar.",
+          "Você confere documento, débitos e estado do carro por conta própria.",
+        ],
+      },
+      {
+        title: "Em qualquer caso",
+        kind: "ol",
+        items: [
+          "Veja o carro pessoalmente e faça test drive.",
+          "Confira o CRLV e o chassi.",
+          "Pague só na transferência, para a conta de quem está no documento.",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "Loja pode vender carro “no estado”, sem garantia?",
+        a: "A garantia legal de 90 dias vale mesmo assim para defeitos que existiam na venda.",
+      },
+      {
+        q: "Como sei se a loja é confiável?",
+        a: "Procure o selo verificado (empresa conferida pela nossa equipe), avaliações e endereço físico.",
+      },
+    ],
+    cta: { text: "Procure carros de lojas com selo verificado no NovoSeminovo.", href: "/carros", label: "Ver carros" },
+    links: [
+      { href: "/carros", label: "Carros à venda" },
+      { guide: "como-evitar-golpe" },
+      { guide: "como-avaliar" },
+      { href: "/guia/comprar-carro-usado", label: "Guias para comprar carro usado" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "test-drive",
+    topic: "comprar-carro-usado",
+    slug: "test-drive",
+    heading: "Test drive: o que observar",
+    title: "Test drive de carro usado: o que observar | NovoSeminovo",
+    description:
+      "Checklist de test drive: partida a frio, freio, câmbio, suspensão, direção e barulhos. O que testar em 15 minutos.",
+    quickAnswer:
+      "ligue o carro frio, rode pelo menos 15 minutos em ruas diferentes (asfalto bom, buraco, subida) e teste freio, câmbio, direção e suspensão. Barulho estranho, carro puxando para um lado ou luz acesa no painel pedem uma avaliação de mecânico antes de fechar.",
+    sections: [
+      {
+        title: "Antes de sair",
+        kind: "ul",
+        items: [
+          "Peça para **ligar o motor frio**: problemas aparecem mais na partida.",
+          "Veja se **todas as luzes do painel** apagam depois da partida.",
+          "Teste ar-condicionado, vidros, travas e som.",
+        ],
+      },
+      {
+        title: "Rodando",
+        kind: "ol",
+        items: [
+          "**Freio:** freie firme em reta. O carro tem que parar reto, sem tremer.",
+          "**Câmbio:** as marchas devem entrar macias; no automático, sem trancos.",
+          "**Direção:** solte levemente o volante em reta: o carro não pode puxar.",
+          "**Suspensão:** passe em buraco e lombada devagar. Batidas secas indicam desgaste.",
+          "**Motor:** acelere em subida e veja se o carro responde sem engasgar.",
+        ],
+      },
+      {
+        title: "Depois",
+        kind: "p",
+        paragraphs: ["Olhe embaixo do carro se há vazamento e sinta cheiro de queimado ou combustível."],
+      },
+    ],
+    faq: [
+      {
+        q: "O vendedor não deixa fazer test drive. E agora?",
+        a: "Desconfie. Sem rodar com o carro, não compre.",
+      },
+      {
+        q: "Preciso de CNH?",
+        a: "Sim. Quem dirige no test drive precisa de carteira válida.",
+      },
+    ],
+    cta: { text: "Ache um carro no NovoSeminovo e agende a visita com quem anuncia.", href: "/carros", label: "Ver carros" },
+    links: [
+      { href: "/carros", label: "Carros à venda" },
+      { guide: "como-avaliar" },
+      { guide: "loja-ou-particular" },
+      { href: "/guia/comprar-carro-usado", label: "Guias para comprar carro usado" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "custo-de-manter",
+    topic: "comprar-carro-usado",
+    slug: "custo-de-manter",
+    heading: "Quanto custa manter um carro",
+    title: "Quanto custa manter um carro: IPVA, seguro, licenciamento e manutenção | NovoSeminovo",
+    description:
+      "Além da parcela: os custos fixos e variáveis de ter um carro e como colocar tudo no orçamento antes de comprar.",
+    quickAnswer:
+      "além da parcela, some IPVA, licenciamento, seguro, manutenção, combustível e estacionamento. O IPVA é um percentual do valor do carro e varia por estado. Faça a conta anual antes de escolher o modelo: dois carros com o mesmo preço podem ter custos de manutenção bem diferentes.",
+    sections: [
+      {
+        title: "Custos fixos (todo ano)",
+        kind: "ul",
+        items: [
+          "**IPVA:** imposto estadual; a alíquota e o calendário mudam de estado para estado. Alguns estados isentam carros mais antigos.",
+          "**Licenciamento:** taxa anual do Detran para o carro poder circular.",
+          "**Seguro:** varia com o modelo, a sua idade, o CEP e o uso.",
+        ],
+      },
+      {
+        title: "Custos variáveis",
+        kind: "ul",
+        items: [
+          "**Combustível:** depende do consumo do modelo e de quanto você roda.",
+          "**Manutenção:** revisões, pneus, freios e peças. Modelos populares costumam ter peça mais barata e fácil de achar.",
+          "**Estacionamento, pedágio e lavagem.**",
+        ],
+      },
+      {
+        title: "Como fazer a conta",
+        kind: "ol",
+        items: [
+          "Some os custos fixos do ano e divida por 12.",
+          "Estime combustível e manutenção do mês.",
+          "Some a parcela, se for financiar.",
+          "Veja se o total cabe no orçamento (guia de qual carro cabe no bolso).",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "Carro mais velho é sempre mais barato de manter?",
+        a: "Não. O IPVA pode ser menor, mas a manutenção tende a subir.",
+      },
+      {
+        q: "Posso comprar carro com IPVA atrasado?",
+        a: "O débito acompanha o carro e precisa ser pago para transferir. Combine com o vendedor antes.",
+      },
+    ],
+    cta: { text: "Compare carros e preços de referência no NovoSeminovo.", href: "/carros", label: "Ver carros" },
+    links: [
+      { href: "/carros", label: "Carros à venda" },
+      { guide: "qual-carro-cabe-no-bolso" },
+      { guide: "financiamento-veiculo" },
+      { href: "/guia/comprar-carro-usado", label: "Guias para comprar carro usado" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "suv-hatch-ou-sedan",
+    topic: "comprar-carro-usado",
+    slug: "suv-hatch-ou-sedan",
+    heading: "SUV, hatch ou sedan: qual combina com você",
+    title: "SUV, hatch ou sedan: qual tipo de carro escolher | NovoSeminovo",
+    description:
+      "Espaço, consumo, preço e uso no dia a dia: as diferenças entre SUV, hatch, sedan e picape para escolher o carro certo.",
+    quickAnswer:
+      "hatch é o mais fácil de estacionar e costuma gastar menos; sedan tem porta-malas maior e é confortável na estrada; SUV tem posição de dirigir mais alta e lida melhor com rua ruim, mas costuma custar mais e consumir mais. Escolha pelo seu uso: cidade, estrada, família ou trabalho.",
+    sections: [
+      {
+        title: "Hatch",
+        kind: "ul",
+        items: ["Compacto, ágil na cidade, fácil de estacionar.", "Porta-malas menor.", "Bom para quem roda sozinho ou em dupla."],
+      },
+      {
+        title: "Sedan",
+        kind: "ul",
+        items: ["Porta-malas grande e separado da cabine.", "Confortável em viagem.", "Mais comprido para estacionar."],
+      },
+      {
+        title: "SUV",
+        kind: "ul",
+        items: [
+          "Posição de dirigir alta e boa visão da rua.",
+          "Altura do solo maior para lombada, buraco e rua de terra.",
+          "Em geral preço, seguro e consumo maiores que um hatch do mesmo porte.",
+        ],
+      },
+      {
+        title: "Picape",
+        kind: "ul",
+        items: ["Caçamba para carga e trabalho.", "Maior e com consumo mais alto."],
+      },
+    ],
+    faq: [
+      {
+        q: "Família com criança pequena: qual escolher?",
+        a: "Veja o porta-malas com o carrinho e a cadeirinha dentro. Sedan e SUV costumam levar vantagem.",
+      },
+      {
+        q: "Qual gasta menos?",
+        a: "Em geral, os hatches. Compare sempre o consumo do modelo específico.",
+      },
+    ],
+    cta: { text: "Veja SUVs, hatches e sedans no NovoSeminovo.", href: "/carros", label: "Ver carros" },
+    links: [
+      { href: "/busca?assetType=vehicle&bodyType=suv", label: "SUVs à venda" },
+      { href: "/carros", label: "Carros à venda" },
+      { guide: "custo-de-manter" },
+      { href: "/guia/comprar-carro-usado", label: "Guias para comprar carro usado" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "qual-carro-cabe-no-bolso",
+    topic: "comprar-carro-usado",
+    slug: "qual-carro-cabe-no-bolso",
+    heading: "Qual carro cabe no meu bolso",
+    title: "Qual carro cabe no meu bolso? Como calcular | NovoSeminovo",
+    description:
+      "Como calcular quanto gastar no carro, considerando entrada, parcela e custos de manter, sem apertar o orçamento.",
+    quickAnswer:
+      "some a parcela (se for financiar) e os custos de manter o carro (veja o guia de quanto custa manter um carro) e veja quanto sobra da sua renda. Uma regra prática usada por muitos educadores financeiros é não comprometer mais do que cerca de 30% da renda com todas as parcelas somadas. Com esse número, você chega à faixa de preço certa.",
+    sections: [
+      {
+        title: "Passo a passo",
+        kind: "ol",
+        items: [
+          "**Renda líquida do mês:** o que cai na conta.",
+          "**Parcelas que você já tem:** cartão, empréstimos, outros financiamentos.",
+          "**Limite de parcela:** a regra prática de até ~30% da renda para todas as parcelas.",
+          "**Custos de manter:** IPVA, seguro, combustível e manutenção divididos por mês.",
+          "**Entrada:** quanto mais entrada, menor a parcela e os juros.",
+          "**Faixa de preço:** simule até achar o valor de carro que fecha a conta.",
+        ],
+      },
+      {
+        title: "Dicas",
+        kind: "ul",
+        items: ["Deixe uma reserva para imprevistos (pneu, bateria, revisão).", "Prefira prazo menor se a parcela couber: o total pago cai."],
+      },
+    ],
+    faq: [
+      {
+        q: "Vale esticar o prazo para pegar um carro melhor?",
+        a: "A parcela cai, mas o total pago sobe. Compare o valor final.",
+      },
+      {
+        q: "Como achar carros na minha faixa?",
+        a: "Filtre por preço na busca ou conte para o assistente do NovoSeminovo o que você procura e quanto quer gastar.",
+      },
+    ],
+    cta: {
+      text: "Conte o que você procura e o assistente do NovoSeminovo encontra para você. Simule as parcelas no próprio anúncio.",
+      href: "/carros",
+      label: "Ver carros",
+    },
+    ctaNote:
+      "O NovoSeminovo não é instituição financeira e não concede crédito. Simulações são estimativas e dependem da análise da instituição.",
+    links: [
+      { href: "/carros", label: "Carros à venda" },
+      { guide: "financiamento-veiculo" },
+      { guide: "custo-de-manter" },
+      { href: "/guia/comprar-carro-usado", label: "Guias para comprar carro usado" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "checklist-da-visita",
+    topic: "comprar-imovel",
+    slug: "checklist-da-visita",
+    heading: "Checklist da visita ao imóvel",
+    title: "Checklist da visita ao imóvel: o que olhar antes de comprar | NovoSeminovo",
+    description:
+      "Umidade, rachaduras, instalações, luz, barulho e vizinhança: o que conferir na visita ao imóvel antes de fazer proposta.",
+    quickAnswer:
+      "visite de dia e, se puder, também à noite. Procure sinais de umidade e rachaduras, teste torneiras, descargas e tomadas, veja a luz do sol e o barulho da rua, e converse com vizinhos ou com o síndico. Fotos e anotações ajudam a comparar imóveis depois.",
+    sections: [
+      {
+        title: "Estrutura e acabamento",
+        kind: "ul",
+        items: [
+          "**Umidade e mofo:** manchas no teto, cantos e atrás de armários.",
+          "**Rachaduras:** principalmente em diagonal, perto de portas e janelas.",
+          "**Piso e revestimento:** peças soltas ou ocas.",
+        ],
+      },
+      {
+        title: "Instalações",
+        kind: "ul",
+        items: [
+          "Abra torneiras e chuveiro: veja pressão e vazamentos.",
+          "Dê descarga.",
+          "Teste tomadas e interruptores; veja o quadro de luz.",
+          "Pergunte a idade da parte elétrica e hidráulica.",
+        ],
+      },
+      {
+        title: "Entorno",
+        kind: "ul",
+        items: ["Sol da manhã ou da tarde, ventilação.", "Barulho da rua, de bares ou de obras.", "Transporte, comércio, escola e segurança."],
+      },
+    ],
+    faq: [
+      { q: "Quantas vezes devo visitar?", a: "Pelo menos duas, em horários diferentes." },
+      {
+        q: "Posso levar alguém para avaliar?",
+        a: "Sim. Um engenheiro, arquiteto ou pedreiro de confiança enxerga problemas que passam despercebidos.",
+      },
+    ],
+    cta: {
+      text: "Encontre imóveis no NovoSeminovo e veja no anúncio como o imóvel pode ficar com o Arquiteto NovoSeminovo.",
+      href: "/imoveis",
+      label: "Ver imóveis",
+    },
+    links: [
+      { href: "/imoveis", label: "Imóveis à venda e para alugar" },
+      { guide: "matricula-atualizada" },
+      { guide: "arquiteto-novoseminovo" },
+      { href: "/guia/comprar-imovel", label: "Guias para comprar imóvel" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "certidoes-do-vendedor",
+    topic: "comprar-imovel",
+    slug: "certidoes-do-vendedor",
+    heading: "Certidões do vendedor: quais pedir",
+    title: "Certidões do vendedor na compra de imóvel: quais pedir | NovoSeminovo",
+    description:
+      "Matrícula atualizada, certidões de ações e protestos, IPTU e condomínio: os documentos que mostram se a compra é segura.",
+    quickAnswer:
+      "além da matrícula atualizada do imóvel, peça certidões em nome de quem vende (ações na Justiça, protestos e débitos), o comprovante de IPTU em dia e, em condomínio, a declaração de que não há taxas atrasadas. Um advogado ou o cartório indica a lista completa para o seu caso.",
+    sections: [
+      {
+        title: "Do imóvel",
+        kind: "ul",
+        items: [
+          "**Matrícula atualizada** com certidão de ônus reais (veja o guia da matrícula atualizada).",
+          "**IPTU:** certidão negativa de débitos na prefeitura.",
+          "**Condomínio:** declaração do síndico ou administradora de que não há dívida.",
+        ],
+      },
+      {
+        title: "De quem vende",
+        kind: "ul",
+        items: [
+          "Certidões de **ações cíveis** e de **execuções fiscais** (Justiça estadual e federal).",
+          "Certidão **trabalhista**.",
+          "Certidão de **protesto**.",
+          "Documentos pessoais e, se casado, os do cônjuge, que também assina.",
+        ],
+      },
+      {
+        title: "Por que isso importa?",
+        kind: "p",
+        paragraphs: ["Dívidas do vendedor podem, em alguns casos, atingir o imóvel vendido. As certidões mostram o risco antes de você pagar."],
+      },
+    ],
+    faq: [
+      // Ajuste: a validade muda de uma certidão para outra (a trabalhista, por
+      // exemplo, vale bem mais que 30 dias); "cerca de 30 dias" ficou como
+      // o caso comum, não como regra.
+      {
+        q: "As certidões têm validade?",
+        a: "Sim. O prazo muda de uma certidão para outra e costuma vir escrito nela; muitas valem só cerca de 30 dias. Peça perto da data da escritura.",
+      },
+      {
+        q: "Quem paga as certidões?",
+        a: "É comum o comprador pedir e pagar, mas pode ser combinado entre as partes.",
+      },
+    ],
+    cta: {
+      text: "Procure imóveis de imobiliárias e corretores com selo verificado (empresa conferida pela nossa equipe) no NovoSeminovo.",
+      href: "/imoveis",
+      label: "Ver imóveis",
+    },
+    links: [
+      { href: "/imoveis", label: "Imóveis à venda e para alugar" },
+      { guide: "matricula-atualizada" },
+      { guide: "itbi-e-escritura" },
+      { href: "/guia/comprar-imovel", label: "Guias para comprar imóvel" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "itbi-e-escritura",
+    topic: "comprar-imovel",
+    slug: "itbi-e-escritura",
+    heading: "ITBI e escritura: o que são e quando pagar",
+    title: "ITBI e escritura: o que são, quanto custam e quando pagar | NovoSeminovo",
+    description:
+      "ITBI, escritura e registro: os três passos que fazem o imóvel ser seu de verdade, e quanto reservar para eles.",
+    quickAnswer:
+      "o **ITBI** é o imposto da prefeitura sobre a compra do imóvel; a alíquota é definida por cada cidade e costuma ficar entre 2% e 3%. A **escritura** é feita no cartório de notas e o **registro** no Cartório de Registro de Imóveis. Só depois do registro na matrícula o imóvel passa a ser seu.",
+    sections: [
+      {
+        title: "Os 3 passos",
+        kind: "ol",
+        items: [
+          "**ITBI:** pago à prefeitura, em geral antes da escritura ou do registro (cada cidade tem sua regra).",
+          "**Escritura pública:** no cartório de notas. É obrigatória na compra de imóvel acima de 30 salários mínimos. No financiamento bancário, o contrato do banco costuma substituir a escritura.",
+          "**Registro:** no Cartório de Registro de Imóveis da região. Quem não registra, não é dono.",
+        ],
+      },
+      {
+        title: "Quanto reservar?",
+        kind: "p",
+        paragraphs: [
+          "Some ITBI, escritura e registro. As taxas de cartório seguem tabela de cada estado. Peça o orçamento ao cartório antes de fechar.",
+        ],
+      },
+    ],
+    faq: [
+      { q: "Quem paga o ITBI?", a: "Em regra, quem compra, salvo combinado diferente no contrato." },
+      {
+        q: "Existe desconto?",
+        a: "Algumas cidades têm redução para o primeiro imóvel ou para imóveis financiados por programas habitacionais. Consulte a prefeitura.",
+      },
+    ],
+    cta: {
+      text: "Encontre seu imóvel no NovoSeminovo e veja as opções de financiamento no próprio anúncio.",
+      href: "/imoveis",
+      label: "Ver imóveis",
+    },
+    links: [
+      { href: "/imoveis", label: "Imóveis à venda e para alugar" },
+      { guide: "certidoes-do-vendedor" },
+      { guide: "financiamento-imovel" },
+      { href: "/guia/comprar-imovel", label: "Guias para comprar imóvel" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "financiamento-imovel",
+    topic: "comprar-imovel",
+    slug: "financiamento",
+    heading: "Financiamento imobiliário: como funciona a simulação",
+    title: "Financiamento imobiliário: como funciona a simulação | NovoSeminovo",
+    description:
+      "Entrada, prazo, SAC ou Price, CET e seguros: entenda o que muda a parcela do financiamento do imóvel.",
+    quickAnswer:
+      "o banco financia uma parte do valor do imóvel e você paga a entrada. A parcela depende da entrada, do prazo, dos juros, do sistema de amortização (SAC ou Price) e dos seguros obrigatórios. Compare propostas pelo CET. A simulação é uma estimativa; a aprovação depende da análise da instituição.",
+    sections: [
+      {
+        title: "O que entra na conta",
+        kind: "ul",
+        items: [
+          "**Entrada:** a parte que o banco não financia. Pode incluir o FGTS (veja o guia do FGTS).",
+          "**Prazo:** quanto mais longo, menor a parcela e maior o total pago.",
+          "**SAC ou Price:** no SAC a parcela começa maior e vai caindo; na Price ela fica mais parecida do começo ao fim.",
+          "**Seguros obrigatórios:** contra morte e invalidez e contra danos ao imóvel.",
+          "**CET:** junta juros, tarifas e seguros. É o número para comparar.",
+        ],
+      },
+      {
+        title: "Passo a passo",
+        kind: "ol",
+        items: [
+          "Veja quanto da renda cabe na parcela.",
+          "Simule com entradas e prazos diferentes.",
+          "Reúna os documentos pessoais e de renda.",
+          "O banco avalia o imóvel e analisa o crédito.",
+          "Assina o contrato, registra no cartório e o imóvel fica em alienação fiduciária até a quitação.",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "Simular garante aprovação?",
+        a: "Não. Aprovação, taxa e parcela dependem da análise da instituição.",
+      },
+      { q: "Posso usar FGTS?", a: "Em muitos casos, sim (veja o guia de como usar o FGTS)." },
+    ],
+    cta: {
+      text: "Simule as parcelas no próprio anúncio do NovoSeminovo. Atendimento de crédito pela nossa parceira de crédito.",
+      href: "/imoveis",
+      label: "Ver imóveis",
+    },
+    ctaNote:
+      "O NovoSeminovo não é instituição financeira e não concede crédito. Simulações são estimativas e dependem da análise da instituição.",
+    links: [
+      { href: "/imoveis", label: "Imóveis à venda e para alugar" },
+      { guide: "fgts" },
+      { guide: "itbi-e-escritura" },
+      { href: "/guia/comprar-imovel", label: "Guias para comprar imóvel" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "fgts",
+    topic: "comprar-imovel",
+    slug: "fgts",
+    heading: "Como usar o FGTS na compra do imóvel",
+    title: "Como usar o FGTS para comprar imóvel: regras e passo a passo | NovoSeminovo",
+    description:
+      "Quem pode usar o FGTS, em que tipo de imóvel e como: na entrada, para amortizar ou para pagar parte das parcelas.",
+    quickAnswer:
+      "dá para usar o FGTS na compra da casa própria se você tem pelo menos 3 anos de trabalho com carteira assinada (somando todos os empregos), não tem outro financiamento habitacional ativo e não é dono de imóvel residencial na cidade onde mora ou trabalha. O imóvel tem que ser residencial, urbano e para você morar, dentro dos limites do Sistema Financeiro da Habitação.",
+    sections: [
+      {
+        title: "Onde o FGTS pode entrar",
+        kind: "ul",
+        items: [
+          "**Na entrada** da compra.",
+          "**Para amortizar** o saldo devedor ou reduzir o prazo.",
+          "**Para pagar parte das parcelas**, por um período, conforme as regras.",
+        ],
+      },
+      {
+        title: "Regras principais",
+        kind: "ul",
+        items: [
+          "Pelo menos **3 anos** de trabalho sob o regime do FGTS.",
+          "Sem **financiamento ativo** pelo Sistema Financeiro da Habitação.",
+          "Sem **imóvel residencial** no município onde mora ou trabalha.",
+          "Imóvel **residencial e urbano**, para moradia própria.",
+        ],
+        note: "As regras e os limites de valor mudam com o tempo: confira na Caixa e no banco que vai financiar.",
+      },
+    ],
+    faq: [
+      { q: "Posso usar o FGTS do casal?", a: "Sim, os dois podem somar, se cada um cumprir as regras." },
+      {
+        q: "Dá para usar FGTS em imóvel comercial ou terreno?",
+        a: "Não, só residencial para morar (com exceções para construção, que seguem regras próprias).",
+      },
+    ],
+    cta: {
+      text: "Encontre seu imóvel no NovoSeminovo e veja as opções de financiamento no próprio anúncio.",
+      href: "/imoveis",
+      label: "Ver imóveis",
+    },
+    ctaNote: "O NovoSeminovo não é instituição financeira e não concede crédito.",
+    links: [
+      { href: "/imoveis", label: "Imóveis à venda e para alugar" },
+      { guide: "financiamento-imovel" },
+      { guide: "itbi-e-escritura" },
+      { href: "/guia/comprar-imovel", label: "Guias para comprar imóvel" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "apartamento-ou-casa",
+    topic: "comprar-imovel",
+    slug: "apartamento-ou-casa",
+    heading: "Apartamento ou casa: o que olhar no condomínio",
+    title: "Apartamento ou casa? O que olhar no condomínio antes de comprar | NovoSeminovo",
+    description:
+      "Vantagens de cada um e o que conferir no condomínio: taxa, regras, obras previstas, vagas e atas de assembleia.",
+    quickAnswer:
+      "apartamento costuma ter mais segurança e lazer, mas tem taxa de condomínio e regras coletivas; casa dá mais espaço e liberdade, com mais manutenção por sua conta. Em condomínio, peça as últimas atas de assembleia: elas mostram obras previstas, taxas extras e problemas.",
+    sections: [
+      {
+        title: "Apartamento",
+        kind: "ul",
+        items: ["Portaria, segurança e área de lazer.", "**Taxa de condomínio** todo mês.", "Regras sobre pets, reformas, barulho e mudança."],
+      },
+      {
+        title: "Casa",
+        kind: "ul",
+        items: ["Mais espaço, quintal e liberdade para reformar.", "Manutenção e segurança por sua conta."],
+      },
+      {
+        title: "O que conferir no condomínio",
+        kind: "ol",
+        items: [
+          "**Valor da taxa** e se há **taxa extra** em andamento.",
+          "**Atas das últimas assembleias**: obras aprovadas, brigas, dívidas.",
+          "**Fundo de reserva** e inadimplência.",
+          "**Vagas de garagem**: quantas, cobertas, se são fixas.",
+          "**Regras** sobre pets, reforma e aluguel por temporada.",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "Quem paga a taxa extra aprovada antes da venda?",
+        a: "Combine no contrato. Dívidas de condomínio acompanham o imóvel.",
+      },
+      { q: "Casa em condomínio fechado tem taxa?", a: "Sim, e as mesmas perguntas valem." },
+    ],
+    // O mapa fica na busca de imóveis (/busca?assetType=property).
+    cta: {
+      text: "Compare apartamentos e casas no mapa do NovoSeminovo.",
+      href: "/busca?assetType=property",
+      label: "Ver imóveis no mapa",
+    },
+    links: [
+      { href: "/imoveis", label: "Imóveis à venda e para alugar" },
+      { guide: "checklist-da-visita" },
+      { guide: "certidoes-do-vendedor" },
+      { href: "/guia/comprar-imovel", label: "Guias para comprar imóvel" },
+    ],
+    publishedAt: "2026-11-16",
+  },
+  {
+    id: "arquiteto-novoseminovo",
+    topic: "comprar-imovel",
+    slug: "arquiteto-novoseminovo",
+    heading: "Ver o imóvel reformado antes de visitar: o Arquiteto NovoSeminovo",
+    title: "Veja como o imóvel pode ficar reformado: Arquiteto NovoSeminovo | NovoSeminovo",
+    description:
+      "Com o Arquiteto NovoSeminovo, você vê no anúncio uma ideia de como o imóvel pode ficar reformado, com lista de compras.",
+    quickAnswer:
+      "o Arquiteto NovoSeminovo usa inteligência artificial para mostrar, no próprio anúncio, uma ideia de como o ambiente pode ficar depois de uma reforma, com uma lista de compras de referência. As imagens são ilustrativas: servem para imaginar o potencial do imóvel, não como projeto.",
+    sections: [
+      // Passos com os nomes reais da tela (app/anuncio/[id]/page.tsx,
+      // app/anuncio/[id]/arquiteto/page.tsx e components/architect/ArchitectStudio.tsx),
+      // como o marketing pediu. Mudou um botão lá? Mude aqui.
+      {
+        title: "Como funciona",
+        kind: "ol",
+        items: [
+          "Abra um anúncio de imóvel no NovoSeminovo.",
+          "Ao lado do preço, toque em **Arquiteto NovoSeminovo** (“Veja o imóvel reformado com IA”). É preciso entrar na sua conta.",
+          "Em **1. Escolha os cômodos**, marque até 5 fotos do anúncio. Com mais de uma, escolha **Todos de uma vez** ou **Um cômodo por vez**.",
+          "Em **2. Converse com o Arquiteto**, conte o que você imagina: estilo, orçamento, quem vai morar.",
+          "Veja em **Antes e depois** a imagem do ambiente reformado (há um limite de imagens por dia) e, em **Lista de compras da reforma**, os itens com faixa de preço. Dá para **Imprimir ou salvar PDF**.",
+        ],
+      },
+      {
+        title: "Para que serve",
+        kind: "ul",
+        items: [
+          "**Comprador:** imaginar o imóvel do seu jeito antes de visitar.",
+          "**Quem vende:** mostrar o potencial de um imóvel que precisa de reforma.",
+        ],
+      },
+      {
+        title: "Cuidados",
+        kind: "ul",
+        items: [
+          "As imagens são **geradas por IA e ilustrativas**.",
+          "Reforma de verdade pede orçamento e, em obra estrutural, profissional habilitado e as regras do condomínio e da prefeitura.",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "A lista de compras tem preço garantido?",
+        a: "Não. É uma referência; preços e disponibilidade mudam.",
+      },
+      {
+        q: "Funciona em qualquer anúncio?",
+        a: "Nos anúncios de imóvel do NovoSeminovo onde a ferramenta estiver disponível.",
+      },
+    ],
+    cta: { text: "Encontre imóveis no NovoSeminovo e veja como eles podem ficar.", href: "/imoveis", label: "Ver imóveis" },
+    links: [
+      { href: "/imoveis", label: "Imóveis à venda e para alugar" },
+      { guide: "checklist-da-visita" },
+      { guide: "apartamento-ou-casa" },
       { href: "/guia/comprar-imovel", label: "Guias para comprar imóvel" },
     ],
     publishedAt: "2026-11-16",

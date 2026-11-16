@@ -142,6 +142,11 @@ export default function GuidePage({ params }: Params) {
                 ))}
               </ul>
             )}
+            {section.kind !== "p" && section.note && (
+              <p className="mt-4 text-base leading-relaxed text-ink-muted">
+                <RichText text={section.note} />
+              </p>
+            )}
           </section>
         ))}
 
@@ -174,6 +179,7 @@ export default function GuidePage({ params }: Params) {
             <ArrowRight size={16} weight="bold" aria-hidden />
           </Link>
         </section>
+        {guide.ctaNote && <p className="mt-3 text-sm italic text-ink-muted">{guide.ctaNote}</p>}
 
         <nav aria-label="Leia também" className="mt-10">
           <h2 className="font-display text-xl font-semibold text-ink">Leia também</h2>
