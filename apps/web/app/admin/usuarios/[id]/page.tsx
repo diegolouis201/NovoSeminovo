@@ -165,7 +165,7 @@ function Header({ profile }: { profile: AdminUserProfile }) {
                 : "Sem assinatura"}
             </dd>
           </dl>
-          <Link href={`/lojas/${partner.slug}`} target="_blank" className="mt-3 inline-block text-sm font-semibold text-brand-blue hover:underline">
+          <Link href={`/lojas/${partner.slug}`} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm font-semibold text-brand-blue hover:underline">
             Ver página pública da loja →
           </Link>
         </div>

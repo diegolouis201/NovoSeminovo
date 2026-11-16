@@ -263,7 +263,7 @@ export function ArchitectStudio({ initial, apiBase }: { initial: ArchitectSessio
                         <figcaption className="mt-1 text-center text-xs font-semibold text-ink-muted">Hoje</figcaption>
                       </figure>
                       <figure>
-                        <a href={media(apiBase, image.resultUrl)} target="_blank" rel="noreferrer">
+                        <a href={media(apiBase, image.resultUrl)} target="_blank" rel="noopener noreferrer">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={media(apiBase, image.resultUrl)} alt="Depois da reforma (ilustração)" className="aspect-[4/3] w-full rounded-brand object-cover" />
                         </a>

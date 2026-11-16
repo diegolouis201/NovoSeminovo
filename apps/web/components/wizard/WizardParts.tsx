@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Camera, CaretLeft, CaretRight, Check, DownloadSimple, Star, Trash } from "@phosphor-icons/react";
 import { LISTING_TIERS, formatBRL, listingTier, type ListingTierId } from "@novoseminovo/shared-types";
 import { takeImportedPhotoBlobs } from "@/lib/import-photos";
@@ -220,36 +220,62 @@ export function publishLabel(isPartner: boolean, tier: ListingTierId): string {
   return `Publicar e pagar ${formatBRL(listingTier(tier).price)}`;
 }
 
+// Janela "Termos e Política de Privacidade" no fim do anunciar (auditoria
+// web, item 9): <dialog> nativo aberto com showModal(), que já prende o foco
+// dentro dela, deixa o fundo inativo, fecha com Esc (ou o "voltar" do
+// celular) e devolve o foco ao botão "Publicar". A escolha sai no
+// returnValue do <form method="dialog">; Esc = "Voltar".
 export function TermsDialog({ onCancel, onAccept }: { onCancel: () => void; onAccept: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const acceptRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+    acceptRef.current?.focus();
+  }, []);
+
+  function handleClose() {
+    const dialog = dialogRef.current;
+    const choice = dialog?.returnValue;
+    if (dialog) dialog.returnValue = "";
+    if (choice === "accept") onAccept();
+    else onCancel();
+  }
+
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="termos-titulo" className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
-      <div className="w-full max-w-md rounded-brand-lg bg-surface-raised p-5 shadow-card">
-        <h2 id="termos-titulo" className="font-display text-xl font-semibold text-ink">
-          Termos e Política de Privacidade
-        </h2>
-        <p className="mt-2 text-sm text-ink-muted">Para publicar, confirme que leu e concorda com os documentos abaixo.</p>
-        <ul className="mt-3 list-disc pl-5 text-sm">
-          <li>
-            <Link href="/termos" target="_blank" className="font-semibold text-brand-blue underline">
-              Termos de Uso
-            </Link>
-          </li>
-          <li>
-            <Link href="/privacidade" target="_blank" className="font-semibold text-brand-blue underline">
-              Política de Privacidade
-            </Link>
-          </li>
-        </ul>
-        <div className="mt-5 flex justify-end gap-2">
-          <button type="button" onClick={onCancel} className="rounded-full border border-border px-4 py-2.5 text-sm font-bold text-ink">
-            Voltar
-          </button>
-          <button type="button" onClick={onAccept} className="rounded-full bg-brand-green px-5 py-2.5 text-sm font-bold text-on-green">
-            Li e aceito, publicar
-          </button>
-        </div>
-      </div>
-    </div>
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="termos-titulo"
+      onClose={handleClose}
+      className="w-[calc(100%-2rem)] max-w-md rounded-brand-lg bg-surface-raised p-5 text-ink shadow-card backdrop:bg-black/50"
+    >
+      <h2 id="termos-titulo" className="font-display text-xl font-semibold text-ink">
+        Termos e Política de Privacidade
+      </h2>
+      <p className="mt-2 text-sm text-ink-muted">Para publicar, confirme que leu e concorda com os documentos abaixo.</p>
+      <ul className="mt-3 list-disc pl-5 text-sm">
+        <li>
+          <Link href="/termos" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-blue underline">
+            Termos de Uso
+          </Link>
+        </li>
+        <li>
+          <Link href="/privacidade" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-blue underline">
+            Política de Privacidade
+          </Link>
+        </li>
+      </ul>
+      <form method="dialog" className="mt-5 flex justify-end gap-2">
+        <button type="submit" value="cancel" className="rounded-full border border-border px-4 py-2.5 text-sm font-bold text-ink">
+          Voltar
+        </button>
+        <button ref={acceptRef} type="submit" value="accept" className="rounded-full bg-brand-green px-5 py-2.5 text-sm font-bold text-on-green">
+          Li e aceito, publicar
+        </button>
+      </form>
+    </dialog>
   );
 }
 

@@ -136,3 +136,21 @@ body {
     border: 0;
   }
 }
+
+/* Janela modal nativa (<dialog> com showModal): rolar dentro dela ou sobre o
+   fundo escuro não rola a página de trás (guia "dialog" da Modern Web Guidance). */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+/* Aviso de cookies vem pronto no HTML (aparece na primeira pintura, sem
+   esperar o JavaScript); quem já escolheu tem o atributo abaixo, posto por um
+   script curto no <head> antes de pintar (ver lib/consent.ts), e não vê o
+   aviso nem por um instante. */
+html[data-cookie-consent] [data-cookie-banner] {
+  display: none;
+}

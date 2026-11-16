@@ -179,10 +179,10 @@ function ApprovedState({ affiliate }: { affiliate: AffiliateDashboard }) {
         <CopyField label="Legenda pronta (ajuste com o seu jeito)" value={caption} multiline />
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <span className="font-semibold text-ink">Logo oficial:</span>
-          <a href="/marca/novoseminovo-logo-transparente.png" target="_blank" className="font-semibold text-brand-blue underline">
+          <a href="/marca/novoseminovo-logo-transparente.png" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-blue underline">
             PNG transparente
           </a>
-          <a href="/marca/novoseminovo-logo.png" target="_blank" className="font-semibold text-brand-blue underline">
+          <a href="/marca/novoseminovo-logo.png" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-blue underline">
             PNG com fundo branco
           </a>
         </div>
