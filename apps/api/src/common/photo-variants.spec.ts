@@ -107,4 +107,15 @@ describe("Gravação junto da original", () => {
     assert.equal(storage.owns("/uploads/abc.jpg"), true);
     assert.equal(storage.owns("https://crm.exemplo.com/foto.jpg"), false);
   });
+
+  test("foto antiga com extensão .jpeg também ganha cópia (conversão do servidor em 17/11/2026)", async () => {
+    const storage = getPhotoStorage();
+    const webp = await sharp(await jpeg(64, 48)).webp().toBuffer();
+    const original = `/uploads/${randomUUID()}.jpeg`;
+    const url = await storage.saveVariant(original, 320, webp);
+    created.push(url);
+    assert.equal(url, photoVariantUrl(original, 320));
+    assert.ok(existsSync(join(UPLOADS_DIR, url.replace(/^\/uploads\//, ""))));
+    await assert.rejects(storage.saveVariant("/uploads/../../etc/passwd.jpeg", 320, webp), /fora/);
+  });
 });

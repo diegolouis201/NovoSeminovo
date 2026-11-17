@@ -69,7 +69,7 @@ export interface PhotoStorage {
 // Nome do arquivo da cópia, conferido: sem "..", sem barra e só a partir de
 // um nome de arquivo nosso (uuid + extensão de imagem).
 function variantKey(originalKey: string, width: number): string {
-  if (!/^[0-9a-f-]{36}\.(jpg|png|webp)$/i.test(originalKey) || !Number.isInteger(width) || width < 1 || width > 4000) {
+  if (!/^[0-9a-f-]{36}\.(jpe?g|png|webp)$/i.test(originalKey) || !Number.isInteger(width) || width < 1 || width > 4000) {
     throw new Error(`Foto fora do armazenamento de fotos: "${originalKey}".`);
   }
   return photoVariantUrl(originalKey, width);
