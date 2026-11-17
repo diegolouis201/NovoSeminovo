@@ -34,11 +34,12 @@ function checkConsentBlock(testId: string, resumo: string, completo: string) {
     cy.get("details").should("not.have.attr", "open");
     cy.get("details summary").should("be.visible").and("contain.text", "Ler texto completo");
     cy.get("details [data-texto-completo]").invoke("text").then((text) => expect(normalized(text)).to.eq(completo));
-    cy.get("details [data-texto-completo]").should("not.be.visible");
+    // O "visible" do Cypress não entende <details> fechado: pergunta ao navegador.
+    cy.get("details [data-texto-completo]").should(($p) => expect($p[0]!.checkVisibility()).to.eq(false));
     // Abre sem script de página: é o <details> nativo.
     cy.get("details summary").click();
     cy.get("details").should("have.attr", "open");
-    cy.get("details [data-texto-completo]").should("be.visible");
+    cy.get("details [data-texto-completo]").should(($p) => expect($p[0]!.checkVisibility()).to.eq(true));
     cy.get("details summary").click();
     cy.get("details").should("not.have.attr", "open");
   });
