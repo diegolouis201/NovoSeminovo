@@ -156,8 +156,17 @@ function CredihomeBox({ lead }: { lead: FinancingLeadSummary }) {
       </label>
       <label className="flex items-start gap-2 text-ink">
         <input name="consent" type="checkbox" required className="mt-0.5" />
-        <span>O cliente aceitou a autorização de crédito (versão {CONSENTIMENTO_CREDITO.versao}): dados vão à IBS Capital, que envia à Credihome na base dela, para simulação e análise de crédito.</span>
+        <span>
+          O cliente aceitou a autorização de crédito do imóvel (versão {CONSENTIMENTO_CREDITO.imovel.versao}): dados vão à IBS
+          Capital, que envia à Loft/Credihome, para simulação e análise de crédito.
+        </span>
       </label>
+      <details className="ml-6 text-[11px] text-ink-muted">
+        <summary className="w-fit cursor-pointer font-semibold text-brand-blue">Texto que o cliente aceitou</summary>
+        <p data-texto-completo className="mt-1 rounded-brand border border-border bg-surface-page px-3 py-2 leading-relaxed">
+          {CONSENTIMENTO_CREDITO.imovel.texto}
+        </p>
+      </details>
       {message?.tone === "error" && <p className="text-status-danger">{message.text}</p>}
       <div className="flex gap-2">
         <button

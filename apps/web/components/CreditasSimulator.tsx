@@ -8,7 +8,7 @@ import {
   CreditasProposalInputSchema,
   TERMO_BACEN_CREDITAS,
 } from "@novoseminovo/shared-types";
-import { ConsentCheckbox, PrivacyPolicyNote, RESUMO_CONSULTA_SCR, resumoConsentimentoDados } from "@/components/CreditConsent";
+import { ConsentCheckbox, CreditDataConsent, RESUMO_CONSULTA_SCR } from "@/components/CreditConsent";
 import { requestCreditasProposalAction } from "@/lib/actions/creditas";
 import { flushMetaEvents } from "@/lib/meta-events";
 
@@ -81,6 +81,8 @@ export function CreditasSimulator({ listingId, price }: { listingId: string; pri
               timeToPurchase: String(formData.get("timeToPurchase") ?? ""),
               consent: formData.get("consent") === "on",
               bacenConsent: formData.get("bacenConsent") === "on",
+              // Versão do texto que estava na tela (vai para o registro do aceite).
+              consentVersion: String(formData.get("consentVersion") ?? ""),
             };
             const parsed = CreditasProposalInputSchema.safeParse(input);
             if (!parsed.success) {
@@ -159,11 +161,8 @@ export function CreditasSimulator({ listingId, price }: { listingId: string; pri
           </label>
 
           <div className="flex flex-col gap-3">
-            <ConsentCheckbox
-              name="consent"
-              testId="consentimento-dados"
-              summary={resumoConsentimentoDados("Creditas")}
-              fullText={CONSENTIMENTO_CREDITO.veiculo}
+            <CreditDataConsent
+              consentimento={CONSENTIMENTO_CREDITO.veiculo}
               errorMessage="Autorize o envio dos dados para receber a proposta"
             />
             <ConsentCheckbox
@@ -173,7 +172,6 @@ export function CreditasSimulator({ listingId, price }: { listingId: string; pri
               fullText={TERMO_BACEN_CREDITAS.texto}
               errorMessage="Autorize a consulta ao SCR (Banco Central) para a análise de crédito"
             />
-            <PrivacyPolicyNote />
           </div>
 
           {error && <p className="rounded-brand bg-status-danger/10 px-3 py-2 text-xs text-status-danger">{error}</p>}

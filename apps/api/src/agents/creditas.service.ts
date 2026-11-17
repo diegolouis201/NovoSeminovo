@@ -14,13 +14,14 @@ import { ContactsService } from "../marketing/contacts.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { LIMITS, LIMIT_WINDOW_MS, REPEAT_DAYS, type ProposalOutcome } from "./credihome.service";
 import { createCreditasLead, creditasEnabled, type CreditasLeadRequest } from "./creditas";
+import { recordCreditConsent, type ConsentContext } from "./credit-consent";
 
 const MAX_USER_AGENT = 500;
 
 // De onde veio o aceite das autorizações: IP do visitante (repassado pelo
 // site) e identificação do navegador. A Creditas pede os dois junto com o
-// termo BACEN.
-export type ConsentContext = { ip: string; userAgent: string };
+// termo BACEN, e os dois ficam no registro do aceite (credit-consent.ts).
+export type { ConsentContext };
 
 const nowLabel = () => new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
@@ -115,7 +116,7 @@ export class CreditasService {
       "Pedido de proposta de financiamento de veículo pelo formulário Creditas do anúncio.",
       `Veículo ${formatBRL(price)}, entrada ${formatBRL(downValue)}, financiar ${formatBRL(financingValue)}.`,
       `Quando pretende comprar: ${CREDITAS_TIME_TO_PURCHASE[input.timeToPurchase]}.`,
-      `Autorização de crédito versão ${CONSENTIMENTO_CREDITO.versao} e termo BACEN versão ${TERMO_BACEN_CREDITAS.versao} aceitos em ${nowLabel()}.`,
+      `Autorização de crédito versão ${CONSENTIMENTO_CREDITO.veiculo.versao} e termo BACEN versão ${TERMO_BACEN_CREDITAS.versao} aceitos em ${nowLabel()}.`,
     ].join(" ");
 
     const lead =
@@ -139,6 +140,19 @@ export class CreditasService {
         select: { id: true, creditasLeadId: true, adminNotes: true },
       }));
     if (!repeated) void this.meta?.track("Lead", metaContext, { email: input.email, phone: input.phone }, "veiculo");
+
+    // Prova do aceite (parecer jurídico LGPD de 17/11/2026), antes de qualquer
+    // envio: fica registrado mesmo se o pedido não sair daqui.
+    await recordCreditConsent(this.prisma, {
+      financingLeadId: lead.id,
+      modality: "veiculo",
+      version: input.consentVersion,
+      origin: "site",
+      ip: consentContext.ip,
+      userAgent: consentContext.userAgent,
+      bacenTermVersion: TERMO_BACEN_CREDITAS.versao,
+      now: acceptedAt,
+    });
 
     await this.contacts
       .capture({

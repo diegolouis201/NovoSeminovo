@@ -26,6 +26,7 @@ import { MetaConversionsService } from "../meta/meta-conversions.service";
 import { ContactsService } from "../marketing/contacts.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { trackRoutine } from "../operations/routine-health";
+import { recordCreditConsent, type ConsentContext } from "./credit-consent";
 import { CredihomeError, createCredihomeLead, credihomeEnabled, fetchCredihomePhase, simulateCredihome } from "./credihome";
 
 const SYNC_MS = 6 * 60 * 60 * 1000;
@@ -112,6 +113,8 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
     listingId: string,
     input: CredihomeProposalInput & { phone: string },
     visitor: string,
+    // IP e navegador de quem aceitou a autorização (registro do aceite).
+    consentContext: ConsentContext,
     acquisition?: Acquisition,
     // Conta de quem pediu (se estava logado) — o pedido fica ligado a ela.
     buyerUserId?: string,
@@ -133,7 +136,7 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
       `Financiar ${formatBRL(input.mortgageValue)} em ${input.months} meses.`,
       `Quando pretende comprar: ${window}.`,
       input.useFgts ? "Vai usar FGTS." : undefined,
-      `Autorização de crédito versão ${CONSENTIMENTO_CREDITO.versao} aceita em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`,
+      `Autorização de crédito versão ${CONSENTIMENTO_CREDITO.imovel.versao} aceita em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`,
     ]
       .filter(Boolean)
       .join(" ");
@@ -160,6 +163,17 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
       }));
     if (!repeated) void this.meta?.track("Lead", metaContext, { email: input.email, phone: input.phone }, "imovel");
 
+    // Prova do aceite (parecer jurídico LGPD de 17/11/2026), antes de qualquer
+    // envio: fica registrado mesmo se o pedido não sair daqui.
+    await recordCreditConsent(this.prisma, {
+      financingLeadId: lead.id,
+      modality: "imovel",
+      version: input.consentVersion,
+      origin: "site",
+      ip: consentContext.ip,
+      userAgent: consentContext.userAgent,
+    });
+
     await this.contacts
       .capture({
         email: input.email,
@@ -178,7 +192,7 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
     let failure: string | undefined;
     if (credihomeEnabled()) {
       try {
-        alreadyExisted = (await this.send(lead.id, { ...input, consent: true }, input.months)).alreadyExisted;
+        alreadyExisted = (await this.send(lead.id, { ...input, consent: true, consentVersion: input.consentVersion }, input.months)).alreadyExisted;
         outcome = "sent";
       } catch (error) {
         failure = error instanceof Error ? error.message : String(error);
@@ -234,12 +248,31 @@ export class CredihomeService implements OnModuleInit, OnModuleDestroy {
 
   // Envio feito pelo admin no quadro de financiamentos, depois de conversar
   // com o cliente e ele autorizar. CPF e nascimento só passam por aqui.
-  async send(leadId: string, input: SendToCredihomeInput, months?: number): Promise<{ credihomeLeadId: string; alreadyExisted: boolean }> {
+  // adminConsent: quando o envio é do admin pelo quadro, o aceite que ele
+  // confirmou fica registrado (com o IP e o navegador do admin). No pedido
+  // pelo site, o aceite já foi registrado em requestProposal.
+  async send(
+    leadId: string,
+    input: SendToCredihomeInput,
+    months?: number,
+    adminConsent?: ConsentContext & { origin: "admin"; adminUserId: string },
+  ): Promise<{ credihomeLeadId: string; alreadyExisted: boolean }> {
     const lead = await this.prisma.financingLead.findUnique({ where: { id: leadId } });
     if (!lead) throw new NotFoundException("Lead não encontrado");
     if (lead.assetType !== "property") throw new BadRequestException("A Credihome só faz financiamento de imóvel.");
     if (lead.credihomeLeadId) throw new BadRequestException("Este lead já foi enviado à Credihome.");
     if (!credihomeEnabled()) throw new BadRequestException("A Credihome ainda não está configurada no servidor.");
+    if (adminConsent) {
+      await recordCreditConsent(this.prisma, {
+        financingLeadId: lead.id,
+        modality: "imovel",
+        version: input.consentVersion,
+        origin: "admin",
+        adminUserId: adminConsent.adminUserId,
+        ip: adminConsent.ip,
+        userAgent: adminConsent.userAgent,
+      });
+    }
 
     const siteUrl = process.env.WEB_ORIGIN ?? "https://novoseminovo.com.br";
     let result;

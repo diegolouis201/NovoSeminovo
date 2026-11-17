@@ -209,7 +209,15 @@ export class FinancingDealsService implements OnModuleInit {
     const leads = await this.prisma.financingLead.findMany({
       where: { OR: [{ creditasSentAt: { gte: start, lt: end } }, { credihomeSentAt: { gte: start, lt: end } }] },
       orderBy: { createdAt: "asc" },
-      include: { listing: { select: { title: true } } },
+      include: {
+        listing: { select: { title: true } },
+        // Último aceite do consentimento do pedido (parecer jurídico LGPD de 17/11/2026).
+        creditConsents: {
+          orderBy: { acceptedAt: "desc" },
+          take: 1,
+          select: { consentVersion: true, acceptedAtLocal: true, timezone: true, ip: true },
+        },
+      },
     });
     const notSent = await this.prisma.financingLead.count({
       where: { createdAt: { gte: start, lt: end }, creditasLeadId: null, credihomeLeadId: null },
@@ -222,6 +230,7 @@ export class FinancingDealsService implements OnModuleInit {
       const downPayment = lead.downPayment === null ? 0 : Number(lead.downPayment);
       const financingValue = money(lead.negotiatedValue === null ? Math.max(0, assetValue - downPayment) : Number(lead.negotiatedValue));
       const rate = Number(lead.commissionRate);
+      const consent = lead.creditConsents[0];
       return {
         sentAt: ((creditas ? lead.creditasSentAt : lead.credihomeSentAt) ?? lead.createdAt).toISOString(),
         partner: creditas ? ("Creditas" as const) : ("Credihome" as const),
@@ -236,6 +245,10 @@ export class FinancingDealsService implements OnModuleInit {
         commissionRate: rate,
         potentialCommission: money((financingValue * rate) / 100),
         status: lead.status,
+        consentVersion: consent?.consentVersion ?? "",
+        consentAcceptedAt: consent?.acceptedAtLocal ?? "",
+        consentTimezone: consent?.timezone ?? "",
+        consentIp: consent?.ip ?? "",
       };
     });
 

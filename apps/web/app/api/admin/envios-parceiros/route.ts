@@ -18,7 +18,9 @@ const STATUS: Record<string, string> = {
 
 // Envios aos parceiros de crédito da IBS no mês (ver
 // FinancingDealsService.partnerSends): um pedido por linha, com o id do lead
-// na Creditas/Credihome para conferir com a IBS. ?mes=AAAA-MM
+// na Creditas/Credihome para conferir com a IBS e o aceite do consentimento
+// (versão, data/hora com fuso e IP). Toda célula passa por neutralizeFormula
+// (toCsv). ?mes=AAAA-MM
 export async function GET(request: Request) {
   const session = await auth();
   if (!session?.user || session.user.role !== "admin") return new Response("Acesso restrito.", { status: 403 });
@@ -37,6 +39,8 @@ export async function GET(request: Request) {
     [
       "Data do envio", "Parceiro", "Id do lead no parceiro", "Fase no parceiro", "Cliente", "Tipo", "Anúncio",
       "Valor do bem", "Entrada", "Valor a financiar", "Comissão %", "Comissão potencial (R$)", "Etapa no quadro",
+      // Aceite do consentimento (parecer jurídico LGPD de 17/11/2026).
+      "Versão do consentimento", "Aceite (data e hora com fuso)", "IP do aceite",
     ],
     [
       ...report.rows.map((row) => [
@@ -44,8 +48,11 @@ export async function GET(request: Request) {
         row.assetType === "vehicle" ? "Veicular" : row.assetType === "property" ? "Imobiliário" : "",
         row.listingTitle, row.assetValue, row.downPayment, row.financingValue, row.commissionRate, row.potentialCommission,
         STATUS[row.status] ?? row.status,
+        row.consentVersion,
+        row.consentAcceptedAt ? `${row.consentAcceptedAt} (${row.consentTimezone})` : "",
+        row.consentIp,
       ]),
-      ["TOTAL", `${report.total.count} envio(s)`, "", "", "", "", "", "", "", report.total.financingValue, "", report.total.potentialCommission, ""],
+      ["TOTAL", `${report.total.count} envio(s)`, "", "", "", "", "", "", "", report.total.financingValue, "", report.total.potentialCommission, "", "", "", ""],
     ],
   );
 

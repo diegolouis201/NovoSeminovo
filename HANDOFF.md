@@ -435,7 +435,9 @@ do CRM (`crm-pacote/scripts`). API em `apps/api/src/hub`. Detalhes em
 `docs/hub.md`. Fase 2: financeiro.
 
 ## Autorizações de crédito resumidas — 17/11/2026
-Pedido do Diego: menos texto jurídico nos formulários de financiamento. Só
+(Substituído no mesmo dia pelo parecer jurídico LGPD de 17/11/2026, seção
+abaixo: o consentimento de envio dos dados voltou a ser o texto inteiro; só o
+termo SCR/BACEN continua resumido.) Pedido do Diego: menos texto jurídico nos formulários de financiamento. Só
 apresentação — textos e versões em `packages/shared-types` (`CONSENTIMENTO_CREDITO`,
 `TERMO_BACEN_CREDITAS`) não mudaram. `apps/web/components/CreditConsent.tsx`:
 caixa desmarcada com resumo curto (IBS Capital como destinatária, compartilhamento
@@ -448,3 +450,44 @@ Teste: `cypress/e2e/consentimento-resumido.cy.ts`; no CI a API sobe com uma
 Credihome de mentira (`cypress/fake-credihome.mjs`) para chegar ao pedido de
 proposta. Prints: `entregas/consentimento/antes*.png` e `depois*.png`. Deploy:
 rebuild só do `web`.
+
+## Parecer jurídico LGPD de 17/11/2026 (fluxo de crédito IBS Capital)
+Exigências do parecer do advogado sobre o envio de leads de crédito à IBS
+Capital aplicadas no site e na API.
+- **Texto do consentimento (item 3.1)**: dois textos do advogado, palavra por
+  palavra, um por modalidade, em `packages/shared-types/src/consentimento-credito.ts`
+  (`CONSENTIMENTO_CREDITO.imovel` = versão `2026-11-17-parecer-imovel`,
+  Loft/Credihome; `.veiculo` = `2026-11-17-parecer-veiculo`, Creditas). Todas as
+  versões (inclusive a antiga `2026-11-09`) ficam em `CONSENTIMENTO_CREDITO_HISTORICO`
+  e **nunca são editadas** — texto novo = versão nova (o teste prende os antigos
+  por hash). `textoConsentimentoCredito(versao, modalidade)` devolve o texto exato.
+- **Na tela** (`CreditConsent.tsx`, `CreditDataConsent`): o texto inteiro é o
+  rótulo da caixa, destacado, sem "Ler texto completo"; caixa desmarcada, envio
+  bloqueado, "Política de Privacidade" no fim é link para `/privacidade`
+  (`target=_blank`, `rel=noopener noreferrer`). Campo oculto `consentVersion` vai
+  no pedido; a API só aceita a versão em vigor (zod). O termo SCR/BACEN da
+  Creditas (fora do parecer) continua resumido com o texto recolhido.
+- **Trilha de auditoria (item 2.1.4 ii)**: tabela nova `credit_consents`
+  (`CreditConsent`, ligada ao `FinancingLead`): modalidade/produto, origem
+  (`site` ou `admin`), versão + cópia do texto integral, `accepted`, `acceptedAt`
+  (UTC) + `timezone` (`America/Sao_Paulo`) + `acceptedAtLocal` (ISO com
+  `-03:00`), IP, navegador e versão do termo BACEN (Creditas). Gravado em
+  `apps/api/src/agents/credit-consent.ts` antes de qualquer envio (fica mesmo se
+  o pedido não sair). O envio pelo admin no quadro (Credihome) registra com
+  origem `admin` e o IP/navegador do admin. **Deploy precisa de `prisma db push`.**
+- **Envios aos parceiros (IBS)**: planilha ganhou "Versão do consentimento",
+  "Aceite (data e hora com fuso)" e "IP do aceite" (fórmulas continuam
+  neutralizadas).
+- **Política de Privacidade**: item 5 "Simulação e Financiamento" (papéis
+  controlador/operador, dados, finalidades, bases legais art. 7º I/V/X,
+  revogação, direitos do art. 18) e encarregado (DPO) Diego Louis Pereira,
+  `diego.louis@novoseminovo.com.br` (`DPO` em `apps/web/lib/company.ts`). Data
+  da política: `PRIVACY_UPDATED_AT` = 17/11/2026 (Termos seguem em 14/11/2026).
+- **Marcas (item 2.1.3 ii)**: nenhum logo/imagem da Creditas, Loft ou Credihome
+  no `apps/web`; os nomes aparecem só em texto.
+- Testes: `agents/consentimento-credito.spec.ts`, `agents/credit-consent.spec.ts`,
+  `agents/credihome.spec.ts`, `agents/creditas.spec.ts`,
+  `financing-deals/partner-sends.spec.ts`; Cypress `consentimento-parecer.cy.ts`
+  (substitui `consentimento-resumido.cy.ts`) e `consentimento-credito.cy.ts`.
+  Prints 390 px: `entregas/parecer/imovel.png`, `veiculo.png`, `privacidade.png`.
+- Deploy: `prisma db push` + rebuild de `api` e `web`.

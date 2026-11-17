@@ -1108,6 +1108,8 @@ model FinancingLead {
   creditasLeadId     String?             @map("creditas_lead_id")
   creditasSentAt     DateTime?           @map("creditas_sent_at")
   creditasConsentAt  DateTime?           @map("creditas_consent_at")
+  // Aceites do consentimento do crédito (trilha de auditoria; ver CreditConsent).
+  creditConsents     CreditConsent[]
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
 
@@ -1115,6 +1117,38 @@ model FinancingLead {
   @@index([credihomeLeadId])
   @@index([creditasLeadId])
   @@map("financing_leads")
+}
+
+// Trilha de auditoria do consentimento do crédito (parecer jurídico LGPD de
+// 17/11/2026, item 2.1.4 ii): uma linha por aceite. Guarda o pedido, a
+// modalidade, a versão E uma cópia do texto integral aceito (o histórico de
+// versões fica em packages/shared-types/src/consentimento-credito.ts), a
+// manifestação positiva, a data/hora em UTC com o fuso usado e a hora local
+// com deslocamento, e o IP e o navegador de quem aceitou. origin = "site"
+// (o próprio cliente no formulário) ou "admin" (admin confirmou, no quadro,
+// que o cliente autorizou; aí IP/navegador são do admin).
+model CreditConsent {
+  id               String        @id @default(cuid())
+  financingLeadId  String        @map("financing_lead_id")
+  financingLead    FinancingLead @relation(fields: [financingLeadId], references: [id], onDelete: Cascade)
+  modality         String
+  product          String
+  origin           String
+  consentVersion   String        @map("consent_version")
+  consentText      String        @map("consent_text")
+  accepted         Boolean
+  acceptedAt       DateTime      @map("accepted_at") @db.Timestamptz(3)
+  timezone         String
+  acceptedAtLocal  String        @map("accepted_at_local")
+  ip               String?
+  userAgent        String?       @map("user_agent")
+  // Termo BACEN/SCR aceito junto (só Creditas).
+  bacenTermVersion String?       @map("bacen_term_version")
+  adminUserId      String?       @map("admin_user_id")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  @@index([financingLeadId])
+  @@map("credit_consents")
 }
 
 // ---------- Integração com CRMs ----------

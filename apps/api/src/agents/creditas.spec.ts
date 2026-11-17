@@ -45,6 +45,7 @@ describe("Creditas: pedido de proposta do anúncio de veículo (servidor falso)"
       timeToPurchase: "ONE_MONTH",
       consent: true,
       bacenConsent: true,
+      consentVersion: CONSENTIMENTO_CREDITO.veiculo.versao,
       ...patch,
     });
   const leadCalls = () => calls.filter((call) => call.path === "/b2b/autofin-c2c/leads");
@@ -197,9 +198,22 @@ describe("Creditas: pedido de proposta do anúncio de veículo (servidor falso)"
     assert.match(
       lead.notes ?? "",
       new RegExp(
-        `Autorização de crédito versão ${CONSENTIMENTO_CREDITO.versao} e termo BACEN versão ${TERMO_BACEN_CREDITAS.versao} aceitos em \\d{2}/\\d{2}/\\d{4}`,
+        `Autorização de crédito versão ${CONSENTIMENTO_CREDITO.veiculo.versao} e termo BACEN versão ${TERMO_BACEN_CREDITAS.versao} aceitos em \\d{2}/\\d{2}/\\d{4}`,
       ),
     );
+    // Registro do aceite (parecer jurídico LGPD de 17/11/2026, item 2.1.4 ii).
+    const consent = await prisma.creditConsent.findFirstOrThrow({ where: { financingLeadId: lead.id } });
+    assert.equal(consent.modality, "veiculo");
+    assert.equal(consent.product, "creditas");
+    assert.equal(consent.origin, "site");
+    assert.equal(consent.consentVersion, CONSENTIMENTO_CREDITO.veiculo.versao);
+    assert.equal(consent.consentText, CONSENTIMENTO_CREDITO.veiculo.texto);
+    assert.equal(consent.bacenTermVersion, TERMO_BACEN_CREDITAS.versao);
+    assert.equal(consent.accepted, true);
+    assert.equal(consent.timezone, "America/Sao_Paulo");
+    assert.match(consent.acceptedAtLocal, /-03:00$/);
+    assert.equal(consent.ip, "200.100.50.25");
+    assert.equal(consent.userAgent, "Mozilla/5.0 (Teste) Navegador/1.0");
     const stored = JSON.stringify(lead);
     assert.ok(!stored.includes("52998224725") && !stored.includes("529.982.247-25"), "CPF não pode ficar guardado");
     assert.ok(!stored.includes("1990-05-20"), "nascimento não pode ficar guardado");
@@ -249,6 +263,8 @@ describe("Creditas: pedido de proposta do anúncio de veículo (servidor falso)"
     const lead = await prisma.financingLead.findFirstOrThrow({ where: { listingId: listings.noDetails, phone: "31944443333" } });
     assert.equal(lead.creditasLeadId, null);
     assert.match(lead.adminNotes ?? "", /Não foi à Creditas.*marca/);
+    // O aceite fica registrado mesmo quando o pedido não sai daqui.
+    assert.equal(await prisma.creditConsent.count({ where: { financingLeadId: lead.id, accepted: true } }), 1);
   });
 
   test("Creditas recusou (4xx): card salvo com o motivo, CPF mascarado", async () => {

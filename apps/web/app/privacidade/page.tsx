@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { COMPANY, CORBAN, LEGAL_UPDATED_AT } from "@/lib/company";
+import { COMPANY, CORBAN, DPO, PRIVACY_UPDATED_AT } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "Política de Privacidade — NovoSeminovo",
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-12 text-sm leading-relaxed text-ink [&_li]:mt-1 [&_p]:mt-3 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5">
       <h1 className="font-display text-3xl font-semibold">Política de Privacidade</h1>
-      <p className="text-ink-muted">Última atualização: {LEGAL_UPDATED_AT}</p>
+      <p className="text-ink-muted">Última atualização: {PRIVACY_UPDATED_AT}</p>
 
       <p>
         O {COMPANY.brand} ({COMPANY.site}) é operado por <strong>{COMPANY.legalName}</strong>, CNPJ {COMPANY.cnpj}, com
@@ -54,8 +54,9 @@ export default function PrivacyPage() {
           WhatsApp.
         </li>
         <li>
-          <strong>Interesse em financiamento:</strong> quando você pede contato pelo assistente, nome, telefone, e-mail (se
-          informar), valor do bem, entrada e renda mensal (se informar).
+          <strong>Interesse em financiamento:</strong> quando você pede contato pelo assistente ou uma proposta pelo
+          simulador do anúncio, nome, telefone, e-mail (se informar), valor do bem, entrada e renda mensal (se
+          informar), e o registro da autorização de crédito (veja o item 5).
         </li>
         <li>
           <strong>Lojas, imobiliárias e corretores parceiros:</strong> razão social, CNPJ/documento, endereço, logo,
@@ -79,6 +80,10 @@ export default function PrivacyPage() {
           Atender você pelo assistente virtual: buscar anúncios, simular financiamento e, <strong>somente com sua
           autorização na conversa</strong>, encaminhar seu pedido a um especialista em financiamento.
         </li>
+        <li>
+          Encaminhar o seu pedido de simulação e de proposta de crédito, com a sua autorização (veja o item 5,
+          Simulação e Financiamento).
+        </li>
         <li>Moderar anúncios e prevenir fraudes (legítimo interesse).</li>
         <li>Cumprir obrigações legais e fiscais.</li>
       </ul>
@@ -101,15 +106,14 @@ export default function PrivacyPage() {
           dados nesse atendimento.
         </li>
         <li>
-          <strong>Crédito imobiliário e de veículos:</strong> se você pedir uma proposta de crédito e marcar a
-          autorização, enviamos nome, CPF, data de nascimento, celular, e-mail e os valores da simulação à{" "}
-          <strong>{CORBAN.legalName}</strong>, CNPJ {CORBAN.cnpj}, que cuida do atendimento e pode compartilhá-los com a
-          Loft/Credihome (imóveis), a Creditas (veículos) e outras instituições financeiras, fintechs e parceiros dela para
-          simulação e análise de crédito. O pedido entra na plataforma da Credihome ou da Creditas em nome da IBS, e a
-          partir do envio a IBS é a responsável pelo uso desses dados no atendimento de crédito. Guardamos a versão e a
-          data da autorização que você aceitou, como prova. O CPF e a data de nascimento não ficam guardados no{" "}
-          {COMPANY.brand}. Na simulação sem pedido de proposta, só os valores e a data de nascimento são enviados, sem
-          dados de contato. Você pode retirar a autorização quando quiser, pelos contatos do item 10.
+          <strong>Crédito imobiliário e de veículos:</strong> se você pedir uma simulação ou uma proposta de crédito e
+          marcar a autorização, os seus dados vão à <strong>{CORBAN.legalName}</strong>, CNPJ {CORBAN.cnpj}, que pode
+          compartilhá-los com a Loft/Credihome (imóveis), a Creditas (veículos) e instituições financeiras parceiras.
+          Quem faz o quê, quais dados vão, para quê, as bases legais e como revogar estão no item 5,{" "}
+          <a href="#simulacao-e-financiamento" className="font-semibold text-brand-blue hover:underline">
+            Simulação e Financiamento
+          </a>
+          .
         </li>
         <li>
           <strong>Anunciantes:</strong> quando você conversa sobre um anúncio ou clica para chamar no WhatsApp, o
@@ -139,7 +143,115 @@ export default function PrivacyPage() {
         compartilharmos seus dados com a loja.
       </p>
 
-      <H2>5. Cookies e armazenamento no navegador</H2>
+      <section id="simulacao-e-financiamento" className="scroll-mt-20">
+        <H2>5. Simulação e Financiamento</H2>
+        <p>
+          Quando você usa o simulador de crédito de um anúncio de imóvel ou de veículo e pede uma proposta, os seus
+          dados passam por mais de uma empresa, e cada uma tem um papel diferente na LGPD:
+        </p>
+        <ul>
+          <li>
+            <strong>
+              {COMPANY.brand} ({COMPANY.legalName}, CNPJ {COMPANY.cnpj})
+            </strong>
+            : é o <strong>controlador</strong> dos dados do marketplace e da sua conta (cadastro, anúncios, conversas,
+            favoritos). No pedido de crédito, atua como <strong>operador</strong>, em nome da IBS Capital: recebe o seu
+            pedido, transmite os dados e acompanha o andamento da solicitação, seguindo as instruções da IBS Capital.
+          </li>
+          <li>
+            <strong>IBS Capital Corretora de Seguros Ltda. (CNPJ {CORBAN.cnpj})</strong>: é a{" "}
+            <strong>controladora</strong> dos dados recebidos para o atendimento de crédito e para a intermediação da
+            sua solicitação de crédito.
+          </li>
+          <li>
+            <strong>Creditas</strong> (veículos) e <strong>Loft/Credihome</strong> (imóveis): são{" "}
+            <strong>controladoras</strong> dos dados que usam para a análise de crédito, a avaliação de risco, a
+            definição de taxas e condições (precificação) e a formalização do financiamento.
+          </li>
+          <li>
+            <strong>Bancos e instituições financeiras parceiras</strong>: quando recebem os dados para analisar e
+            oferecer o crédito, podem ser <strong>controladoras independentes</strong>, cada uma com a sua própria
+            política de privacidade.
+          </li>
+        </ul>
+
+        <p>
+          <strong>Quais dados são compartilhados:</strong> dados cadastrais (nome, CPF, data de nascimento, celular e
+          e-mail), dados da simulação (valor do bem, entrada, valor a financiar, prazo, uso do FGTS e quando você
+          pretende comprar) e dados do bem do anúncio: do veículo (marca, modelo, versão, anos e código FIPE) ou do
+          imóvel (valor do imóvel e o link do anúncio). O CPF e a data de nascimento não ficam guardados no {COMPANY.brand}:
+          vão direto no pedido. Na simulação sem pedido de proposta, só os valores e a data de nascimento são
+          enviados, sem dados de contato.
+        </p>
+
+        <p>
+          <strong>Para que são usados:</strong> realização da simulação que você pediu, análise da possibilidade de
+          concessão de crédito, apresentação de propostas e contato com você relacionado ao atendimento da sua
+          solicitação.
+        </p>
+
+        <p>
+          <strong>Bases legais (LGPD):</strong>
+        </p>
+        <ul>
+          <li>
+            <strong>Consentimento específico (art. 7º, I)</strong>: a autorização que você marca antes de enviar o
+            pedido. A caixa vem desmarcada e o pedido só é enviado se você marcar.
+          </li>
+          <li>
+            <strong>Procedimentos preliminares relacionados a um contrato (art. 7º, V)</strong>: a simulação e a
+            proposta de financiamento que você mesmo pediu.
+          </li>
+          <li>
+            <strong>Proteção do crédito (art. 7º, X)</strong>: somente para a consulta a birôs e cadastros de crédito
+            (como o SCR do Banco Central, SPC, Serasa e BVS) e para a análise de risco.
+          </li>
+        </ul>
+
+        <p>
+          Guardamos o registro da sua autorização, como prova: a versão e o texto exato que você aceitou, o tipo de
+          crédito (imóvel ou veículo), a data e a hora (com o fuso horário), o endereço IP e o navegador usados.
+        </p>
+
+        <p>
+          <strong>Revogação:</strong> você pode revogar este consentimento a qualquer momento, sem custo, pelo e-mail do
+          encarregado abaixo ou pelo WhatsApp{" "}
+          <a href={COMPANY.whatsappLink} className="font-semibold text-brand-blue hover:underline">
+            {COMPANY.whatsappDisplay}
+          </a>
+          , com o assunto “Revogação de consentimento — crédito”. A revogação vale a partir do pedido e não desfaz o
+          que já foi feito antes dela com base na autorização. Sem a autorização, não conseguimos encaminhar o pedido
+          de proposta, mas você continua podendo usar o simulador de parcelas e o site normalmente.
+        </p>
+
+        <p>
+          <strong>Seus direitos (art. 18 da LGPD):</strong> você pode pedir, a qualquer momento:
+        </p>
+        <ul>
+          <li>confirmação da existência de tratamento dos seus dados;</li>
+          <li>acesso aos dados;</li>
+          <li>correção de dados incompletos, inexatos ou desatualizados;</li>
+          <li>
+            anonimização, bloqueio ou eliminação de dados desnecessários, excessivos ou tratados em desconformidade com
+            a LGPD;
+          </li>
+          <li>portabilidade dos dados a outro fornecedor de serviço ou produto;</li>
+          <li>eliminação dos dados tratados com o seu consentimento;</li>
+          <li>informação sobre o compartilhamento: com quais entidades públicas e privadas seus dados foram compartilhados;</li>
+          <li>informação sobre a possibilidade de não dar o consentimento e sobre as consequências da negativa;</li>
+          <li>revogação do consentimento.</li>
+        </ul>
+
+        <p>
+          <strong>Encarregado pelo tratamento de dados pessoais (DPO):</strong> {DPO.name}, pelo e-mail{" "}
+          <a href={`mailto:${DPO.email}`} className="font-semibold text-brand-blue hover:underline">
+            {DPO.email}
+          </a>
+          . É o canal para exercer os seus direitos, revogar o consentimento e pedir a exclusão dos seus dados.
+        </p>
+      </section>
+
+      <H2>6. Cookies e armazenamento no navegador</H2>
       <p>
         Usamos um cookie de sessão para manter você conectado e o armazenamento local do navegador para lembrar a
         conversa com o assistente e a sua escolha sobre cookies. <strong>Somente se você aceitar</strong> no aviso de
@@ -150,21 +262,26 @@ export default function PrivacyPage() {
         melhorar os nossos anúncios no Facebook e no Instagram (ver item 4). Sem o aceite, nenhum desses é usado.
       </p>
 
-      <H2>6. Por quanto tempo guardamos</H2>
+      <H2>7. Por quanto tempo guardamos</H2>
       <p>
         Enquanto sua conta estiver ativa ou pelo tempo necessário para as finalidades acima. Dados ligados a
         pagamentos e obrigações fiscais são guardados pelo prazo exigido em lei. Pedidos de financiamento que não
-        avançam são mantidos por até 2 anos para histórico de atendimento, salvo pedido de exclusão.
+        avançam são mantidos por até 2 anos para histórico de atendimento, salvo pedido de exclusão; o registro da
+        autorização de crédito fica guardado junto com o pedido, como prova do consentimento.
       </p>
 
-      <H2>7. Seus direitos</H2>
+      <H2>8. Seus direitos</H2>
       <p>
         Você pode, a qualquer momento: confirmar se tratamos seus dados, acessá-los, corrigi-los, pedir anonimização,
-        portabilidade ou exclusão, saber com quem foram compartilhados, e revogar consentimentos. Também pode
-        reclamar à Autoridade Nacional de Proteção de Dados (ANPD).
+        portabilidade ou exclusão, saber com quem foram compartilhados, e revogar consentimentos (a lista completa
+        do art. 18 da LGPD está no item 5). O pedido vai ao encarregado, {DPO.name}, pelo e-mail{" "}
+        <a href={`mailto:${DPO.email}`} className="font-semibold text-brand-blue hover:underline">
+          {DPO.email}
+        </a>
+        . Também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).
       </p>
 
-      <H2 id="exclusao-de-dados">8. Como pedir a exclusão dos seus dados</H2>
+      <H2 id="exclusao-de-dados">9. Como pedir a exclusão dos seus dados</H2>
       <p>
         Com a conta: no site ou no app, vá em{" "}
         <Link href="/conta/excluir" className="font-semibold text-brand-blue hover:underline">
@@ -186,15 +303,16 @@ export default function PrivacyPage() {
         exclusão for concluída (exceto dados que a lei nos obriga a manter).
       </p>
 
-      <H2>9. Segurança</H2>
+      <H2>10. Segurança</H2>
       <p>
         Usamos conexão criptografada (HTTPS), senhas criptografadas, controle de acesso por perfil e registro das ações
         de moderação. Nenhum sistema é 100% seguro; se ocorrer um incidente relevante, avisaremos os afetados e a ANPD.
       </p>
 
-      <H2>10. Contato</H2>
+      <H2>11. Contato</H2>
       <p>
-        {COMPANY.legalName} — CNPJ {COMPANY.cnpj}. Atendimento ao titular de dados pelo WhatsApp{" "}
+        {COMPANY.legalName} — CNPJ {COMPANY.cnpj}. Encarregado pelo tratamento de dados pessoais (DPO): {DPO.name}.
+        Atendimento ao titular de dados pelo WhatsApp{" "}
         <a href={COMPANY.whatsappLink} className="font-semibold text-brand-blue hover:underline">
           {COMPANY.whatsappDisplay}
         </a>{" "}

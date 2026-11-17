@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import type { AgentConversationView, AgentKind, FinancingLeadStatus } from "@novoseminovo/shared-types";
+import { CONSENTIMENTO_CREDITO, type AgentConversationView, type AgentKind, type FinancingLeadStatus } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { acquisitionHeaders } from "@/lib/acquisition";
 import { metaTracking } from "@/lib/meta-server";
@@ -127,8 +127,11 @@ export async function sendToCredihomeAction(
       mortgageValue,
       useFgts: formData.get("useFgts") === "on",
       consent: true,
+      consentVersion: CONSENTIMENTO_CREDITO.imovel.versao,
     },
     session.accessToken,
+    // Registro do aceite confirmado pelo admin: IP e navegador de quem confirmou.
+    { clientIp: visitorIp(), userAgent: headers().get("user-agent") ?? undefined },
   );
   revalidatePath("/admin/financiamentos");
   return result;

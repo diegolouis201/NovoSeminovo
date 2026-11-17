@@ -33,7 +33,7 @@ describe("Creditas: termo BACEN", () => {
   });
 
   test("autorização do NovoSeminovo para veículo cita a Creditas", () => {
-    assert.match(CONSENTIMENTO_CREDITO.veiculo, /Creditas/);
+    assert.match(CONSENTIMENTO_CREDITO.veiculo.texto, /Creditas/);
   });
 });
 
@@ -48,6 +48,7 @@ describe("Creditas: validação do formulário do anúncio", () => {
     timeToPurchase: "ONE_MONTH",
     consent: true,
     bacenConsent: true,
+    consentVersion: CONSENTIMENTO_CREDITO.veiculo.versao,
   };
   const yearsAgo = (years: number, extraDays = 0) => {
     const date = new Date();

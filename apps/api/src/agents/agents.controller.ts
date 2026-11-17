@@ -41,7 +41,8 @@ function clientIp(request: Request): string {
   return value?.split(",")[0]?.trim() || request.ip || "desconhecido";
 }
 
-// Navegador do visitante, para a autorização BACEN da Creditas. Pelo mesmo
+// Navegador do visitante, para a autorização BACEN da Creditas e o registro
+// do aceite do consentimento (Creditas e Credihome). Pelo mesmo
 // motivo do IP, o site repassa o do visitante em x-client-user-agent; sem
 // ele, vale o da própria requisição. Cortado em 500 caracteres no service.
 function clientUserAgent(request: Request): string {
@@ -102,8 +103,13 @@ export class AgentsController {
 
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Post("admin/financing-leads/:id/credihome")
-  sendToCredihome(@Param("id") id: string, @Body() body: unknown) {
-    return this.credihome.send(id, parseOrBadRequest(SendToCredihomeInputSchema, body));
+  sendToCredihome(@Param("id") id: string, @Body() body: unknown, @Req() request: Request, @CurrentUser() user: { id: string }) {
+    return this.credihome.send(id, parseOrBadRequest(SendToCredihomeInputSchema, body), undefined, {
+      origin: "admin",
+      adminUserId: user.id,
+      ip: clientIp(request),
+      userAgent: clientUserAgent(request),
+    });
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
@@ -126,10 +132,12 @@ export class AgentsController {
     @Req() request: Request,
     @CurrentUser() user: { id: string } | undefined,
   ) {
+    const ip = clientIp(request);
     return this.credihome.requestProposal(
       id,
       parseOrBadRequest(CredihomeProposalInputSchema, body),
-      clientIp(request),
+      ip,
+      { ip, userAgent: clientUserAgent(request) },
       acquisitionFrom(request),
       user?.id,
       metaContextFrom(request),

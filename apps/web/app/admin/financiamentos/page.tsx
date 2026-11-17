@@ -142,7 +142,7 @@ export default async function AdminFinancingLeadsPage({ searchParams }: { search
         <p className="mt-1 text-sm text-ink-muted">
           Pedidos enviados no mês à Creditas (veículos) e à Credihome (imóveis) pela IBS Capital. Volume potencial é o
           valor a financiar desses pedidos; a comissão potencial usa o percentual de cada card. Baixe a planilha para
-          conferir com a IBS pelo id do lead no parceiro.
+          conferir com a IBS pelo id do lead no parceiro; cada linha traz também o aceite do consentimento (versão do texto, data e hora com fuso e IP).
         </p>
         <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat

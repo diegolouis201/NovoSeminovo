@@ -1,6 +1,6 @@
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { CredihomeProposalInputSchema, CreditasProposalInputSchema } from "@novoseminovo/shared-types";
+import { CONSENTIMENTO_CREDITO, CredihomeProposalInputSchema, CreditasProposalInputSchema } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthController } from "../auth/auth.controller";
 import { PartnersController } from "../partners/partners.controller";
@@ -201,9 +201,11 @@ describe("Conversões dos leads de anúncio e financiamento (banco local)", { sk
       email: "maria.meta@teste.local",
       useFgts: false,
       consent: true,
+      consentVersion: CONSENTIMENTO_CREDITO.imovel.versao,
     });
-    await service.requestProposal(ids.house, proposal, "ip-meta-1", undefined, undefined, ctx);
-    await service.requestProposal(ids.house, proposal, "ip-meta-1", undefined, undefined, ctx);
+    const consentContext = { ip: "200.1.1.1", userAgent: "Teste" };
+    await service.requestProposal(ids.house, proposal, "ip-meta-1", consentContext, undefined, undefined, ctx);
+    await service.requestProposal(ids.house, proposal, "ip-meta-1", consentContext, undefined, undefined, ctx);
     assert.equal(tracked.length, 1);
     assert.equal(tracked[0].category, "imovel");
     assert.equal(tracked[0].person.email, "maria.meta@teste.local");
@@ -222,6 +224,7 @@ describe("Conversões dos leads de anúncio e financiamento (banco local)", { sk
       timeToPurchase: "ONE_MONTH",
       consent: true,
       bacenConsent: true,
+      consentVersion: CONSENTIMENTO_CREDITO.veiculo.versao,
     });
     const consent = { ip: "200.100.50.25", userAgent: "Mozilla/5.0" };
     await service.requestProposal(ids.car, input, "ip-meta-2", consent, undefined, undefined, ctx);

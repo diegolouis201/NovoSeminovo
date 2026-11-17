@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CONSENTIMENTO_CREDITO } from "./consentimento-credito";
 
 // Contrato compartilhado entre apps/web, apps/mobile (futuro) e apps/api.
 // Deliberadamente independente do @prisma/client: só a API fala com o banco;
@@ -1858,6 +1859,12 @@ const BirthDateSchema = z
     return age >= 18 && age <= 100;
   }, "O comprador precisa ter 18 anos ou mais");
 
+// Versão do texto de consentimento que a pessoa viu na tela (parecer jurídico
+// LGPD de 17/11/2026): só a versão em vigor da modalidade é aceita. Página
+// antiga aberta no navegador recebe o aviso para recarregar.
+const consentVersionOf = (versao: string) =>
+  z.literal(versao, { errorMap: () => ({ message: "O texto da autorização mudou. Recarregue a página e confira antes de enviar." }) });
+
 // Envio de um lead de imóvel à Credihome pelo admin. CPF e nascimento são
 // pedidos ao cliente na conversa e não ficam guardados no NovoSeminovo.
 export const SendToCredihomeInputSchema = z
@@ -1869,6 +1876,7 @@ export const SendToCredihomeInputSchema = z
     mortgageValue: z.number().positive("Informe o valor a financiar"),
     useFgts: z.boolean(),
     consent: z.literal(true, { errorMap: () => ({ message: "Confirme que o cliente autorizou o envio dos dados" }) }),
+    consentVersion: consentVersionOf(CONSENTIMENTO_CREDITO.imovel.versao),
   })
   .refine((input) => input.mortgageValue <= input.realtyPrice, {
     message: "O valor a financiar não pode passar do valor do imóvel",
@@ -1931,6 +1939,7 @@ export const CredihomeProposalInputSchema = CredihomeSimulationFields.extend({
   email: z.string().trim().email("E-mail inválido"),
   useFgts: z.boolean(),
   consent: z.literal(true, { errorMap: () => ({ message: "Autorize o envio dos dados para receber a proposta" }) }),
+  consentVersion: consentVersionOf(CONSENTIMENTO_CREDITO.imovel.versao),
 }).refine(financingNotAboveRealty, {
   message: "O valor do financiamento não pode passar do valor do imóvel",
   path: ["mortgageValue"],
@@ -1986,6 +1995,7 @@ export const CreditasProposalInputSchema = z.object({
   timeToPurchase: CreditasTimeToPurchase,
   consent: z.literal(true, { errorMap: () => ({ message: "Autorize o envio dos dados para receber a proposta" }) }),
   bacenConsent: z.literal(true, { errorMap: () => ({ message: "Autorize a consulta ao SCR (Banco Central) para a análise de crédito" }) }),
+  consentVersion: consentVersionOf(CONSENTIMENTO_CREDITO.veiculo.versao),
 });
 export type CreditasProposalInput = z.output<typeof CreditasProposalInputSchema>;
 export type CreditasProposalFormInput = z.input<typeof CreditasProposalInputSchema>;

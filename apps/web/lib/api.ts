@@ -1617,6 +1617,12 @@ export type PartnerSendsReport = {
     commissionRate: number;
     potentialCommission: number;
     status: string;
+    // Aceite do consentimento (parecer jurídico LGPD de 17/11/2026); vazio
+    // em pedido sem aceite registrado.
+    consentVersion: string;
+    consentAcceptedAt: string;
+    consentTimezone: string;
+    consentIp: string;
   }[];
 };
 
@@ -1703,7 +1709,7 @@ export async function simulateCredihome(
 export async function requestCredihomeProposal(
   listingId: string,
   input: CredihomeProposalInput,
-  options: { clientIp?: string; extraHeaders?: Record<string, string> },
+  options: { clientIp?: string; userAgent?: string; extraHeaders?: Record<string, string> },
 ): Promise<{ ok: true; outcome: "sent" | "already_sent" | "saved" } | { ok: false; error: string }> {
   try {
     const res = await fetchWithTimeout(
@@ -1714,6 +1720,7 @@ export async function requestCredihomeProposal(
           "Content-Type": "application/json",
           ...options.extraHeaders,
           ...(options.clientIp ? { "x-client-ip": options.clientIp } : {}),
+          ...(options.userAgent ? { "x-client-user-agent": options.userAgent.slice(0, 500) } : {}),
         },
         body: JSON.stringify(input),
       },
@@ -1768,11 +1775,21 @@ export async function sendFinancingLeadToCredihome(
   id: string,
   input: SendToCredihomeInput,
   accessToken: string,
+  options: { clientIp?: string; userAgent?: string } = {},
 ): Promise<{ ok: true; alreadyExisted: boolean } | { ok: false; error: string }> {
   try {
     const res = await fetchWithTimeout(
-      `${API_URL}/admin/financing-leads/${id}/credihome`,
-      { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders(accessToken) }, body: JSON.stringify(input) },
+      `${API_URL}/admin/financing-leads/${encodeURIComponent(id)}/credihome`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders(accessToken),
+          ...(options.clientIp ? { "x-client-ip": options.clientIp } : {}),
+          ...(options.userAgent ? { "x-client-user-agent": options.userAgent.slice(0, 500) } : {}),
+        },
+        body: JSON.stringify(input),
+      },
       60_000,
     );
     const data = (await res.json().catch(() => ({}))) as { message?: string; alreadyExisted?: boolean };

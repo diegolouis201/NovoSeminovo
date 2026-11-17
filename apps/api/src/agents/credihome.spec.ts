@@ -36,6 +36,8 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
   const env = { ...process.env };
   const ids: string[] = [];
 
+  const consentContext = { ip: "200.100.50.26", userAgent: "Mozilla/5.0 (Teste Imóvel) Navegador/2.0" };
+
   const validInput = {
     cpf: "529.982.247-25",
     dateOfBirth: "1990-05-20",
@@ -44,6 +46,7 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
     mortgageValue: 350000,
     useFgts: true,
     consent: true as const,
+    consentVersion: CONSENTIMENTO_CREDITO.imovel.versao,
   };
 
   before(async () => {
@@ -178,6 +181,24 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
     await assert.rejects(service.send(lead.id, SendToCredihomeInputSchema.parse(validInput)), /já foi enviado/);
   });
 
+  test("envio pelo admin registra o aceite que o admin confirmou (origem, versão, IP e navegador de quem confirmou)", async () => {
+    const lead = await makeLead("property", "5531999990001");
+    await service.send(lead.id, SendToCredihomeInputSchema.parse({ ...validInput, cpf: "529.982.247-25" }), undefined, {
+      origin: "admin",
+      ip: "177.1.2.3",
+      userAgent: "Navegador do Admin",
+      adminUserId: owner.id,
+    });
+    const consent = await prisma.creditConsent.findFirstOrThrow({ where: { financingLeadId: lead.id } });
+    assert.equal(consent.origin, "admin");
+    assert.equal(consent.adminUserId, owner.id);
+    assert.equal(consent.modality, "imovel");
+    assert.equal(consent.consentVersion, CONSENTIMENTO_CREDITO.imovel.versao);
+    assert.equal(consent.consentText, CONSENTIMENTO_CREDITO.imovel.texto);
+    assert.equal(consent.ip, "177.1.2.3");
+    assert.equal(consent.userAgent, "Navegador do Admin");
+  });
+
   test("lead que já existe na Credihome (409) é ligado ao existente", async () => {
     const lead = await makeLead("property");
     const result = await service.send(lead.id, SendToCredihomeInputSchema.parse({ ...validInput, cpf: "111.444.777-35" }));
@@ -198,7 +219,7 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
     const result = await service.syncAll();
     assert.ok(result.updated >= 2);
     const phases = await prisma.financingLead.findMany({ where: { id: { in: ids }, credihomeLeadId: { not: null } }, select: { credihomePhase: true } });
-    assert.deepEqual(phases.map((lead) => lead.credihomePhase).sort(), ["analise_credito", "lead"]);
+    assert.deepEqual([...new Set(phases.map((lead) => lead.credihomePhase))].sort(), ["analise_credito", "lead"]);
   });
 
   test("senha errada: mensagem clara, sem vazar a senha", async () => {
@@ -237,20 +258,35 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
       email: "maria@teste.local",
       useFgts: false,
       consent: true,
+      consentVersion: CONSENTIMENTO_CREDITO.imovel.versao,
     });
-    const first = await service.requestProposal(listings.property, proposal, "ip-prop");
+    const first = await service.requestProposal(listings.property, proposal, "ip-prop", consentContext);
     assert.equal(first.outcome, "sent");
     const lead = await prisma.financingLead.findFirstOrThrow({ where: { listingId: listings.property, phone: "31988887777" } });
     assert.equal(lead.credihomeLeadId, "lead-novo");
     assert.equal(Number(lead.downPayment), 100000);
     assert.match(lead.notes ?? "", /360 meses/);
-    // Prova do consentimento: versão do texto aceito (o texto de cada versão
-    // fica em CONSENTIMENTO_CREDITO, no histórico do código) e data/hora.
-    assert.match(lead.notes ?? "", new RegExp(`Autorização de crédito versão ${CONSENTIMENTO_CREDITO.versao} aceita em \\d{2}/\\d{2}/\\d{4}`));
+    // Prova do consentimento (parecer jurídico LGPD de 17/11/2026): versão
+    // na anotação do card e o registro completo do aceite no banco.
+    assert.match(lead.notes ?? "", new RegExp(`Autorização de crédito versão ${CONSENTIMENTO_CREDITO.imovel.versao} aceita em \\d{2}/\\d{2}/\\d{4}`));
+    const consents = await prisma.creditConsent.findMany({ where: { financingLeadId: lead.id } });
+    assert.equal(consents.length, 1);
+    const consent = consents[0]!;
+    assert.equal(consent.modality, "imovel");
+    assert.equal(consent.product, "credihome");
+    assert.equal(consent.origin, "site");
+    assert.equal(consent.consentVersion, CONSENTIMENTO_CREDITO.imovel.versao);
+    assert.equal(consent.consentText, CONSENTIMENTO_CREDITO.imovel.texto);
+    assert.equal(consent.accepted, true);
+    assert.equal(consent.timezone, "America/Sao_Paulo");
+    assert.match(consent.acceptedAtLocal, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}-03:00$/);
+    assert.ok(Math.abs(consent.acceptedAt.getTime() - Date.now()) < 60_000);
+    assert.equal(consent.ip, "200.100.50.26");
+    assert.equal(consent.userAgent, "Mozilla/5.0 (Teste Imóvel) Navegador/2.0");
     assert.equal(calls.filter((call) => call.path === "/simulations").at(-1)?.body?.duration, 360);
     assert.equal(notified.at(-1)?.channel, "simulador");
 
-    const again = await service.requestProposal(listings.property, proposal, "ip-prop");
+    const again = await service.requestProposal(listings.property, proposal, "ip-prop", consentContext);
     assert.equal(again.outcome, "already_sent");
     assert.equal(await prisma.financingLead.count({ where: { listingId: listings.property, phone: "31988887777" } }), 1);
   });
@@ -264,11 +300,12 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
       email: "outra@teste.local",
       useFgts: false,
       consent: true,
+      consentVersion: CONSENTIMENTO_CREDITO.imovel.versao,
     });
-    await service.requestProposal(listings.property, proposal, "ip-limite");
-    await service.requestProposal(listings.property, proposal, "ip-limite");
-    await service.requestProposal(listings.property, proposal, "ip-limite");
-    await assert.rejects(service.requestProposal(listings.property, proposal, "ip-limite"), /Muitas simulações/);
+    await service.requestProposal(listings.property, proposal, "ip-limite", consentContext);
+    await service.requestProposal(listings.property, proposal, "ip-limite", consentContext);
+    await service.requestProposal(listings.property, proposal, "ip-limite", consentContext);
+    await assert.rejects(service.requestProposal(listings.property, proposal, "ip-limite", consentContext), /Muitas simulações/);
   });
 
   test("Credihome recusou: card fica salvo com o motivo e o aviso diz o porquê", async () => {
@@ -280,8 +317,9 @@ describe("Credihome: envio e fase do lead (servidor falso)", { skip: !withDb && 
       email: "recusado@teste.local",
       useFgts: false,
       consent: true,
+      consentVersion: CONSENTIMENTO_CREDITO.imovel.versao,
     });
-    const result = await service.requestProposal(listings.property, proposal, "ip-recusa");
+    const result = await service.requestProposal(listings.property, proposal, "ip-recusa", consentContext);
     assert.equal(result.outcome, "saved");
     const lead = await prisma.financingLead.findFirstOrThrow({ where: { listingId: listings.property, phone: "31966665555" } });
     assert.equal(lead.credihomeLeadId, null);

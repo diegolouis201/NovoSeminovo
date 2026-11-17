@@ -24,7 +24,12 @@ export async function requestCredihomeProposalAction(listingId: string, input: C
   const meta = metaTracking("Lead", "imovel");
   const extraHeaders: Record<string, string> = { ...acquisitionHeaders(), ...meta.headers };
   if (session?.accessToken) extraHeaders.Authorization = `Bearer ${session.accessToken}`;
-  const result = await requestCredihomeProposal(listingId, input, { clientIp: visitorIp(), extraHeaders });
+  const result = await requestCredihomeProposal(listingId, input, {
+    clientIp: visitorIp(),
+    // Navegador de quem aceitou a autorização (registro do aceite na API).
+    userAgent: headers().get("user-agent") ?? undefined,
+    extraHeaders,
+  });
   if (result.ok && result.outcome !== "already_sent") meta.queue();
   return result;
 }

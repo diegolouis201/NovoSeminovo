@@ -26,6 +26,23 @@ describe("Envios aos parceiros de crédito (banco local)", { skip: !withDb && "s
     await make({ name: "Carro Um", assetType: "vehicle", assetValue: 120000, downPayment: 20000, negotiatedValue: 100000, bank: "Creditas", creditasLeadId: `cr-${tag}-1`, creditasSentAt: inMonth, createdAt: inMonth });
     await make({ name: "Carro Dois", assetType: "vehicle", assetValue: 60000, downPayment: 10000, negotiatedValue: 50000, commissionRate: 2, bank: "Creditas", creditasLeadId: `cr-${tag}-2`, creditasSentAt: inMonth, createdAt: inMonth });
     await make({ name: "Casa Um", assetType: "property", assetValue: 500000, downPayment: 100000, negotiatedValue: 400000, bank: "Credihome", credihomeLeadId: `ch-${tag}-1`, credihomeSentAt: inMonth, credihomePhase: "analysis", createdAt: inMonth });
+    // Aceite do consentimento (parecer jurídico LGPD de 17/11/2026): a
+    // planilha da IBS mostra versão, data/hora com fuso e IP de cada pedido.
+    // Um aceite antigo e um novo no mesmo pedido: vale o mais recente.
+    await prisma.creditConsent.create({
+      data: {
+        financingLeadId: ids[0]!, modality: "veiculo", product: "creditas", origin: "site", consentVersion: "2026-11-09",
+        consentText: "texto antigo", accepted: true, acceptedAt: new Date(Date.UTC(2031, 2, 14, 15)),
+        timezone: "America/Sao_Paulo", acceptedAtLocal: "2031-03-14T12:00:00.000-03:00", ip: "10.0.0.9", userAgent: "UA antigo",
+      },
+    });
+    await prisma.creditConsent.create({
+      data: {
+        financingLeadId: ids[0]!, modality: "veiculo", product: "creditas", origin: "site", consentVersion: "2026-11-17-parecer-veiculo",
+        consentText: "texto novo", accepted: true, acceptedAt: inMonth,
+        timezone: "America/Sao_Paulo", acceptedAtLocal: "2031-03-15T12:00:00.000-03:00", ip: "200.100.50.25", userAgent: "UA novo",
+      },
+    });
     // Pedido do mês que não foi ao parceiro (ficou só no quadro).
     await make({ name: "Não Foi", assetType: "vehicle", assetValue: 80000, downPayment: 0, createdAt: inMonth });
     // Enviado no mês seguinte: não entra.
@@ -61,6 +78,20 @@ describe("Envios aos parceiros de crédito (banco local)", { skip: !withDb && "s
     const casa = report.rows.find((row) => row.partner === "Credihome");
     assert.equal(casa?.partnerPhase, "analysis");
     for (const row of report.rows) assert.ok(!Object.keys(row).some((key) => /cpf|birth|nasc/i.test(key)));
+  });
+
+  test("cada envio traz o aceite do consentimento: versão, data/hora com fuso e IP", async () => {
+    const report = await service.partnerSends("2031-03");
+    const carro = report.rows.find((row) => row.partnerLeadId === `cr-${tag}-1`);
+    assert.equal(carro?.consentVersion, "2026-11-17-parecer-veiculo");
+    assert.equal(carro?.consentAcceptedAt, "2031-03-15T12:00:00.000-03:00");
+    assert.equal(carro?.consentTimezone, "America/Sao_Paulo");
+    assert.equal(carro?.consentIp, "200.100.50.25");
+    // Pedido sem aceite registrado (anterior ao registro): campos vazios.
+    const casa = report.rows.find((row) => row.partner === "Credihome");
+    assert.equal(casa?.consentVersion, "");
+    assert.equal(casa?.consentAcceptedAt, "");
+    assert.equal(casa?.consentIp, "");
   });
 
   test("mês inválido é recusado", async () => {

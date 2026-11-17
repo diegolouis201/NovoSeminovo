@@ -29,6 +29,18 @@ export const CORBAN = {
 
 export const LEGAL_UPDATED_AT = "14/11/2026";
 
+// Política de Privacidade: seção "Simulação e Financiamento" do parecer
+// jurídico LGPD de 17/11/2026 (a data dos Termos continua a de cima).
+export const PRIVACY_UPDATED_AT = "17/11/2026";
+
+// Encarregado pelo tratamento de dados pessoais (DPO), canal do titular para
+// exercer direitos, revogar consentimento e pedir exclusão. O e-mail é o de
+// contato que o site já mostra (COMPANY.email).
+export const DPO = {
+  name: "Diego Louis Pereira",
+  email: COMPANY.email,
+} as const;
+
 // Endereço público do site — base dos links absolutos de prévia (WhatsApp,
 // Instagram, Google) e do sitemap.
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://novoseminovo.com.br").replace(/\/$/, "");

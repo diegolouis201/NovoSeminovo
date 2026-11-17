@@ -10,7 +10,7 @@ import {
   type CredihomeSimulateInput,
   type CredihomeSimulationView,
 } from "@novoseminovo/shared-types";
-import { ConsentCheckbox, PrivacyPolicyNote, resumoConsentimentoDados } from "@/components/CreditConsent";
+import { CreditDataConsent } from "@/components/CreditConsent";
 import { requestCredihomeProposalAction, simulateCredihomeAction } from "@/lib/actions/credihome";
 import { flushMetaEvents } from "@/lib/meta-events";
 
@@ -258,6 +258,8 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
               email: String(formData.get("email") ?? "").trim(),
               useFgts: formData.get("useFgts") === "on",
               consent: formData.get("consent") === "on",
+              // Versão do texto que estava na tela (vai para o registro do aceite).
+              consentVersion: String(formData.get("consentVersion") ?? ""),
             };
             const parsed = CredihomeProposalInputSchema.safeParse(input);
             if (!parsed.success) {
@@ -304,16 +306,10 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
           <label className="flex items-center gap-2 text-xs text-ink">
             <input name="useFgts" type="checkbox" /> Quero usar meu FGTS
           </label>
-          <div className="flex flex-col gap-3">
-            <ConsentCheckbox
-              name="consent"
-              testId="consentimento-dados"
-              summary={resumoConsentimentoDados("Loft/Credihome")}
-              fullText={CONSENTIMENTO_CREDITO.imovel}
-              errorMessage="Autorize o envio dos dados para receber a proposta"
-            />
-            <PrivacyPolicyNote />
-          </div>
+          <CreditDataConsent
+            consentimento={CONSENTIMENTO_CREDITO.imovel}
+            errorMessage="Autorize o envio dos dados para receber a proposta"
+          />
           {errorBox}
           <div className="flex gap-2">
             <button
