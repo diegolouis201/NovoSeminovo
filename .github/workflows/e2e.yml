@@ -80,7 +80,10 @@ jobs:
           pnpm --filter @novoseminovo/api build
           pnpm --filter @novoseminovo/web build
           pnpm --filter @novoseminovo/hub build
-          (cd apps/api && nohup node dist/main.js > ../../api.log 2>&1 &)
+          # Credihome de teste (só aqui): leva o simulador do imóvel até o pedido
+          # de proposta, onde o Cypress confere as autorizações de crédito.
+          (nohup node apps/web/cypress/fake-credihome.mjs 4010 > fake-credihome.log 2>&1 &)
+          (cd apps/api && CREDIHOME_API_URL=http://127.0.0.1:4010 CREDIHOME_LOGIN=teste@teste.local CREDIHOME_PASSWORD=teste CREDIHOME_PARTNER_ID=1 CREDIHOME_SYNC_DISABLED=1 nohup node dist/main.js > ../../api.log 2>&1 &)
           (cd apps/web && nohup pnpm start > ../../web.log 2>&1 &)
           (cd apps/hub && API_URL=http://localhost:4000 AUTH_URL=http://localhost:3100 nohup pnpm start -p 3100 > ../../hub.log 2>&1 &)
           for i in $(seq 1 90); do curl -sf http://localhost:4000/health >/dev/null && curl -sf http://localhost:3000/ >/dev/null && curl -sf http://localhost:3100/entrar >/dev/null && break; sleep 2; done
@@ -92,7 +95,7 @@ jobs:
           browser: chrome
       - name: Logs se falhar
         if: failure()
-        run: tail -n 120 api.log web.log hub.log || true
+        run: tail -n 120 api.log web.log hub.log fake-credihome.log || true
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

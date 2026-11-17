@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Bank, CheckCircle } from "@phosphor-icons/react";
 import {
@@ -9,6 +8,7 @@ import {
   CreditasProposalInputSchema,
   TERMO_BACEN_CREDITAS,
 } from "@novoseminovo/shared-types";
+import { ConsentCheckbox, PrivacyPolicyNote, RESUMO_CONSULTA_SCR, resumoConsentimentoDados } from "@/components/CreditConsent";
 import { requestCreditasProposalAction } from "@/lib/actions/creditas";
 import { flushMetaEvents } from "@/lib/meta-events";
 
@@ -158,29 +158,22 @@ export function CreditasSimulator({ listingId, price }: { listingId: string; pri
             </select>
           </label>
 
-          <label className="flex items-start gap-2 text-xs text-ink">
-            <input name="consent" type="checkbox" required className="mt-0.5" />
-            <span>
-              {CONSENTIMENTO_CREDITO.veiculo} Veja a{" "}
-              <Link href="/privacidade" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-blue underline">
-                política de privacidade
-              </Link>
-              .
-            </span>
-          </label>
-          <div className="flex flex-col gap-1">
-            <p className="text-xs font-semibold text-ink">Autorização de consulta ao Banco Central (SCR)</p>
-            <div
-              data-testid="creditas-termo-bacen"
-              tabIndex={0}
-              className="max-h-36 overflow-y-auto rounded-brand border border-border bg-surface-page px-3 py-2 text-[11px] leading-relaxed text-ink-muted"
-            >
-              {TERMO_BACEN_CREDITAS.texto}
-            </div>
-            <label className="flex items-start gap-2 text-xs text-ink">
-              <input name="bacenConsent" type="checkbox" required className="mt-0.5" />
-              <span>Li e aceito a autorização de consulta acima.</span>
-            </label>
+          <div className="flex flex-col gap-3">
+            <ConsentCheckbox
+              name="consent"
+              testId="consentimento-dados"
+              summary={resumoConsentimentoDados("Creditas")}
+              fullText={CONSENTIMENTO_CREDITO.veiculo}
+              errorMessage="Autorize o envio dos dados para receber a proposta"
+            />
+            <ConsentCheckbox
+              name="bacenConsent"
+              testId="consentimento-scr"
+              summary={RESUMO_CONSULTA_SCR}
+              fullText={TERMO_BACEN_CREDITAS.texto}
+              errorMessage="Autorize a consulta ao SCR (Banco Central) para a análise de crédito"
+            />
+            <PrivacyPolicyNote />
           </div>
 
           {error && <p className="rounded-brand bg-status-danger/10 px-3 py-2 text-xs text-status-danger">{error}</p>}

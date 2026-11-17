@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Bank, CheckCircle } from "@phosphor-icons/react";
 import {
@@ -11,6 +10,7 @@ import {
   type CredihomeSimulateInput,
   type CredihomeSimulationView,
 } from "@novoseminovo/shared-types";
+import { ConsentCheckbox, PrivacyPolicyNote, resumoConsentimentoDados } from "@/components/CreditConsent";
 import { requestCredihomeProposalAction, simulateCredihomeAction } from "@/lib/actions/credihome";
 import { flushMetaEvents } from "@/lib/meta-events";
 
@@ -304,16 +304,16 @@ export function CredihomeSimulator({ listingId, price }: { listingId: string; pr
           <label className="flex items-center gap-2 text-xs text-ink">
             <input name="useFgts" type="checkbox" /> Quero usar meu FGTS
           </label>
-          <label className="flex items-start gap-2 text-xs text-ink">
-            <input name="consent" type="checkbox" required className="mt-0.5" />
-            <span>
-              {CONSENTIMENTO_CREDITO.imovel} Veja a{" "}
-              <Link href="/privacidade" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-blue underline">
-                política de privacidade
-              </Link>
-              .
-            </span>
-          </label>
+          <div className="flex flex-col gap-3">
+            <ConsentCheckbox
+              name="consent"
+              testId="consentimento-dados"
+              summary={resumoConsentimentoDados("Loft/Credihome")}
+              fullText={CONSENTIMENTO_CREDITO.imovel}
+              errorMessage="Autorize o envio dos dados para receber a proposta"
+            />
+            <PrivacyPolicyNote />
+          </div>
           {errorBox}
           <div className="flex gap-2">
             <button

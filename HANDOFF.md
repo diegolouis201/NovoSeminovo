@@ -433,3 +433,18 @@ funcionário (dono, comercial, financeiro, leitura), tarefas, meta do mês com
 ritmo, régua de relacionamento, marcações e NPS pendente. Reaproveita as regras
 do CRM (`crm-pacote/scripts`). API em `apps/api/src/hub`. Detalhes em
 `docs/hub.md`. Fase 2: financeiro.
+
+## Autorizações de crédito resumidas — 17/11/2026
+Pedido do Diego: menos texto jurídico nos formulários de financiamento. Só
+apresentação — textos e versões em `packages/shared-types` (`CONSENTIMENTO_CREDITO`,
+`TERMO_BACEN_CREDITAS`) não mudaram. `apps/web/components/CreditConsent.tsx`:
+caixa desmarcada com resumo curto (IBS Capital como destinatária, compartilhamento
+com Creditas ou Loft/Credihome e outras instituições, finalidade, revogação; no SCR,
+Banco Central + SPC/Serasa/BVS + parceiros da IBS) e o texto completo na própria
+página dentro de `<details>` "Ler texto completo". Envio bloqueado pela validação
+nativa (`required`) com mensagem visível embaixo da caixa. Usado no
+`CredihomeSimulator` (imóvel, no ar) e no `CreditasSimulator` (veículo, só admin).
+Teste: `cypress/e2e/consentimento-resumido.cy.ts`; no CI a API sobe com uma
+Credihome de mentira (`cypress/fake-credihome.mjs`) para chegar ao pedido de
+proposta. Prints: `entregas/consentimento/antes*.png` e `depois*.png`. Deploy:
+rebuild só do `web`.
