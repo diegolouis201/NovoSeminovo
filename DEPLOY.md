@@ -437,6 +437,53 @@ ainda não tem cópias. Foto que veio do CRM por link (de outro site) fica como
 está. Se aparecer "com erro" no resultado, é foto cujo arquivo sumiu do
 servidor; o anúncio continua mostrando o que tem.
 
+## Limpar dados de teste (antes dos cadastros reais)
+
+Apaga as contas e anúncios de teste do site. **Ficam**: as contas de
+administrador, a equipe do Hub (e tudo delas), o CRM do Hub (empresas, leads de
+campanha e da Meta, tarefas, ordens, chamados), financiamentos e envios ao banco
+(Credihome/Creditas), pagamentos, configurações, conteúdo de marketing e
+registros. Nas linhas que ficam, a ligação com a conta/anúncio/loja de teste
+apagado fica vazia. Conta de teste com plano de anúncio pago, assinatura do
+Stripe ativa ou financiamento que ela mesma registrou **não** é apagada: aparece
+no relatório para decidir depois.
+
+Na pasta do projeto no servidor, um passo de cada vez:
+
+1. Backup antes de tudo (termina com `BACKUP-OK`; se não terminar assim, pare aqui):
+
+   ```bash
+   sh scripts/backup.sh
+   ```
+
+2. Publicar a versão nova da API:
+
+   ```bash
+   git pull && docker compose up --build -d api
+   ```
+
+3. Ver o plano (não apaga nada): contas que ficam (e-mail mascarado), quantas
+   linhas saem e quantas só perdem a ligação em cada tabela, assinaturas do
+   Stripe e a receita que continua contando na Jornada:
+
+   ```bash
+   docker compose exec api node dist/scripts/limpar-dados-de-teste.js
+   ```
+
+   Confira se a lista "Contas que FICAM" tem a sua conta de administrador e a
+   equipe do Hub. Se aparecer `cancele no Stripe antes`, cancele essas
+   assinaturas no painel do Stripe e rode o passo 3 de novo.
+
+4. Apagar de verdade (termina com `PRONTO.`):
+
+   ```bash
+   docker compose exec api node dist/scripts/limpar-dados-de-teste.js --confirmar
+   ```
+
+Pode rodar o passo 4 de novo: o que já saiu não aparece mais ("(nada)"). Se
+alguma foto não puder ser apagada do disco/S3, o script avisa a linha e segue.
+Para voltar atrás, use "Restaurar o banco" em Manutenção com o backup do passo 1.
+
 ## Manutenção
 
 - **Atualizar depois de um novo commit**: `git pull && docker compose up --build -d`.
