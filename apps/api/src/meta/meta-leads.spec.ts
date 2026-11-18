@@ -357,7 +357,7 @@ describe("Lead Ads → CRM (banco local + Graph API falsa)", { skip: !withDb && 
   after(async () => {
     process.env = env;
     server.close();
-    const cards = await prisma.salesProspect.findMany({ where: { OR: [{ name: { contains: tag } }, { email: { contains: tag } }] }, select: { id: true } });
+    const cards = await prisma.salesProspect.findMany({ where: { OR: [{ name: { contains: tag } }, { notes: { some: { body: { contains: tag } } } }] /* e-mail criptografado: só busca exata */ }, select: { id: true } });
     await prisma.hubTask.deleteMany({ where: { prospectId: { in: cards.map((c) => c.id) } } });
     await prisma.salesProspect.deleteMany({ where: { id: { in: cards.map((c) => c.id) } } });
     await prisma.marketingContact.deleteMany({ where: { email: { contains: tag } } });

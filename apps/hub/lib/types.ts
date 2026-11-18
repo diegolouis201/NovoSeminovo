@@ -63,6 +63,10 @@ export type CrmProspeccao = {
   // manual | prospeccao | campanha (SALES_SOURCE_LABELS).
   origem: string;
   origemMarketing?: OrigemMarketing;
+  // Importadas do Mailerfind (Google Maps).
+  etiqueta?: string;
+  site?: string;
+  google?: { endereco?: string; categoria?: string; nota?: number; avaliacoes?: number; mapsUrl?: string; instagram?: string; facebook?: string };
   criadoEm: string;
 };
 export type OrigemMarketing = { canal: string; meio?: string; campanha?: string; anuncio?: string; publico?: string };

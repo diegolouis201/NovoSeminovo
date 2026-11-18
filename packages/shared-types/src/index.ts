@@ -2844,6 +2844,7 @@ export const SALES_SOURCE_LABELS = {
   link: "Link do vendedor",
   prospeccao: "Lista de prospecção",
   campanha: "Lead de campanha",
+  mailerfind: "Mailerfind (Google Maps)",
 } as const;
 export type SalesSource = keyof typeof SALES_SOURCE_LABELS;
 
@@ -3321,3 +3322,4 @@ export * from "./jornada";
 export * from "./fipe";
 export * from "./seo";
 export * from "./foto-tamanhos";
+export * from "./prospeccao";

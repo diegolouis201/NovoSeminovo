@@ -97,6 +97,10 @@ export type CrmProspeccao = {
   // manual | prospeccao | campanha (formulário do anúncio pago).
   origem: string;
   origemMarketing?: { canal: string; meio?: string; campanha?: string; anuncio?: string; publico?: string };
+  // Importadas do Mailerfind: etiqueta da campanha, site e dados do Google Maps.
+  etiqueta?: string;
+  site?: string;
+  google?: { endereco?: string; categoria?: string; nota?: number; avaliacoes?: number; mapsUrl?: string; instagram?: string; facebook?: string };
   criadoEm: string;
 };
 export type CrmFeed = { geradoEm: string; empresas: CrmEmpresa[]; prospeccao: CrmProspeccao[] };
@@ -255,7 +259,7 @@ export class CrmService {
     });
 
     const open = await this.prisma.salesProspect.findMany({
-      where: { partnerId: null, source: { in: ["manual", "prospeccao", "campanha"] } },
+      where: { partnerId: null, source: { in: ["manual", "prospeccao", "campanha", "mailerfind"] } },
       include: { owner: { select: { name: true } } },
       orderBy: { createdAt: "asc" },
       take: 5000,
@@ -280,6 +284,9 @@ export class CrmService {
         ultimoContato: contatos.get(r.id),
         origem: r.source,
         origemMarketing: origemDe(r),
+        etiqueta: r.campaignTag ?? undefined,
+        site: r.website ?? undefined,
+        google: r.importData && typeof r.importData === "object" && !Array.isArray(r.importData) ? (r.importData as CrmProspeccao["google"]) : undefined,
         criadoEm: r.createdAt.toISOString(),
       }),
     );

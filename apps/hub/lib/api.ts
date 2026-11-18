@@ -43,9 +43,10 @@ export async function hubFetch<T>(path: string, init: { method?: "GET" | "POST" 
 }
 
 // Envio de arquivo (vídeo do marketing) em multipart.
-export async function hubUpload<T>(path: string, campo: string, arquivo: File): Promise<T> {
+export async function hubUpload<T>(path: string, campo: string, arquivo: File, campos: Record<string, string> = {}): Promise<T> {
   const fd = new FormData();
   fd.append(campo, arquivo, arquivo.name);
+  for (const [k, v] of Object.entries(campos)) fd.append(k, v);
   const res = await fetch(`${API_URL}${path}`, { method: "POST", headers: { Authorization: `Bearer ${await token()}` }, body: fd, cache: "no-store" });
   if (res.status === 401) redirect("/entrar?expirou=1");
   if (!res.ok) {

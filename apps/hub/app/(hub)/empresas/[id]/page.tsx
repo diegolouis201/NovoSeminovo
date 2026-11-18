@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { HUB_TASK_KINDS, INTERACTION_KINDS, LOSS_CATEGORIES, NEXT_CONTACT_KINDS, SALES_SOURCE_LABELS, originChannelLabel } from "@novoseminovo/shared-types";
+import { HUB_TASK_KINDS, INTERACTION_KINDS, LOSS_CATEGORIES, NEXT_CONTACT_KINDS, SALES_SOURCE_LABELS, originChannelLabel, segmentoLabel } from "@novoseminovo/shared-types";
 import { Contato } from "@/components/Contato";
 import { Form } from "@/components/Form";
 import { ListaTarefas } from "@/components/Tarefas";
@@ -28,6 +28,8 @@ function textoOrigem(o?: OrigemMarketing) {
   const canal = originChannelLabel(o.canal, o.meio) ?? o.canal;
   return [canal, o.campanha && `campanha ${o.campanha}`, o.anuncio && `anúncio ${o.anuncio}`, o.publico && `público ${o.publico}`].filter(Boolean).join(" · ");
 }
+// Link vindo de importação: só http(s) vira link (nunca javascript:).
+const linkSeguro = (u?: string) => Boolean(u && /^https?:\/\//i.test(u));
 const TIPO_NOTA: Record<string, string> = { ...INTERACTION_KINDS, stage: "Mudança de etapa", contact: "Próximo contato" };
 
 function Linha({ k, v }: { k: string; v?: React.ReactNode }) {
@@ -311,8 +313,14 @@ export default async function Ficha({ params, searchParams }: { params: { id: st
                 </>
               ) : (
                 <>
-                  <Linha k="Segmento" v={p!.segmento === "property" ? "Imóveis" : "Veículos"} />
+                  <Linha k="Segmento" v={segmentoLabel(p!.segmento)} />
                   <Linha k="Entrou no funil por" v={rotuloOrigem(p!.origem)} />
+                  <Linha k="Etiqueta" v={p!.etiqueta} />
+                  <Linha k="Site" v={linkSeguro(p!.site) ? <a className="link" target="_blank" rel="noopener noreferrer" href={p!.site}>{p!.site}</a> : undefined} />
+                  <Linha k="Google" v={p!.google ? [p!.google.categoria, p!.google.nota !== undefined ? `nota ${String(p!.google.nota).replace(".", ",")} (${p!.google.avaliacoes ?? 0} avaliações)` : ""].filter(Boolean).join(" · ") || undefined : undefined} />
+                  <Linha k="Endereço" v={p!.google?.endereco} />
+                  <Linha k="No Google Maps" v={linkSeguro(p!.google?.mapsUrl) ? <a className="link" target="_blank" rel="noopener noreferrer" href={p!.google!.mapsUrl}>Abrir no mapa</a> : undefined} />
+                  <Linha k="Instagram" v={p!.google?.instagram ? `@${p!.google.instagram}` : undefined} />
                   <Linha k="Origem" v={textoOrigem(p!.origemMarketing)} />
                   <Linha k="Cidade" v={[p!.cidade, p!.uf].filter(Boolean).join("/")} />
                   <Linha k="Funcionários" v={p!.perfil.funcionarios} />

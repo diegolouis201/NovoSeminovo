@@ -281,13 +281,13 @@ export class SalesService {
     const linked = await this.prisma.salesProspect.findUnique({ where: { partnerId } });
     if (linked) return adoptLinked(linked);
     const cnpj = digits(partner.document);
-    // Mesmo CNPJ; ou lead de campanha que deixou o e-mail/WhatsApp do dono.
+    // Mesmo CNPJ; ou lead de campanha / empresa importada do Mailerfind com o e-mail/WhatsApp do dono.
     const manual =
       (cnpj ? await this.prisma.salesProspect.findFirst({ where: { cnpj, partnerId: null } }) : null) ??
       (await this.prisma.salesProspect.findFirst({
         where: {
           partnerId: null,
-          source: "campanha",
+          source: { in: ["campanha", "mailerfind"] },
           OR: [{ email: partner.owner.email.toLowerCase() }, ...(partner.owner.phone ? [{ phone: partner.owner.phone }] : [])],
         },
         orderBy: { createdAt: "asc" },

@@ -1796,18 +1796,65 @@ model SalesProspect {
   owner           User?       @relation("SalesOwner", fields: [ownerId], references: [id])
   partnerId       String?     @unique @map("partner_id")
   partner         Partner?    @relation(fields: [partnerId], references: [id])
+  // E-mail criptografado (ENCRYPTED_FIELDS); emailHash = índice cego.
+  emailHash       String?     @map("email_hash")
+  // Importação do Mailerfind (Google Maps): site, domínio do site (para achar
+  // a mesma empresa), etiqueta da campanha e o resto do Google (endereço,
+  // categoria, nota, avaliações, links) em importData.
+  website         String?
+  siteDomain      String?     @map("site_domain")
+  // ID do lugar no Google Maps (place_id): a mesma empresa não entra duas vezes.
+  googlePlaceId   String?     @unique @map("google_place_id")
+  campaignTag     String?     @map("campaign_tag")
+  importData      Json?       @map("import_data")
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
   notes           SalesNote[]
   CrmTicket       CrmTicket[]
   hubTasks        HubTask[]
+  dedupKeys       ProspectDedupKey[]
 
   @@index([segment])
   @@index([ownerId])
   @@index([phoneHash])
-  @@index([email])
+  @@index([emailHash])
+  @@index([siteDomain])
+  @@index([campaignTag])
   @@index([source, createdAt])
   @@map("sales_prospects")
+}
+
+// Trava de duplicadas da importação de empresas (Mailerfind): uma linha por
+// telefone, e-mail, site e nome+cidade de cada card importado. key = HMAC da
+// chave normalizada (nunca o telefone/e-mail em texto). Chave primária = o
+// banco recusa a segunda empresa igual, mesmo com duas importações ao mesmo
+// tempo.
+model ProspectDedupKey {
+  key        String        @id
+  prospectId String        @map("prospect_id")
+  prospect   SalesProspect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  @@index([prospectId])
+  @@map("prospect_dedup_keys")
+}
+
+// Histórico das importações de empresas (só números, sem dados das empresas).
+model ProspectImport {
+  id          String   @id @default(cuid())
+  fileHash    String   @map("file_hash")
+  fileName    String?  @map("file_name")
+  tag         String
+  segment     String
+  total       Int
+  created     Int
+  duplicates  Int
+  invalid     Int
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([fileHash])
+  @@map("prospect_imports")
 }
 
 model SalesNote {

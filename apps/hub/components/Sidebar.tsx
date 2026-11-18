@@ -55,6 +55,7 @@ export function Sidebar({ name, profile, permissions, badges, sair }: { name: st
         { href: "/vendas", label: "Dashboard de vendas", icon: ChartLineUp, need: "crm.ver" },
         { href: "/funil", label: "Funil", icon: Funnel, need: "crm.ver" },
         { href: "/empresas", label: "Empresas", icon: Buildings, need: "crm.ver" },
+        { href: "/empresas/importar", label: "Importar empresas", icon: UploadSimple, need: "crm.editar" },
       ],
     },
     {
@@ -96,7 +97,8 @@ export function Sidebar({ name, profile, permissions, badges, sair }: { name: st
     { title: "Administração", items: [{ href: "/equipe", label: "Equipe e acessos", icon: UsersThree, need: "equipe" }] },
   ];
   const can = (p?: HubPermission | HubPermission[]) => !p || (Array.isArray(p) ? p.some((x) => permissions.includes(x)) : permissions.includes(p));
-  const active = (href: string) => (href === "/" ? path === "/" : href === "/financeiro" || href === "/marketing" ? path === href : path.startsWith(href));
+  const active = (href: string) =>
+    href === "/" ? path === "/" : href === "/financeiro" || href === "/marketing" ? path === href : href === "/empresas" ? path.startsWith(href) && !path.startsWith("/empresas/importar") : path.startsWith(href);
 
   const nav = (
     <nav className="flex h-full flex-col gap-5 overflow-y-auto px-3 py-5">

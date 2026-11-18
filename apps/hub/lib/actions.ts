@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { signIn, signOut } from "@/auth";
+import type { ProspeccaoAnalise, ProspeccaoResultado } from "@novoseminovo/shared-types";
 import { HubApiError, hubFetch, hubUpload } from "./api";
 
 // Ações do Hub. Toda entrada é validada de novo na API (zod); aqui só
@@ -362,4 +363,47 @@ export async function atualizarSeo(_: Resultado, form: FormData): Promise<Result
   const dias = Number(txt(form, "dias", 3));
   if (![7, 28, 90].includes(dias)) return { erro: "Período inválido." };
   return run(() => hubFetch("/hub/seo/atualizar", { method: "POST", body: { dias } }), "Dados atualizados.", ["/marketing/seo"]);
+}
+
+// -------------------------------------------------------------- Prospecção
+// Importar empresas do Mailerfind (CSV do Google Maps): analisar mostra a
+// prévia sem gravar; confirmar manda o mesmo arquivo e grava. A API decide o
+// tipo do arquivo pelo conteúdo e confere tudo de novo (zod).
+export type ImportacaoAnalise = { erro?: string; analise?: ProspeccaoAnalise };
+export type ImportacaoResultado = { erro?: string; resultado?: ProspeccaoResultado };
+const LIMITE_CSV = 5 * 1024 * 1024;
+
+function arquivoCsv(form: FormData): File | string {
+  const arquivo = form.get("arquivo");
+  if (!(arquivo instanceof File) || !arquivo.size) return "Escolha o arquivo CSV exportado do Mailerfind.";
+  if (arquivo.size > LIMITE_CSV) return "Arquivo grande demais: o máximo é 5 MB.";
+  return arquivo;
+}
+
+export async function analisarImportacao(form: FormData): Promise<ImportacaoAnalise> {
+  const arquivo = arquivoCsv(form);
+  if (typeof arquivo === "string") return { erro: arquivo };
+  try {
+    return { analise: await hubUpload<ProspeccaoAnalise>("/hub/prospeccao/importar/analisar", "arquivo", arquivo) };
+  } catch (e) {
+    if (e instanceof HubApiError) return { erro: e.status === 403 ? "Seu perfil não tem permissão para importar empresas." : e.message };
+    throw e;
+  }
+}
+
+export async function confirmarImportacao(form: FormData): Promise<ImportacaoResultado> {
+  const arquivo = arquivoCsv(form);
+  if (typeof arquivo === "string") return { erro: arquivo };
+  try {
+    const resultado = await hubUpload<ProspeccaoResultado>("/hub/prospeccao/importar/confirmar", "arquivo", arquivo, {
+      hash: txt(form, "hash", 64),
+      etiqueta: txt(form, "etiqueta", 60),
+      segmento: txt(form, "segmento", 10),
+    });
+    revalidatePath("/", "layout");
+    return { resultado };
+  } catch (e) {
+    if (e instanceof HubApiError) return { erro: e.status === 403 ? "Seu perfil não tem permissão para importar empresas." : e.message };
+    throw e;
+  }
 }
