@@ -84,6 +84,11 @@ export default async function Empresas({ searchParams }: { searchParams: { q?: s
         <button className="btn-primary">Filtrar</button>
       </form>
       </search>
+      {searchParams.etiqueta && acesso.permissions.includes("equipe") ? (
+        <p className="mb-4 text-sm">
+          <Link className="link" href={`/prospeccao?etiqueta=${encodeURIComponent(searchParams.etiqueta)}`}>Inscrever as empresas desta etiqueta numa sequência de e-mails</Link>
+        </p>
+      ) : null}
       <div className="card overflow-x-auto p-0">
         <table className="tabela min-w-[900px]">
           <thead>

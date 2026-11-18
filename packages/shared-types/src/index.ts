@@ -2315,6 +2315,7 @@ export const ACQUISITION_SOURCES = {
   whatsapp: "WhatsApp",
   afiliado: "Afiliados",
   email: "E-mail",
+  prospeccao: "Prospecção por e-mail (CRM)",
   outros_buscadores: "Outros buscadores",
   outros_sites: "Outros sites",
   direto: "Direto (digitou o endereço)",
@@ -2388,6 +2389,8 @@ function classifyBase(input: Parameters<typeof classifyAcquisition>[0]): Acquisi
     if (/tiktok/.test(utm)) return { source: "tiktok", medium, campaign };
     if (/youtube|^yt/.test(utm)) return { source: "youtube", medium, campaign };
     if (/whats|^wa$/.test(utm)) return { source: "whatsapp", medium, campaign };
+    // E-mails de prospecção do CRM do Hub (sequências): utm_source=prospeccao.
+    if (/^prospec/.test(utm)) return { source: "prospeccao", medium, campaign };
     if (/mail|newsletter/.test(utm)) return { source: "email", medium, campaign };
     return { source: "outros_sites", medium: medium ?? utm, campaign };
   }

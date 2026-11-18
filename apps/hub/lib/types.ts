@@ -66,6 +66,9 @@ export type CrmProspeccao = {
   // Importadas do Mailerfind (Google Maps).
   etiqueta?: string;
   site?: string;
+  // Sequência de e-mails: respondeu (marcado pelo Comercial) / pediu para sair.
+  respondeuEm?: string;
+  saiuEm?: string;
   google?: { endereco?: string; categoria?: string; nota?: number; avaliacoes?: number; mapsUrl?: string; instagram?: string; facebook?: string };
   criadoEm: string;
 };

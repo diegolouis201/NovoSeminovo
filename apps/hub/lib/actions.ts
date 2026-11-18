@@ -407,3 +407,72 @@ export async function confirmarImportacao(form: FormData): Promise<ImportacaoRes
     throw e;
   }
 }
+
+// Sequências de e-mail de prospecção. Escrever, aprovar, inscrever e ajustar:
+// só o dono (a API confere). Editar tira a aprovação.
+function passosDoForm(form: FormData) {
+  const passos = [];
+  for (let i = 0; i < 3; i++) {
+    const corpo = String(form.get(`corpo${i}`) ?? "").replace(/\r\n/g, "\n").slice(0, 5000);
+    if (!corpo.trim()) continue;
+    passos.push({ assunto: txt(form, `assunto${i}`, 150), corpo, esperaDias: passos.length === 0 ? 0 : Math.max(0, Math.min(30, Number(txt(form, `espera${i}`, 3)) || 0)) });
+  }
+  return passos;
+}
+
+export async function salvarSequencia(_: Resultado, form: FormData): Promise<Resultado> {
+  const seq = id(txt(form, "id", 40));
+  const body = { nome: txt(form, "nome", 80), passos: passosDoForm(form) };
+  let novo = "";
+  const r = await run(
+    async () => {
+      const s = await hubFetch<{ id: string }>(seq ? `/hub/prospeccao/sequencias/${seq}` : "/hub/prospeccao/sequencias", { method: "POST", body });
+      novo = s.id;
+    },
+    seq ? "Sequência salva. Ela voltou para rascunho: aprove de novo para enviar." : "Sequência criada (rascunho).",
+    ["/prospeccao"],
+  );
+  if (!seq && novo) redirect(`/prospeccao/${novo}`);
+  return r;
+}
+
+export async function aprovarSequencia(_: Resultado, form: FormData): Promise<Resultado> {
+  const seq = id(txt(form, "id", 40));
+  if (form.get("confirmo") !== "1") return { erro: "Marque a confirmação de que leu os e-mails." };
+  return run(() => hubFetch(`/hub/prospeccao/sequencias/${seq}/aprovar`, { method: "POST", body: {} }), "Sequência aprovada e ativa. Os envios seguem o horário e o limite do dia.", ["/prospeccao"]);
+}
+
+export async function pausarSequencia(_: Resultado, form: FormData): Promise<Resultado> {
+  const seq = id(txt(form, "id", 40));
+  return run(() => hubFetch(`/hub/prospeccao/sequencias/${seq}/pausar`, { method: "POST", body: {} }), "Sequência pausada.", ["/prospeccao"]);
+}
+
+export type ResultadoInscricao = Resultado & { detalhe?: string };
+export async function inscreverSequencia(_: ResultadoInscricao, form: FormData): Promise<ResultadoInscricao> {
+  const seq = id(txt(form, "id", 40));
+  const etiqueta = txt(form, "etiqueta", 60);
+  if (!etiqueta) return { erro: "Escolha a etiqueta." };
+  try {
+    const r = await hubFetch<{ inscritas: number; puladas: Record<string, number> }>(`/hub/prospeccao/sequencias/${seq}/inscrever`, { method: "POST", body: { etiqueta } });
+    revalidatePath("/prospeccao", "layout");
+    const p = r.puladas;
+    const nomes: Record<string, string> = { jaInscritas: "já inscritas", emOutraSequencia: "em outra sequência ativa", semEmail: "sem e-mail", sairam: "pediram para sair", parceiras: "já parceiras", outraEtapa: "fora de “A abordar”" };
+    const detalhe = Object.entries(p).filter(([, v]) => v).map(([k, v]) => `${v} ${nomes[k] ?? k}`).join(" · ");
+    return { ok: `${r.inscritas} empresa(s) inscrita(s).`, detalhe: detalhe ? `Fora: ${detalhe}.` : undefined };
+  } catch (e) {
+    if (e instanceof HubApiError) return { erro: e.status === 403 ? "Só o dono inscreve empresas nas sequências." : e.message };
+    throw e;
+  }
+}
+
+export async function salvarAjustesProspeccao(_: Resultado, form: FormData): Promise<Resultado> {
+  const limiteDiario = Number(txt(form, "limite", 3));
+  const pausado = form.get("pausado") === "1";
+  return run(() => hubFetch("/hub/prospeccao/ajustes", { method: "POST", body: { limiteDiario, pausado } }), pausado ? "Envios pausados." : "Ajustes salvos.", ["/prospeccao"]);
+}
+
+export async function marcarRespondeu(_: Resultado, form: FormData): Promise<Resultado> {
+  const card = id(txt(form, "card", 40));
+  if (!card) return { erro: "Esta empresa ainda não tem card." };
+  return run(() => hubFetch(`/hub/prospeccao/empresas/${card}/respondeu`, { method: "POST", body: {} }), "Marcado: respondeu. A sequência de e-mails parou para esta empresa.", ["/"]);
+}

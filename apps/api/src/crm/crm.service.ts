@@ -100,6 +100,9 @@ export type CrmProspeccao = {
   // Importadas do Mailerfind: etiqueta da campanha, site e dados do Google Maps.
   etiqueta?: string;
   site?: string;
+  // Sequência de e-mails: respondeu (marcado pelo Comercial) / pediu para sair.
+  respondeuEm?: string;
+  saiuEm?: string;
   google?: { endereco?: string; categoria?: string; nota?: number; avaliacoes?: number; mapsUrl?: string; instagram?: string; facebook?: string };
   criadoEm: string;
 };
@@ -285,6 +288,8 @@ export class CrmService {
         origem: r.source,
         origemMarketing: origemDe(r),
         etiqueta: r.campaignTag ?? undefined,
+        respondeuEm: r.repliedAt?.toISOString(),
+        saiuEm: r.optedOutAt?.toISOString(),
         site: r.website ?? undefined,
         google: r.importData && typeof r.importData === "object" && !Array.isArray(r.importData) ? (r.importData as CrmProspeccao["google"]) : undefined,
         criadoEm: r.createdAt.toISOString(),

@@ -397,6 +397,55 @@ a API do passo 1.2 não foi ativada. "invalid_grant": o arquivo não é o da
 chave atual (crie outra chave e repita o passo 3). Para trocar a chave, basta
 repetir os passos 3 e 4.
 
+## Prospecção pelo CRM (Hub → Importar empresas e Sequências de prospecção)
+
+As empresas achadas no **Mailerfind** (busca do Google Maps) entram no CRM do
+Hub e os e-mails de prospecção saem **do Hub**, pelo e-mail
+`contato@novoseminovo.com.br` (Locaweb). Nada é enviado até você aprovar a
+sequência no Hub.
+
+**1. Exportar do Mailerfind e importar no Hub (pode fazer já, não precisa do servidor)**
+
+1. No Mailerfind, abra **Prospects** (ou a análise do Google Maps que você rodou).
+2. Clique em **Export CSV** e salve o arquivo no computador (até 5 MB / 5.000 empresas por arquivo; se for maior, exporte em partes).
+3. No Hub: menu **Vendas → Importar empresas** (ou o botão "Importar empresas (Mailerfind)" na tela Empresas).
+4. Escolha o arquivo, confira a **etiqueta** (padrão "Prospecção BH - lojas de carros") e o tipo (Loja de veículos / Imobiliária / Outro).
+5. Clique **Analisar arquivo**. Aparecem as colunas reconhecidas, a prévia das 20 primeiras linhas e quantas são novas, já no CRM, já parceiras, repetidas e inválidas. **Nada foi gravado ainda.**
+6. Clique **Confirmar importação**. No fim dá para **baixar as recusadas com o motivo** (CSV).
+   Mandar o mesmo arquivo de novo não duplica nada.
+
+**2. Senha do e-mail no servidor (uma vez; nunca cole a senha em chat)**
+
+Confira no painel da Locaweb (**E-mail → Configurações de e-mail / Dados para configurar**) o servidor de saída (SMTP). O mais provável é `email-ssl.com.br`, porta `465` (SSL). Se o painel mostrar outro, use o do painel no passo 3.
+
+```sh
+cd ~/NovoSeminovo && umask 077 && mkdir -p secrets && chmod 700 secrets && nano secrets/prospeccao_smtp_password
+```
+Cole **só a senha** do `contato@novoseminovo.com.br`, salve (**Ctrl+O**, **Enter**, **Ctrl+X**) e limpe/confira:
+```sh
+cd ~/NovoSeminovo && tr -d '\r\n' < secrets/prospeccao_smtp_password > secrets/prospeccao_smtp_password.novo && mv secrets/prospeccao_smtp_password.novo secrets/prospeccao_smtp_password && chmod 600 secrets/prospeccao_smtp_password && wc -c < secrets/prospeccao_smtp_password
+```
+O número que aparece é a quantidade de letras da senha (a senha em si não aparece).
+
+**3. Servidor de e-mail no `.env`**
+
+```sh
+cd ~/NovoSeminovo && for kv in PROSPECCAO_SMTP_HOST=email-ssl.com.br PROSPECCAO_SMTP_PORT=465 PROSPECCAO_SMTP_USER=contato@novoseminovo.com.br; do k=${kv%%=*}; grep -q "^$k=" .env && sed -i "s|^$k=.*|$kv|" .env || echo "$kv" >> .env; done; grep '^PROSPECCAO_' .env
+docker compose up -d api
+```
+(O nome do remetente já vem como "Diego | NovoSeminovo". Para trocar: `PROSPECCAO_FROM_NAME=...` no `.env`. Para desligar todos os envios no servidor: `PROSPECCAO_DISABLED=1`.)
+
+**4. No Hub**
+
+1. Menu **Vendas → Sequências de prospecção**. O quadro "Envio" deve mostrar o remetente `Diego | NovoSeminovo <contato@novoseminovo.com.br>`; se mostrar "SMTP não configurado", confira os passos 2 e 3.
+2. Abra **Lojas BH** (rascunho com os 3 e-mails). Leia a prévia; se quiser, ajuste os textos e salve.
+3. Em **Inscrever empresas**, escolha a etiqueta da importação e clique **Inscrever empresas** (entram só as com e-mail, em "A abordar", que não pediram para sair e não são parceiras).
+4. Marque a confirmação e clique **Aprovar e ativar**. Os e-mails saem de segunda a sexta, das 9h às 17h, até o limite do dia (comece com 25; máximo 50), com 2 a 6 minutos entre um e outro.
+5. Quando uma empresa responder, abra a ficha dela e clique **Marcar que respondeu**: a sequência para na hora. Quem clicar em "sair" no e-mail (ou responder SAIR, aí marque você mesmo) nunca mais recebe e-mail de sequência nem volta numa importação.
+6. Botão de emergência: **Ajustes do envio → Pausar todos os envios agora**.
+
+Recomendado antes de ativar: confira na Locaweb se o domínio tem SPF e DKIM ativos para o e-mail (senão os e-mails tendem a cair no spam).
+
 ## Antivírus (opcional, ClamAV)
 
 Toda imagem enviada já é conferida pelo tipo real (bytes, não pela extensão),

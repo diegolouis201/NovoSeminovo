@@ -1,6 +1,7 @@
-import { BadRequestException, Body, Controller, Get, Post, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { ProspeccaoConfirmarSchema } from "@novoseminovo/shared-types";
+import { type ProspeccaoAjustes, ProspeccaoAjustesSchema, ProspeccaoConfirmarSchema, ProspeccaoInscreverSchema, ProspeccaoSequenciaSchema } from "@novoseminovo/shared-types";
+import { z } from "zod";
 import { memoryStorage } from "multer";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -8,6 +9,10 @@ import { parseOrBadRequest } from "../common/parse";
 import { HubGuard, HubPermissionRequired } from "../hub/hub.guard";
 import { IMPORT_MAX_BYTES } from "./importacao";
 import { ProspeccaoImportService } from "./prospeccao-import.service";
+import { ProspeccaoSequenciasService } from "./sequencias.service";
+
+const IdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/, "Identificador inválido.");
+const TokenSchema = z.string().regex(/^[A-Za-z0-9_-]{1,40}\.[A-Za-z0-9_-]{22}$/, "Link inválido.");
 
 type Me = { id: string };
 type Arquivo = { buffer: Buffer; originalname?: string } | undefined;
@@ -26,7 +31,10 @@ function exigirArquivo(arquivo: Arquivo): Buffer {
 @UseGuards(JwtAuthGuard, HubGuard)
 @Controller("hub/prospeccao")
 export class ProspeccaoController {
-  constructor(private readonly importacao: ProspeccaoImportService) {}
+  constructor(
+    private readonly importacao: ProspeccaoImportService,
+    private readonly sequencias: ProspeccaoSequenciasService,
+  ) {}
 
   @HubPermissionRequired("crm.editar")
   @Post("importar/analisar")
@@ -48,5 +56,83 @@ export class ProspeccaoController {
   @Get("etiquetas")
   etiquetas() {
     return this.importacao.etiquetas();
+  }
+
+  // ---------------------------------------------------------- sequências
+  // Ver: quem vê o CRM. Escrever, aprovar, inscrever e ajustar o envio: só o
+  // dono (equipe), porque isso manda e-mail para empresas. Marcar que a
+  // empresa respondeu: Comercial também.
+
+  @HubPermissionRequired("crm.ver")
+  @Get("sequencias")
+  painel() {
+    return this.sequencias.painel();
+  }
+
+  @HubPermissionRequired("crm.ver")
+  @Get("sequencias/:id")
+  async detalhe(@Param("id") id: string) {
+    return this.sequencias.detalhe(parseOrBadRequest(IdSchema, id));
+  }
+
+  @HubPermissionRequired("equipe")
+  @Post("sequencias")
+  async criarSequencia(@CurrentUser() me: Me, @Body() body: unknown) {
+    return this.sequencias.salvar(undefined, parseOrBadRequest(ProspeccaoSequenciaSchema, body), me.id);
+  }
+
+  @HubPermissionRequired("equipe")
+  @Post("sequencias/:id")
+  async salvarSequencia(@CurrentUser() me: Me, @Param("id") id: string, @Body() body: unknown) {
+    return this.sequencias.salvar(parseOrBadRequest(IdSchema, id), parseOrBadRequest(ProspeccaoSequenciaSchema, body), me.id);
+  }
+
+  @HubPermissionRequired("equipe")
+  @Post("sequencias/:id/aprovar")
+  async aprovar(@CurrentUser() me: Me, @Param("id") id: string) {
+    await this.sequencias.aprovar(parseOrBadRequest(IdSchema, id), me.id);
+    return { ok: true };
+  }
+
+  @HubPermissionRequired("equipe")
+  @Post("sequencias/:id/pausar")
+  async pausar(@Param("id") id: string) {
+    await this.sequencias.pausar(parseOrBadRequest(IdSchema, id));
+    return { ok: true };
+  }
+
+  @HubPermissionRequired("equipe")
+  @Post("sequencias/:id/inscrever")
+  async inscrever(@CurrentUser() me: Me, @Param("id") id: string, @Body() body: unknown) {
+    return this.sequencias.inscrever(parseOrBadRequest(IdSchema, id), parseOrBadRequest(ProspeccaoInscreverSchema, body), me.id);
+  }
+
+  @HubPermissionRequired("equipe")
+  @Post("ajustes")
+  async ajustes(@Body() body: unknown) {
+    return this.sequencias.salvarAjustes(parseOrBadRequest(ProspeccaoAjustesSchema as z.ZodType<ProspeccaoAjustes>, body));
+  }
+
+  @HubPermissionRequired("crm.editar")
+  @Post("empresas/:id/respondeu")
+  async respondeu(@CurrentUser() me: Me, @Param("id") id: string) {
+    await this.sequencias.respondeu(parseOrBadRequest(IdSchema, id), me.id);
+    return { ok: true };
+  }
+}
+
+// Link de saída dos e-mails de prospecção (público, sem login): a página
+// /sair/:token do site chama aqui, e o "descadastrar" de um clique do Gmail
+// (List-Unsubscribe-Post) também. Token assinado; nada a mais no corpo.
+@Controller("prospeccao")
+export class ProspeccaoSairController {
+  constructor(private readonly sequencias: ProspeccaoSequenciasService) {}
+
+  @Post("sair/:token")
+  @HttpCode(200)
+  async sair(@Param("token") token: string) {
+    const ok = await this.sequencias.sair(parseOrBadRequest(TokenSchema, token));
+    if (!ok) throw new BadRequestException("Link inválido.");
+    return { ok: true };
   }
 }

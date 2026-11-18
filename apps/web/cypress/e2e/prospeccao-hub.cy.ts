@@ -63,4 +63,32 @@ describe("Hub: importar empresas do Mailerfind", { baseUrl: "http://localhost:31
     cy.contains("button", "Analisar arquivo").click();
     cy.get("[role=alert]").should("contain", "PDF, não CSV");
   });
+
+  it("sequência \"Lojas BH\" começa como rascunho, com prévia, rodapé legal e aprovação só com confirmação", () => {
+    entrar();
+    cy.visit("/prospeccao");
+    cy.contains("h1", "Sequências de prospecção");
+    cy.contains("a", "Lojas BH").click();
+    cy.contains("Rascunho (não envia)");
+    cy.contains("Prévia (exemplo:");
+    // Prévia em iframe sem permissão nenhuma (sandbox vazio): o HTML do e-mail não roda script.
+    cy.get('iframe[sandbox=""]').should("have.length", 3).first().should("have.attr", "srcdoc").and("contain", "Você recebeu este e-mail porque o contato da sua empresa está público no Google Maps").and("contain", "Clique aqui para sair");
+    cy.contains("Re: Estoque da");
+    // Sem marcar a confirmação, o navegador não deixa aprovar.
+    cy.contains("button", "Aprovar e ativar").click();
+    cy.contains("Rascunho (não envia)");
+    cy.get("#confirmo:invalid").should("exist");
+  });
 });
+
+describe("Site: página de saída dos e-mails de prospecção", () => {
+  it("link adulterado não descadastra ninguém", () => {
+    cy.visit("/sair/abc.def");
+    cy.contains("h1", "Sair da lista de e-mails");
+    cy.contains("Link inválido");
+    cy.visit("/sair/cmwm6advv0000hdktnkecvq7p.AAAAAAAAAAAAAAAAAAAAAA");
+    cy.contains("button", "Não quero receber mais e-mails").click();
+    cy.get("[role=alert]").should("contain", "Link inválido");
+  });
+});
+

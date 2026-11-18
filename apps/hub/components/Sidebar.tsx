@@ -20,6 +20,7 @@ import {
   ChartPieSlice,
   ChartLineUp,
   CurrencyCircleDollar,
+  EnvelopeSimple,
   Funnel,
   House,
   List,
@@ -56,6 +57,7 @@ export function Sidebar({ name, profile, permissions, badges, sair }: { name: st
         { href: "/funil", label: "Funil", icon: Funnel, need: "crm.ver" },
         { href: "/empresas", label: "Empresas", icon: Buildings, need: "crm.ver" },
         { href: "/empresas/importar", label: "Importar empresas", icon: UploadSimple, need: "crm.editar" },
+        { href: "/prospeccao", label: "Sequências de prospecção", icon: EnvelopeSimple, need: "crm.ver" },
       ],
     },
     {

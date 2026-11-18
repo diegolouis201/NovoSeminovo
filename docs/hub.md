@@ -70,6 +70,15 @@ Gastos e orçamento, Análises. API em `apps/api/src/hub/marketing.*`
   F03 (Marketing) — `categoriaAutomatica` em `financeiro-regras.ts`.
 - Tabelas: `mkt_contents`, `mkt_history`, `mkt_budgets`.
 
+## Prospecção pelo CRM (18/11/2026)
+- **Importar empresas** (`/empresas/importar`, dono e Comercial): CSV do
+  Mailerfind (Google Maps) → cards "A abordar", origem Mailerfind, com etiqueta
+  da campanha. Analisar (prévia, nada gravado) → confirmar. Nunca duplica.
+- **Sequências de prospecção** (`/prospeccao`): até 3 e-mails pelo SMTP do
+  contato@; só depois de "Aprovar e ativar" (dono); seg–sex 9h–17h, teto por
+  dia, rodapé e link de saída sempre. "Marcar que respondeu" na ficha para a
+  sequência. Configuração: DEPLOY.md, "Prospecção pelo CRM".
+
 ## Próximas fases
 Login com Google @novoseminovo.com.br; trazer o histórico da planilha e da
 sessão do Financeiro (importação já pronta).

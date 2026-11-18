@@ -226,7 +226,7 @@ describe("Importar empresas: rota e permissão", () => {
 
   test("sem arquivo ou com corpo inválido: 400 antes do serviço", async () => {
     const chamadas: unknown[] = [];
-    const ctrl = new ProspeccaoController({ analisar: async () => chamadas.push(1), confirmar: async () => chamadas.push(2) } as never);
+    const ctrl = new ProspeccaoController({ analisar: async () => chamadas.push(1), confirmar: async () => chamadas.push(2) } as never, {} as never);
     await assert.rejects(ctrl.analisar(undefined as never), /arquivo/i);
     const file = { buffer: Buffer.from("Nome,Telefone\nX,(31) 3333-4444\n"), originalname: "x.csv" } as never;
     await assert.rejects(ctrl.confirmar({ id: "u" }, file, { hash: "abc", etiqueta: "ok", segmento: "vehicle" }), /BadRequest|hash|inválid/i);

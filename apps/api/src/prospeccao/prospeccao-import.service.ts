@@ -10,7 +10,7 @@ import {
   type ProspeccaoPreviaLinha,
   type ProspeccaoResultado,
 } from "@novoseminovo/shared-types";
-import { currentDataKeys } from "../common/field-encryption";
+import { blindIndex, currentDataKeys } from "../common/field-encryption";
 import { parseOrBadRequest } from "../common/parse";
 import { PrismaService } from "../prisma/prisma.service";
 import {
@@ -115,7 +115,18 @@ export class ProspeccaoImportService {
   private async classificar(linhas: LinhaProspect[]): Promise<Classificacao> {
     const { crm, parceiras } = await this.jaExistentes(linhas);
     const motivos: Classificacao = new Map();
+    // Lista de bloqueio dos e-mails de prospecção (quem pediu para sair).
+    const hashDe = (e: string) => blindIndex("email", e, currentDataKeys());
+    const comEmail = linhas.filter((l) => l.email);
+    const bloqueados = new Set<string>();
+    for (const lote of lotes(comEmail.map((l) => hashDe(l.email!)))) {
+      for (const r of await this.prisma.prospectSuppression.findMany({ where: { addressHmac: { in: lote } }, select: { addressHmac: true } })) bloqueados.add(r.addressHmac);
+    }
     for (const l of linhas) {
+      if (l.email && bloqueados.has(hashDe(l.email))) {
+        motivos.set(l.linha, "Pediu para sair dos e-mails (lista de bloqueio)");
+        continue;
+      }
       const chaves = chavesDedup(l);
       const parceira = chaves.find((c) => parceiras.has(c));
       const noCrm = chaves.find((c) => crm.has(c));
@@ -128,7 +139,7 @@ export class ProspeccaoImportService {
   async analisar(bytes: Buffer, _nomeArquivo?: string): Promise<ProspeccaoAnalise> {
     const a = this.lerArquivo(bytes);
     const motivos = await this.classificar(a.validas);
-    const jaNoCrm = [...motivos.values()].filter((m) => m.startsWith("Já está")).length;
+    const jaNoCrm = [...motivos.values()].filter((m) => !m.startsWith("Já é parceira")).length;
     const usadas = new Set(Object.values(a.mapa));
     const anterior = await this.prisma.prospectImport.findFirst({ where: { fileHash: a.hash }, orderBy: { createdAt: "desc" }, select: { createdAt: true } });
 

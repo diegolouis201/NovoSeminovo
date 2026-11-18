@@ -14,12 +14,13 @@ import { JornadaService } from "./jornada.service";
 import { SeguidoresService } from "./jornada-seguidores.service";
 import { SeoController } from "./seo.controller";
 import { SeoService } from "./seo.service";
-import { ProspeccaoController } from "../prospeccao/prospeccao.controller";
+import { ProspeccaoController, ProspeccaoSairController } from "../prospeccao/prospeccao.controller";
+import { ProspeccaoSequenciasService } from "../prospeccao/sequencias.service";
 import { ProspeccaoImportService } from "../prospeccao/prospeccao-import.service";
 
 @Module({
   imports: [AuthModule, CrmModule],
-  controllers: [HubController, FinanceiroController, MarketingHubController, MarketingFeedController, JornadaController, SeoController, ProspeccaoController],
-  providers: [HubService, BuyerLeadsService, HubGuard, FinanceiroService, MarketingHubService, JornadaService, SeguidoresService, SeoService, ProspeccaoImportService],
+  controllers: [HubController, FinanceiroController, MarketingHubController, MarketingFeedController, JornadaController, SeoController, ProspeccaoController, ProspeccaoSairController],
+  providers: [HubService, BuyerLeadsService, HubGuard, FinanceiroService, MarketingHubService, JornadaService, SeguidoresService, SeoService, ProspeccaoImportService, ProspeccaoSequenciasService],
 })
 export class HubModule {}

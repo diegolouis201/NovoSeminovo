@@ -6,7 +6,7 @@ import { Form } from "@/components/Form";
 import { ListaTarefas } from "@/components/Tarefas";
 import { Etapa } from "@/components/ui";
 import { HubApiError, hubFetch } from "@/lib/api";
-import { marcar, marcarContato, moverEtapa, novaTarefa, registrarAtividade } from "@/lib/actions";
+import { marcar, marcarContato, marcarRespondeu, moverEtapa, novaTarefa, registrarAtividade } from "@/lib/actions";
 import { acharFicha, feed, hoje, marcacoes, me, tarefas } from "@/lib/crm";
 import { brl, data, dataHora } from "@/lib/format";
 import type { OrigemMarketing } from "@/lib/types";
@@ -117,6 +117,19 @@ export default async function Ficha({ params, searchParams }: { params: { id: st
                 <p className="mb-4 text-sm text-muted">{[contato.telefone, contato.email].filter(Boolean).join(" · ") || "Sem telefone nem e-mail"}</p>
                 <Contato telefone={contato.telefone} email={contato.email} dados={dados} segmento={e?.segmento ?? p?.segmento} naoContatar={Boolean(marca?.naoContatar)} contaEmail={access.email} card={pode ? ficha.cardId : undefined} />
               </section>
+              {p && (p.origem === "mailerfind" || p.respondeuEm || p.saiuEm) ? (
+                <section className="card">
+                  <h2 className="h2 mb-3">E-mails de prospecção</h2>
+                  {p.saiuEm ? <p className="text-sm font-semibold text-danger">Pediu para sair dos e-mails em {data(p.saiuEm)}. Nenhum e-mail de sequência vai para este endereço.</p> : null}
+                  {p.respondeuEm ? <p className="text-sm font-semibold text-green">Respondeu em {data(p.respondeuEm)}: a sequência parou.</p> : null}
+                  {!p.respondeuEm && !p.saiuEm && pode ? (
+                    <Form action={marcarRespondeu} botao="Marcar que respondeu" manter>
+                      <input type="hidden" name="card" value={p.cardId} />
+                      <p className="text-sm text-muted">A empresa respondeu o e-mail (ou pelo WhatsApp)? Marque aqui: a sequência para na hora e nenhum outro e-mail automático sai para ela.</p>
+                    </Form>
+                  ) : null}
+                </section>
+              ) : null}
               {pode && ficha.cardId ? (
                 <section className="card">
                   <h2 className="h2 mb-3">Registrar atividade</h2>

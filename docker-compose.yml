@@ -103,6 +103,14 @@ services:
       # SEO no Hub (Google Search Console; DEPLOY.md, "Search Console no Hub").
       # A chave da conta de serviço fica em secrets/gsc_service_account (montado abaixo).
       GSC_SITE: ${GSC_SITE:-}
+      # Prospecção pelo CRM do Hub (DEPLOY.md, "Prospecção pelo CRM"): e-mails
+      # das sequências pelo SMTP do contato@ (separado do Resend do site). A
+      # senha fica em secrets/prospeccao_smtp_password (montado abaixo).
+      PROSPECCAO_SMTP_HOST: ${PROSPECCAO_SMTP_HOST:-}
+      PROSPECCAO_SMTP_PORT: ${PROSPECCAO_SMTP_PORT:-465}
+      PROSPECCAO_SMTP_USER: ${PROSPECCAO_SMTP_USER:-}
+      PROSPECCAO_FROM_NAME: ${PROSPECCAO_FROM_NAME:-Diego | NovoSeminovo}
+      PROSPECCAO_DISABLED: ${PROSPECCAO_DISABLED:-}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_PUBLIC_URL_BASE: ${S3_PUBLIC_URL_BASE:-}
       S3_ENDPOINT: ${S3_ENDPOINT:-}

@@ -1807,12 +1807,17 @@ model SalesProspect {
   googlePlaceId   String?     @unique @map("google_place_id")
   campaignTag     String?     @map("campaign_tag")
   importData      Json?       @map("import_data")
+  // Sequência de e-mails de prospecção: respondeu (marcado pelo Comercial)
+  // e saiu (link de saída / SAIR) — os dois param qualquer sequência.
+  repliedAt       DateTime?   @map("replied_at")
+  optedOutAt      DateTime?   @map("opted_out_at")
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
   notes           SalesNote[]
   CrmTicket       CrmTicket[]
   hubTasks        HubTask[]
   dedupKeys       ProspectDedupKey[]
+  enrollments     ProspectEnrollment[]
 
   @@index([segment])
   @@index([ownerId])
@@ -1837,6 +1842,81 @@ model ProspectDedupKey {
 
   @@index([prospectId])
   @@map("prospect_dedup_keys")
+}
+
+// Sequência de e-mails de prospecção (até 3 passos, em steps). Só envia
+// depois de aprovada pelo dono (approvedAt); editar volta para rascunho.
+model ProspectSequence {
+  id           String               @id @default(cuid())
+  name         String
+  // rascunho | ativa | pausada
+  status       String               @default("rascunho")
+  steps        Json
+  approvedById String?              @map("approved_by_id")
+  approvedAt   DateTime?            @map("approved_at")
+  createdById  String?              @map("created_by_id")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+  enrollments  ProspectEnrollment[]
+
+  @@map("prospect_sequences")
+}
+
+// Empresa inscrita numa sequência. activeKey = prospectId enquanto a
+// inscrição está ativa (agendado/enviando) e null depois: único, então a
+// mesma empresa nunca fica em duas sequências ativas ao mesmo tempo.
+model ProspectEnrollment {
+  id             String           @id @default(cuid())
+  sequenceId     String           @map("sequence_id")
+  sequence       ProspectSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  prospectId     String           @map("prospect_id")
+  prospect       SalesProspect    @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  activeKey      String?          @unique @map("active_key")
+  // agendado | enviando | concluido | respondeu | saiu | parou | erro
+  status         String           @default("agendado")
+  stepsSent      Int              @default(0) @map("steps_sent")
+  nextSendAt     DateTime?        @map("next_send_at")
+  lastSentAt     DateTime?        @map("last_sent_at")
+  firstMessageId String?          @map("first_message_id")
+  firstSubject   String?          @map("first_subject")
+  stopReason     String?          @map("stop_reason")
+  lastError      String?          @map("last_error")
+  enrolledById   String?          @map("enrolled_by_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  logs           ProspectEmailLog[]
+
+  @@unique([sequenceId, prospectId])
+  @@index([status, nextSendAt])
+  @@map("prospect_enrollments")
+}
+
+// Cada envio (ou falha) de e-mail de prospecção: teto diário e auditoria.
+model ProspectEmailLog {
+  id           String             @id @default(cuid())
+  enrollmentId String             @map("enrollment_id")
+  enrollment   ProspectEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  step         Int
+  // enviado | erro
+  status       String
+  messageId    String?            @map("message_id")
+  error        String?
+  createdAt    DateTime           @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("prospect_email_logs")
+}
+
+// Lista de bloqueio: e-mails que pediram para sair. Só o HMAC do e-mail
+// (índice cego), conferido antes de cada envio e em toda inscrição.
+// (o campo não se chama emailHash: esse nome é apagado das respostas pela
+// criptografia de campo, ver HASH_NAMES em field-encryption.ts)
+model ProspectSuppression {
+  addressHmac String   @id @map("email_hash")
+  reason      String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("prospect_suppressions")
 }
 
 // Histórico das importações de empresas (só números, sem dados das empresas).

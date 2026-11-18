@@ -133,7 +133,15 @@ describe("Limpar dados de teste (banco local)", { skip: !withDb && "sem DATABASE
     ids.leadAdmin = (await prisma.lead.create({ data: { listingId: ids.listingAdmin, partnerId: partnerAdmin.id, buyerId: ids.comprador, source: "form", contactName: "Fulano" } })).id;
 
     // CRM do Hub: empresa ligada à loja de teste, ordem, dono do card = vendedor.
-    ids.prospect = (await prisma.salesProspect.create({ data: { name: `Empresa ${tag}`, segment: "veiculos", partnerId: ids.partner, ownerId: ids.sales } })).id;
+    // upsert: outro teste rodando ao mesmo tempo pode sincronizar as lojas
+    // (SalesService.syncPartners) e criar o card desta loja antes.
+    ids.prospect = (
+      await prisma.salesProspect.upsert({
+        where: { partnerId: ids.partner },
+        create: { name: `Empresa ${tag}`, segment: "veiculos", partnerId: ids.partner, ownerId: ids.sales },
+        update: { name: `Empresa ${tag}`, ownerId: ids.sales },
+      })
+    ).id;
     ids.crmOrder = (await prisma.crmOrder.create({ data: { area: "comercial", title: "Ligar", partnerId: ids.partner, prospectId: ids.prospect } })).id;
     await prisma.hubTask.create({ data: { title: "Retornar", dueAt: new Date(), prospectId: ids.prospect, assigneeId: ids.sales, createdById: ids.hub } });
 
