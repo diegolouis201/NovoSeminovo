@@ -25,6 +25,13 @@ export default async function HubLayout({ children }: { children: React.ReactNod
     badges.regua = calc.regua(f, h, m).filter((r: { situacao: string }) => r.situacao === "atrasado").length;
     badges.tarefas = t.filter((x) => x.dueAt.slice(0, 10) <= new Date().toISOString().slice(0, 10)).length;
   }
+  if (access.permissions.includes("equipe")) {
+    try {
+      badges.respostas = (await hubFetch<unknown[]>("/hub/vendedores/respostas")).length;
+    } catch {
+      /* API sem vendedores IA ainda */
+    }
+  }
   if (access.permissions.includes("financeiro")) {
     try {
       const r = await hubFetch<{ resumo: { vencidosReceber: { quantidade: number }; vencidosPagar: { quantidade: number } } }>("/hub/financeiro/lancamentos?status=vencido");

@@ -476,3 +476,48 @@ export async function marcarRespondeu(_: Resultado, form: FormData): Promise<Res
   if (!card) return { erro: "Esta empresa ainda não tem card." };
   return run(() => hubFetch(`/hub/prospeccao/empresas/${card}/respondeu`, { method: "POST", body: {} }), "Marcado: respondeu. A sequência de e-mails parou para esta empresa.", ["/"]);
 }
+
+// ------------------------------------------------------------ vendedores IA
+// Só o dono (equipe) aprova, edita, rejeita, pausa e troca o modo; a API confere.
+
+export async function decidirResposta(_: Resultado, form: FormData): Promise<Resultado> {
+  const rid = id(txt(form, "id", 40));
+  if (!rid) return { erro: "Resposta inválida." };
+  const editar = form.get("acao") === "editar";
+  const texto = String(form.get("texto") ?? "").replace(/\r\n/g, "\n").trim().slice(0, 3000);
+  if (editar && !texto) return { erro: "Escreva a resposta." };
+  try {
+    const r = await hubFetch<{ status: "enviado" | "na_fila"; motivo?: string }>(`/hub/vendedores/respostas/${rid}/aprovar`, { method: "POST", body: editar ? { texto } : {} });
+    // Sem revalidar: o cartão continua na tela com o resultado (a fila é
+    // dinâmica e se atualiza na próxima visita).
+    if (r.status === "enviado") return { ok: "Resposta enviada." };
+    const motivos: Record<string, string> = { fora_do_horario: "fora do horário (sai seg a sex, 9h às 18h)", pausado: "o vendedor está pausado", teto_do_dia: "o limite de e-mails de hoje acabou", descartado: "a empresa saiu da lista", erro: "deu erro no envio" };
+    return { ok: `Aprovada. Ainda não saiu: ${motivos[r.motivo ?? ""] ?? "vai na próxima rodada"}.` };
+  } catch (e) {
+    if (e instanceof HubApiError) return { erro: e.status === 403 ? "Só o dono aprova respostas." : e.message };
+    throw e;
+  }
+}
+
+export async function rejeitarResposta(_: Resultado, form: FormData): Promise<Resultado> {
+  const rid = id(txt(form, "id", 40));
+  const motivo = txt(form, "motivo", 500);
+  return run(() => hubFetch(`/hub/vendedores/respostas/${rid}/rejeitar`, { method: "POST", body: motivo ? { motivo } : {} }), "Rejeitada. O motivo vira orientação para os próximos rascunhos.", []);
+}
+
+export async function ajustarVendedor(_: Resultado, form: FormData): Promise<Resultado> {
+  const vid = id(txt(form, "id", 40));
+  const body: Record<string, unknown> = { pausado: form.get("pausado") === "1" };
+  const autonomia = txt(form, "autonomia", 20);
+  if (autonomia === "supervisionado" || autonomia === "automatico") body.autonomia = autonomia;
+  const emails = Number(txt(form, "emails", 3));
+  const rascunhos = Number(txt(form, "rascunhos", 3));
+  if (emails) body.limiteEmailsDia = emails;
+  if (rascunhos) body.limiteRascunhosDia = rascunhos;
+  return run(() => hubFetch(`/hub/vendedores/${vid}/ajustes`, { method: "POST", body }), "Ajustes salvos.", ["/vendedores"]);
+}
+
+export async function salvarGeralVendedores(_: Resultado, form: FormData): Promise<Resultado> {
+  const pausarTodos = form.get("pausarTodos") === "1";
+  return run(() => hubFetch("/hub/vendedores/geral", { method: "POST", body: { pausarTodos, confirmarSaida: form.get("confirmarSaida") === "1" } }), pausarTodos ? "Todos os vendedores pausados." : "Ajustes salvos.", ["/vendedores"]);
+}

@@ -300,6 +300,57 @@ async function main() {
     });
   }
 
+  // Vendedores IA (Hub → Vendedores IA): a Nina e duas respostas de exemplo
+  // esperando aprovação (dados falsos; o seed nunca roda em produção).
+  // Rodar o seed de novo volta as duas para "esperando aprovação".
+  const nina = await prisma.salesAgent.upsert({
+    where: { slug: "nina" },
+    update: {},
+    create: { slug: "nina", name: "Nina", active: true, mailbox: "prospeccao", liveSince: new Date() },
+  });
+  const exemplos = [
+    {
+      chave: "seed-vendedores-1",
+      nome: "Auto Center Exemplo",
+      email: "contato@autocenter-exemplo.com.br",
+      assunto: "Re: Estoque da Auto Center Exemplo no NovoSeminovo, 3 meses grátis",
+      texto: "Oi, gostei da ideia, mas não tenho tempo de cadastrar carro por carro. <b>Como funciona</b> a importação?",
+      rascunho: "Oi! Não precisa cadastrar um por um: se vocês já anunciam em outro site, é só colar o link e a gente organiza o estoque. A nossa equipe ajuda a subir os primeiros carros, vocês só revisam.\n\nComeça por aqui: https://novoseminovo.com.br/para-lojas/comecar?utm_source=prospeccao&utm_medium=email&utm_campaign=nina\n\nNina, assistente comercial da NovoSeminovo",
+      objecao: "sem_tempo",
+      etapa: "negociacao",
+      escalar: null as string | null,
+    },
+    {
+      chave: "seed-vendedores-2",
+      nome: "Garagem Modelo Seminovos",
+      email: "vendas@garagem-modelo.com.br",
+      assunto: "Re: Estoque da Garagem Modelo Seminovos",
+      texto: "Topo testar se vocês fizerem 50% de desconto no plano depois dos 3 meses.",
+      rascunho: "",
+      objecao: "outra",
+      etapa: "manter",
+      escalar: "desconto" as string | null,
+    },
+  ];
+  for (const e of exemplos) {
+    const card = await prisma.salesProspect.upsert({
+      where: { googlePlaceId: e.chave },
+      update: { salesAgentId: nina.id, stage: "em_contato", optedOutAt: null },
+      create: { name: e.nome, segment: "vehicle", city: "Belo Horizonte", state: "MG", email: e.email, source: "mailerfind", campaignTag: "Exemplo vendedores IA", googlePlaceId: e.chave, stage: "em_contato", salesAgentId: nina.id, repliedAt: new Date(), objection: e.objecao },
+    });
+    const msg = await prisma.prospectMessage.upsert({
+      where: { messageId: `<${e.chave}@exemplo.local>` },
+      update: {},
+      create: { prospectId: card.id, salesAgentId: nina.id, channel: "email", direction: "in", messageId: `<${e.chave}@exemplo.local>`, subject: e.assunto, body: e.texto },
+    });
+    const dados = { status: e.escalar ? "escalado" : "pendente", replyText: e.rascunho, finalText: null, objection: e.objecao, suggestedStage: e.etapa, escalateReason: e.escalar, decidedAt: null, decidedById: null, sentAt: null, error: null, rejectReason: null };
+    await prisma.prospectReplyDraft.upsert({
+      where: { inboundId: msg.id },
+      update: dados,
+      create: { ...dados, prospectId: card.id, salesAgentId: nina.id, inboundId: msg.id, channel: "email", nextFollowupDays: 3, playbookVersion: "seed" },
+    });
+  }
+
   await prisma.favorite.upsert({
     where: { userId_listingId: { userId: buyer.id, listingId: vehicleListing.id } },
     update: {},

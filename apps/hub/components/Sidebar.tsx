@@ -26,6 +26,8 @@ import {
   List,
   MagnifyingGlass,
   Receipt,
+  Robot,
+  ChatCircleText,
   Ruler,
   SignOut,
   Star,
@@ -58,6 +60,8 @@ export function Sidebar({ name, profile, permissions, badges, sair }: { name: st
         { href: "/empresas", label: "Empresas", icon: Buildings, need: "crm.ver" },
         { href: "/empresas/importar", label: "Importar empresas", icon: UploadSimple, need: "crm.editar" },
         { href: "/prospeccao", label: "Sequências de prospecção", icon: EnvelopeSimple, need: "crm.ver" },
+        { href: "/vendedores", label: "Vendedores IA", icon: Robot, need: "crm.ver" },
+        { href: "/vendedores/respostas", label: "Respostas para aprovar", icon: ChatCircleText, need: "equipe", badge: badges.respostas },
       ],
     },
     {
@@ -100,7 +104,7 @@ export function Sidebar({ name, profile, permissions, badges, sair }: { name: st
   ];
   const can = (p?: HubPermission | HubPermission[]) => !p || (Array.isArray(p) ? p.some((x) => permissions.includes(x)) : permissions.includes(p));
   const active = (href: string) =>
-    href === "/" ? path === "/" : href === "/financeiro" || href === "/marketing" ? path === href : href === "/empresas" ? path.startsWith(href) && !path.startsWith("/empresas/importar") : path.startsWith(href);
+    href === "/" ? path === "/" : href === "/financeiro" || href === "/marketing" ? path === href : href === "/empresas" ? path.startsWith(href) && !path.startsWith("/empresas/importar") : href === "/vendedores" ? path.startsWith(href) && !path.startsWith("/vendedores/respostas") : path.startsWith(href);
 
   const nav = (
     <nav className="flex h-full flex-col gap-5 overflow-y-auto px-3 py-5">
