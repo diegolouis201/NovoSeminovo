@@ -157,6 +157,7 @@ describe("Caixas, remetente por sequência e segmentos no banco", { skip: !withD
     await prisma.prospectSuppression.deleteMany({ where: { addressHmac: { in: emails.map((e) => blindIndex("email", e, currentDataKeys())) } } });
     await prisma.salesProspect.deleteMany({ where: { OR: [{ name: { contains: tag } }, { campaignTag: { contains: tag } }] } });
     await prisma.salesAgent.deleteMany({ where: { slug: { contains: tag } } });
+    await prisma.mktSetting.deleteMany({ where: { chave: { contains: tag } } });
     await prisma.mktSetting.deleteMany({ where: { chave: { in: ["prospeccao_imap", "prospeccao_imap:atendimento", "prospeccao_estado", "prospeccao_estado:atendimento"] } } });
     await prisma.user.deleteMany({ where: { email: { contains: tag } } });
     await prisma.$disconnect();
@@ -343,12 +344,80 @@ describe("Caixas, remetente por sequência e segmentos no banco", { skip: !withD
     const painel = await real.painel(seg10h);
     const vx = painel.vendedores.find((v) => v.id === x.id)!;
     assert.equal(vx.assinatura, "Xavier, assistente virtual de vendas | NovoSeminovo");
-    assert.deepEqual(vx.caixaStatus, { chave: "atendimento", endereco: "atendimento@novoseminovo.com.br", configurada: true, leitura: true, vendedorAtivo: "Xavier" });
+    assert.deepEqual(vx.caixaStatus, { chave: "atendimento", endereco: "atendimento@novoseminovo.com.br", configurada: true, leitura: true, vendedorAtivo: "Xavier", vendedorAtivoId: x.id });
     assert.ok(!JSON.stringify(painel).includes("senha-nunca-no-log"));
     await real.ajustar(x.id, { assinatura: "" });
     assert.equal((await prisma.salesAgent.findUniqueOrThrow({ where: { id: x.id } })).signature, null, "vazia volta ao padrão");
     await real.ajustar(x.id, { ativo: false });
     await real.ajustar(ids.imob, { ativo: true });
+  });
+
+  test("Hub: escolher a caixa do vendedor (lista com situação; caixa de outro ativo bloqueada; sem caixa)", async () => {
+    const y = await prisma.salesAgent.create({ data: { slug: `y${tag}`, name: "Yara" } });
+    const d = await service.detalhe(y.id, seg10h);
+    assert.deepEqual(d.caixas.map((c) => c.chave), ["prospeccao", "atendimento"], "todas as caixas da lista fixa, com a situação");
+    assert.ok(d.caixas.every((c) => typeof c.configurada === "boolean" && c.endereco.endsWith("@novoseminovo.com.br")));
+    const emUso = d.caixas.find((c) => c.chave === "prospeccao")!;
+    assert.ok(emUso.vendedorAtivo && emUso.vendedorAtivoId, "caixa de vendedor ativo diz quem usa");
+    // Inativo também não pega a caixa de outro vendedor ativo.
+    await assert.rejects(service.ajustar(y.id, { caixa: "prospeccao" }), /já é usada por/);
+    assert.equal((await prisma.salesAgent.findUniqueOrThrow({ where: { id: y.id } })).mailbox, null);
+    await prisma.salesAgent.update({ where: { id: ids.imob }, data: { active: false } });
+    try {
+      await service.ajustar(y.id, { caixa: "atendimento" });
+      const salvo = await prisma.salesAgent.findUniqueOrThrow({ where: { id: y.id } });
+      assert.equal(salvo.mailbox, "atendimento");
+      assert.ok(salvo.sequenceId, "ganhou o rascunho da primeira abordagem");
+      // Ativar continua exigindo a primeira abordagem aprovada.
+      await assert.rejects(service.ajustar(y.id, { ativo: true }), /[Aa]prove a primeira abordagem/);
+      await assert.rejects(service.ajustar(y.id, { caixa: "outra" } as never), /inválid|Invalid/i);
+      await service.ajustar(y.id, { caixa: null });
+      assert.equal((await prisma.salesAgent.findUniqueOrThrow({ where: { id: y.id } })).mailbox, null, "sem caixa");
+      await assert.rejects(service.ajustar(y.id, { ativo: true }), /não tem caixa de e-mail/);
+    } finally {
+      await prisma.salesAgent.update({ where: { id: ids.imob }, data: { active: true } });
+    }
+  });
+
+  test("subida: Caio e Nina antigos ganham caixa e tipos padrão uma vez; escolha do dono nunca é sobrescrita", async () => {
+    const lista = [
+      { slug: `caio${tag}p`, nome: "Caio", feminino: false, ativo: false, caixa: "atendimento", segmentos: ["vehicle"] },
+      { slug: `nina${tag}p`, nome: "Nina", feminino: true, ativo: true, caixa: "prospeccao", segmentos: ["property", "broker"] },
+      { slug: `lara${tag}p`, nome: "Lara", feminino: true, ativo: false, caixa: null, segmentos: [] },
+    ] as const;
+    // Como em produção: linhas de antes das várias caixas (sem caixa, sem tipos).
+    const caio = await prisma.salesAgent.create({ data: { slug: lista[0].slug, name: "Caio" } });
+    // Nina com escolhas do dono: caixa e tipos ficam como estão.
+    const nina = await prisma.salesAgent.create({ data: { slug: lista[1].slug, name: "Nina", mailbox: "atendimento", segments: ["other"] } });
+    const lara = await prisma.salesAgent.create({ data: { slug: lista[2].slug, name: "Lara" } });
+    // Caixa padrão já usada por outro vendedor ativo: o Caio fica sem caixa (o dono escolhe no Hub).
+    const outro = await prisma.salesAgent.create({ data: { slug: `caio${tag}q`, name: "Caio" } });
+    await service.aplicarPadroesIniciais([{ ...lista[0], slug: outro.slug }]);
+    assert.equal((await prisma.salesAgent.findUniqueOrThrow({ where: { id: outro.id } })).mailbox, null, "atendimento@ já é de um vendedor ativo");
+    assert.deepEqual((await prisma.salesAgent.findUniqueOrThrow({ where: { id: outro.id } })).segments, ["vehicle"]);
+    await prisma.salesAgent.update({ where: { id: ids.imob }, data: { active: false } });
+    try {
+      await service.aplicarPadroesIniciais(lista);
+    } finally {
+      await prisma.salesAgent.update({ where: { id: ids.imob }, data: { active: true } });
+    }
+    const ler = (id: string) => prisma.salesAgent.findUniqueOrThrow({ where: { id } });
+    const c1 = await ler(caio.id);
+    assert.equal(c1.mailbox, "atendimento");
+    assert.deepEqual(c1.segments, ["vehicle"]);
+    assert.equal(c1.active, false, "nunca ativa sozinho");
+    const n1 = await ler(nina.id);
+    assert.equal(n1.mailbox, "atendimento");
+    assert.deepEqual(n1.segments, ["other"]);
+    const l1 = await ler(lara.id);
+    assert.equal(l1.mailbox, null);
+    assert.deepEqual(l1.segments, []);
+    // O dono tira a caixa e os tipos do Caio no Hub: a próxima subida não devolve.
+    await prisma.salesAgent.update({ where: { id: caio.id }, data: { mailbox: null, segments: [] } });
+    await service.aplicarPadroesIniciais(lista);
+    const c2 = await ler(caio.id);
+    assert.equal(c2.mailbox, null);
+    assert.deepEqual(c2.segments, []);
   });
 
   test("arrumação das sequências do marketing: prévia sem mexer em nada, aplicar uma vez, rodar de novo não muda", async () => {

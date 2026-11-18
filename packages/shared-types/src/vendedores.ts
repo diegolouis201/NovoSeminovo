@@ -218,9 +218,15 @@ export type CaixaStatus = {
   motivo?: string;
   // Leitura das respostas (IMAP) possível.
   leitura: boolean;
-  // Vendedor ativo que usa esta caixa.
+  // Vendedor ativo que usa esta caixa (nome e id: o Hub bloqueia a escolha
+  // dela para os outros vendedores).
   vendedorAtivo?: string;
+  vendedorAtivoId?: string;
 };
+
+// Página de um vendedor no Hub: números, últimas respostas e a situação de
+// todas as caixas (para o dono escolher a caixa dele).
+export type VendedorDetalhe = { vendedor: VendedorPainel; recentes: RascunhoVista[]; caixas: CaixaStatus[] };
 
 export type VendedorNumeros = {
   fila: number;

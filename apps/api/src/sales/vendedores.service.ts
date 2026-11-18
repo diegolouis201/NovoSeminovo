@@ -32,6 +32,7 @@ import {
   type RascunhoVista,
   type VendedorAjustes,
   type VendedorAutonomia,
+  type VendedorDetalhe,
   type VendedorPainel,
   type VendedoresGeral,
   type VendedoresPainel,
@@ -198,7 +199,7 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
     return VENDEDOR_CAIXAS.map((chave) => {
       const st: CaixaStatus = this.envioDeTeste ? { chave, endereco: CAIXAS_EMAIL[chave].endereco, configurada: true, leitura: this.caixasDeTeste.has(chave) || Boolean(caixaImapConfig(chave)) } : statusCaixaEmail(chave);
       const dono = vendedores.find((v) => v.active && v.mailbox === chave);
-      return dono ? { ...st, vendedorAtivo: dono.name } : st;
+      return dono ? { ...st, vendedorAtivo: dono.name, vendedorAtivoId: dono.id } : st;
     });
   }
   usarEnvio(e: EnviarProspeccao | undefined) {
@@ -260,6 +261,7 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
     const ativo = a.ativo ?? v.active;
     const trocouCaixa = a.caixa !== undefined && a.caixa !== v.mailbox;
     if (ativo && ((a.ativo === true && !v.active) || trocouCaixa)) await this.conferirAtivacao(v, caixa, trocouCaixa && v.active);
+    else if (trocouCaixa && caixa) await this.conferirCaixaLivre(v, caixa);
     await this.prisma.salesAgent.update({
       where: { id: v.id },
       data: {
@@ -283,11 +285,16 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
       const st = statusCaixaEmail(caixa);
       throw new BadRequestException(`A caixa ${endereco} não está configurada no servidor${st.motivo ? ` (${st.motivo})` : ""}. Veja DEPLOY.md.`);
     }
-    const outro = await this.prisma.salesAgent.findFirst({ where: { active: true, mailbox: caixa, id: { not: v.id } }, select: { name: true } });
-    if (outro) throw new BadRequestException(`A caixa ${endereco} já é usada por ${outro.name}. Pause e desative ${outro.name} ou escolha outra caixa.`);
+    await this.conferirCaixaLivre(v, caixa);
     if (trocouCaixa) return;
     const seq = v.sequenceId ? await this.prisma.prospectSequence.findUnique({ where: { id: v.sequenceId }, select: { status: true, approvedAt: true } }) : null;
     if (!seq || seq.status !== "ativa" || !seq.approvedAt) throw new BadRequestException(`Aprove a primeira abordagem de ${v.name} (Vendas → Sequências de prospecção) antes de ativar.`);
+  }
+
+  // Uma caixa nunca é escolhida para um vendedor se outro vendedor ativo já usa (mesmo inativo).
+  private async conferirCaixaLivre(v: SalesAgent, caixa: VendedorCaixa): Promise<void> {
+    const outro = await this.prisma.salesAgent.findFirst({ where: { active: true, mailbox: caixa, id: { not: v.id } }, select: { name: true } });
+    if (outro) throw new BadRequestException(`A caixa ${CAIXAS_EMAIL[caixa].endereco} já é usada por ${outro.name}. Pause e desative ${outro.name} ou escolha outra caixa.`);
   }
 
   // ------------------------------------------------------------ vendedores
@@ -304,8 +311,32 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
         if ((error as { code?: string }).code !== "P2002") throw error;
       }
     }
+    await this.aplicarPadroesIniciais();
     const comCaixa = await this.prisma.salesAgent.findMany({ where: { mailbox: { not: null }, sequenceId: null }, select: { id: true } });
     for (const a of comCaixa) await this.garantirSequenciaDoVendedor(a.id);
+  }
+
+  // Vendedores criados antes das várias caixas (18/11/2026) ficaram sem caixa
+  // e sem tipos (o Caio de produção, por exemplo). Uma vez por vendedor:
+  // sem caixa -> a caixa padrão (se nenhum outro ativo usa); sem tipos -> os
+  // tipos padrão. Depois disso, marca em mkt_settings e nunca mais mexe: se
+  // o dono tirar a caixa ou os tipos no Hub, a escolha dele fica.
+  async aplicarPadroesIniciais(lista: readonly { slug: string; caixa: VendedorCaixa | null; segmentos: readonly VendedorSegmento[] }[] = VENDEDORES_INICIAIS): Promise<void> {
+    for (const p of lista) {
+      if (!p.caixa && !p.segmentos.length) continue;
+      const chave = `vendedor_padrao:${p.slug}`;
+      if (await this.prisma.mktSetting.findUnique({ where: { chave }, select: { chave: true } })) continue;
+      const v = await this.prisma.salesAgent.findUnique({ where: { slug: p.slug } });
+      if (!v) continue;
+      const data: Prisma.SalesAgentUpdateInput = {};
+      if (p.caixa && !v.mailbox && !(await this.prisma.salesAgent.findFirst({ where: { active: true, mailbox: p.caixa, id: { not: v.id } }, select: { id: true } }))) data.mailbox = p.caixa;
+      if (p.segmentos.length && !v.segments.length) data.segments = [...p.segmentos];
+      if (Object.keys(data).length) {
+        await this.prisma.salesAgent.update({ where: { id: v.id }, data });
+        this.logger.log(`${v.name}: caixa/tipos padrão aplicados (${JSON.stringify(data)}).`);
+      }
+      await this.prisma.mktSetting.upsert({ where: { chave }, create: { chave, valor: { aplicadoEm: new Date().toISOString() } }, update: {} });
+    }
   }
 
   async garantirSequenciaDoVendedor(id: string): Promise<string> {
@@ -1072,12 +1103,12 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async detalhe(id: string, agora = new Date()): Promise<{ vendedor: VendedorPainel; recentes: RascunhoVista[] }> {
+  async detalhe(id: string, agora = new Date()): Promise<VendedorDetalhe> {
     const v = await this.vendedor(id);
     const seq = v.sequenceId ? await this.prisma.prospectSequence.findUnique({ where: { id: v.sequenceId }, select: { id: true, name: true, status: true, approvedAt: true } }) : null;
     const recentes = await this.rascunhos({ salesAgentId: v.id, status: { in: ["enviado", "rejeitado", "erro", "descartado", "aprovado"] } }, 30);
     const caixas = this.statusCaixas(await this.prisma.salesAgent.findMany({ where: { active: true } }));
-    return { vendedor: { ...this.vista(v, seq, agora, caixas), numeros: await this.numeros(v, agora) }, recentes };
+    return { vendedor: { ...this.vista(v, seq, agora, caixas), numeros: await this.numeros(v, agora) }, recentes, caixas };
   }
 
   async fila(vendedorId?: string, escopo: Escopo = {}): Promise<RascunhoVista[]> {
@@ -1126,6 +1157,8 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
   onModuleInit(): void {
     registrarRotaProspeccao((de, texto, id) => this.receberWhatsapp(de, texto, id));
     if (this.desligada()) return;
+    // Na subida: cria os vendedores que faltam e aplica os padrões (uma vez).
+    void this.garantirVendedores().catch((e) => this.logger.error(`Vendedores na subida: ${(e as Error).message}`));
     this.timer = setInterval(() => {
       if (this.rodando) return;
       this.rodando = true;

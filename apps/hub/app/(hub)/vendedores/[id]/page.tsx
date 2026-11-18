@@ -78,6 +78,27 @@ export default async function Vendedor({ params }: { params: { id: string } }) {
                 </span>
                 <p id="ativo-ajuda" className="text-xs text-muted">Para ativar: caixa de e-mail configurada no servidor, caixa sem outro vendedor ativo e a primeira abordagem aprovada em Sequências de prospecção.</p>
               </fieldset>
+              <fieldset className="space-y-1" aria-describedby="caixa-ajuda">
+                <legend className="label">Caixa de e-mail</legend>
+                {d.caixas.map((c) => {
+                  const deOutro = c.vendedorAtivoId && c.vendedorAtivoId !== v.id ? c.vendedorAtivo : undefined;
+                  const situacao = c.configurada ? "configurada" : `não configurada (${c.motivo ?? "ver DEPLOY.md"})`;
+                  return (
+                    <span key={c.chave} className="flex items-start gap-2 text-sm">
+                      <input type="radio" id={`caixa-${c.chave}`} name="caixa" value={c.chave} defaultChecked={v.caixa === c.chave} disabled={Boolean(deOutro)} className="mt-1 accent-blue" />
+                      <label htmlFor={`caixa-${c.chave}`} className={deOutro ? "text-muted" : undefined}>
+                        <span className="font-semibold">{c.endereco}</span> · {situacao}
+                        {deOutro ? ` · em uso por ${deOutro}` : ""}
+                      </label>
+                    </span>
+                  );
+                })}
+                <span className="flex items-center gap-2 text-sm">
+                  <input type="radio" id="caixa-nenhuma" name="caixa" value="" defaultChecked={!v.caixa} className="accent-blue" />
+                  <label htmlFor="caixa-nenhuma">Sem caixa</label>
+                </span>
+                <p id="caixa-ajuda" className="text-xs text-muted">É o remetente dos e-mails de {v.nome}. Caixa em uso por outro vendedor ativo não pode ser escolhida. Caixa não configurada pode ser escolhida, mas {v.nome} só ativa depois que ela estiver configurada no servidor.</p>
+              </fieldset>
               <fieldset className="space-y-1">
                 <legend className="label">Tipos de empresa que atende</legend>
                 <input type="hidden" name="temSegmentos" value="1" />

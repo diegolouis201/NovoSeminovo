@@ -38,6 +38,31 @@ describe("Hub: caixas e tipos dos vendedores IA", { baseUrl: "http://localhost:3
     cy.contains("dd", "Caio, assistente virtual de vendas | NovoSeminovo");
   });
 
+  it("ajustes: escolher a caixa do vendedor (situação de cada caixa; caixa de outro vendedor ativo bloqueada; sem caixa)", () => {
+    entrar();
+    cy.visit("/vendedores");
+    cy.contains("a", "Caio").click();
+    cy.contains("h1", "Caio");
+    cy.contains("legend", "Caixa de e-mail");
+    cy.get("label[for=caixa-prospeccao]").should("contain", "contato@novoseminovo.com.br").and("contain", "em uso por Nina");
+    cy.get("#caixa-prospeccao").should("be.disabled");
+    cy.get("label[for=caixa-atendimento]").should("contain", "atendimento@novoseminovo.com.br").and("contain", "não configurada");
+    cy.get("#caixa-atendimento").should("be.enabled");
+    cy.get("#caixa-nenhuma").check();
+    cy.get("#at-nao").check();
+    cy.contains("button", "Salvar ajustes").click();
+    cy.contains("Ajustes salvos.");
+    cy.reload();
+    cy.contains("dd", "sem caixa");
+    cy.get("#caixa-nenhuma").should("be.checked");
+    cy.get("#caixa-atendimento").check();
+    cy.contains("button", "Salvar ajustes").click();
+    cy.contains("Ajustes salvos.");
+    cy.reload();
+    cy.get("#caixa-atendimento").should("be.checked");
+    cy.contains("dd", "atendimento@novoseminovo.com.br");
+  });
+
   it("arrumar sequências: prévia sem mudar nada; aplicar só com confirmação e sem enviar", () => {
     entrar();
     cy.visit("/vendedores");

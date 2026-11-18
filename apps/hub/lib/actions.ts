@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { signIn, signOut } from "@/auth";
-import type { ProspeccaoAnalise, ProspeccaoResultado } from "@novoseminovo/shared-types";
+import { VendedorAjustesSchema, type ProspeccaoAnalise, type ProspeccaoResultado } from "@novoseminovo/shared-types";
 import { HubApiError, hubFetch, hubUpload } from "./api";
 
 // Ações do Hub. Toda entrada é validada de novo na API (zod); aqui só
@@ -553,6 +553,12 @@ export async function ajustarVendedor(_: Resultado, form: FormData): Promise<Res
   if (rascunhos) body.limiteRascunhosDia = rascunhos;
   if (form.get("temSegmentos") === "1") body.segmentos = form.getAll("segmentos").map((v) => String(v)).filter((v) => SEGMENTOS.includes(v));
   if (form.has("assinatura")) body.assinatura = txt(form, "assinatura", 120);
+  // Caixa de e-mail: só da lista fixa ("" = sem caixa); a API confere de novo.
+  if (form.has("caixa")) {
+    const caixa = VendedorAjustesSchema.shape.caixa.safeParse(txt(form, "caixa", 40) || null);
+    if (!caixa.success) return { erro: "Caixa de e-mail inválida." };
+    body.caixa = caixa.data;
+  }
   const ativo = txt(form, "ativo", 3);
   if (ativo === "sim" || ativo === "nao") body.ativo = ativo === "sim";
   return run(() => hubFetch(`/hub/vendedores/${vid}/ajustes`, { method: "POST", body }), "Ajustes salvos.", ["/vendedores"]);
