@@ -446,6 +446,49 @@ docker compose up -d api
 
 Recomendado antes de ativar: confira na Locaweb se o domínio tem SPF e DKIM ativos para o e-mail (senão os e-mails tendem a cair no spam).
 
+## Vendedores IA (Hub → Vendedores IA e Respostas para aprovar)
+
+As assistentes comerciais (Nina ativa; Lara, Dani, Caio e João esperando
+caixa própria) usam o mesmo `contato@` da prospecção. Elas **leem** as
+respostas da caixa (IMAP), escrevem rascunhos e **você aprova** no Hub nos
+primeiros 14 dias. Nada novo precisa de senha: a leitura usa a mesma senha
+do SMTP (`secrets/prospeccao_smtp_password`).
+
+**1. Atualizar o servidor (muda o banco: tem `prisma db push`)**
+
+```sh
+cd ~/NovoSeminovo && git pull origin claude/vehicle-marketplace-platform-lmif9s && nohup sh -c 'docker compose build api && docker compose build web && docker compose build hub && docker compose up -d && sleep 15 && docker compose exec -T -w /app/packages/db api ./node_modules/.bin/prisma db push --accept-data-loss --skip-generate && docker compose restart api && docker image prune -f && docker builder prune -f --filter until=48h && echo PRONTO-OK' > ~/deploy.log 2>&1 &
+```
+Conferir com `tail -3 ~/deploy.log` (tem que terminar em `PRONTO-OK`).
+
+**2. Leitura da caixa (IMAP), só se o servidor de entrada for diferente**
+
+Por padrão a API lê em `PROSPECCAO_SMTP_HOST` na porta 993 (SSL). Na
+Locaweb costuma ser o mesmo servidor. Se o painel da Locaweb mostrar outro
+servidor de entrada (IMAP), cole (trocando o endereço):
+```sh
+cd ~/NovoSeminovo && for kv in PROSPECCAO_IMAP_HOST=email-ssl.com.br PROSPECCAO_IMAP_PORT=993; do k=${kv%%=*}; grep -q "^$k=" .env && sed -i "s|^$k=.*|$kv|" .env || echo "$kv" >> .env; done; grep '^PROSPECCAO_IMAP' .env && docker compose up -d api
+```
+Opcional: se o Mailerfind/Smartlead mostrar uma etiqueta de aquecimento
+(warm-up) nos e-mails, ponha em `PROSPECCAO_WARMUP_TAGS=etiqueta1,etiqueta2`
+no `.env` (os cabeçalhos de aquecimento já são reconhecidos sozinhos).
+
+**3. Chave da entrada automática de empresas (para o agendamento que vai chamar `POST /hub/prospects/ingest`)**
+
+```sh
+cd ~/NovoSeminovo && umask 077 && mkdir -p secrets && openssl rand -hex 32 | tr -d '\n' > secrets/prospeccao_ingest_key && chmod 600 secrets/prospeccao_ingest_key && wc -c < secrets/prospeccao_ingest_key && docker compose restart api
+```
+Tem que aparecer `64`. A chave vai no cabeçalho `x-api-key` de quem chamar;
+para vê-la (só quando for configurar o agendamento): `cat secrets/prospeccao_ingest_key`.
+Sem o arquivo, a entrada responde "desligada" e nada entra.
+
+**4. No Hub (uma vez)**
+
+1. **Vendas → Sequências de prospecção → "Nina: primeira abordagem"**: leia os 3 e-mails (assinados pela Nina, assistente) e clique **Aprovar e ativar**. Até isso, nenhuma empresa recebe e-mail da Nina.
+2. Daí em diante as empresas importadas em "A abordar" com e-mail vão para a Nina sozinhas (a cada 5 minutos).
+3. **Vendas → Respostas para aprovar**: cada resposta das empresas com o rascunho da Nina. **Aprovar e enviar**, **Editar e enviar** ou **Rejeitar** (o motivo ensina a Nina).
+4. Emergência: **Vendas → Vendedores IA → Pausar todos os vendedores agora** (ou pausar só a Nina na página dela). Para desligar tudo no servidor: `PROSPECCAO_DISABLED=1` no `.env`.
+
 ## Antivírus (opcional, ClamAV)
 
 Toda imagem enviada já é conferida pelo tipo real (bytes, não pela extensão),
