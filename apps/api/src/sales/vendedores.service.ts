@@ -511,7 +511,7 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
   }
 
   // Para o Hub: quantas empresas esperam porque nenhum vendedor ativo atende o segmento.
-  private async semVendedorPorSegmento(vendedores: SalesAgent[]): Promise<VendedoresPainel["semVendedor"]> {
+  async semVendedorPorSegmento(vendedores: SalesAgent[]): Promise<VendedoresPainel["semVendedor"]> {
     const ativos = vendedores.filter((v) => v.active && !v.paused && this.caixaPronta(v.mailbox));
     const grupos = await this.prisma.salesProspect.groupBy({ by: ["segment"], where: this.filtroSemVendedor(), _count: { _all: true } });
     return (Object.keys(VENDEDOR_SEGMENTOS) as VendedorSegmento[])

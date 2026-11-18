@@ -173,8 +173,9 @@ describe("Caixas, remetente por sequência e segmentos no banco", { skip: !withD
     assert.ok([...de(ids.veic1), ...de(ids.veic2)].every((c) => c.segment === "vehicle"));
     assert.deepEqual(de(ids.imob).map((c) => c.segment).sort(), ["broker", "property"]);
     assert.equal(cards.filter((c) => c.segment === "other" && c.salesAgentId === null).length, 2, "sem vendedor para este segmento");
-    const painel = await service.painel(seg10h);
-    const outros = painel.semVendedor.find((x) => x.segmento === "other");
+    // Com só estes três vendedores (os outros arquivos de teste criam vendedores que atendem tudo).
+    const tres = await prisma.salesAgent.findMany({ where: { id: { in: [ids.veic1, ids.veic2, ids.imob] } } });
+    const outros = (await service.semVendedorPorSegmento(tres)).find((x) => x.segmento === "other");
     assert.ok((outros?.quantidade ?? 0) >= 2);
     assert.match(outros!.rotulo, /sem vendedor para este segmento/);
     // A sequência padrão do vendedor de imóveis manda o texto de imóveis e é dele.
