@@ -116,7 +116,8 @@ describe("Passaporte Digital / Diário do Carro descontinuado", () => {
         if (statSync(path).isDirectory()) walkDir(path);
         else if (name.endsWith(".ts") && !name.endsWith(".spec.ts")) {
           const rel = relative(root, path).split("\\").join("/");
-          if (proibido.test(readFileSync(path, "utf8"))) offenders.push(rel);
+          // Exceção única: a lista de termos que os vendedores IA são proibidos de citar.
+          if (rel !== "sales/termos-proibidos.ts" && proibido.test(readFileSync(path, "utf8"))) offenders.push(rel);
         }
       }
     };

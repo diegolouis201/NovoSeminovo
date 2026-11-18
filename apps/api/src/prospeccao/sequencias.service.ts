@@ -208,7 +208,7 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
     const filtro = parseOrBadRequest(ProspeccaoInscreverSchema, raw);
     const cards = await this.prisma.salesProspect.findMany({
       where: { AND: [filtro.etiqueta ? { campaignTag: filtro.etiqueta } : {}, filtro.ids?.length ? { id: { in: filtro.ids } } : {}] },
-      select: { id: true, email: true, stage: true, partnerId: true, optedOutAt: true, repliedAt: true },
+      select: { id: true, email: true, stage: true, partnerId: true, optedOutAt: true, repliedAt: true, emailInvalidAt: true },
       take: 5000,
     });
     const r: ResultadoInscricao = { inscritas: 0, puladas: { jaInscritas: 0, emOutraSequencia: 0, semEmail: 0, sairam: 0, parceiras: 0, outraEtapa: 0 } };
@@ -225,7 +225,7 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
         r.puladas.parceiras++;
         continue;
       }
-      if (!c.email) {
+      if (!c.email || c.emailInvalidAt) {
         r.puladas.semEmail++;
         continue;
       }
@@ -309,6 +309,9 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
     const pode = podeEnviar({ agora, enviadosHoje, limite: ajustes.limiteDiario, pausado: ajustes.pausado, liberadoApos: await this.liberadoApos() });
     if (!pode.ok) return pode.motivo;
 
+    // Vendedores IA que não podem mandar agora (pausados, sem caixa, fora do
+    // ar, teto do dia deles, pausa geral): os cards deles esperam.
+    const bloqueados = await this.vendedoresBloqueados(agora);
     for (let tentativas = 0; tentativas < 25; tentativas++) {
       const e = await this.prisma.prospectEnrollment.findFirst({
         where: {
@@ -316,18 +319,19 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
           nextSendAt: { lte: agora },
           sequence: { status: "ativa", approvedAt: { not: null } },
           ...(opcoes.somenteSequencias ? { sequenceId: { in: opcoes.somenteSequencias } } : {}),
+          ...(bloqueados.length ? { prospect: { OR: [{ salesAgentId: null }, { salesAgentId: { notIn: bloqueados } }] } } : {}),
         },
         orderBy: [{ nextSendAt: "asc" }, { createdAt: "asc" }],
-        include: { sequence: true, prospect: { select: { id: true, name: true, city: true, email: true, stage: true, repliedAt: true, optedOutAt: true, partnerId: true } } },
+        include: { sequence: true, prospect: { select: { id: true, name: true, city: true, email: true, stage: true, repliedAt: true, optedOutAt: true, partnerId: true, emailInvalidAt: true, salesAgent: { select: { id: true, name: true } } } } },
       });
       if (!e) return "nada_para_enviar";
       const p = e.prospect;
-      const motivo = motivoParaParar(p, {
+      const motivo = p.emailInvalidAt ? "sem_email" : motivoParaParar(p, {
         suprimido: p.email ? (await this.suprimidos([p.email])).size > 0 : false,
         naoContatar: (await this.naoContatar([p.id])).size > 0,
       });
       if (motivo) {
-        const status = motivo === "respondeu" ? "respondeu" : motivo === "saiu" ? "saiu" : motivo === "sem_email" ? "erro" : "parou";
+        const status = motivo === "respondeu" ? "respondeu" : motivo === "saiu" ? "saiu" : motivo === "sem_email" ? (p.emailInvalidAt ? "parou" : "erro") : "parou";
         await this.prisma.prospectEnrollment.update({ where: { id: e.id }, data: { status, stopReason: motivo, activeKey: null, nextSendAt: null } });
         continue;
       }
@@ -347,7 +351,7 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
   }
 
   private async enviar(
-    e: { id: string; firstMessageId: string | null; firstSubject: string | null; sequence: { name: string }; prospect: { id: string; name: string; city: string | null; email: string | null } },
+    e: { id: string; firstMessageId: string | null; firstSubject: string | null; sequence: { name: string }; prospect: { id: string; name: string; city: string | null; email: string | null; salesAgent: { id: string; name: string } | null } },
     passos: ProspeccaoPasso[],
     n: number,
     agora: Date,
@@ -367,16 +371,16 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
     await this.liberarEm(new Date(agora.getTime() + intervaloEntreEnvios()));
     try {
       const envio = this.envioDeTeste ?? criarEnvio(cfg!);
-      await envio({ para: p.email!, assunto: email.assunto, texto: email.texto, html: email.html, messageId, inReplyTo: n > 0 ? (e.firstMessageId ?? undefined) : undefined, cabecalhos });
+      await envio({ para: p.email!, assunto: email.assunto, texto: email.texto, html: email.html, messageId, inReplyTo: n > 0 ? (e.firstMessageId ?? undefined) : undefined, cabecalhos, deNome: p.salesAgent ? `${p.salesAgent.name} | NovoSeminovo` : undefined });
     } catch (error) {
       const msg = semSenha(error instanceof Error ? error.message : String(error), cfg).slice(0, 300);
       this.logger.warn(`Falha ao enviar e-mail de prospecção (inscrição ${e.id}, passo ${n + 1}): ${msg}`);
-      await this.prisma.prospectEmailLog.create({ data: { enrollmentId: e.id, step: n + 1, status: "erro", error: msg, createdAt: agora } });
+      await this.prisma.prospectEmailLog.create({ data: { enrollmentId: e.id, step: n + 1, status: "erro", error: msg, createdAt: agora, salesAgentId: p.salesAgent?.id } });
       await this.prisma.prospectEnrollment.update({ where: { id: e.id }, data: { status: "erro", lastError: msg, activeKey: null, nextSendAt: null } });
       return "erro";
     }
     const ultimo = n + 1 >= passos.length;
-    await this.prisma.prospectEmailLog.create({ data: { enrollmentId: e.id, step: n + 1, status: "enviado", messageId, createdAt: agora } });
+    await this.prisma.prospectEmailLog.create({ data: { enrollmentId: e.id, step: n + 1, status: "enviado", messageId, createdAt: agora, salesAgentId: p.salesAgent?.id } });
     await this.prisma.prospectEnrollment.update({
       where: { id: e.id },
       data: {
@@ -387,8 +391,25 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
         ...(ultimo ? { status: "concluido", activeKey: null, nextSendAt: null } : { status: "agendado", nextSendAt: agendarPasso(agora, passos[n + 1]!.esperaDias) }),
       },
     });
-    await this.prisma.salesNote.create({ data: { prospectId: p.id, kind: "email", body: `E-mail de prospecção enviado (sequência "${e.sequence.name}", passo ${n + 1}/${passos.length}): "${email.assunto}".`.slice(0, 2000) } });
+    await this.prisma.salesNote.create({ data: { prospectId: p.id, kind: "email", body: `E-mail de prospecção enviado${p.salesAgent ? ` por ${p.salesAgent.name} (assistente comercial IA)` : ""} (sequência "${e.sequence.name}", passo ${n + 1}/${passos.length}): "${email.assunto}".`.slice(0, 2000) } });
     return "enviado";
+  }
+
+  // Vendedores IA que não mandam e-mail agora: fora do ar, sem caixa,
+  // pausados (ou pausa geral) ou que já bateram o teto do dia deles.
+  async vendedoresBloqueados(agora: Date): Promise<string[]> {
+    const geral = await this.prisma.mktSetting.findUnique({ where: { chave: "vendedores_ia" } });
+    const pausarTodos = Boolean((geral?.valor as { pausarTodos?: boolean } | null)?.pausarTodos);
+    const vendedores = await this.prisma.salesAgent.findMany({ select: { id: true, active: true, paused: true, mailbox: true, dailyEmailCap: true } });
+    if (!vendedores.length) return [];
+    const inicio = inicioDoDiaBr(agora);
+    const [logs, respostas] = await Promise.all([
+      this.prisma.prospectEmailLog.groupBy({ by: ["salesAgentId"], where: { status: "enviado", createdAt: { gte: inicio, lte: agora }, salesAgentId: { not: null } }, _count: { _all: true } }),
+      this.prisma.prospectMessage.groupBy({ by: ["salesAgentId"], where: { direction: "out", channel: "email", createdAt: { gte: inicio, lte: agora }, salesAgentId: { not: null } }, _count: { _all: true } }),
+    ]);
+    const hoje = new Map<string, number>();
+    for (const r of [...logs, ...respostas]) hoje.set(r.salesAgentId!, (hoje.get(r.salesAgentId!) ?? 0) + r._count._all);
+    return vendedores.filter((v) => pausarTodos || !v.active || v.paused || !v.mailbox || (hoje.get(v.id) ?? 0) >= v.dailyEmailCap).map((v) => v.id);
   }
 
   // A cada minuto (um e-mail por vez). Desligada em teste ou com PROSPECCAO_DISABLED=1.

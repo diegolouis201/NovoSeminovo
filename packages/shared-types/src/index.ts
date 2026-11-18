@@ -982,6 +982,19 @@ export type SaleSummary = z.infer<typeof SaleSummarySchema>;
 // cadastrada) e oficina não pagam.
 export const PARTNER_TRIAL_DAYS = 90;
 
+// Planos pagos (preço por mês, em R$) — fonte única: a API cria/atualiza os
+// planos no banco a partir daqui (PartnersService.ensurePlanCatalog) e o
+// roteiro dos vendedores IA cita só estes valores.
+export const PLAN_CATALOG = [
+  { audience: "vehicle", name: "Inicial", priceMonth: 149, maxActiveListings: 30, highlightCredits: 5, superHighlightCredits: 0 },
+  { audience: "vehicle", name: "Profissional", priceMonth: 249, maxActiveListings: 60, highlightCredits: 10, superHighlightCredits: 0 },
+  { audience: "vehicle", name: "Loja Grande", priceMonth: 349, maxActiveListings: 100, highlightCredits: 20, superHighlightCredits: 0 },
+  { audience: "property", name: "Pack 10", priceMonth: 189, maxActiveListings: 10, highlightCredits: 2, superHighlightCredits: 0 },
+  { audience: "property", name: "Pack 20", priceMonth: 289, maxActiveListings: 20, highlightCredits: 4, superHighlightCredits: 1 },
+  { audience: "property", name: "Pack 35", priceMonth: 389, maxActiveListings: 35, highlightCredits: 6, superHighlightCredits: 2 },
+  { audience: "property", name: "Pack 50", priceMonth: 449, maxActiveListings: 50, highlightCredits: 10, superHighlightCredits: 4 },
+] as const;
+
 
 // O que cada tipo de conta pode anunciar (decisão do Diego): loja de carros
 // só carro, imobiliária e corretor só imóvel. Pessoa física (sem loja) anuncia
@@ -2806,6 +2819,7 @@ export const LOSS_CATEGORIES = {
   sem_resposta: "Não respondeu",
   pouco_estoque: "Pouco estoque",
   resultado: "Não teve resultado (poucos leads)",
+  pediu_para_sair: "Pediu para sair (prospecção)",
   outro: "Outro",
 } as const;
 export type LossCategory = keyof typeof LOSS_CATEGORIES;
@@ -3326,3 +3340,4 @@ export * from "./fipe";
 export * from "./seo";
 export * from "./foto-tamanhos";
 export * from "./prospeccao";
+export * from "./vendedores";

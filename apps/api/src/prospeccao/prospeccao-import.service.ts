@@ -2,6 +2,8 @@ import { createHmac } from "node:crypto";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import type { Prisma } from "@novoseminovo/db";
 import {
+  IngestSchema,
+  type IngestInput,
   PROSPECCAO_SEGMENTOS,
   ProspeccaoConfirmarSchema,
   type ProspeccaoAnalise,
@@ -13,6 +15,7 @@ import {
 import { blindIndex, currentDataKeys } from "../common/field-encryption";
 import { parseOrBadRequest } from "../common/parse";
 import { PrismaService } from "../prisma/prisma.service";
+import { linhasParaCsv } from "./ingestao";
 import {
   CAMPOS_IMPORT,
   IMPORT_PREVIA_LINHAS,
@@ -194,6 +197,17 @@ export class ProspeccaoImportService {
     });
     const recusadas = [...a.invalidas, ...duplicadas].sort((x, y) => x.linha - y.linha);
     return { criadas, duplicadas, invalidas: a.invalidas, relatorioCsv: csvRelatorio(recusadas) };
+  }
+
+  // Entrada por automação (POST /hub/prospects/ingest): mesmo arquivo do
+  // Mailerfind (CSV) ou as linhas em JSON, mesmo caminho (com todas as travas
+  // de duplicada) da importação pelo Hub. Devolve só contagens.
+  async importarAutomatico(raw: IngestInput): Promise<{ total: number; criadas: number; duplicadas: number; invalidas: number }> {
+    const input = parseOrBadRequest(IngestSchema, raw);
+    const bytes = Buffer.from(input.csv ?? linhasParaCsv(input.linhas ?? []), "utf8");
+    const a = this.lerArquivo(bytes);
+    const r = await this.confirmar(bytes, { hash: a.hash, etiqueta: input.etiqueta, segmento: input.segmento ?? "vehicle", nomeArquivo: "automacao" }, "automacao");
+    return { total: a.total, criadas: r.criadas, duplicadas: r.duplicadas.length, invalidas: r.invalidas.length };
   }
 
   // Card + travas numa gravação só: se outra importação já gravou a mesma

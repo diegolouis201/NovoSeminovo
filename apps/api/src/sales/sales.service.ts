@@ -265,7 +265,7 @@ export class SalesService {
 
   // Chamado no cadastro da empresa (e na sincronização). salesCode = link do vendedor.
   async linkSignup(partnerId: string, salesCode?: string): Promise<void> {
-    const partner = await this.prisma.partner.findUnique({ where: { id: partnerId }, include: { owner: { select: { name: true, email: true, phone: true } } } });
+    const partner = await this.prisma.partner.findUnique({ where: { id: partnerId }, include: { owner: { select: { name: true, email: true, phone: true, acqSource: true, acqCampaign: true } } } });
     if (!partner) return;
     const segment = segmentOf(partner.type);
     if (!segment) return;
@@ -310,7 +310,14 @@ export class SalesService {
     // Cadastro e sincronização podem criar o card ao mesmo tempo: quem perder
     // a corrida usa o card que já existe (partnerId é único). Se o CNPJ já
     // estiver em outro card (outra empresa com o mesmo CNPJ), cria sem ele.
+    // Veio do link de um vendedor IA (utm_source=prospeccao&utm_campaign=<vendedor>):
+    // o card novo fica com ele. Regra fixa do cadastro; o modelo nunca marca ganho.
+    const vendedorIa =
+      partner.owner.acqSource === "prospeccao" && partner.owner.acqCampaign && /^[a-z0-9-]{2,40}$/.test(partner.owner.acqCampaign)
+        ? await this.prisma.salesAgent.findUnique({ where: { slug: partner.owner.acqCampaign }, select: { id: true } })
+        : null;
     const data = {
+      salesAgentId: vendedorIa?.id,
       name: partner.legalName,
       segment,
       cnpj: cnpj && !(await this.prisma.salesProspect.findUnique({ where: { cnpj } })) ? cnpj : undefined,

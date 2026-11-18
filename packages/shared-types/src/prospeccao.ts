@@ -137,6 +137,7 @@ export const PROSPECCAO_MOTIVO_PARADA = {
   mudou_etapa: "Mudou de etapa no funil",
   virou_parceira: "Virou parceira do site",
   sem_email: "Sem e-mail",
+  email_invalido: "E-mail voltou (endereço inválido)",
   removida: "Retirada da sequência",
 } as const;
 

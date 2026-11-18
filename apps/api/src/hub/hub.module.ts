@@ -17,10 +17,13 @@ import { SeoService } from "./seo.service";
 import { ProspeccaoController, ProspeccaoSairController } from "../prospeccao/prospeccao.controller";
 import { ProspeccaoSequenciasService } from "../prospeccao/sequencias.service";
 import { ProspeccaoImportService } from "../prospeccao/prospeccao-import.service";
+import { NotificationsModule } from "../notifications/notifications.module";
+import { ProspectsIngestController, VendedoresController } from "../sales/vendedores.controller";
+import { VendedoresService } from "../sales/vendedores.service";
 
 @Module({
-  imports: [AuthModule, CrmModule],
-  controllers: [HubController, FinanceiroController, MarketingHubController, MarketingFeedController, JornadaController, SeoController, ProspeccaoController, ProspeccaoSairController],
-  providers: [HubService, BuyerLeadsService, HubGuard, FinanceiroService, MarketingHubService, JornadaService, SeguidoresService, SeoService, ProspeccaoImportService, ProspeccaoSequenciasService],
+  imports: [AuthModule, CrmModule, NotificationsModule],
+  controllers: [HubController, FinanceiroController, MarketingHubController, MarketingFeedController, JornadaController, SeoController, ProspeccaoController, ProspeccaoSairController, VendedoresController, ProspectsIngestController],
+  providers: [HubService, BuyerLeadsService, HubGuard, FinanceiroService, MarketingHubService, JornadaService, SeguidoresService, SeoService, ProspeccaoImportService, ProspeccaoSequenciasService, VendedoresService],
 })
 export class HubModule {}

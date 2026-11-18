@@ -28,7 +28,9 @@ export const ENCRYPTED_FIELDS: Record<string, Record<string, string | null>> = {
   FinancingLead: { phone: "phoneHash" },
   MarketingContact: { phone: "phoneHash" },
   Affiliate: { pixKey: null },
-  SalesProspect: { phone: "phoneHash", email: "emailHash" },
+  SalesProspect: { phone: "phoneHash", email: "emailHash", whatsapp: "whatsappHash" },
+  // Texto das mensagens trocadas com a empresa na prospecção (e-mail/WhatsApp).
+  ProspectMessage: { body: null },
 };
 
 const ENCRYPTED_NAMES = new Set(Object.values(ENCRYPTED_FIELDS).flatMap((f) => Object.keys(f)));
@@ -71,7 +73,7 @@ export function decryptField(stored: string, keys: DataKeys): string {
 // CPF: só dígitos. Telefone: só dígitos, sem o 55 do Brasil na frente.
 function normalizeForIndex(field: string, value: string): string {
   const digits = value.replace(/\D/g, "");
-  if (/phone/i.test(field)) return digits.length >= 12 && digits.startsWith("55") ? digits.slice(2) : digits;
+  if (/phone|whatsapp/i.test(field)) return digits.length >= 12 && digits.startsWith("55") ? digits.slice(2) : digits;
   if (field === "cpf") return digits;
   return value.trim().toLowerCase();
 }

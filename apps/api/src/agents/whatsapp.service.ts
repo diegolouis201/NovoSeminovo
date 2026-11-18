@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { HttpException, Injectable, Logger } from "@nestjs/common";
+import { registrarEnvioWhatsapp, rotearParaVendedor } from "../sales/whatsapp-ponte";
 import { PrismaService } from "../prisma/prisma.service";
 import { AgentsService } from "./agents.service";
 
@@ -39,7 +40,10 @@ export class WhatsAppService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly agents: AgentsService,
-  ) {}
+  ) {
+    // Vendedores IA: mandam pelo mesmo número só com token e Phone Number ID.
+    if (process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID) registrarEnvioWhatsapp((para, texto) => this.send(para, texto));
+  }
 
   isEnabled(): boolean {
     return Boolean(
@@ -111,6 +115,10 @@ export class WhatsAppService {
       await this.send(phone, "Por enquanto eu só consigo ler mensagens de texto 🙂 Pode me escrever o que você procura?");
       return;
     }
+
+    // Empresa da prospecção que autorizou o WhatsApp: fala com o vendedor IA
+    // dela (rascunho para o dono aprovar), não com o assistente do comprador.
+    if (await rotearParaVendedor(phone, text.slice(0, 1500), message.id)) return;
 
     const conversation = await this.prisma.agentConversation.upsert({
       where: { kind_channel_externalId: { kind: "buyer", channel: "whatsapp", externalId: phone } },

@@ -13,6 +13,7 @@ import {
   PARTNER_HIGHLIGHT_RANK,
   PARTNER_LISTING_TIER,
   PARTNER_TRIAL_DAYS,
+  PLAN_CATALOG,
   PLAN_REQUIRED_PARTNER_TYPES,
   formatBRL,
   type HighlightLevel,
@@ -131,15 +132,8 @@ function toPlan(plan: {
 // Imobiliária, construtora e corretor: "packs" no molde do Imovelweb, um
 // pouco abaixo do preço deles (decisão do Diego: abaixo da concorrência).
 // Os anúncios em destaque/super destaque contam dentro do total do pack.
-const PLAN_CATALOG = [
-  { audience: "vehicle", name: "Inicial", priceMonth: 149, maxActiveListings: 30, highlightCredits: 5, superHighlightCredits: 0 },
-  { audience: "vehicle", name: "Profissional", priceMonth: 249, maxActiveListings: 60, highlightCredits: 10, superHighlightCredits: 0 },
-  { audience: "vehicle", name: "Loja Grande", priceMonth: 349, maxActiveListings: 100, highlightCredits: 20, superHighlightCredits: 0 },
-  { audience: "property", name: "Pack 10", priceMonth: 189, maxActiveListings: 10, highlightCredits: 2, superHighlightCredits: 0 },
-  { audience: "property", name: "Pack 20", priceMonth: 289, maxActiveListings: 20, highlightCredits: 4, superHighlightCredits: 1 },
-  { audience: "property", name: "Pack 35", priceMonth: 389, maxActiveListings: 35, highlightCredits: 6, superHighlightCredits: 2 },
-  { audience: "property", name: "Pack 50", priceMonth: 449, maxActiveListings: 50, highlightCredits: 10, superHighlightCredits: 4 },
-] as const;
+// Catálogo em packages/shared-types (PLAN_CATALOG): fonte única do preço,
+// lida também pelo roteiro dos vendedores IA (não prometem outro valor).
 
 // Tipo de parceiro → público dos planos (ver PARTNER_ALLOWED_ASSET_TYPES).
 export function planAudienceFor(partnerType: string): "vehicle" | "property" {

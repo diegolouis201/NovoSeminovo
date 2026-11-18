@@ -1811,6 +1811,19 @@ model SalesProspect {
   // e saiu (link de saída / SAIR) — os dois param qualquer sequência.
   repliedAt       DateTime?   @map("replied_at")
   optedOutAt      DateTime?   @map("opted_out_at")
+  // Vendedor IA dono do card (distribuição em rodízio; ver VendedoresService).
+  salesAgentId    String?     @map("sales_agent_id")
+  salesAgent      SalesAgent? @relation(fields: [salesAgentId], references: [id], onDelete: SetNull)
+  // Última objeção apontada (OBJECOES em shared-types).
+  objection       String?
+  // E-mail voltou (bounce): nenhum e-mail sai mais para ele.
+  emailInvalidAt  DateTime?   @map("email_invalid_at")
+  // WhatsApp autorizado pela própria empresa (nunca a primeira mensagem):
+  // número (criptografado, ENCRYPTED_FIELDS), quando e a mensagem que autorizou.
+  whatsapp        String?
+  whatsappHash    String?     @map("whatsapp_hash")
+  whatsappOptInAt DateTime?   @map("whatsapp_opt_in_at")
+  whatsappOptInMessageId String? @map("whatsapp_opt_in_message_id")
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
   notes           SalesNote[]
@@ -1818,6 +1831,8 @@ model SalesProspect {
   hubTasks        HubTask[]
   dedupKeys       ProspectDedupKey[]
   enrollments     ProspectEnrollment[]
+  messages        ProspectMessage[]
+  replyDrafts     ProspectReplyDraft[]
 
   @@index([segment])
   @@index([ownerId])
@@ -1826,6 +1841,8 @@ model SalesProspect {
   @@index([siteDomain])
   @@index([campaignTag])
   @@index([source, createdAt])
+  @@index([salesAgentId])
+  @@index([whatsappHash])
   @@map("sales_prospects")
 }
 
@@ -1901,9 +1918,13 @@ model ProspectEmailLog {
   status       String
   messageId    String?            @map("message_id")
   error        String?
+  // Vendedor IA que mandou (teto diário por vendedor e painel).
+  salesAgentId String?            @map("sales_agent_id")
   createdAt    DateTime           @default(now()) @map("created_at")
 
   @@index([createdAt])
+  @@index([messageId])
+  @@index([salesAgentId, createdAt])
   @@map("prospect_email_logs")
 }
 
@@ -1917,6 +1938,102 @@ model ProspectSuppression {
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("prospect_suppressions")
+}
+
+// Vendedores IA ("assistentes comerciais") da prospecção. Se apresentam
+// sempre como "<nome>, assistente comercial da NovoSeminovo". Só vendedor
+// ativo, com caixa de e-mail e sem pausa faz alguma coisa.
+model SalesAgent {
+  id             String    @id @default(cuid())
+  // Identificador curto (vai no utm_campaign do link): nina, lara...
+  slug           String    @unique
+  name           String
+  displayTitle   String    @default("assistente comercial da NovoSeminovo") @map("display_title")
+  // Caixa de e-mail (remetente): "prospeccao" = contato@ (PROSPECCAO_SMTP_*); null = sem caixa.
+  mailbox        String?
+  active         Boolean   @default(false)
+  paused         Boolean   @default(false)
+  // supervisionado | automatico (só depois de 14 dias no ar, só o dono troca)
+  autonomy       String    @default("supervisionado")
+  liveSince      DateTime? @map("live_since")
+  dailyEmailCap  Int       @default(25) @map("daily_email_cap")
+  dailyDraftCap  Int       @default(60) @map("daily_draft_cap")
+  // Sequência de primeira abordagem própria (aprovada pelo dono como as outras).
+  sequenceId     String?   @map("sequence_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  prospects      SalesProspect[]
+  drafts         ProspectReplyDraft[]
+  messages       ProspectMessage[]
+
+  @@map("sales_agents")
+}
+
+// Mensagens trocadas com a empresa na prospecção (e-mail e WhatsApp), nos
+// dois sentidos. messageId = Message-ID do e-mail (casar respostas pelo
+// In-Reply-To/References). body criptografado (ENCRYPTED_FIELDS), já limpo
+// e cortado; anexo nunca é guardado.
+model ProspectMessage {
+  id           String        @id @default(cuid())
+  prospectId   String        @map("prospect_id")
+  prospect     SalesProspect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  salesAgentId String?       @map("sales_agent_id")
+  salesAgent   SalesAgent?   @relation(fields: [salesAgentId], references: [id], onDelete: SetNull)
+  // email | whatsapp
+  channel      String
+  // in | out
+  direction    String
+  // resposta | saida | automatica | devolvido (só entrada)
+  kind         String        @default("resposta")
+  messageId    String?       @unique @map("message_id")
+  subject      String?
+  body         String
+  references   String?
+  // Entrada esperando rascunho da IA (teto do dia / orçamento: tenta depois).
+  needsDraft   Boolean       @default(false) @map("needs_draft")
+  receivedAt   DateTime      @default(now()) @map("received_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  drafts       ProspectReplyDraft[]
+
+  @@index([prospectId, createdAt])
+  @@index([needsDraft])
+  @@index([salesAgentId, direction, createdAt])
+  @@map("prospect_messages")
+}
+
+// Rascunho de resposta escrito pela IA. Supervisionado: o dono aprova, edita
+// ou rejeita no Hub. Etapa/objeção/escalar são campos fechados (zod).
+model ProspectReplyDraft {
+  id               String          @id @default(cuid())
+  prospectId       String          @map("prospect_id")
+  prospect         SalesProspect   @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  salesAgentId     String          @map("sales_agent_id")
+  salesAgent       SalesAgent      @relation(fields: [salesAgentId], references: [id], onDelete: Cascade)
+  inboundId        String          @map("inbound_id")
+  inbound          ProspectMessage @relation(fields: [inboundId], references: [id], onDelete: Cascade)
+  channel          String          @default("email")
+  // pendente | escalado | aprovado | enviado | rejeitado | erro | descartado
+  status           String          @default("pendente")
+  replyText        String          @map("reply_text")
+  finalText        String?         @map("final_text")
+  objection        String          @default("nenhuma")
+  suggestedStage   String          @default("manter") @map("suggested_stage")
+  escalateReason   String?         @map("escalate_reason")
+  nextFollowupDays Int             @default(3) @map("next_followup_days")
+  autoApproved     Boolean         @default(false) @map("auto_approved")
+  playbookVersion  String?         @map("playbook_version")
+  rejectReason     String?         @map("reject_reason")
+  decidedById      String?         @map("decided_by_id")
+  decidedAt        DateTime?       @map("decided_at")
+  sentAt           DateTime?       @map("sent_at")
+  error            String?
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  @@unique([inboundId])
+  @@index([status, salesAgentId])
+  @@index([salesAgentId, createdAt])
+  @@map("prospect_reply_drafts")
 }
 
 // Histórico das importações de empresas (só números, sem dados das empresas).

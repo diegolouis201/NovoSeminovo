@@ -48,7 +48,8 @@ describe("Assistentes de IA não oferecem cashback", () => {
     // dist-test/agents → apps/api/src
     const root = resolve(__dirname, "../../src");
     // Único lugar autorizado: a lista de avisos antigos que deixam de aparecer.
-    const allowed = new Set(["notifications/notifications.service.ts"]);
+    // E a lista de termos que os vendedores IA são proibidos de citar.
+    const allowed = new Set(["notifications/notifications.service.ts", "sales/termos-proibidos.ts"]);
     const offenders: string[] = [];
     const walk = (dir: string) => {
       for (const name of readdirSync(dir)) {

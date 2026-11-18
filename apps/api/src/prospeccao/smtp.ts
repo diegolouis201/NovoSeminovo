@@ -51,6 +51,10 @@ export type MensagemProspeccao = {
   html: string;
   messageId: string;
   inReplyTo?: string;
+  // Respostas: a cadeia inteira do assunto (References), para cair na mesma conversa.
+  referencias?: string[];
+  // Nome do remetente (vendedor IA: "Nina | NovoSeminovo"); sem ele, PROSPECCAO_FROM_NAME.
+  deNome?: string;
   cabecalhos: Record<string, string>;
 };
 export type EnviarProspeccao = (m: MensagemProspeccao) => Promise<{ messageId: string }>;
@@ -71,7 +75,7 @@ export function criarEnvio(cfg: SmtpConfig): EnviarProspeccao {
   });
   return async (m) => {
     const info = await transporte.sendMail({
-      from: { name: cfg.fromName, address: cfg.user },
+      from: { name: (m.deNome ?? cfg.fromName).replace(/["\r\n]/g, "").slice(0, 80), address: cfg.user },
       to: m.para,
       replyTo: cfg.user,
       subject: m.assunto,
@@ -79,7 +83,7 @@ export function criarEnvio(cfg: SmtpConfig): EnviarProspeccao {
       html: m.html,
       messageId: m.messageId,
       inReplyTo: m.inReplyTo,
-      references: m.inReplyTo ? [m.inReplyTo] : undefined,
+      references: m.referencias?.length ? m.referencias : m.inReplyTo ? [m.inReplyTo] : undefined,
       headers: m.cabecalhos,
     });
     transporte.close();
