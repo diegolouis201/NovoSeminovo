@@ -13,6 +13,7 @@ import {
   dominioDoSite,
   normalizarEmail,
   normalizarTelefoneBr,
+  segmentoDaLinha,
   semFormula,
 } from "./importacao";
 
@@ -277,5 +278,21 @@ describe("Importar empresas: duplicadas", () => {
     assert.equal(linhas[0], "Linha;Empresa;Motivo");
     assert.equal(linhas[1], "2;'=1+1;Sem telefone nem e-mail válido");
     assert.equal(linhas[2], `3;"Loja ""X""; ok";'@x`);
+  });
+});
+
+describe("Importar empresas: imobiliária x corretor pela categoria do Google", () => {
+  test("arquivo de imóveis: \"Corretor de imóveis\" vira corretor; \"Imobiliária\" fica imobiliária", () => {
+    assert.equal(segmentoDaLinha("property", "Corretor de imóveis"), "broker");
+    assert.equal(segmentoDaLinha("property", "Real estate agent"), "broker");
+    assert.equal(segmentoDaLinha("broker", "Imobiliária"), "property");
+    assert.equal(segmentoDaLinha("property", "Real estate agency"), "property");
+    assert.equal(segmentoDaLinha("property", "Imobiliária e corretor de imóveis"), "property", "os dois: imobiliária");
+    assert.equal(segmentoDaLinha("property", undefined), "property");
+    assert.equal(segmentoDaLinha("broker", ""), "broker");
+  });
+  test("arquivo de lojas ou \"outro\": a categoria não muda o tipo escolhido", () => {
+    assert.equal(segmentoDaLinha("vehicle", "Corretor de imóveis"), "vehicle");
+    assert.equal(segmentoDaLinha("other", "Imobiliária"), "other");
   });
 });

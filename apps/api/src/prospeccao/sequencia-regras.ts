@@ -44,13 +44,15 @@ export function podeEnviar(s: { agora: Date; enviadosHoje: number; limite: numbe
   if (s.pausado) return { ok: false, motivo: "pausado" };
   if (!dentroDoHorario(s.agora)) return { ok: false, motivo: "fora_do_horario" };
   if (s.enviadosHoje >= s.limite) return { ok: false, motivo: "teto_do_dia" };
-  if (s.liberadoApos && s.agora < s.liberadoApos) return { ok: false, motivo: "intervalo" };
+  // Liberação mais longe que o intervalo máximo é estado velho (relógio voltou): ignora.
+  if (s.liberadoApos && s.agora < s.liberadoApos && s.liberadoApos.getTime() - s.agora.getTime() <= INTERVALO_MAX_MS) return { ok: false, motivo: "intervalo" };
   return { ok: true };
 }
 
 // Entre um e-mail e outro: de 2 a 6 minutos, sorteado (parece envio à mão).
+const INTERVALO_MAX_MS = 360_000;
 export function intervaloEntreEnvios(sorteio: () => number = Math.random): number {
-  return 120_000 + Math.floor(sorteio() * 240_000);
+  return 120_000 + Math.floor(sorteio() * (INTERVALO_MAX_MS - 120_000));
 }
 
 export type MotivoParada = "respondeu" | "saiu" | "mudou_etapa" | "virou_parceira" | "sem_email";

@@ -1,29 +1,47 @@
 import { ImapFlow } from "imapflow";
 import { simpleParser, type AddressObject } from "mailparser";
-import { prospeccaoSmtpConfig, semSenha } from "./smtp";
+import type { VendedorCaixa } from "@novoseminovo/shared-types";
+import { CAIXA_PREFIXO, caixaSmtpConfig, semSenha } from "./smtp";
 
-// Leitura das respostas que chegam no contato@ (IMAP). Interface pequena
-// (CaixaEntrada) para os testes usarem uma caixa falsa sem servidor.
+// Leitura das respostas que chegam nas caixas da prospecção (IMAP; contato@,
+// atendimento@...). Interface pequena (CaixaEntrada) para os testes usarem
+// uma caixa falsa sem servidor.
 // Segurança:
 // - só leitura com BODY.PEEK (não marca como lida: o Diego continua vendo
 //   tudo no webmail);
 // - cada e-mail lido no máximo até 512 KB; anexo nunca é aberto nem
 //   guardado (só o texto vai adiante);
-// - a senha é a mesma do SMTP (secrets/prospeccao_smtp_password, readSecret)
-//   e nunca aparece em log.
+// - a senha é a mesma do SMTP da caixa (secrets/..._smtp_password,
+//   readSecret) e nunca aparece em log.
 
 type Env = Record<string, string | undefined>;
 export type ImapConfig = { host: string; port: number; user: string; password: string; inseguro: boolean };
 
 export const FONTE_MAX_BYTES = 512 * 1024;
 
-export function prospeccaoImapConfig(env: Env = process.env, reader?: (path: string) => string): ImapConfig | undefined {
-  const smtp = prospeccaoSmtpConfig(env, reader);
+export function caixaImapConfig(chave: VendedorCaixa, env: Env = process.env, reader?: (path: string) => string): ImapConfig | undefined {
+  const smtp = caixaSmtpConfig(chave, env, reader);
   if (!smtp) return undefined;
-  const host = env.PROSPECCAO_IMAP_HOST?.trim() || smtp.host;
-  const port = Number(env.PROSPECCAO_IMAP_PORT || 993);
+  const pre = CAIXA_PREFIXO[chave];
+  const host = env[`${pre}_IMAP_HOST`]?.trim() || smtp.host;
+  const port = Number(env[`${pre}_IMAP_PORT`] || 993);
   if (!Number.isInteger(port) || port < 1 || port > 65535) return undefined;
   return { host, port, user: smtp.user, password: smtp.password, inseguro: smtp.inseguro };
+}
+
+export function prospeccaoImapConfig(env: Env = process.env, reader?: (path: string) => string): ImapConfig | undefined {
+  return caixaImapConfig("prospeccao", env, reader);
+}
+
+// Etiquetas de aquecimento (warm-up): as gerais (PROSPECCAO_WARMUP_TAGS) e
+// as da caixa (PROSPECCAO_<CHAVE>_WARMUP_TAGS).
+export function etiquetasAquecimento(chave: VendedorCaixa, env: Env = process.env): string[] {
+  const nomes = [...new Set(["PROSPECCAO_WARMUP_TAGS", `${CAIXA_PREFIXO[chave]}_WARMUP_TAGS`])];
+  return nomes
+    .flatMap((n) => (env[n] ?? "").split(","))
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 20);
 }
 
 export type EmailBruto = { uid: number; fonte: Buffer };

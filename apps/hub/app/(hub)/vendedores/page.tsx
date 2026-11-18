@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { VENDEDOR_AUTONOMIA } from "@novoseminovo/shared-types";
+import { VENDEDOR_AUTONOMIA, VENDEDOR_SEGMENTOS } from "@novoseminovo/shared-types";
 import { Situacao } from "@/components/Barras";
 import { Form } from "@/components/Form";
 import { Cabecalho, Secao, Vazio } from "@/components/ui";
@@ -17,7 +17,8 @@ export default async function Vendedores() {
   const ranking = [...p.vendedores].filter((v) => v.ativo || v.numeros.contatadosTotal).sort((a, b) => b.numeros.ganhos - a.numeros.ganhos || (b.numeros.taxaResposta ?? -1) - (a.numeros.taxaResposta ?? -1) || b.numeros.contatadosTotal - a.numeros.contatadosTotal);
   const avisos = [
     !p.iaLigada ? "IA desligada no servidor: as respostas chegam para você escrever à mão." : "",
-    !p.caixaConfigurada ? "E-mail de envio (contato@) não configurado: nada sai." : "",
+    !p.caixaConfigurada ? "Nenhuma caixa de e-mail configurada no servidor: nada sai." : "",
+    ...p.semVendedor.filter((x) => x.quantidade).map((x) => `${x.quantidade} empresa(s) esperando. ${x.rotulo}.`),
     !p.leituraConfigurada ? "Leitura da caixa (IMAP) não configurada: respostas não são lidas sozinhas." : "",
     p.geral.pausarTodos ? "Todos os vendedores estão pausados." : "",
   ].filter(Boolean);
@@ -25,8 +26,8 @@ export default async function Vendedores() {
     <>
       <Cabecalho
         titulo="Vendedores IA"
-        subtitulo="Assistentes comerciais da NovoSeminovo: abordam as empresas importadas, leem as respostas do contato@ e escrevem os rascunhos. Sempre se apresentam como assistentes, nunca como pessoa."
-        acao={dono ? <Link className="btn-primary" href="/vendedores/respostas">Respostas para aprovar ({pendentes})</Link> : undefined}
+        subtitulo="Assistentes comerciais da NovoSeminovo: cada um com a sua caixa de e-mail e o seu tipo de empresa. Abordam as empresas importadas, leem as respostas e escrevem os rascunhos. Sempre se apresentam como assistentes, nunca como pessoa."
+        acao={dono ? <div className="flex flex-wrap gap-2"><Link className="btn-primary" href="/vendedores/respostas">Respostas para aprovar ({pendentes})</Link><Link className="btn" href="/vendedores/arrumacao">Arrumar sequências</Link></div> : undefined}
       />
       {avisos.length ? (
         <ul className="mb-6 space-y-1 rounded-xl bg-orange/10 p-3 text-sm text-navy">
@@ -44,6 +45,12 @@ export default async function Vendedores() {
               </div>
               <Situacao v={v} />
             </div>
+            <dl className="mt-3 space-y-1 text-sm">
+              <div className="flex justify-between gap-2"><dt className="text-muted">Caixa</dt><dd className="text-right font-semibold">{v.caixaStatus ? v.caixaStatus.endereco : "sem caixa"}</dd></div>
+              {v.caixaStatus ? <div className="flex justify-between gap-2"><dt className="text-muted">Configuração</dt><dd className={`text-right font-semibold ${v.caixaStatus.configurada ? "text-green" : "text-danger"}`}>{v.caixaStatus.configurada ? "Configurada" : "Não configurada"}</dd></div> : null}
+              <div className="flex justify-between gap-2"><dt className="text-muted">Atende</dt><dd className="text-right font-semibold">{v.segmentos.length ? v.segmentos.map((x) => VENDEDOR_SEGMENTOS[x]).join(", ") : "Todos os tipos"}</dd></div>
+            </dl>
+            {v.caixaStatus && !v.caixaStatus.configurada && v.caixaStatus.motivo ? <p className="mt-2 text-xs text-danger">Por quê: {v.caixaStatus.motivo}.</p> : null}
             {v.ativo ? (
               <>
                 <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
@@ -57,11 +64,23 @@ export default async function Vendedores() {
                 <p className="mt-3 text-xs text-muted">{VENDEDOR_AUTONOMIA[v.autonomia]} · IA hoje {brl(v.numeros.custoIaHojeBrl)}</p>
               </>
             ) : (
-              <p className="mt-4 text-sm text-muted">Entra quando ganhar uma caixa de e-mail própria e for ativado.</p>
+              <p className="mt-4 text-sm text-muted">{v.caixaStatus ? "Inativo: o dono ativa na página do vendedor (precisa da caixa configurada e da primeira abordagem aprovada)." : "Entra quando ganhar uma caixa de e-mail própria e for ativado."}</p>
             )}
           </Link>
         ))}
       </div>
+
+      <Secao titulo="Caixas de e-mail" className="mt-6">
+        <ul className="divide-y divide-line text-sm">
+          {p.caixas.map((c) => (
+            <li key={c.chave} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span className="font-semibold text-navy">{c.endereco}</span>
+              <span className="text-muted">{c.vendedorAtivo ? `Usada por ${c.vendedorAtivo}` : "Sem vendedor ativo"}</span>
+              <span className={`pill ${c.configurada ? "bg-green/15 text-green" : "bg-orange/15 text-danger"}`}>{c.configurada ? (c.leitura ? "Envio e leitura configurados" : "Só envio configurado") : `Não configurada: ${c.motivo ?? "ver DEPLOY.md"}`}</span>
+            </li>
+          ))}
+        </ul>
+      </Secao>
 
       <Secao titulo="Ranking dos vendedores" className="mt-6">
         {ranking.length ? (

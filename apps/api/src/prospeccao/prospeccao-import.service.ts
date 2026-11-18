@@ -29,6 +29,7 @@ import {
   type AnaliseCsv,
   type CampoImport,
   type LinhaProspect,
+  segmentoDaLinha,
 } from "./importacao";
 
 // Importação de empresas do Mailerfind (Google Maps) para o CRM do Hub.
@@ -181,14 +182,14 @@ export class ProspeccaoImportService {
     const motivos = await this.classificar(a.validas);
     const duplicadas: ProspeccaoLinhaRecusada[] = [...a.duplicadas];
     let criadas = 0;
-    const segmento = PROSPECCAO_SEGMENTOS[opcoes.segmento];
     for (const l of a.validas) {
       const motivo = motivos.get(l.linha);
       if (motivo) {
         duplicadas.push({ linha: l.linha, nome: l.nome, motivo });
         continue;
       }
-      if (await this.criar(l, opcoes, segmento.businessType)) criadas++;
+      const seg = segmentoDaLinha(opcoes.segmento, l.categoria);
+      if (await this.criar(l, { ...opcoes, segmento: seg }, PROSPECCAO_SEGMENTOS[seg].businessType)) criadas++;
       else duplicadas.push({ linha: l.linha, nome: l.nome, motivo: "Já está no CRM: entrou por outra importação ao mesmo tempo" });
     }
     duplicadas.sort((x, y) => x.linha - y.linha);

@@ -433,7 +433,7 @@ O número que aparece é a quantidade de letras da senha (a senha em si não apa
 cd ~/NovoSeminovo && for kv in PROSPECCAO_SMTP_HOST=email-ssl.com.br PROSPECCAO_SMTP_PORT=465 PROSPECCAO_SMTP_USER=contato@novoseminovo.com.br; do k=${kv%%=*}; grep -q "^$k=" .env && sed -i "s|^$k=.*|$kv|" .env || echo "$kv" >> .env; done; grep '^PROSPECCAO_' .env
 docker compose up -d api
 ```
-(O nome do remetente já vem como "Diego | NovoSeminovo". Para trocar: `PROSPECCAO_FROM_NAME=...` no `.env`. Para desligar todos os envios no servidor: `PROSPECCAO_DISABLED=1`.)
+(Sem `PROSPECCAO_FROM_NAME` no `.env`, cada e-mail sai com o nome do vendedor da sequência, ex. "Nina | NovoSeminovo". Para fixar um nome: `PROSPECCAO_FROM_NAME=...` no `.env`. Para desligar todos os envios no servidor: `PROSPECCAO_DISABLED=1`.)
 
 **4. No Hub**
 
@@ -488,6 +488,43 @@ Sem o arquivo, a entrada responde "desligada" e nada entra.
 2. Daí em diante as empresas importadas em "A abordar" com e-mail vão para a Nina sozinhas (a cada 5 minutos).
 3. **Vendas → Respostas para aprovar**: cada resposta das empresas com o rascunho da Nina. **Aprovar e enviar**, **Editar e enviar** ou **Rejeitar** (o motivo ensina a Nina).
 4. Emergência: **Vendas → Vendedores IA → Pausar todos os vendedores agora** (ou pausar só a Nina na página dela). Para desligar tudo no servidor: `PROSPECCAO_DISABLED=1` no `.env`.
+
+## Ativar o Caio (atendimento@) — lojas de veículos
+
+Divisão de 18/11/2026: **Caio** manda pelo `atendimento@novoseminovo.com.br` e cuida das **lojas de veículos** (sequências "Lojas BH" e "Caio: lojas de veículos"); **Nina** manda pelo `contato@` e cuida de **imobiliárias e corretores** ("Nina: imobiliárias e corretores"). Cada caixa tem o seu limite de 25 e-mails por dia. Um mesmo e-mail nunca recebe mensagem das duas caixas.
+
+**1. Deploy (precisa de `prisma db push`: colunas novas)**
+
+```bash
+cd ~/NovoSeminovo && git pull origin claude/vehicle-marketplace-platform-lmif9s && nohup sh -c 'docker compose build api && docker compose build hub && docker compose build web && docker compose up -d && sleep 15 && docker compose exec -T -w /app/packages/db api ./node_modules/.bin/prisma db push --accept-data-loss --skip-generate && docker compose restart api && docker image prune -f && docker builder prune -f --filter until=48h && echo PRONTO-OK' > ~/deploy.log 2>&1 &
+```
+Espere uns 10 minutos e confira: `tail -3 ~/deploy.log` (tem que terminar com `PRONTO-OK`).
+
+**2. Senha do atendimento@ (só no servidor, nunca no GitHub)**
+
+```bash
+cd ~/NovoSeminovo && umask 077 && mkdir -p secrets && chmod 700 secrets && nano secrets/prospeccao_atendimento_smtp_password
+```
+Cole **só a senha** do `atendimento@novoseminovo.com.br`, salve (**Ctrl+O**, **Enter**, **Ctrl+X**) e limpe/confira:
+```bash
+cd ~/NovoSeminovo && tr -d '\r\n' < secrets/prospeccao_atendimento_smtp_password > secrets/prospeccao_atendimento_smtp_password.novo && mv secrets/prospeccao_atendimento_smtp_password.novo secrets/prospeccao_atendimento_smtp_password && chmod 600 secrets/prospeccao_atendimento_smtp_password && wc -c < secrets/prospeccao_atendimento_smtp_password
+```
+O número que aparece é a quantidade de letras da senha (a senha não aparece).
+
+**3. Servidor de e-mail no `.env`** (confira no painel da Locaweb, em E-mail → Configurações, se o servidor do atendimento@ também é `email-ssl.com.br`; se for outro, troque no comando)
+
+```bash
+cd ~/NovoSeminovo && for kv in PROSPECCAO_ATENDIMENTO_SMTP_HOST=email-ssl.com.br PROSPECCAO_ATENDIMENTO_SMTP_PORT=465 PROSPECCAO_ATENDIMENTO_SMTP_USER=atendimento@novoseminovo.com.br "PROSPECCAO_ATENDIMENTO_FROM_NAME=Caio | NovoSeminovo"; do k=${kv%%=*}; grep -q "^$k=" .env && sed -i "s#^$k=.*#$kv#" .env || echo "$kv" >> .env; done; grep '^PROSPECCAO_ATENDIMENTO' .env && docker compose up -d api
+```
+(Leitura das respostas: a API usa o mesmo servidor na porta 993. Se a Locaweb indicar outro servidor IMAP, acrescente `PROSPECCAO_ATENDIMENTO_IMAP_HOST=...` no `.env`.)
+
+**4. No Hub (nada é enviado nestes passos)**
+
+1. **Vendas → Vendedores IA**: no quadro "Caixas de e-mail", `atendimento@novoseminovo.com.br` deve aparecer como **"Envio e leitura configurados"**. Se aparecer "Não configurada", o motivo vem escrito ao lado (confira os passos 2 e 3).
+2. Botão **Arrumar sequências**: confira a prévia (quantas imobiliárias/corretores saem de "Caio: lojas de veículos" para "Nina: imobiliárias e corretores", quantas saem por já estarem em "Lojas BH", e a lista de conflitos). Marque "Conferi a prévia" e clique **Aplicar a arrumação**. Pode clicar de novo depois: não muda mais nada.
+3. **Vendas → Sequências de prospecção**: abra "Lojas BH" e "Caio: lojas de veículos" e confira que o remetente é **Caio (atendimento@novoseminovo.com.br)**; em "Nina: imobiliárias e corretores", **Nina (contato@novoseminovo.com.br)**. Aprove cada sequência só quando quiser que comece a enviar.
+4. **Vendedores IA → Caio**: em "Situação" marque **Ativo** e clique **Salvar ajustes**. Se a caixa não estiver configurada ou a primeira abordagem dele não estiver aprovada, aparece o motivo em vermelho e nada muda. Ali também dá para trocar a **assinatura** dele (precisa ter "Caio" e "assistente").
+5. Emergência: **Pausar todos os vendedores agora** (Vendedores IA) ou `PROSPECCAO_DISABLED=1` no `.env`.
 
 ## Antivírus (opcional, ClamAV)
 

@@ -448,21 +448,58 @@ export async function pausarSequencia(_: Resultado, form: FormData): Promise<Res
 }
 
 export type ResultadoInscricao = Resultado & { detalhe?: string };
+const SEGMENTOS = ["vehicle", "property", "broker", "other"];
 export async function inscreverSequencia(_: ResultadoInscricao, form: FormData): Promise<ResultadoInscricao> {
   const seq = id(txt(form, "id", 40));
   const etiqueta = txt(form, "etiqueta", 60);
-  if (!etiqueta) return { erro: "Escolha a etiqueta." };
+  const segmento = txt(form, "segmento", 10);
+  if (!etiqueta && !segmento) return { erro: "Escolha a etiqueta ou o tipo de empresa." };
+  if (segmento && !SEGMENTOS.includes(segmento)) return { erro: "Tipo de empresa inválido." };
   try {
-    const r = await hubFetch<{ inscritas: number; puladas: Record<string, number> }>(`/hub/prospeccao/sequencias/${seq}/inscrever`, { method: "POST", body: { etiqueta } });
+    const r = await hubFetch<{ inscritas: number; puladas: Record<string, number> }>(`/hub/prospeccao/sequencias/${seq}/inscrever`, { method: "POST", body: { ...(etiqueta ? { etiqueta } : {}), ...(segmento ? { segmento } : {}) } });
     revalidatePath("/prospeccao", "layout");
     const p = r.puladas;
-    const nomes: Record<string, string> = { jaInscritas: "já inscritas", emOutraSequencia: "em outra sequência ativa", semEmail: "sem e-mail", sairam: "pediram para sair", parceiras: "já parceiras", outraEtapa: "fora de “A abordar”" };
+    const nomes: Record<string, string> = { jaInscritas: "já inscritas", emOutraSequencia: "em outra sequência ativa", semEmail: "sem e-mail", sairam: "pediram para sair", parceiras: "já parceiras", outraEtapa: "fora de “A abordar”", outraCaixa: "mesmo e-mail já contatado por outra caixa" };
     const detalhe = Object.entries(p).filter(([, v]) => v).map(([k, v]) => `${v} ${nomes[k] ?? k}`).join(" · ");
     return { ok: `${r.inscritas} empresa(s) inscrita(s).`, detalhe: detalhe ? `Fora: ${detalhe}.` : undefined };
   } catch (e) {
     if (e instanceof HubApiError) return { erro: e.status === 403 ? "Só o dono inscreve empresas nas sequências." : e.message };
     throw e;
   }
+}
+
+// Tirar empresas da sequência (uma ou as marcadas). Nada é enviado.
+export async function removerDaSequencia(_: Resultado, form: FormData): Promise<Resultado> {
+  const seq = id(txt(form, "id", 40));
+  const ids = form.getAll("card").map((v) => id(String(v).slice(0, 40))).filter(Boolean).slice(0, 5000);
+  if (!ids.length) return { erro: "Marque as empresas que vão sair da sequência." };
+  let n = 0;
+  const r = await run(
+    async () => {
+      n = (await hubFetch<{ removidas: number }>(`/hub/prospeccao/sequencias/${seq}/remover`, { method: "POST", body: { ids } })).removidas;
+    },
+    "ok",
+    ["/prospeccao"],
+  );
+  return r.ok ? { ok: `${n} empresa(s) retirada(s) da sequência.` } : r;
+}
+
+export async function definirRemetenteSequencia(_: Resultado, form: FormData): Promise<Resultado> {
+  const seq = id(txt(form, "id", 40));
+  const vendedorId = id(txt(form, "vendedor", 40)) || null;
+  return run(() => hubFetch(`/hub/prospeccao/sequencias/${seq}/remetente`, { method: "POST", body: { vendedorId } }), vendedorId ? "Remetente salvo." : "Sequência sem vendedor: sai pelo contato@.", ["/prospeccao"]);
+}
+
+export async function mudarSegmentoCard(_: Resultado, form: FormData): Promise<Resultado> {
+  const card = id(txt(form, "card", 40));
+  const segmento = txt(form, "segmento", 10);
+  if (!SEGMENTOS.includes(segmento)) return { erro: "Escolha o tipo de empresa." };
+  return run(() => hubFetch(`/hub/prospeccao/empresas/${card}/segmento`, { method: "POST", body: { segmento } }), "Tipo da empresa salvo.", [`/empresas/${card}`, "/empresas"]);
+}
+
+export async function aplicarArrumacao(_: Resultado, form: FormData): Promise<Resultado> {
+  if (form.get("confirmo") !== "1") return { erro: "Marque a confirmação de que conferiu a prévia." };
+  return run(() => hubFetch("/hub/vendedores/arrumacao", { method: "POST", body: {} }), "Arrumação aplicada. Nenhum e-mail foi enviado.", ["/vendedores", "/prospeccao"]);
 }
 
 export async function salvarAjustesProspeccao(_: Resultado, form: FormData): Promise<Resultado> {
@@ -514,6 +551,10 @@ export async function ajustarVendedor(_: Resultado, form: FormData): Promise<Res
   const rascunhos = Number(txt(form, "rascunhos", 3));
   if (emails) body.limiteEmailsDia = emails;
   if (rascunhos) body.limiteRascunhosDia = rascunhos;
+  if (form.get("temSegmentos") === "1") body.segmentos = form.getAll("segmentos").map((v) => String(v)).filter((v) => SEGMENTOS.includes(v));
+  if (form.has("assinatura")) body.assinatura = txt(form, "assinatura", 120);
+  const ativo = txt(form, "ativo", 3);
+  if (ativo === "sim" || ativo === "nao") body.ativo = ativo === "sim";
   return run(() => hubFetch(`/hub/vendedores/${vid}/ajustes`, { method: "POST", body }), "Ajustes salvos.", ["/vendedores"]);
 }
 

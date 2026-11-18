@@ -52,6 +52,12 @@ describe("Prospecção: teto, intervalo e pausa", () => {
     assert.deepEqual(podeEnviar({ ...base, liberadoApos: br("2026-11-18T09:59:00") }), { ok: true });
   });
 
+  test("liberação muito no futuro (relógio voltou, estado velho) não trava a caixa para sempre", () => {
+    assert.deepEqual(podeEnviar({ ...base, liberadoApos: br("2026-11-18T10:05:59") }), { ok: false, motivo: "intervalo" });
+    assert.deepEqual(podeEnviar({ ...base, liberadoApos: br("2026-11-18T10:07:00") }), { ok: true }, "mais que o intervalo máximo (6 min): ignorada");
+    assert.deepEqual(podeEnviar({ ...base, liberadoApos: br("2027-11-18T10:00:00") }), { ok: true });
+  });
+
   test("intervalo aleatório entre envios: nunca menos de 2 minutos (até 6)", () => {
     assert.equal(intervaloEntreEnvios(() => 0), 120_000);
     assert.equal(intervaloEntreEnvios(() => 0.999999), 359_999);

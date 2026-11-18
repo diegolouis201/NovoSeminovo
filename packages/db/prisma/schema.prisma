@@ -1758,7 +1758,7 @@ enum SalesStage {
 model SalesProspect {
   id              String      @id @default(cuid())
   name            String
-  // vehicle = lojas de veículos; property = imobiliárias, corretores, construtoras.
+  // vehicle = lojas de veículos; property = imobiliárias e construtoras; broker = corretor de imóveis; other.
   segment         String
   cnpj            String?     @unique
   city            String?
@@ -1872,6 +1872,10 @@ model ProspectSequence {
   approvedById String?              @map("approved_by_id")
   approvedAt   DateTime?            @map("approved_at")
   createdById  String?              @map("created_by_id")
+  // Vendedor IA que manda (remetente = a caixa dele; respostas vão para ele).
+  // null = sequência do dono, sai pelo contato@ (ou pela caixa do vendedor do card).
+  salesAgentId String?              @map("sales_agent_id")
+  salesAgent   SalesAgent?          @relation(fields: [salesAgentId], references: [id], onDelete: SetNull)
   createdAt    DateTime             @default(now()) @map("created_at")
   updatedAt    DateTime             @updatedAt @map("updated_at")
   enrollments  ProspectEnrollment[]
@@ -1920,11 +1924,14 @@ model ProspectEmailLog {
   error        String?
   // Vendedor IA que mandou (teto diário por vendedor e painel).
   salesAgentId String?            @map("sales_agent_id")
+  // Caixa que mandou (teto diário por caixa); null = "prospeccao" (antigos).
+  mailbox      String?
   createdAt    DateTime           @default(now()) @map("created_at")
 
   @@index([createdAt])
   @@index([messageId])
   @@index([salesAgentId, createdAt])
+  @@index([mailbox, createdAt])
   @@map("prospect_email_logs")
 }
 
@@ -1949,8 +1956,16 @@ model SalesAgent {
   slug           String    @unique
   name           String
   displayTitle   String    @default("assistente comercial da NovoSeminovo") @map("display_title")
-  // Caixa de e-mail (remetente): "prospeccao" = contato@ (PROSPECCAO_SMTP_*); null = sem caixa.
+  // Caixa de e-mail (remetente), chave da lista fixa CAIXAS_EMAIL (shared-types):
+  // "prospeccao" = contato@ (PROSPECCAO_SMTP_*), "atendimento" = atendimento@
+  // (PROSPECCAO_ATENDIMENTO_SMTP_*); null = sem caixa. Uma caixa nunca é de
+  // dois vendedores ativos (conferido ao ativar/trocar no VendedoresService).
   mailbox        String?
+  // Segmentos atendidos (vehicle | property | broker | other, o `segment` do card);
+  // vazio = todos. O rodízio só entrega card do segmento do vendedor.
+  segments       String[]  @default([])
+  // Assinatura dos e-mails (null = "<Nome>, assistente comercial da NovoSeminovo").
+  signature      String?
   active         Boolean   @default(false)
   paused         Boolean   @default(false)
   // supervisionado | automatico (só depois de 14 dias no ar, só o dono troca)
@@ -1965,6 +1980,7 @@ model SalesAgent {
   prospects      SalesProspect[]
   drafts         ProspectReplyDraft[]
   messages       ProspectMessage[]
+  sequences      ProspectSequence[]
 
   @@map("sales_agents")
 }
@@ -1989,6 +2005,8 @@ model ProspectMessage {
   subject      String?
   body         String
   references   String?
+  // Caixa de e-mail onde chegou / de onde saiu (null = "prospeccao", antigos).
+  mailbox      String?
   // Entrada esperando rascunho da IA (teto do dia / orçamento: tenta depois).
   needsDraft   Boolean       @default(false) @map("needs_draft")
   receivedAt   DateTime      @default(now()) @map("received_at")

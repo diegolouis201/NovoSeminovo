@@ -55,7 +55,7 @@ export function cardStage(prospect: { stage: string }, partner: PartnerSnapshot 
   return partner.activeListings > 0 ? "publicou" : "cadastrou";
 }
 
-export function segmentOf(partnerType: string): SalesSegment | undefined {
+export function segmentOf(partnerType: string): "vehicle" | "property" | undefined {
   if (partnerType === "dealership") return "vehicle";
   if (partnerType === "real_estate_agency" || partnerType === "broker" || partnerType === "builder") return "property";
   return undefined; // oficina não assina plano

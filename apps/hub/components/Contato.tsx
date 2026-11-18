@@ -21,7 +21,8 @@ export function Contato({ telefone, email, dados, segmento, naoContatar, contaEm
   const [digitado, setDigitado] = useState("");
   const [salvo, salvar] = useFormState(salvarEmailContato, {});
   const destino = email || (emailValido(digitado) as string | null);
-  const msgs = (MENSAGENS_INICIAIS as Msg[]).filter((m) => m.publico === "todos" || m.publico === segmento);
+  const publico = segmento === "broker" ? "property" : segmento;
+  const msgs = (MENSAGENS_INICIAIS as Msg[]).filter((m) => m.publico === "todos" || m.publico === publico);
   const [escolha, setEscolha] = useState(0);
   const msg = msgs[escolha];
   const preenchida = useMemo(() => (msg ? preencherMensagem(msg.texto, dados) : { texto: "", faltando: [] }), [msg, dados]);

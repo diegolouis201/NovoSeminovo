@@ -306,7 +306,13 @@ async function main() {
   const nina = await prisma.salesAgent.upsert({
     where: { slug: "nina" },
     update: {},
-    create: { slug: "nina", name: "Nina", active: true, mailbox: "prospeccao", liveSince: new Date() },
+    create: { slug: "nina", name: "Nina", active: true, mailbox: "prospeccao", segments: ["property", "broker"], liveSince: new Date() },
+  });
+  // Caio: lojas de veículos no atendimento@, inativo até o dono ativar no Hub.
+  await prisma.salesAgent.upsert({
+    where: { slug: "caio" },
+    update: {},
+    create: { slug: "caio", name: "Caio", active: false, mailbox: "atendimento", segments: ["vehicle"] },
   });
   const exemplos = [
     {

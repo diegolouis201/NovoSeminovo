@@ -29,7 +29,8 @@ export default async function Funil({ searchParams }: { searchParams: { segmento
             <select name="segmento" defaultValue={seg ?? ""} className="input">
               <option value="">Carros e imóveis</option>
               <option value="vehicle">Veículos</option>
-              <option value="property">Imóveis</option>
+              <option value="property">Imobiliárias</option>
+          <option value="broker">Corretores de imóveis</option>
             </select>
             <button className="btn">Filtrar</button>
           </form>

@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { type ProspeccaoAjustes, ProspeccaoAjustesSchema, ProspeccaoConfirmarSchema, ProspeccaoInscreverSchema, ProspeccaoSequenciaSchema } from "@novoseminovo/shared-types";
+import { type ProspeccaoAjustes, ProspeccaoAjustesSchema, ProspeccaoCardSegmentoSchema, ProspeccaoConfirmarSchema, ProspeccaoInscreverSchema, ProspeccaoRemetenteSchema, ProspeccaoRemoverSchema, ProspeccaoSequenciaSchema } from "@novoseminovo/shared-types";
 import { z } from "zod";
 import { memoryStorage } from "multer";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -107,6 +107,21 @@ export class ProspeccaoController {
     return this.sequencias.inscrever(parseOrBadRequest(IdSchema, id), parseOrBadRequest(ProspeccaoInscreverSchema, body), me.id);
   }
 
+  // Tirar empresas da sequência (uma ou várias): só o dono. Nada é enviado.
+  @HubPermissionRequired("equipe")
+  @Post("sequencias/:id/remover")
+  async remover(@Param("id") id: string, @Body() body: unknown) {
+    return this.sequencias.remover(parseOrBadRequest(IdSchema, id), parseOrBadRequest(ProspeccaoRemoverSchema, body));
+  }
+
+  // Vendedor (remetente) da sequência: só o dono.
+  @HubPermissionRequired("equipe")
+  @Post("sequencias/:id/remetente")
+  async remetente(@Param("id") id: string, @Body() body: unknown) {
+    await this.sequencias.definirRemetente(parseOrBadRequest(IdSchema, id), parseOrBadRequest(ProspeccaoRemetenteSchema, body));
+    return { ok: true };
+  }
+
   @HubPermissionRequired("equipe")
   @Post("ajustes")
   async ajustes(@Body() body: unknown) {
@@ -117,6 +132,14 @@ export class ProspeccaoController {
   @Post("empresas/:id/respondeu")
   async respondeu(@CurrentUser() me: Me, @Param("id") id: string) {
     await this.sequencias.respondeu(parseOrBadRequest(IdSchema, id), me.id);
+    return { ok: true };
+  }
+
+  // Tipo da empresa (loja / imobiliária / corretor / outro): quem edita o CRM corrige.
+  @HubPermissionRequired("crm.editar")
+  @Post("empresas/:id/segmento")
+  async segmento(@CurrentUser() me: Me, @Param("id") id: string, @Body() body: unknown) {
+    await this.sequencias.mudarSegmento(parseOrBadRequest(IdSchema, id), parseOrBadRequest(ProspeccaoCardSegmentoSchema, body).segmento, me.id);
     return { ok: true };
   }
 }

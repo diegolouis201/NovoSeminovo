@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PROSPECCAO_STATUS } from "@novoseminovo/shared-types";
+import { CAIXAS_EMAIL, PROSPECCAO_STATUS, segmentoLabel } from "@novoseminovo/shared-types";
 import { Form } from "@/components/Form";
 import { InscreverForm } from "@/components/InscreverForm";
 import { SequenciaEditor } from "@/components/SequenciaEditor";
 import { Cabecalho, Secao, Vazio } from "@/components/ui";
 import { HubApiError } from "@/lib/api";
-import { aprovarSequencia, pausarSequencia } from "@/lib/actions";
+import { aprovarSequencia, definirRemetenteSequencia, pausarSequencia, removerDaSequencia } from "@/lib/actions";
 import { me } from "@/lib/crm";
 import { dataHora } from "@/lib/format";
+import { painelVendedores } from "@/lib/vendedores";
 import { STATUS_SEQUENCIA, etiquetasProspeccao, sequenciaProspeccao } from "@/lib/prospeccao";
 
 export const metadata = { title: "Sequência de prospecção" };
@@ -27,6 +28,7 @@ export default async function Sequencia({ params, searchParams }: { params: { id
   }
   const etiquetas = await etiquetasProspeccao();
   const dono = acesso.permissions.includes("equipe");
+  const vendedores = dono ? (await painelVendedores()).vendedores : [];
   const s = d.sequencia;
   return (
     <>
@@ -34,6 +36,27 @@ export default async function Sequencia({ params, searchParams }: { params: { id
       <div className="mt-3">
         <Cabecalho titulo={s.nome} subtitulo={`${s.passos.length} e-mail(s) · ${s.aprovadaEm ? `aprovada por ${s.aprovadaPor ?? "—"} em ${dataHora(s.aprovadaEm)}` : "ainda não aprovada"}`} acao={<span className={`pill ${STATUS_SEQUENCIA[s.status][1]}`}>{STATUS_SEQUENCIA[s.status][0]}</span>} />
       </div>
+
+      <p className="mb-4 text-sm text-navy">
+        Remetente:{" "}
+        <strong>{s.remetente ? `${s.remetente.nome}${s.remetente.endereco ? ` (${s.remetente.endereco})` : " (sem caixa)"}` : `sem vendedor: sai pelo ${CAIXAS_EMAIL.prospeccao.endereco} ou pela caixa do vendedor de cada empresa`}</strong>
+      </p>
+
+      {dono ? (
+        <Secao titulo="Remetente (vendedor IA)" className="mb-6">
+          <Form action={definirRemetenteSequencia} botao="Salvar remetente" manter>
+            <input type="hidden" name="id" value={s.id} />
+            <label className="label" htmlFor="vendedor-remetente">Quem manda os e-mails desta sequência</label>
+            <select id="vendedor-remetente" name="vendedor" defaultValue={s.remetente?.vendedorId ?? ""} className="input" aria-describedby="remetente-ajuda">
+              <option value="">Sem vendedor ({CAIXAS_EMAIL.prospeccao.endereco})</option>
+              {vendedores.map((v) => (
+                <option key={v.id} value={v.id}>{v.nome}{v.caixaStatus ? ` (${v.caixaStatus.endereco})` : " (sem caixa)"}{v.ativo ? "" : " · inativo"}</option>
+              ))}
+            </select>
+            <p id="remetente-ajuda" className="text-xs text-muted">Sai pela caixa do vendedor, com o nome dele; as respostas voltam para ele. Trocar não envia nada.</p>
+          </Form>
+        </Secao>
+      ) : null}
 
       {dono ? (
         <Secao titulo={s.status === "ativa" ? "Ativa: enviando" : "Aprovar e ativar"} className="mb-6">
@@ -82,27 +105,59 @@ export default async function Sequencia({ params, searchParams }: { params: { id
             </Secao>
           ) : null}
           <Secao titulo={`Empresas na sequência (${d.inscricoes.length})`}>
-            {d.inscricoes.length ? (
-              <ul className="divide-y divide-line">
-                {d.inscricoes.map((e) => (
-                  <li key={e.id} className="py-2 text-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Link className="link" href={`/empresas/${e.cardId}`}>{e.empresa}</Link>
-                      <span className={`pill ${COR[e.status] ?? "bg-line text-muted"}`}>{e.status === "agendado" && e.passosEnviados ? `Enviado passo ${e.passosEnviados}` : PROSPECCAO_STATUS[e.status]}</span>
-                    </div>
-                    <p className="text-xs text-muted">
-                      {e.proximoEnvio ? `Próximo e-mail: ${dataHora(e.proximoEnvio)}` : e.status === "parou" && e.motivo ? e.motivo : e.ultimoEnvio ? `Último e-mail: ${dataHora(e.ultimoEnvio)}` : ""}
-                      {e.erro ? ` · ${e.erro}` : ""}
-                    </p>
-                  </li>
-                ))}
-              </ul>
+            {/* O formulário fica na tela mesmo quando a lista esvazia, para mostrar o resultado. */}
+            {d.inscricoes.length || dono ? (
+              <Lista inscricoes={d.inscricoes} podeTirar={dono} id={s.id} />
             ) : (
-              <Vazio titulo="Nenhuma empresa inscrita" texto="Inscreva pela etiqueta da importação." />
+              <Vazio titulo="Nenhuma empresa inscrita" texto="Inscreva pela etiqueta ou pelo tipo de empresa." />
             )}
           </Secao>
         </div>
       </div>
     </>
+  );
+}
+
+type Inscricao = Awaited<ReturnType<typeof sequenciaProspeccao>>["inscricoes"][number];
+
+// Lista das empresas; o dono marca uma ou várias (só as que ainda vão
+// receber e-mail) e tira da sequência. Nada é enviado.
+function Lista({ inscricoes, podeTirar, id }: { inscricoes: Inscricao[]; podeTirar: boolean; id: string }) {
+  const linhas = !inscricoes.length ? (
+    <Vazio titulo="Nenhuma empresa inscrita" texto="Inscreva pela etiqueta ou pelo tipo de empresa." />
+  ) : (
+    <ul className="divide-y divide-line">
+      {inscricoes.map((e) => {
+        const ativa = e.status === "agendado" || e.status === "enviando";
+        return (
+          <li key={e.id} className="flex gap-3 py-2 text-sm">
+            {podeTirar ? (
+              <span className="pt-0.5">{ativa ? <input type="checkbox" id={`tirar-${e.id}`} name="card" value={e.cardId} className="accent-blue" aria-label={`Marcar ${e.empresa} para tirar da sequência`} /> : null}</span>
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  <Link className="link" href={`/empresas/${e.cardId}`}>{e.empresa}</Link>
+                  {e.segmento ? <span className="ml-2 text-xs text-muted">{segmentoLabel(e.segmento)}</span> : null}
+                </span>
+                <span className={`pill ${COR[e.status] ?? "bg-line text-muted"}`}>{e.status === "agendado" && e.passosEnviados ? `Enviado passo ${e.passosEnviados}` : PROSPECCAO_STATUS[e.status]}</span>
+              </div>
+              <p className="text-xs text-muted">
+                {e.proximoEnvio ? `Próximo e-mail: ${dataHora(e.proximoEnvio)}` : e.status === "parou" && e.motivo ? e.motivo : e.ultimoEnvio ? `Último e-mail: ${dataHora(e.ultimoEnvio)}` : ""}
+                {e.erro ? ` · ${e.erro}` : ""}
+              </p>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+  if (!podeTirar) return linhas;
+  return (
+    <Form action={removerDaSequencia} botao="Tirar as marcadas da sequência" className="space-y-3">
+      <input type="hidden" name="id" value={id} />
+      <p className="text-xs text-muted">Marque uma ou várias empresas. Sai da sequência sem receber nada e fica livre para outra.</p>
+      {linhas}
+    </Form>
   );
 }

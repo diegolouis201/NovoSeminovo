@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ETAPAS_SUGERIDAS, OBJECOES, RASCUNHO_STATUS, VENDEDOR_AUTONOMIA } from "@novoseminovo/shared-types";
+import { ETAPAS_SUGERIDAS, OBJECOES, RASCUNHO_STATUS, VENDEDOR_AUTONOMIA, VENDEDOR_SEGMENTOS } from "@novoseminovo/shared-types";
 import { Barras, Situacao } from "@/components/Barras";
 import { Form } from "@/components/Form";
 import { Cabecalho, Kpi, Secao, Vazio } from "@/components/ui";
@@ -53,6 +53,9 @@ export default async function Vendedor({ params }: { params: { id: string } }) {
         <Secao titulo="Sequência e limites">
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between gap-3"><dt className="text-muted">Primeira abordagem</dt><dd className="text-right font-semibold">{v.sequencia ? <Link className="link" href={`/prospeccao/${v.sequencia.id}`}>{v.sequencia.nome}</Link> : "—"}{v.sequencia ? <span className={`ml-2 pill ${v.sequencia.aprovada ? "bg-green/15 text-green" : "bg-orange/15 text-danger"}`}>{v.sequencia.aprovada ? "Aprovada e ativa" : "Esperando sua aprovação"}</span> : null}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-muted">Caixa de e-mail</dt><dd className="text-right font-semibold">{v.caixaStatus ? `${v.caixaStatus.endereco} · ${v.caixaStatus.configurada ? "configurada" : `não configurada (${v.caixaStatus.motivo ?? "ver DEPLOY.md"})`}` : "sem caixa"}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-muted">Atende</dt><dd className="text-right font-semibold">{v.segmentos.length ? v.segmentos.map((x) => VENDEDOR_SEGMENTOS[x]).join(", ") : "Todos os tipos"}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-muted">Assinatura</dt><dd className="text-right font-semibold">{v.assinatura}</dd></div>
             <div className="flex justify-between gap-3"><dt className="text-muted">E-mails hoje</dt><dd className="font-semibold">{n.emailsHoje} de {v.limiteEmailsDia}</dd></div>
             <div className="flex justify-between gap-3"><dt className="text-muted">Rascunhos de IA hoje</dt><dd className="font-semibold">{n.rascunhosHoje} de {v.limiteRascunhosDia}</dd></div>
             <div className="flex justify-between gap-3"><dt className="text-muted">No ar desde</dt><dd className="font-semibold">{v.noArDesde ? dataHora(v.noArDesde) : "—"}</dd></div>
@@ -63,6 +66,36 @@ export default async function Vendedor({ params }: { params: { id: string } }) {
           <Secao titulo="Ajustes (só o dono)">
             <Form action={ajustarVendedor} botao="Salvar ajustes" manter className="space-y-4">
               <input type="hidden" name="id" value={v.id} />
+              <fieldset className="space-y-1">
+                <legend className="label">Situação</legend>
+                <span className="flex items-center gap-2 text-sm">
+                  <input type="radio" id="at-sim" name="ativo" value="sim" defaultChecked={v.ativo} className="accent-blue" aria-describedby="ativo-ajuda" />
+                  <label htmlFor="at-sim">Ativo: aborda empresas e responde</label>
+                </span>
+                <span className="flex items-center gap-2 text-sm">
+                  <input type="radio" id="at-nao" name="ativo" value="nao" defaultChecked={!v.ativo} className="accent-blue" />
+                  <label htmlFor="at-nao">Inativo</label>
+                </span>
+                <p id="ativo-ajuda" className="text-xs text-muted">Para ativar: caixa de e-mail configurada no servidor, caixa sem outro vendedor ativo e a primeira abordagem aprovada em Sequências de prospecção.</p>
+              </fieldset>
+              <fieldset className="space-y-1">
+                <legend className="label">Tipos de empresa que atende</legend>
+                <input type="hidden" name="temSegmentos" value="1" />
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                  {(Object.keys(VENDEDOR_SEGMENTOS) as (keyof typeof VENDEDOR_SEGMENTOS)[]).map((k) => (
+                    <span key={k} className="flex items-center gap-2">
+                      <input type="checkbox" id={`seg-${k}`} name="segmentos" value={k} defaultChecked={v.segmentos.includes(k)} className="accent-blue" />
+                      <label htmlFor={`seg-${k}`}>{VENDEDOR_SEGMENTOS[k]}</label>
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-muted">Nenhum marcado = atende todos. As empresas de cada tipo só vão para quem atende aquele tipo.</p>
+              </fieldset>
+              <div>
+                <label className="label" htmlFor="assinatura">Assinatura dos e-mails</label>
+                <input id="assinatura" name="assinatura" type="text" maxLength={120} defaultValue={v.assinatura} className="input" aria-describedby="assinatura-ajuda" autoComplete="off" />
+                <p id="assinatura-ajuda" className="mt-1 text-xs text-muted">Uma linha, com o nome “{v.nome}” e a palavra “assistente” (ninguém pode achar que é uma pessoa). Sem link nem e-mail. Em branco volta ao padrão.</p>
+              </div>
               <fieldset className="space-y-1">
                 <legend className="label">Respostas</legend>
                 <span className="flex items-center gap-2 text-sm">

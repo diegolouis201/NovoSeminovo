@@ -4,6 +4,19 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { Prisma, ProspectMessage, ProspectReplyDraft, SalesAgent, SalesProspect } from "@novoseminovo/db";
 import {
   AprovarRascunhoSchema,
+  CAIXAS_EMAIL,
+  PARTNER_TRIAL_DAYS,
+  VENDEDOR_CAIXAS,
+  VENDEDOR_SEGMENTOS,
+  SEQUENCIAS_DOS_VENDEDORES,
+  assinaturaPadrao,
+  assinaturaValida,
+  segmentoImoveis,
+  vendedorFeminino,
+  type ArrumacaoSequencias,
+  type CaixaStatus,
+  type VendedorCaixa,
+  type VendedorSegmento,
   MOTIVOS_ESCALAR,
   RejeitarRascunhoSchema,
   SALES_STAGE_LABEL,
@@ -33,10 +46,10 @@ import { aiContext, trackedAnthropic } from "../operations/ai-usage";
 import { trackRoutine } from "../operations/routine-health";
 import { AGENT_FEATURE_PREFIX, UsageService, brtDayStart } from "../operations/usage.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { caixaImap, lerEmail, prospeccaoImapConfig, type CaixaEntrada, type EmailBruto, type EmailLido } from "../prospeccao/caixa-entrada";
+import { caixaImap, caixaImapConfig, etiquetasAquecimento, lerEmail, type CaixaEntrada, type EmailBruto, type EmailLido } from "../prospeccao/caixa-entrada";
 import { renderizarEmail } from "../prospeccao/sequencia-regras";
 import { ProspeccaoSequenciasService } from "../prospeccao/sequencias.service";
-import { criarEnvio, prospeccaoSmtpConfig, semSenha, type EnviarProspeccao } from "../prospeccao/smtp";
+import { caixaConhecida, caixaSmtpConfig, criarEnvio, nomeRemetente, semSenha, statusCaixaEmail, type EnviarProspeccao } from "../prospeccao/smtp";
 import { FERRAMENTA_RASCUNHO, PLAYBOOK_VERSAO, linkComecar, pedidoVendedor, sistemaVendedor } from "./playbook-vendedor";
 import {
   categoriaPerda,
@@ -58,7 +71,11 @@ import { envioWhatsapp, registrarRotaProspeccao, type EnviarWhatsapp } from "./w
 
 // Vendedores IA ("assistentes comerciais") da prospecção. Regras do Diego:
 // - automático: distribuir as empresas importadas (rodízio entre vendedores
-//   ativos com caixa) e a primeira sequência de e-mails (aprovada pelo dono);
+//   ativos com caixa configurada e do MESMO SEGMENTO do card: Nina = lojas de
+//   veículos, Caio = imobiliárias; sem vendedor do segmento, o card espera)
+//   e a primeira sequência de e-mails (aprovada pelo dono);
+// - cada vendedor tem a sua caixa (contato@, atendimento@...), nunca
+//   dividida entre dois vendedores ativos; cada caixa é lida pela sua rotina;
 // - respostas: a IA só escreve RASCUNHO. Nos primeiros 14 dias no ar (e
 //   sempre que o vendedor está em "supervisionado") o dono aprova, edita ou
 //   rejeita no Hub. Depois, o dono pode ligar o "automático" para as
@@ -72,6 +89,10 @@ import { envioWhatsapp, registrarRotaProspeccao, type EnviarWhatsapp } from "./w
 
 const GERAL = "vendedores_ia";
 const ESTADO_IMAP = "prospeccao_imap";
+const ATIVOS = ["agendado", "enviando"];
+export type NomesArrumacao = { lojasBh: string; caioLojas: string; ninaImoveis: string; caio: string; nina: string };
+const [SEQ_LOJAS_BH, SEQ_CAIO, SEQ_NINA] = SEQUENCIAS_DOS_VENDEDORES;
+export const ARRUMACAO_PADRAO: NomesArrumacao = { lojasBh: SEQ_LOJAS_BH.nome, caioLojas: SEQ_CAIO.nome, ninaImoveis: SEQ_NINA.nome, caio: "caio", nina: "nina" };
 const ROTINA_MS = 5 * 60_000;
 const LOTE_CAIXA = 50;
 const CRIADO_POR = "vendedor-ia";
@@ -82,16 +103,44 @@ type Escopo = { somenteVendedores?: string[] };
 type CardComVendedor = SalesProspect & { salesAgent: SalesAgent | null };
 
 // Texto da primeira abordagem de cada vendedor (assinada por ele, nunca pelo
-// dono). Passa pela aprovação do dono como qualquer sequência.
-export function sequenciaDoVendedor(v: { nome: string; slug: string }): ProspeccaoSequenciaInput {
+// dono). Passa pela aprovação do dono como qualquer sequência. Vendedor de
+// imobiliárias (só "property") recebe o texto de imóveis; o resto, o de lojas.
+export function sequenciaDoVendedor(v: { nome: string; slug: string; segmentos?: readonly string[]; assinatura?: string | null }): ProspeccaoSequenciaInput {
   const link = linkComecar(v.slug);
-  const assinatura = `${v.nome}, ${VENDEDOR_TITULO}`;
+  const assinatura = v.assinatura?.trim() || assinaturaPadrao(v.nome);
+  const fem = vendedorFeminino(v.slug);
+  const artigo = fem ? "a" : "o";
+  const obrigado = fem ? "Obrigada" : "Obrigado";
+  const meses = `${Math.round(PARTNER_TRIAL_DAYS / 30)} meses grátis`;
+  const imoveis = Boolean(v.segmentos?.some(segmentoImoveis)) && !v.segmentos?.includes("vehicle");
+  if (imoveis) {
+    return {
+      nome: `${v.nome}: imobiliárias e corretores`,
+      passos: [
+        {
+          assunto: `Imóveis da {{empresa}} no NovoSeminovo, ${meses}`,
+          corpo: `Olá, tudo bem?\n\nSou ${artigo} ${v.nome}, assistente comercial (virtual) da NovoSeminovo, um marketplace nacional de imóveis e veículos. Encontrei a {{empresa}} no Google Maps e queria fazer um convite rápido.\n\nEstamos abrindo espaço para imobiliárias e corretores anunciarem os imóveis ${meses}, sem limite de anúncios e sem fidelidade. Além do anúncio, cada imóvel ganha:\n- Vitrine pronta: imagem para Instagram e WhatsApp e cartaz com QR code para imprimir;\n- Importação pelo link: se vocês já anunciam em outro site, é só colar o link que a gente organiza tudo;\n- Arquiteto NovoSeminovo: quem se interessa pelo imóvel pode pedir ideias de reforma dos cômodos a partir das fotos do anúncio, com lista de compras;\n- Painel de leads, para ver quem chamou e responder rápido.\n\nDá uma olhada aqui: ${link}\n\nSe fizer sentido, é só responder este e-mail que a nossa equipe ajuda a subir os primeiros imóveis.\n\n${assinatura}`,
+          esperaDias: 0,
+        },
+        {
+          assunto: "",
+          corpo: `Oi, passando só para facilitar: se quiserem testar, a nossa equipe ajuda a subir os primeiros imóveis a partir do link de outro site. Vocês só revisam e aprovam.\n\nÉ só responder este e-mail.\n\n${assinatura}`,
+          esperaDias: 3,
+        },
+        {
+          assunto: "",
+          corpo: `Último contato sobre isso. Se agora não for o momento, sem problema: os ${meses} continuam valendo quando quiserem começar: ${link}\n\n${obrigado} pela atenção,\n${assinatura}`,
+          esperaDias: 4,
+        },
+      ],
+    };
+  }
   return {
-    nome: `${v.nome}: primeira abordagem`,
+    nome: `${v.nome}: lojas de veículos`,
     passos: [
       {
-        assunto: "Estoque da {{empresa}} no NovoSeminovo, 3 meses grátis",
-        corpo: `Olá, tudo bem?\n\nSou a ${v.nome}, assistente comercial (virtual) da NovoSeminovo, um marketplace nacional de carros e imóveis. Encontrei a {{empresa}} no Google Maps e queria fazer um convite rápido.\n\nEstamos abrindo espaço para lojas anunciarem o estoque 3 meses grátis, sem limite de anúncios e sem fidelidade. Além do anúncio, cada carro ganha:\n- Vitrine pronta: imagem para Instagram e WhatsApp e cartaz com QR code para o vidro;\n- Importação pelo link: se vocês já anunciam em outro site, é só colar o link que a gente organiza tudo;\n- Painel de leads, para ver quem chamou e responder rápido.\n\nDá uma olhada aqui: ${link}\n\nSe fizer sentido, é só responder este e-mail que a nossa equipe ajuda a subir os primeiros carros.\n\n${assinatura}`,
+        assunto: `Estoque da {{empresa}} no NovoSeminovo, ${meses}`,
+        corpo: `Olá, tudo bem?\n\nSou ${artigo} ${v.nome}, assistente comercial (virtual) da NovoSeminovo, um marketplace nacional de carros e imóveis. Encontrei a {{empresa}} no Google Maps e queria fazer um convite rápido.\n\nEstamos abrindo espaço para lojas anunciarem o estoque ${meses}, sem limite de anúncios e sem fidelidade. Além do anúncio, cada carro ganha:\n- Vitrine pronta: imagem para Instagram e WhatsApp e cartaz com QR code para o vidro;\n- Importação pelo link: se vocês já anunciam em outro site, é só colar o link que a gente organiza tudo;\n- Painel de leads, para ver quem chamou e responder rápido.\n\nDá uma olhada aqui: ${link}\n\nSe fizer sentido, é só responder este e-mail que a nossa equipe ajuda a subir os primeiros carros.\n\n${assinatura}`,
         esperaDias: 0,
       },
       {
@@ -101,12 +150,16 @@ export function sequenciaDoVendedor(v: { nome: string; slug: string }): Prospecc
       },
       {
         assunto: "",
-        corpo: `Último contato sobre isso. Se agora não for o momento, sem problema: os 3 meses grátis continuam valendo quando quiserem começar: ${link}\n\nObrigada pela atenção,\n${assinatura}`,
+        corpo: `Último contato sobre isso. Se agora não for o momento, sem problema: os ${meses} continuam valendo quando quiserem começar: ${link}\n\n${obrigado} pela atenção,\n${assinatura}`,
         esperaDias: 4,
       },
     ],
   };
 }
+
+const assinaturaDe = (v: { name: string; signature: string | null }) => v.signature?.trim() || assinaturaPadrao(v.name);
+const atende = (v: { segments: string[] }, segmento: string) => !v.segments.length || v.segments.includes(segmento);
+const estadoImap = (caixa: VendedorCaixa) => (caixa === "prospeccao" ? ESTADO_IMAP : `${ESTADO_IMAP}:${caixa}`);
 
 @Injectable()
 export class VendedoresService implements OnModuleInit, OnModuleDestroy {
@@ -114,7 +167,9 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
   private readonly usage: UsageService;
   private timer?: NodeJS.Timeout;
   private rodando = false;
-  private caixaDeTeste?: CaixaEntrada;
+  private readonly caixasDeTeste = new Map<VendedorCaixa, CaixaEntrada>();
+  private leituras: NodeJS.Timeout[] = [];
+  private lendo = new Set<VendedorCaixa>();
   private envioDeTeste?: EnviarProspeccao;
   private modeloDeTeste?: Anthropic;
   private whatsDeTeste?: EnviarWhatsapp;
@@ -129,8 +184,22 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
   }
 
   // Testes trocam caixa, SMTP, modelo e WhatsApp (nada de verdade sai).
-  usarCaixa(c: CaixaEntrada | undefined) {
-    this.caixaDeTeste = c;
+  usarCaixa(c: CaixaEntrada | undefined, chave: VendedorCaixa = "prospeccao") {
+    if (c) this.caixasDeTeste.set(chave, c);
+    else this.caixasDeTeste.delete(chave);
+  }
+
+  // A caixa pode mandar e-mail? (configurada; nos testes, o SMTP falso vale para todas)
+  private caixaPronta(chave: string | null | undefined): chave is VendedorCaixa {
+    return Boolean(chave && caixaConhecida(chave) && (this.envioDeTeste || caixaSmtpConfig(chave)));
+  }
+
+  private statusCaixas(vendedores: SalesAgent[]): CaixaStatus[] {
+    return VENDEDOR_CAIXAS.map((chave) => {
+      const st: CaixaStatus = this.envioDeTeste ? { chave, endereco: CAIXAS_EMAIL[chave].endereco, configurada: true, leitura: this.caixasDeTeste.has(chave) || Boolean(caixaImapConfig(chave)) } : statusCaixaEmail(chave);
+      const dono = vendedores.find((v) => v.active && v.mailbox === chave);
+      return dono ? { ...st, vendedorAtivo: dono.name } : st;
+    });
   }
   usarEnvio(e: EnviarProspeccao | undefined) {
     this.envioDeTeste = e;
@@ -177,13 +246,20 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
     return v;
   }
 
-  // Só o dono (permissão "equipe", conferida no controller).
+  // Só o dono (permissão "equipe", conferida no controller). Ativar (ou
+  // trocar a caixa de um ativo) exige: caixa da lista fixa, configurada, sem
+  // outro vendedor ativo nela e a primeira abordagem aprovada.
   async ajustar(id: string, raw: VendedorAjustes, agora = new Date()): Promise<void> {
     const v = await this.vendedor(id);
     const a = parseOrBadRequest(VendedorAjustesSchema, raw);
     if (a.autonomia === "automatico" && v.autonomy !== "automatico" && !podeAutomatico(v.liveSince, agora)) {
       throw new BadRequestException(`O modo automático só pode ser ligado depois de 14 dias no ar (faltam ${diasParaAutomatico(v.liveSince, agora)} dia(s)).`);
     }
+    if (a.assinatura && !assinaturaValida(v.name, a.assinatura)) throw new BadRequestException(`A assinatura precisa ter o nome "${v.name}" e a palavra "assistente" (ninguém pode achar que é uma pessoa), numa linha só, sem link nem e-mail.`);
+    const caixa = a.caixa !== undefined ? a.caixa : (v.mailbox as VendedorCaixa | null);
+    const ativo = a.ativo ?? v.active;
+    const trocouCaixa = a.caixa !== undefined && a.caixa !== v.mailbox;
+    if (ativo && ((a.ativo === true && !v.active) || trocouCaixa)) await this.conferirAtivacao(v, caixa, trocouCaixa && v.active);
     await this.prisma.salesAgent.update({
       where: { id: v.id },
       data: {
@@ -191,76 +267,231 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
         ...(a.pausado !== undefined ? { paused: a.pausado } : {}),
         ...(a.limiteEmailsDia ? { dailyEmailCap: a.limiteEmailsDia } : {}),
         ...(a.limiteRascunhosDia ? { dailyDraftCap: a.limiteRascunhosDia } : {}),
+        ...(a.segmentos ? { segments: a.segmentos } : {}),
+        ...(a.assinatura !== undefined ? { signature: a.assinatura && a.assinatura !== assinaturaPadrao(v.name) ? a.assinatura : null } : {}),
+        ...(a.caixa !== undefined ? { mailbox: a.caixa } : {}),
+        ...(a.ativo !== undefined ? { active: a.ativo, ...(a.ativo && !v.liveSince ? { liveSince: agora } : {}) } : {}),
       },
     });
+    if (caixa && caixa !== v.mailbox) await this.garantirSequenciaDoVendedor(v.id);
+  }
+
+  private async conferirAtivacao(v: SalesAgent, caixa: VendedorCaixa | null, trocouCaixa: boolean): Promise<void> {
+    if (!caixa) throw new BadRequestException(`${v.name} não tem caixa de e-mail: escolha uma antes de ativar.`);
+    const endereco = CAIXAS_EMAIL[caixa].endereco;
+    if (!this.caixaPronta(caixa)) {
+      const st = statusCaixaEmail(caixa);
+      throw new BadRequestException(`A caixa ${endereco} não está configurada no servidor${st.motivo ? ` (${st.motivo})` : ""}. Veja DEPLOY.md.`);
+    }
+    const outro = await this.prisma.salesAgent.findFirst({ where: { active: true, mailbox: caixa, id: { not: v.id } }, select: { name: true } });
+    if (outro) throw new BadRequestException(`A caixa ${endereco} já é usada por ${outro.name}. Pause e desative ${outro.name} ou escolha outra caixa.`);
+    if (trocouCaixa) return;
+    const seq = v.sequenceId ? await this.prisma.prospectSequence.findUnique({ where: { id: v.sequenceId }, select: { status: true, approvedAt: true } }) : null;
+    if (!seq || seq.status !== "ativa" || !seq.approvedAt) throw new BadRequestException(`Aprove a primeira abordagem de ${v.name} (Vendas → Sequências de prospecção) antes de ativar.`);
   }
 
   // ------------------------------------------------------------ vendedores
 
-  // Os 5 do começo (Nina ativa com o contato@; os outros sem caixa). Idempotente.
+  // Os 5 do começo (Nina ativa com o contato@ para lojas; Caio inativo com o
+  // atendimento@ para imobiliárias; os outros sem caixa). Idempotente.
   async garantirVendedores(agora = new Date()): Promise<void> {
     for (const v of VENDEDORES_INICIAIS) {
       const existe = await this.prisma.salesAgent.findUnique({ where: { slug: v.slug } });
       if (existe) continue;
       try {
-        await this.prisma.salesAgent.create({ data: { slug: v.slug, name: v.nome, active: v.ativo, mailbox: v.caixa, liveSince: v.ativo ? agora : null } });
+        await this.prisma.salesAgent.create({ data: { slug: v.slug, name: v.nome, active: v.ativo, mailbox: v.caixa, segments: [...v.segmentos], liveSince: v.ativo ? agora : null } });
       } catch (error) {
         if ((error as { code?: string }).code !== "P2002") throw error;
       }
     }
-    const ativos = await this.prisma.salesAgent.findMany({ where: { active: true, mailbox: { not: null }, sequenceId: null }, select: { id: true } });
-    for (const a of ativos) await this.garantirSequenciaDoVendedor(a.id);
+    const comCaixa = await this.prisma.salesAgent.findMany({ where: { mailbox: { not: null }, sequenceId: null }, select: { id: true } });
+    for (const a of comCaixa) await this.garantirSequenciaDoVendedor(a.id);
   }
 
   async garantirSequenciaDoVendedor(id: string): Promise<string> {
     const v = await this.vendedor(id);
     if (v.sequenceId && (await this.prisma.prospectSequence.findUnique({ where: { id: v.sequenceId }, select: { id: true } }))) return v.sequenceId;
-    const s = sequenciaDoVendedor({ nome: v.name, slug: v.slug });
-    const criada = await this.prisma.prospectSequence.create({ data: { name: s.nome, status: "rascunho", steps: s.passos as Prisma.InputJsonValue, createdById: CRIADO_POR } });
-    await this.prisma.salesAgent.update({ where: { id: v.id }, data: { sequenceId: criada.id } });
-    return criada.id;
+    const s = sequenciaDoVendedor({ nome: v.name, slug: v.slug, segmentos: v.segments, assinatura: v.signature });
+    // Já existe com esse nome (ex.: criada pelo marketing no Hub)? Usa ela, sem
+    // mexer no texto. Senão, cria o rascunho (nunca ativo).
+    const existe = await this.prisma.prospectSequence.findFirst({ where: { name: s.nome, OR: [{ salesAgentId: null }, { salesAgentId: v.id }] }, select: { id: true, salesAgentId: true } });
+    const seqId = existe
+      ? existe.id
+      : (await this.prisma.prospectSequence.create({ data: { name: s.nome, status: "rascunho", steps: s.passos as Prisma.InputJsonValue, createdById: CRIADO_POR, salesAgentId: v.id } })).id;
+    if (existe && !existe.salesAgentId) await this.prisma.prospectSequence.update({ where: { id: seqId }, data: { salesAgentId: v.id } });
+    await this.prisma.salesAgent.update({ where: { id: v.id }, data: { sequenceId: seqId } });
+    return seqId;
   }
 
-  // Vendedor que pode trabalhar agora: ativo, com caixa, sem pausa (nem geral).
+  // Vendedor que pode trabalhar agora: ativo, com caixa configurada, sem pausa (nem geral).
   private async elegiveis(escopo: Escopo = {}): Promise<SalesAgent[]> {
     if ((await this.geral()).pausarTodos) return [];
-    return this.prisma.salesAgent.findMany({
+    const lista = await this.prisma.salesAgent.findMany({
       where: { active: true, paused: false, mailbox: { not: null }, ...(escopo.somenteVendedores ? { id: { in: escopo.somenteVendedores } } : {}) },
       orderBy: { createdAt: "asc" },
     });
+    return lista.filter((v) => this.caixaPronta(v.mailbox));
+  }
+
+  // ------------------------------------------------------------ arrumação (dono)
+
+  // Arruma as sequências do marketing para a divisão de 18/11/2026 (Caio =
+  // lojas de veículos no atendimento@; Nina = imobiliárias e corretores no
+  // contato@). aplicar=false só mostra a prévia. Nada é enviado; rodar de
+  // novo não muda nada. Inscrição que já recebeu e-mail nunca é mexida:
+  // vira conflito para o dono decidir.
+  async arrumarSequencias(aplicar: boolean, userId: string, n: NomesArrumacao = ARRUMACAO_PADRAO, agora = new Date()): Promise<ArrumacaoSequencias> {
+    await this.garantirVendedores(agora);
+    const [caio, nina] = await Promise.all([this.prisma.salesAgent.findUnique({ where: { slug: n.caio } }), this.prisma.salesAgent.findUnique({ where: { slug: n.nina } })]);
+    if (!caio || !nina) throw new NotFoundException("Vendedores Caio e Nina não encontrados.");
+    const nomes = [n.lojasBh, n.caioLojas, n.ninaImoveis];
+    const seqs = await this.prisma.prospectSequence.findMany({ where: { name: { in: nomes } }, include: { salesAgent: { select: { name: true } } }, orderBy: { createdAt: "asc" } });
+    const seq = (nome: string) => seqs.find((x) => x.name === nome);
+    const [sB, sC, sN] = [seq(n.lojasBh), seq(n.caioLojas), seq(n.ninaImoveis)];
+    const contar = async () => {
+      const g = await this.prisma.prospectEnrollment.groupBy({ by: ["sequenceId"], where: { sequenceId: { in: seqs.map((x) => x.id) }, activeKey: { not: null } }, _count: { _all: true } });
+      return Object.fromEntries(nomes.map((nome) => [nome, g.find((x) => x.sequenceId === seq(nome)?.id)?._count._all ?? 0]));
+    };
+    const antes = await contar();
+    const conflitos: ArrumacaoSequencias["conflitos"] = [];
+    const destino: Record<string, string> = { [n.lojasBh]: caio.name, [n.caioLojas]: caio.name, [n.ninaImoveis]: nina.name };
+    const r: ArrumacaoSequencias = {
+      aplicada: aplicar,
+      remetentes: nomes.map((nome) => ({ sequencia: nome, existe: Boolean(seq(nome)), vendedorAntes: seq(nome)?.salesAgent?.name, vendedorDepois: destino[nome]! })),
+      vendedores: [
+        { nome: caio.name, caixaAntes: caio.mailbox ?? undefined, caixaDepois: caio.mailbox ?? "atendimento", segmentosAntes: caio.segments, segmentosDepois: ["vehicle"] },
+        { nome: nina.name, caixaAntes: nina.mailbox ?? undefined, caixaDepois: nina.mailbox ?? "prospeccao", segmentosAntes: nina.segments, segmentosDepois: ["property", "broker"] },
+      ],
+      movidasParaNina: 0,
+      tiradasPorLojasBh: 0,
+      cardsTrocados: 0,
+      inscritasAntes: antes,
+      inscritasDepois: { ...antes },
+      conflitos,
+    };
+    for (const x of nomes) if (!seq(x)) conflitos.push({ empresa: "—", motivo: `A sequência "${x}" não existe no Hub.` });
+    const paraCaio = new Set<string>();
+    const paraNina = new Set<string>();
+
+    if (sC) {
+      const doCaio = await this.prisma.prospectEnrollment.findMany({ where: { sequenceId: sC.id, status: { in: ATIVOS } }, include: { prospect: { select: { id: true, name: true, email: true, segment: true } } } });
+      const daLojasBh = sB ? await this.prisma.prospectEnrollment.findMany({ where: { sequenceId: sB.id }, select: { prospectId: true, prospect: { select: { email: true } } } }) : [];
+      const cardsB = new Set(daLojasBh.map((e) => e.prospectId));
+      const emailsB = new Set(daLojasBh.map((e) => e.prospect.email?.toLowerCase()).filter(Boolean));
+      const naNina = sN ? new Set((await this.prisma.prospectEnrollment.findMany({ where: { sequenceId: sN.id }, select: { prospectId: true } })).map((e) => e.prospectId)) : new Set<string>();
+      for (const e of doCaio) {
+        const p = e.prospect;
+        const emLojasBh = cardsB.has(p.id) || (p.email ? emailsB.has(p.email.toLowerCase()) : false);
+        if (emLojasBh) {
+          if (e.stepsSent > 0) {
+            conflitos.push({ empresa: p.name, motivo: `Está em "${n.lojasBh}" e já recebeu e-mail de "${n.caioLojas}": decida à mão.` });
+            continue;
+          }
+          r.tiradasPorLojasBh++;
+          if (aplicar) await this.prisma.prospectEnrollment.deleteMany({ where: { id: e.id, stepsSent: 0 } });
+          continue;
+        }
+        if (!segmentoImoveis(p.segment)) {
+          paraCaio.add(p.id);
+          continue;
+        }
+        if (!sN) continue;
+        if (e.stepsSent > 0) {
+          conflitos.push({ empresa: p.name, motivo: `Imobiliária/corretor que já recebeu e-mail de "${n.caioLojas}": não dá para mover sem misturar remetentes.` });
+          continue;
+        }
+        r.movidasParaNina++;
+        paraNina.add(p.id);
+        if (aplicar) {
+          await this.prisma.$transaction(async (tx) => {
+            const apagada = await tx.prospectEnrollment.deleteMany({ where: { id: e.id, stepsSent: 0 } });
+            if (!apagada.count || naNina.has(p.id)) return;
+            await tx.prospectEnrollment.create({ data: { sequenceId: sN.id, prospectId: p.id, activeKey: p.id, status: "agendado", nextSendAt: e.nextSendAt ?? agora, enrolledById: userId } });
+          });
+        }
+      }
+    }
+    if (sB) {
+      const lojasBh = await this.prisma.prospectEnrollment.findMany({ where: { sequenceId: sB.id, status: { in: ATIVOS } }, select: { stepsSent: true, prospect: { select: { id: true, name: true, segment: true } } } });
+      for (const e of lojasBh) {
+        if (e.stepsSent > 0 && sB.salesAgentId !== caio.id) conflitos.push({ empresa: e.prospect.name, motivo: `Já recebeu e-mail de "${n.lojasBh}" por outra caixa: com o Caio (atendimento@) ela não recebe mais nada (o mesmo e-mail nunca fala com duas caixas).` });
+        if (segmentoImoveis(e.prospect.segment)) conflitos.push({ empresa: e.prospect.name, motivo: `Imobiliária/corretor em "${n.lojasBh}" (sequência de lojas de veículos): tire ou troque o tipo da empresa.` });
+        else paraCaio.add(e.prospect.id);
+      }
+    }
+    // Cards do Caio que não são lojas de veículos (e não seguem numa sequência dele) vão para a Nina.
+    const ativosCaio = new Set((await this.prisma.prospectEnrollment.findMany({ where: { sequenceId: { in: [sB?.id, sC?.id].filter((x): x is string => Boolean(x)) }, activeKey: { not: null } }, select: { prospectId: true } })).map((e) => e.prospectId));
+    for (const c of await this.prisma.salesProspect.findMany({ where: { salesAgentId: caio.id, segment: { not: "vehicle" } }, select: { id: true } })) if (!ativosCaio.has(c.id) || paraNina.has(c.id)) paraNina.add(c.id);
+    for (const id of paraNina) paraCaio.delete(id);
+    r.cardsTrocados =
+      (await this.prisma.salesProspect.count({ where: { id: { in: [...paraCaio] }, NOT: { salesAgentId: caio.id } } })) + (await this.prisma.salesProspect.count({ where: { id: { in: [...paraNina] }, NOT: { salesAgentId: nina.id } } }));
+
+    if (aplicar) {
+      await this.prisma.salesProspect.updateMany({ where: { id: { in: [...paraCaio] } }, data: { salesAgentId: caio.id } });
+      await this.prisma.salesProspect.updateMany({ where: { id: { in: [...paraNina] } }, data: { salesAgentId: nina.id } });
+      if (sB) await this.prisma.prospectSequence.update({ where: { id: sB.id }, data: { salesAgentId: caio.id } });
+      if (sC) await this.prisma.prospectSequence.update({ where: { id: sC.id }, data: { salesAgentId: caio.id } });
+      if (sN) await this.prisma.prospectSequence.update({ where: { id: sN.id }, data: { salesAgentId: nina.id } });
+      const outroNoAtendimento = !caio.mailbox && (await this.prisma.salesAgent.findFirst({ where: { active: true, mailbox: "atendimento", id: { not: caio.id } }, select: { name: true } }));
+      if (outroNoAtendimento) conflitos.push({ empresa: "—", motivo: `A caixa atendimento@ já é de ${outroNoAtendimento.name}: o Caio ficou sem caixa.` });
+      await this.prisma.salesAgent.update({ where: { id: caio.id }, data: { segments: ["vehicle"], ...(caio.mailbox || outroNoAtendimento ? {} : { mailbox: "atendimento" }), ...(sC ? { sequenceId: sC.id } : {}) } });
+      await this.prisma.salesAgent.update({ where: { id: nina.id }, data: { segments: ["property", "broker"], ...(sN ? { sequenceId: sN.id } : {}) } });
+      r.inscritasDepois = await contar();
+    } else {
+      r.inscritasDepois[n.caioLojas] = Math.max(0, (antes[n.caioLojas] ?? 0) - r.tiradasPorLojasBh - r.movidasParaNina);
+      r.inscritasDepois[n.ninaImoveis] = (antes[n.ninaImoveis] ?? 0) + r.movidasParaNina;
+    }
+    // Mesmo e-mail ativo em sequências de caixas diferentes depois da arrumação.
+    const ativos = await this.prisma.prospectEnrollment.findMany({ where: { sequenceId: { in: seqs.map((x) => x.id) }, activeKey: { not: null } }, select: { sequenceId: true, prospect: { select: { name: true, email: true } } } });
+    const caixaSeq = (id: string) => (id === sN?.id ? "nina" : "caio");
+    const porEmail = new Map<string, Set<string>>();
+    for (const a of ativos) {
+      const e = a.prospect.email?.toLowerCase();
+      if (!e) continue;
+      const set = porEmail.get(e) ?? new Set<string>();
+      set.add(caixaSeq(a.sequenceId));
+      porEmail.set(e, set);
+      if (set.size > 1) conflitos.push({ empresa: a.prospect.name, motivo: "O mesmo e-mail está nas sequências do Caio e da Nina: só a primeira caixa que mandar fala com ele; tire de uma delas." });
+    }
+    if (aplicar) this.logger.log(`Arrumação das sequências aplicada: ${r.movidasParaNina} levadas para a Nina, ${r.tiradasPorLojasBh} tiradas por já estarem em "${n.lojasBh}", ${r.cardsTrocados} cards trocaram de vendedor.`);
+    return r;
   }
 
   // ------------------------------------------------------------ rodízio
 
-  async distribuir(agora = new Date(), opcoes: Escopo & { somenteCards?: string[] } = {}): Promise<{ atribuidas: number; inscritas: number }> {
+  // Rodízio por segmento: cada card vai para o vendedor elegível do segmento
+  // dele com menos carga. Sem vendedor para o segmento, o card espera.
+  async distribuir(agora = new Date(), opcoes: Escopo & { somenteCards?: string[] } = {}): Promise<{ atribuidas: number; inscritas: number; semVendedor: number }> {
     const vendedores = await this.elegiveis(opcoes);
-    if (!vendedores.length) return { atribuidas: 0, inscritas: 0 };
     const cards = await this.prisma.salesProspect.findMany({
-      where: {
-        salesAgentId: null,
-        stage: "a_abordar",
-        partnerId: null,
-        email: { not: null },
-        emailInvalidAt: null,
-        optedOutAt: null,
-        repliedAt: null,
-        enrollments: { none: { activeKey: { not: null } } },
-        ...(opcoes.somenteCards ? { id: { in: opcoes.somenteCards } } : {}),
-      },
-      select: { id: true, email: true },
+      where: { ...this.filtroSemVendedor(), ...(opcoes.somenteCards ? { id: { in: opcoes.somenteCards } } : {}) },
+      select: { id: true, email: true, segment: true },
       orderBy: { createdAt: "asc" },
       take: 500,
     });
-    if (!cards.length) return { atribuidas: 0, inscritas: 0 };
+    if (!cards.length) return { atribuidas: 0, inscritas: 0, semVendedor: 0 };
     const hashes = cards.map((c) => blindIndex("email", c.email!, currentDataKeys()));
     const suprimidos = new Set((await this.prisma.prospectSuppression.findMany({ where: { addressHmac: { in: hashes } }, select: { addressHmac: true } })).map((r) => r.addressHmac));
     const naoContatar = new Set((await this.prisma.hubMark.findMany({ where: { key: { in: cards.map((c) => c.id) }, naoContatar: true }, select: { key: true } })).map((m) => m.key));
-    const livres = cards.filter((c, i) => !suprimidos.has(hashes[i]!) && !naoContatar.has(c.id)).map((c) => c.id);
-    const carga = await this.prisma.salesProspect.groupBy({ by: ["salesAgentId"], where: { salesAgentId: { in: vendedores.map((v) => v.id) } }, _count: { _all: true } });
-    const mapa = distribuirRodizio(
-      livres,
-      vendedores.map((v) => ({ id: v.id, carga: carga.find((c) => c.salesAgentId === v.id)?._count._all ?? 0 })),
-    );
+    const livres = cards.filter((c, i) => !suprimidos.has(hashes[i]!) && !naoContatar.has(c.id));
+    const carga = new Map<string, number>();
+    if (vendedores.length) {
+      for (const c of await this.prisma.salesProspect.groupBy({ by: ["salesAgentId"], where: { salesAgentId: { in: vendedores.map((v) => v.id) } }, _count: { _all: true } })) carga.set(c.salesAgentId!, c._count._all);
+    }
+    const mapa = new Map<string, string>();
+    let semVendedor = 0;
+    for (const segmento of [...new Set(livres.map((c) => c.segment))]) {
+      const doSegmento = vendedores.filter((v) => atende(v, segmento));
+      const ids = livres.filter((c) => c.segment === segmento).map((c) => c.id);
+      if (!doSegmento.length) {
+        semVendedor += ids.length;
+        continue;
+      }
+      for (const [cid, vid] of distribuirRodizio(ids, doSegmento.map((v) => ({ id: v.id, carga: carga.get(v.id) ?? 0 })))) {
+        mapa.set(cid, vid);
+        carga.set(vid, (carga.get(vid) ?? 0) + 1);
+      }
+    }
     let atribuidas = 0;
     let inscritas = 0;
     for (const v of vendedores) {
@@ -271,34 +502,73 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
       const seq = await this.garantirSequenciaDoVendedor(v.id);
       inscritas += (await this.sequencias.inscrever(seq, { ids: meus }, CRIADO_POR, agora)).inscritas;
     }
-    return { atribuidas, inscritas };
+    return { atribuidas, inscritas, semVendedor };
+  }
+
+  // Cards "a abordar" com e-mail válido, ainda sem vendedor e fora de sequência.
+  private filtroSemVendedor(): Prisma.SalesProspectWhereInput {
+    return { salesAgentId: null, stage: "a_abordar", partnerId: null, email: { not: null }, emailInvalidAt: null, optedOutAt: null, repliedAt: null, enrollments: { none: { activeKey: { not: null } } } };
+  }
+
+  // Para o Hub: quantas empresas esperam porque nenhum vendedor ativo atende o segmento.
+  private async semVendedorPorSegmento(vendedores: SalesAgent[]): Promise<VendedoresPainel["semVendedor"]> {
+    const ativos = vendedores.filter((v) => v.active && !v.paused && this.caixaPronta(v.mailbox));
+    const grupos = await this.prisma.salesProspect.groupBy({ by: ["segment"], where: this.filtroSemVendedor(), _count: { _all: true } });
+    return (Object.keys(VENDEDOR_SEGMENTOS) as VendedorSegmento[])
+      .filter((seg) => !ativos.some((v) => atende(v, seg)))
+      .map((seg) => ({ segmento: seg, rotulo: `${VENDEDOR_SEGMENTOS[seg]}: sem vendedor para este segmento`, quantidade: grupos.find((g) => g.segment === seg)?._count._all ?? 0 }));
   }
 
   // ------------------------------------------------------------ caixa de entrada
 
-  private caixa(): CaixaEntrada | undefined {
-    if (this.caixaDeTeste) return this.caixaDeTeste;
-    const cfg = prospeccaoImapConfig();
+  private caixa(chave: VendedorCaixa): CaixaEntrada | undefined {
+    const teste = this.caixasDeTeste.get(chave);
+    if (teste) return teste;
+    if (this.caixasDeTeste.size) return undefined;
+    const cfg = caixaImapConfig(chave);
     return cfg ? caixaImap(cfg) : undefined;
   }
 
-  async lerCaixa(agora = new Date(), escopo: Escopo = {}): Promise<ResultadoCaixa | "sem_caixa"> {
-    const caixa = this.caixa();
+  async lerCaixa(agora = new Date(), escopo: Escopo = {}, chave: VendedorCaixa = "prospeccao"): Promise<ResultadoCaixa | "sem_caixa"> {
+    const caixa = this.caixa(chave);
     if (!caixa) return "sem_caixa";
-    const estado = ((await this.prisma.mktSetting.findUnique({ where: { chave: ESTADO_IMAP } }))?.valor ?? {}) as { uid?: number; uidValidity?: string };
+    const estado = ((await this.prisma.mktSetting.findUnique({ where: { chave: estadoImap(chave) } }))?.valor ?? {}) as { uid?: number; uidValidity?: string };
     const lote = await caixa.novas({ uid: estado.uid, uidValidity: estado.uidValidity, data: new Date(agora.getTime() - 14 * 86_400_000) }, LOTE_CAIXA);
-    const r = await this.processarFontes(lote.emails, agora, escopo);
+    const r = await this.processarFontes(lote.emails, agora, escopo, chave);
     const valor = { uid: lote.maiorUid, uidValidity: lote.uidValidity };
-    await this.prisma.mktSetting.upsert({ where: { chave: ESTADO_IMAP }, create: { chave: ESTADO_IMAP, valor }, update: { valor } });
+    await this.prisma.mktSetting.upsert({ where: { chave: estadoImap(chave) }, create: { chave: estadoImap(chave), valor }, update: { valor } });
     return r;
   }
 
-  async processarFontes(emails: EmailBruto[], agora = new Date(), escopo: Escopo = {}): Promise<ResultadoCaixa> {
+  // Uma rotina de leitura por caixa que dá para ler (IMAP configurado).
+  rotinasDeLeitura(): { caixa: VendedorCaixa; nome: string }[] {
+    return VENDEDOR_CAIXAS.filter((c) => this.caixa(c)).map((caixa) => ({ caixa, nome: `prospeccao-caixa-${caixa}` }));
+  }
+
+  private async lerUma(caixa: VendedorCaixa, agora: Date): Promise<void> {
+    if (this.lendo.has(caixa)) return;
+    this.lendo.add(caixa);
+    try {
+      await trackRoutine(`prospeccao-caixa-${caixa}`, ROTINA_MS, async () => {
+        const r = await this.lerCaixa(agora, {}, caixa);
+        if (r !== "sem_caixa" && (r.respostas || r.saidas || r.devolvidos)) this.logger.log(`Caixa ${CAIXAS_EMAIL[caixa].endereco}: ${r.respostas} resposta(s), ${r.saidas} saída(s), ${r.devolvidos} devolvido(s).`);
+      });
+    } finally {
+      this.lendo.delete(caixa);
+    }
+  }
+
+  // Lê todas as caixas uma vez (cada uma com o seu registro de rotina).
+  async lerTodasAsCaixas(agora = new Date()): Promise<void> {
+    for (const r of this.rotinasDeLeitura()) await this.lerUma(r.caixa, agora);
+  }
+
+  async processarFontes(emails: EmailBruto[], agora = new Date(), escopo: Escopo = {}, chave: VendedorCaixa = "prospeccao"): Promise<ResultadoCaixa> {
     const r: ResultadoCaixa = { respostas: 0, aquecimento: 0, automaticas: 0, devolvidos: 0, saidas: 0, ignorados: 0, repetidos: 0 };
     for (const e of emails) {
       try {
         const lido = await lerEmail(e.fonte);
-        const tipo = await this.processarEmail(lido, agora, escopo);
+        const tipo = await this.processarEmail(lido, agora, escopo, chave);
         r[tipo]++;
       } catch (error) {
         this.logger.warn(`E-mail ${e.uid} não pôde ser lido: ${error instanceof Error ? error.message.slice(0, 200) : error}`);
@@ -327,8 +597,8 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
     return contatado ? card : null;
   }
 
-  async processarEmail(lido: EmailLido, agora: Date, escopo: Escopo = {}): Promise<keyof ResultadoCaixa> {
-    const etiquetas = (process.env.PROSPECCAO_WARMUP_TAGS ?? "").split(",").map((t) => t.trim()).filter(Boolean).slice(0, 20);
+  async processarEmail(lido: EmailLido, agora: Date, escopo: Escopo = {}, chave: VendedorCaixa = "prospeccao"): Promise<keyof ResultadoCaixa> {
+    const etiquetas = etiquetasAquecimento(chave);
     const tipo = classificarEntrada({ de: lido.de, assunto: lido.assunto, texto: lido.texto, cabecalhos: lido.cabecalhos }, { etiquetasAquecimento: etiquetas });
     if (tipo === "aquecimento") return "aquecimento";
     const card = await this.cardDoEmail(lido, tipo === "devolvido");
@@ -348,7 +618,7 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
     }
 
     const texto = limparCorpo(lido.texto);
-    const vendedorId = card.salesAgentId ?? (await this.adotar(card.id, escopo));
+    const vendedorId = card.salesAgentId ?? (await this.adotar(card.id, card.segment, escopo));
     const msg = await this.prisma.prospectMessage.create({
       data: {
         prospectId: card.id,
@@ -356,6 +626,7 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
         channel: "email",
         direction: "in",
         kind: "resposta",
+        mailbox: chave,
         messageId: lido.messageId?.slice(0, 300),
         subject: lido.assunto.slice(0, 300),
         body: texto || "(mensagem sem texto)",
@@ -376,9 +647,9 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
   }
 
   // Resposta de empresa que veio de sequência sem vendedor (ex.: a do dono):
-  // fica com um vendedor elegível (o de menos carga).
-  private async adotar(cardId: string, escopo: Escopo): Promise<string | null> {
-    const vendedores = await this.elegiveis(escopo);
+  // fica com um vendedor elegível do segmento (o de menos carga).
+  private async adotar(cardId: string, segmento: string, escopo: Escopo): Promise<string | null> {
+    const vendedores = (await this.elegiveis(escopo)).filter((v) => atende(v, segmento));
     if (!vendedores.length) return null;
     const carga = await this.prisma.salesProspect.groupBy({ by: ["salesAgentId"], where: { salesAgentId: { in: vendedores.map((v) => v.id) } }, _count: { _all: true } });
     const escolhido = distribuirRodizio([cardId], vendedores.map((v) => ({ id: v.id, carga: carga.find((c) => c.salesAgentId === v.id)?._count._all ?? 0 }))).get(cardId)!;
@@ -413,7 +684,7 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
     await this.prisma.prospectMessage.update({ where: { id: msg.id }, data: { kind: "saida" } });
     if (!card.partnerId && card.stage !== "perdida") await this.prisma.salesNote.create({ data: { prospectId: card.id, kind: "stage", fromStage: card.stage, toStage: "perdida", body: "Pediu para sair (respondeu o e-mail). Entrou na lista de bloqueio: nenhum e-mail de prospecção sai mais para este endereço." } });
     if ((await this.geral()).confirmarSaida && card.email && card.salesAgent) {
-      const texto = `Pronto, tiramos o seu e-mail da nossa lista: você não vai mais receber e-mails de prospecção da NovoSeminovo. Obrigada pela atenção.\n\n${card.salesAgent.name}, ${VENDEDOR_TITULO}`;
+      const texto = `Pronto, tiramos o seu e-mail da nossa lista: você não vai mais receber e-mails de prospecção da NovoSeminovo. ${vendedorFeminino(card.salesAgent.slug) ? "Obrigada" : "Obrigado"} pela atenção.\n\n${assinaturaDe(card.salesAgent)}`;
       await this.enviarEmail(card, card.salesAgent, msg, texto, agora, { semRodape: true }).catch((error) => this.logger.warn(`Confirmação de saída não saiu: ${String(error).slice(0, 200)}`));
     }
   }
@@ -503,7 +774,7 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
         runAgentTurn(
           cliente,
           {
-            system: sistemaVendedor({ nome: v.name, slug: v.slug }, notas),
+            system: sistemaVendedor({ nome: v.name, slug: v.slug }, notas, card.segment),
             maxTokens: 1200,
             maxToolRounds: 1,
             tools: [
@@ -524,7 +795,7 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(`IA falhou ao escrever o rascunho (${v.slug}): ${error instanceof Error ? error.message.slice(0, 200) : error}`);
       return false;
     }
-    const r = finalizarRascunho(bruto, { nome: v.name, slug: v.slug, entrada: msg.body });
+    const r = finalizarRascunho(bruto, { nome: v.name, slug: v.slug, entrada: msg.body, assinatura: assinaturaDe(v) });
     await this.criarRascunho(card, msg, r, agora);
     return true;
   }
@@ -617,9 +888,13 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
       return "descartado";
     }
     if (!dentroDoHorarioRespostas(agora)) return "fora_do_horario";
-    if ((await this.geral()).pausarTodos || v.paused || !v.active || !v.mailbox) return "pausado";
-    const texto = (d.finalText ?? d.replyText).trim();
+    if ((await this.geral()).pausarTodos || v.paused || !v.active || !this.caixaPronta(v.mailbox)) return "pausado";
+    // Toda resposta sai com a assinatura do vendedor (o dono pode ter escrito à mão sem ela).
+    const assinatura = assinaturaDe(v);
+    const corpo = (d.finalText ?? d.replyText).trim();
+    const texto = corpo.includes(assinatura) ? corpo : `${corpo}\n\n${assinatura}`;
     let messageId: string | undefined;
+    let caixa: VendedorCaixa | undefined;
     try {
       if (d.channel === "whatsapp") {
         const enviar = this.whatsapp();
@@ -628,26 +903,30 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
         await enviar(card.whatsapp, texto);
       } else {
         if ((await this.emailsHoje(v.id, agora)) >= v.dailyEmailCap) return "teto_do_dia";
-        messageId = await this.enviarEmail(card, v, d.inbound, texto, agora);
+        ({ messageId, caixa } = await this.enviarEmail(card, v, d.inbound, texto, agora));
       }
     } catch (error) {
-      const cfg = prospeccaoSmtpConfig();
-      const msg = semSenha(error instanceof Error ? error.message : String(error), cfg).slice(0, 300);
+      let msg = error instanceof Error ? error.message : String(error);
+      for (const c of VENDEDOR_CAIXAS) msg = semSenha(msg, caixaSmtpConfig(c));
+      msg = msg.slice(0, 300);
       await this.prisma.prospectReplyDraft.update({ where: { id }, data: { status: "erro", error: msg } });
       if (d.channel === "whatsapp") await this.tarefa(card, `Responder ${card.name} no WhatsApp`, "whatsapp", `A resposta aprovada não saiu pelo WhatsApp (${msg}). Mande à mão.`, agora);
       return "erro";
     }
-    await this.prisma.prospectMessage.create({ data: { prospectId: card.id, salesAgentId: v.id, channel: d.channel, direction: "out", kind: "resposta", messageId, subject: d.channel === "email" ? assuntoRe(d.inbound.subject) : null, body: texto, createdAt: agora, receivedAt: agora } });
+    await this.prisma.prospectMessage.create({ data: { prospectId: card.id, salesAgentId: v.id, channel: d.channel, direction: "out", kind: "resposta", messageId, mailbox: caixa, subject: d.channel === "email" ? assuntoRe(d.inbound.subject) : null, body: texto, createdAt: agora, receivedAt: agora } });
     await this.prisma.prospectReplyDraft.update({ where: { id }, data: { status: "enviado", sentAt: agora } });
     await this.aplicarCrm(card, d, agora);
     return "enviado";
   }
 
   // Envia por e-mail na mesma conversa (In-Reply-To/References), com rodapé
-  // legal e link de saída. Devolve o Message-ID.
-  private async enviarEmail(card: SalesProspect, v: SalesAgent, inbound: ProspectMessage, texto: string, agora: Date, opcoes: { semRodape?: boolean } = {}): Promise<string> {
-    const cfg = prospeccaoSmtpConfig();
-    if (!cfg && !this.envioDeTeste) throw new Error("SMTP da prospecção não configurado.");
+  // legal e link de saída, pela caixa onde a mensagem chegou (se ela pode
+  // mandar) ou pela caixa do vendedor. Devolve o Message-ID e a caixa.
+  private async enviarEmail(card: SalesProspect, v: SalesAgent, inbound: ProspectMessage, texto: string, agora: Date, opcoes: { semRodape?: boolean } = {}): Promise<{ messageId: string; caixa: VendedorCaixa }> {
+    const chegou = inbound.mailbox ?? (inbound.channel === "email" ? "prospeccao" : null);
+    const caixa = this.caixaPronta(chegou) ? chegou : this.caixaPronta(v.mailbox) ? v.mailbox : undefined;
+    if (!caixa) throw new Error("SMTP da prospecção não configurado.");
+    const cfg = caixaSmtpConfig(caixa);
     if (!card.email) throw new Error("Empresa sem e-mail.");
     const linkSair = `${webOrigin()}/sair/${this.sequencias.tokenSair(card.id)}`;
     const email = renderizarEmail({ assunto: "", corpo: texto, esperaDias: 1 }, { empresa: card.name, cidade: card.city ?? undefined }, { linkSair, numero: 2, assuntoPrimeiro: semRe(inbound.subject) || "NovoSeminovo" });
@@ -655,7 +934,7 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
     const umClique = `${(process.env.PUBLIC_API_URL ?? "").replace(/\/+$/, "")}/prospeccao/sair/${this.sequencias.tokenSair(card.id)}`;
     const https = /^https:\/\//.test(umClique);
     const cabecalhos: Record<string, string> = {
-      "List-Unsubscribe": `${https ? `<${umClique}>, ` : ""}<mailto:${cfg?.user ?? "contato@novoseminovo.com.br"}?subject=SAIR>`,
+      "List-Unsubscribe": `${https ? `<${umClique}>, ` : ""}<mailto:${cfg?.user ?? CAIXAS_EMAIL[caixa].endereco}?subject=SAIR>`,
       ...(https ? { "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } : {}),
     };
     const referencias = [...(inbound.references ?? "").split(/\s+/).filter((x) => /^<[^<>\s]+>$/.test(x)), inbound.messageId].filter((x): x is string => Boolean(x));
@@ -668,11 +947,12 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
       messageId,
       inReplyTo: inbound.messageId ?? undefined,
       referencias: [...new Set(referencias)].slice(-20),
-      deNome: `${v.name} | NovoSeminovo`,
+      deNome: nomeRemetente(caixa) ?? `${v.name} | NovoSeminovo`,
+      caixa,
       cabecalhos,
     });
-    if (opcoes.semRodape) await this.prisma.prospectMessage.create({ data: { prospectId: card.id, salesAgentId: v.id, channel: "email", direction: "out", kind: "saida", messageId, subject: email.assunto, body: texto, createdAt: agora, receivedAt: agora } });
-    return messageId;
+    if (opcoes.semRodape) await this.prisma.prospectMessage.create({ data: { prospectId: card.id, salesAgentId: v.id, channel: "email", direction: "out", kind: "saida", messageId, mailbox: caixa, subject: email.assunto, body: texto, createdAt: agora, receivedAt: agora } });
+    return { messageId, caixa };
   }
 
   // Depois do envio: interação na ficha, etapa (só caminhos permitidos),
@@ -720,7 +1000,7 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
 
   // ------------------------------------------------------------ painéis
 
-  private vista(v: SalesAgent, seq: { id: string; name: string; status: string; approvedAt: Date | null } | null, agora: Date) {
+  private vista(v: SalesAgent, seq: { id: string; name: string; status: string; approvedAt: Date | null } | null, agora: Date, caixas: CaixaStatus[]) {
     return {
       id: v.id,
       slug: v.slug,
@@ -729,6 +1009,9 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
       ativo: v.active,
       pausado: v.paused,
       caixa: v.mailbox ?? undefined,
+      segmentos: v.segments.filter((x): x is VendedorSegmento => x in VENDEDOR_SEGMENTOS),
+      assinatura: assinaturaDe(v),
+      caixaStatus: v.mailbox && caixaConhecida(v.mailbox) ? caixas.find((c) => c.chave === v.mailbox) : undefined,
       autonomia: v.autonomy as VendedorAutonomia,
       noArDesde: v.liveSince?.toISOString(),
       podeAutomatico: podeAutomatico(v.liveSince, agora),
@@ -776,12 +1059,15 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
     const vendedores = await this.prisma.salesAgent.findMany({ orderBy: [{ active: "desc" }, { createdAt: "asc" }] });
     const seqs = await this.prisma.prospectSequence.findMany({ where: { id: { in: vendedores.map((v) => v.sequenceId).filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true, status: true, approvedAt: true } });
     const lista: VendedorPainel[] = [];
-    for (const v of vendedores) lista.push({ ...this.vista(v, seqs.find((s) => s.id === v.sequenceId) ?? null, agora), numeros: await this.numeros(v, agora) });
+    const caixas = this.statusCaixas(vendedores);
+    for (const v of vendedores) lista.push({ ...this.vista(v, seqs.find((s) => s.id === v.sequenceId) ?? null, agora, caixas), numeros: await this.numeros(v, agora) });
     return {
       geral: await this.geral(),
       iaLigada: Boolean(this.modelo()),
-      caixaConfigurada: Boolean(prospeccaoSmtpConfig() || this.envioDeTeste),
-      leituraConfigurada: Boolean(prospeccaoImapConfig() || this.caixaDeTeste),
+      caixaConfigurada: caixas.some((c) => c.configurada),
+      leituraConfigurada: caixas.some((c) => c.leitura),
+      caixas,
+      semVendedor: await this.semVendedorPorSegmento(vendedores),
       vendedores: lista,
     };
   }
@@ -790,7 +1076,8 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
     const v = await this.vendedor(id);
     const seq = v.sequenceId ? await this.prisma.prospectSequence.findUnique({ where: { id: v.sequenceId }, select: { id: true, name: true, status: true, approvedAt: true } }) : null;
     const recentes = await this.rascunhos({ salesAgentId: v.id, status: { in: ["enviado", "rejeitado", "erro", "descartado", "aprovado"] } }, 30);
-    return { vendedor: { ...this.vista(v, seq, agora), numeros: await this.numeros(v, agora) }, recentes };
+    const caixas = this.statusCaixas(await this.prisma.salesAgent.findMany({ where: { active: true } }));
+    return { vendedor: { ...this.vista(v, seq, agora, caixas), numeros: await this.numeros(v, agora) }, recentes };
   }
 
   async fila(vendedorId?: string, escopo: Escopo = {}): Promise<RascunhoVista[]> {
@@ -824,16 +1111,18 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
 
   // ------------------------------------------------------------ rotina
 
+  // Distribuir, escrever rascunhos e mandar os aprovados (a leitura das
+  // caixas tem rotinas próprias, uma por caixa).
   async rodada(agora = new Date()): Promise<void> {
     await this.garantirVendedores(agora);
     await this.distribuir(agora);
-    const r = await this.lerCaixa(agora);
-    if (r !== "sem_caixa" && (r.respostas || r.saidas || r.devolvidos)) this.logger.log(`Caixa: ${r.respostas} resposta(s), ${r.saidas} saída(s), ${r.devolvidos} devolvido(s).`);
     await this.redigirPendentes(agora);
     await this.enviarAprovados(agora);
   }
 
-  // A cada 5 minutos. Desligada em teste ou com PROSPECCAO_DISABLED=1.
+  // A cada 5 minutos: a rodada e a leitura de cada caixa configurada (cada
+  // uma com o seu nome no painel de rotinas). Desligadas em teste ou com
+  // PROSPECCAO_DISABLED=1.
   onModuleInit(): void {
     registrarRotaProspeccao((de, texto, id) => this.receberWhatsapp(de, texto, id));
     if (this.desligada()) return;
@@ -845,10 +1134,17 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
       });
     }, ROTINA_MS);
     this.timer.unref();
+    for (const r of this.rotinasDeLeitura()) {
+      const t = setInterval(() => void this.lerUma(r.caixa, new Date()), ROTINA_MS);
+      t.unref();
+      this.leituras.push(t);
+    }
   }
 
   onModuleDestroy(): void {
     if (this.timer) clearInterval(this.timer);
+    for (const t of this.leituras) clearInterval(t);
+    this.leituras = [];
     registrarRotaProspeccao(undefined);
   }
 }

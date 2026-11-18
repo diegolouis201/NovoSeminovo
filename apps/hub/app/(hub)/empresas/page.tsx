@@ -56,7 +56,8 @@ export default async function Empresas({ searchParams }: { searchParams: { q?: s
         <select name="segmento" defaultValue={searchParams.segmento ?? ""} className="input">
           <option value="">Carros e imóveis</option>
           <option value="vehicle">Veículos</option>
-          <option value="property">Imóveis</option>
+          <option value="property">Imobiliárias</option>
+          <option value="broker">Corretores de imóveis</option>
         </select>
         <select name="vendedor" defaultValue={searchParams.vendedor ?? ""} className="input">
           <option value="">Todos os vendedores</option>

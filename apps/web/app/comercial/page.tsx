@@ -13,7 +13,7 @@ const TABS: { key: string; label: string; segment?: SalesSegment }[] = [
   { key: "imoveis", label: "Imóveis", segment: "property" },
   { key: "todos", label: "Consolidado" },
 ];
-const SEGMENT_LABEL: Record<SalesSegment, string> = { vehicle: "Veículos", property: "Imóveis" };
+const SEGMENT_LABEL: Record<SalesSegment, string> = { vehicle: "Veículos", property: "Imobiliária", broker: "Corretor de imóveis", other: "Outro" };
 const STATUS_LABEL: Record<string, string> = { active: "Em dia", past_due: "Pagamento atrasado", canceled: "Cancelada" };
 
 function dateLabel(iso: string) {

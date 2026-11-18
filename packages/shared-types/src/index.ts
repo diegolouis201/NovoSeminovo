@@ -2808,7 +2808,7 @@ export const SALES_STAGES: { id: SalesStageId; label: string; manual: boolean }[
   { id: "cancelou", label: "Cancelou", manual: false },
 ];
 export const SALES_STAGE_LABEL = Object.fromEntries(SALES_STAGES.map((s) => [s.id, s.label])) as Record<SalesStageId, string>;
-export type SalesSegment = "vehicle" | "property";
+export type SalesSegment = "vehicle" | "property" | "broker" | "other";
 
 // Motivo de perda / cancelamento por categoria (relatório de por que não fechou).
 export const LOSS_CATEGORIES = {

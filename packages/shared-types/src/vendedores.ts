@@ -7,21 +7,57 @@ import { z } from "zod";
 
 export const VENDEDOR_TITULO = "assistente comercial da NovoSeminovo";
 
-// Os 5 vendedores do começo (decisão do Diego, 18/11/2026). Só a Nina tem
-// caixa (o contato@ da prospecção, PROSPECCAO_SMTP_*); os outros entram
-// quando ganharem um remetente próprio.
-export const VENDEDORES_INICIAIS = [
-  { slug: "nina", nome: "Nina", ativo: true, caixa: "prospeccao" },
-  { slug: "lara", nome: "Lara", ativo: false, caixa: null },
-  { slug: "dani", nome: "Dani", ativo: false, caixa: null },
-  { slug: "caio", nome: "Caio", ativo: false, caixa: null },
-  { slug: "joao", nome: "João", ativo: false, caixa: null },
+// Caixas de e-mail conhecidas (lista fixa: o remetente de cada vendedor).
+// Cada uma tem a sua configuração no .env (PROSPECCAO_<CHAVE>_SMTP_*; a
+// "prospeccao" usa os nomes antigos PROSPECCAO_SMTP_*) e a senha no arquivo
+// secrets/prospeccao_<chave>_smtp_password. Uma caixa nunca é de dois
+// vendedores ativos ao mesmo tempo.
+export const CAIXAS_EMAIL = {
+  prospeccao: { endereco: "contato@novoseminovo.com.br" },
+  atendimento: { endereco: "atendimento@novoseminovo.com.br" },
+} as const;
+export type VendedorCaixa = keyof typeof CAIXAS_EMAIL;
+export const VENDEDOR_CAIXAS = Object.keys(CAIXAS_EMAIL) as [VendedorCaixa, ...VendedorCaixa[]];
+
+// Segmento que cada vendedor atende (o mesmo `segment` do card no CRM).
+// Vendedor sem segmento marcado atende todos. Imobiliária e corretor de
+// imóveis são segmentos diferentes (decisão do marketing, 18/11/2026).
+export const VENDEDOR_SEGMENTOS = { vehicle: "Lojas de veículos", property: "Imobiliárias", broker: "Corretores de imóveis", other: "Outros" } as const;
+export type VendedorSegmento = keyof typeof VENDEDOR_SEGMENTOS;
+export const VendedorSegmentoSchema = z.enum(Object.keys(VENDEDOR_SEGMENTOS) as [VendedorSegmento, ...VendedorSegmento[]]);
+// Imóveis (imobiliária ou corretor) usam o roteiro de imóveis; o resto, o de lojas.
+export const segmentoImoveis = (s?: string | null) => s === "property" || s === "broker";
+
+// Os 5 vendedores do começo. Decisão do marketing (18/11/2026, troca a
+// divisão anterior): Caio = lojas de veículos no atendimento@ (fica INATIVO
+// até o dono ativar no Hub); Nina = imobiliárias e corretores no contato@;
+// os outros entram quando ganharem um remetente próprio.
+export const VENDEDORES_INICIAIS: readonly { slug: string; nome: string; feminino: boolean; ativo: boolean; caixa: VendedorCaixa | null; segmentos: readonly VendedorSegmento[] }[] = [
+  { slug: "nina", nome: "Nina", feminino: true, ativo: true, caixa: "prospeccao", segmentos: ["property", "broker"] },
+  { slug: "lara", nome: "Lara", feminino: true, ativo: false, caixa: null, segmentos: [] },
+  { slug: "dani", nome: "Dani", feminino: true, ativo: false, caixa: null, segmentos: [] },
+  { slug: "caio", nome: "Caio", feminino: false, ativo: false, caixa: "atendimento", segmentos: ["vehicle"] },
+  { slug: "joao", nome: "João", feminino: false, ativo: false, caixa: null, segmentos: [] },
+];
+
+// Sequências criadas pelo marketing no Hub e o vendedor (remetente) de cada
+// uma (decisão de 18/11/2026). O texto delas é do dono: o código nunca
+// reescreve; só cria o rascunho se a sequência não existir.
+export const SEQUENCIAS_DOS_VENDEDORES = [
+  { nome: "Lojas BH", vendedor: "caio", padrao: false },
+  { nome: "Caio: lojas de veículos", vendedor: "caio", padrao: true },
+  { nome: "Nina: imobiliárias e corretores", vendedor: "nina", padrao: true },
 ] as const;
 
-// Caixas de e-mail conhecidas (o remetente de cada vendedor). "prospeccao" =
-// contato@ configurado em PROSPECCAO_SMTP_* / PROSPECCAO_IMAP_*.
-export const VENDEDOR_CAIXAS = ["prospeccao"] as const;
-export type VendedorCaixa = (typeof VENDEDOR_CAIXAS)[number];
+// Assinatura padrão (o dono pode trocar por vendedor no Hub).
+export const assinaturaPadrao = (nome: string) => `${nome}, ${VENDEDOR_TITULO}`;
+// Assinatura editada: uma linha, com o nome do vendedor e "assistente" (nunca
+// se passa por pessoa), sem link nem HTML.
+export const assinaturaValida = (nome: string, assinatura: string) =>
+  assinatura.toLowerCase().includes(nome.toLowerCase()) && /assistente/i.test(assinatura) && !/[<>\r\n]|https?:|www\.|@/i.test(assinatura);
+
+// Vendedor masculino? (só para concordância: "o Caio", "obrigado").
+export const vendedorFeminino = (slug: string): boolean => VENDEDORES_INICIAIS.find((v) => v.slug === slug)?.feminino ?? true;
 
 // supervisionado = toda resposta passa pelo dono; automatico = respostas de
 // rotina saem sozinhas (só depois de 14 dias no ar), o resto continua com o dono.
@@ -108,6 +144,17 @@ export const VendedorAjustesSchema = z
     pausado: z.boolean().optional(),
     limiteEmailsDia: z.number().int().min(1).max(50).optional(),
     limiteRascunhosDia: z.number().int().min(1).max(200).optional(),
+    // Ativar exige caixa configurada, caixa livre e primeira abordagem aprovada.
+    ativo: z.boolean().optional(),
+    // Lista vazia = atende todos os segmentos.
+    segmentos: z
+      .array(VendedorSegmentoSchema)
+      .max(3)
+      .refine((l) => new Set(l).size === l.length, "Segmento repetido.")
+      .optional(),
+    caixa: z.enum(VENDEDOR_CAIXAS).nullable().optional(),
+    // Assinatura dos e-mails do vendedor (vazia = padrão). Conferida com o nome no serviço.
+    assinatura: z.string().trim().max(120, "Assinatura: no máximo 120 caracteres.").optional(),
   })
   .strict();
 export type VendedorAjustes = z.infer<typeof VendedorAjustesSchema>;
@@ -131,7 +178,7 @@ export const IngestSchema = z
       .min(1)
       .max(60)
       .regex(/^[\p{L}\p{N}][\p{L}\p{N} .,_\-/()&+]*$/u, "Etiqueta inválida."),
-    segmento: z.enum(["vehicle", "property", "other"]).default("vehicle"),
+    segmento: z.enum(["vehicle", "property", "broker", "other"]).default("vehicle"),
     csv: z.string().max(5 * 1024 * 1024).optional(),
     linhas: z.array(IngestLinhaSchema).max(5000).optional(),
   })
@@ -149,6 +196,10 @@ export type VendedorResumo = {
   ativo: boolean;
   pausado: boolean;
   caixa?: string;
+  segmentos: VendedorSegmento[];
+  assinatura: string;
+  // Situação da caixa do vendedor (endereço, configurada ou o motivo).
+  caixaStatus?: CaixaStatus;
   autonomia: VendedorAutonomia;
   noArDesde?: string;
   podeAutomatico: boolean;
@@ -156,6 +207,19 @@ export type VendedorResumo = {
   limiteEmailsDia: number;
   limiteRascunhosDia: number;
   sequencia?: { id: string; nome: string; status: string; aprovada: boolean };
+};
+
+export type CaixaStatus = {
+  chave: VendedorCaixa;
+  endereco: string;
+  // Envio (SMTP) completo: host, usuário e senha no arquivo.
+  configurada: boolean;
+  // Por que não está configurada (sem nunca mostrar a senha).
+  motivo?: string;
+  // Leitura das respostas (IMAP) possível.
+  leitura: boolean;
+  // Vendedor ativo que usa esta caixa.
+  vendedorAtivo?: string;
 };
 
 export type VendedorNumeros = {
@@ -202,5 +266,30 @@ export type VendedoresPainel = {
   iaLigada: boolean;
   caixaConfigurada: boolean;
   leituraConfigurada: boolean;
+  caixas: CaixaStatus[];
+  // Empresas "a abordar" com e-mail que ficaram sem vendedor porque nenhum
+  // vendedor ativo atende o segmento delas.
+  semVendedor: { segmento: VendedorSegmento; rotulo: string; quantidade: number }[];
   vendedores: VendedorPainel[];
+};
+
+// ------------------------------------------------------------ arrumação das sequências
+// Ação do dono (Hub): prévia primeiro, nada é enviado. Idempotente.
+export type ArrumacaoSequencias = {
+  aplicada: boolean;
+  // Vendedor (remetente) de cada sequência do marketing.
+  remetentes: { sequencia: string; existe: boolean; vendedorAntes?: string; vendedorDepois: string }[];
+  // Segmento e caixa de cada vendedor do começo.
+  vendedores: { nome: string; caixaAntes?: string; caixaDepois?: string; segmentosAntes: string[]; segmentosDepois: string[] }[];
+  // Imobiliárias/corretores levados de "Caio: lojas de veículos" para "Nina: imobiliárias e corretores".
+  movidasParaNina: number;
+  // Empresas que estavam em "Caio: lojas" e também em "Lojas BH" (ficam só em "Lojas BH").
+  tiradasPorLojasBh: number;
+  // Cards que trocam de vendedor (veículos → Caio; imóveis → Nina).
+  cardsTrocados: number;
+  // Antes/depois: inscrições ativas por sequência.
+  inscritasAntes: Record<string, number>;
+  inscritasDepois: Record<string, number>;
+  // Conflitos que precisam de você (ex.: já recebeu e-mail e não dá para mover; mesmo e-mail em duas caixas).
+  conflitos: { empresa: string; motivo: string }[];
 };

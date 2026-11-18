@@ -8,10 +8,12 @@ export const PROSPECCAO_ETIQUETA_PADRAO = "Prospecção BH - lojas de carros";
 export const PROSPECCAO_SEGMENTOS = {
   vehicle: { label: "Loja de veículos", businessType: "loja" },
   property: { label: "Imobiliária", businessType: "imobiliaria" },
+  broker: { label: "Corretor de imóveis", businessType: "corretor" },
   other: { label: "Outro", businessType: "outro" },
 } as const;
 export type ProspeccaoSegmento = keyof typeof PROSPECCAO_SEGMENTOS;
-export const segmentoLabel = (s?: string) => (s === "property" ? "Imóveis" : s === "other" ? "Outro" : "Veículos");
+export const segmentoLabel = (s?: string) => (s === "property" ? "Imobiliária" : s === "broker" ? "Corretor de imóveis" : s === "other" ? "Outro" : "Veículos");
+export const ProspeccaoSegmentoSchema = z.enum(["vehicle", "property", "broker", "other"], { errorMap: () => ({ message: "Escolha o tipo de empresa." }) });
 
 // Etiqueta da campanha: texto curto, sem cara de fórmula nem HTML.
 export const ProspeccaoEtiquetaSchema = z
@@ -25,7 +27,7 @@ export const ProspeccaoConfirmarSchema = z
   .object({
     hash: z.string().regex(/^[0-9a-f]{64}$/, "Arquivo inválido: analise de novo."),
     etiqueta: ProspeccaoEtiquetaSchema,
-    segmento: z.enum(["vehicle", "property", "other"], { errorMap: () => ({ message: "Escolha o tipo de empresa." }) }),
+    segmento: z.enum(["vehicle", "property", "broker", "other"], { errorMap: () => ({ message: "Escolha o tipo de empresa." }) }),
     nomeArquivo: z.string().trim().max(200).optional(),
   })
   .strict();
@@ -113,14 +115,27 @@ export const ProspeccaoAjustesSchema = z
   .strict();
 export type ProspeccaoAjustes = z.infer<typeof ProspeccaoAjustesSchema>;
 
-// Inscrever empresas: por etiqueta e/ou ids escolhidos na lista.
+// Inscrever empresas: por etiqueta, por tipo (loja/imobiliária/corretor)
+// e/ou ids escolhidos na lista. Etiqueta + tipo = as duas condições.
 export const ProspeccaoInscreverSchema = z
   .object({
     etiqueta: ProspeccaoEtiquetaSchema.optional(),
+    segmento: z.enum(["vehicle", "property", "broker", "other"]).optional(),
     ids: z.array(z.string().regex(/^[A-Za-z0-9_-]{1,40}$/)).max(5000).optional(),
   })
   .strict()
-  .refine((v) => v.etiqueta || v.ids?.length, "Escolha a etiqueta ou as empresas.");
+  .refine((v) => v.etiqueta || v.segmento || v.ids?.length, "Escolha a etiqueta, o tipo ou as empresas.");
+
+// Tirar empresas de uma sequência (uma ou várias). Nada é enviado.
+export const ProspeccaoRemoverSchema = z
+  .object({ ids: z.array(z.string().regex(/^[A-Za-z0-9_-]{1,40}$/)).min(1, "Escolha as empresas.").max(5000) })
+  .strict();
+
+// Remetente (vendedor IA) da sequência: só o dono troca.
+export const ProspeccaoRemetenteSchema = z.object({ vendedorId: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/).nullable() }).strict();
+
+// Tipo do card (o Comercial corrige quando a importação errou).
+export const ProspeccaoCardSegmentoSchema = z.object({ segmento: z.enum(["vehicle", "property", "broker", "other"]) }).strict();
 
 export const PROSPECCAO_STATUS = {
   agendado: "Agendado",
@@ -139,6 +154,8 @@ export const PROSPECCAO_MOTIVO_PARADA = {
   sem_email: "Sem e-mail",
   email_invalido: "E-mail voltou (endereço inválido)",
   removida: "Retirada da sequência",
+  outra_caixa: "O mesmo e-mail já foi contatado por outra caixa",
+  movida: "Levada para outra sequência",
 } as const;
 
 export type ProspeccaoSequencia = {
@@ -150,11 +167,14 @@ export type ProspeccaoSequencia = {
   aprovadaEm?: string;
   atualizadaEm: string;
   inscritas: Record<string, number>;
+  // Vendedor IA que manda os e-mails desta sequência (nome e caixa).
+  remetente?: { vendedorId: string; nome: string; caixa?: string; endereco?: string };
 };
 export type ProspeccaoInscricao = {
   id: string;
   empresa: string;
   cardId: string;
+  segmento?: string;
   status: keyof typeof PROSPECCAO_STATUS;
   passosEnviados: number;
   proximoEnvio?: string;

@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { HUB_TASK_KINDS, INTERACTION_KINDS, LOSS_CATEGORIES, NEXT_CONTACT_KINDS, SALES_SOURCE_LABELS, originChannelLabel, segmentoLabel } from "@novoseminovo/shared-types";
+import { HUB_TASK_KINDS, INTERACTION_KINDS, LOSS_CATEGORIES, NEXT_CONTACT_KINDS, PROSPECCAO_SEGMENTOS, SALES_SOURCE_LABELS, originChannelLabel, segmentoLabel } from "@novoseminovo/shared-types";
 import { Contato } from "@/components/Contato";
 import { Form } from "@/components/Form";
 import { ListaTarefas } from "@/components/Tarefas";
 import { Etapa } from "@/components/ui";
 import { HubApiError, hubFetch } from "@/lib/api";
-import { marcar, marcarContato, marcarRespondeu, moverEtapa, novaTarefa, registrarAtividade } from "@/lib/actions";
+import { marcar, marcarContato, marcarRespondeu, moverEtapa, mudarSegmentoCard, novaTarefa, registrarAtividade } from "@/lib/actions";
 import { acharFicha, feed, hoje, marcacoes, me, tarefas } from "@/lib/crm";
 import { brl, data, dataHora } from "@/lib/format";
 import type { OrigemMarketing } from "@/lib/types";
@@ -343,6 +343,18 @@ export default async function Ficha({ params, searchParams }: { params: { id: st
                 </>
               )}
             </dl>
+            {!e && p && pode && ficha.cardId ? (
+              <Form action={mudarSegmentoCard} botao="Salvar tipo" manter className="mt-3 space-y-2">
+                <input type="hidden" name="card" value={ficha.cardId} />
+                <label className="label" htmlFor="segmento-card">Tipo da empresa</label>
+                <select id="segmento-card" name="segmento" defaultValue={p.segmento ?? "vehicle"} className="input" aria-describedby="segmento-card-ajuda">
+                  {Object.entries(PROSPECCAO_SEGMENTOS).map(([k, v]) => (
+                    <option key={k} value={k}>{v.label}</option>
+                  ))}
+                </select>
+                <p id="segmento-card-ajuda" className="text-xs text-muted">Decide o vendedor IA (lojas: Caio; imobiliárias e corretores: Nina) e o roteiro das respostas.</p>
+              </Form>
+            ) : null}
             {ficha.cardId ? <a className="link mt-3 inline-block text-sm" target="_blank" rel="noopener noreferrer" href={`https://novoseminovo.com.br/comercial/${ficha.cardId}`}>Editar cadastro no Comercial</a> : null}
           </section>
         </aside>

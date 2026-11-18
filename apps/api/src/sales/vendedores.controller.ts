@@ -31,6 +31,20 @@ export class VendedoresController {
     return this.vendedores.fila(vendedor ? parseOrBadRequest(VendedorIdSchema, vendedor) : undefined);
   }
 
+  // Arrumação das sequências (Caio = lojas; Nina = imobiliárias e corretores):
+  // prévia (GET) e aplicar (POST). Só o dono. Nada é enviado.
+  @HubPermissionRequired("equipe")
+  @Get("arrumacao")
+  previaArrumacao(@CurrentUser() me: Me) {
+    return this.vendedores.arrumarSequencias(false, me.id);
+  }
+
+  @HubPermissionRequired("equipe")
+  @Post("arrumacao")
+  aplicarArrumacao(@CurrentUser() me: Me) {
+    return this.vendedores.arrumarSequencias(true, me.id);
+  }
+
   @HubPermissionRequired("crm.ver")
   @Get(":id")
   detalhe(@Param("id") id: string) {

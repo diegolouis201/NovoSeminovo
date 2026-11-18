@@ -2,12 +2,18 @@ import { randomBytes } from "node:crypto";
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import type { Prisma } from "@novoseminovo/db";
 import {
+  CAIXAS_EMAIL,
   PROSPECCAO_MOTIVO_PARADA,
+  VENDEDOR_CAIXAS,
+  type VendedorCaixa,
   ProspeccaoAjustesSchema,
   ProspeccaoInscreverSchema,
   ProspeccaoPassoSchema,
+  ProspeccaoRemetenteSchema,
+  ProspeccaoRemoverSchema,
   ProspeccaoSequenciaSchema,
   SEQUENCIA_LOJAS_BH,
+  segmentoLabel,
   type ProspeccaoAjustes,
   type ProspeccaoInscricao,
   type ProspeccaoPainel,
@@ -22,13 +28,15 @@ import { signLink, verifyLink, webOrigin } from "../marketing/links";
 import { trackRoutine } from "../operations/routine-health";
 import { PrismaService } from "../prisma/prisma.service";
 import { agendarPasso, inicioDoDiaBr, intervaloEntreEnvios, motivoParaParar, podeEnviar, renderizarEmail, type MotivoParada } from "./sequencia-regras";
-import { criarEnvio, prospeccaoSmtpConfig, semSenha, type EnviarProspeccao } from "./smtp";
+import { caixaSmtpConfig, criarEnvio, nomeRemetente, prospeccaoSmtpConfig, semSenha, type EnviarProspeccao, type SmtpConfig } from "./smtp";
 
 // Sequências de e-mail de prospecção pelo CRM do Hub. Segurança:
 // - só envia sequência aprovada pelo dono ("Aprovar e ativar"; editar tira
 //   a aprovação) e com o envio geral não pausado;
-// - seg–sex 9h–17h (Brasília), teto por dia (padrão 25, máx. 50), um e-mail
-//   por vez com 2 a 6 minutos de intervalo sorteado;
+// - seg–sex 9h–17h (Brasília), teto por dia POR CAIXA (padrão 25, máx. 50),
+//   um e-mail por vez por caixa com 2 a 6 minutos de intervalo sorteado; cada
+//   inscrição sai pela caixa do vendedor do card (sem vendedor: contato@);
+// - lista de bloqueio única para todas as caixas;
 // - antes de cada envio confere: respondeu, saiu (lista de bloqueio pelo
 //   HMAC do e-mail), "não contatar" do Hub, mudou de etapa, virou parceira;
 // - todo e-mail leva rodapé legal + link de saída; todo envio vira
@@ -42,7 +50,11 @@ const IdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/, "Identificador invál
 const ATIVOS = ["agendado", "enviando"];
 
 export type ResultadoTick = "desligado" | "sem_smtp" | "pausado" | "fora_do_horario" | "teto_do_dia" | "intervalo" | "nada_para_enviar" | "enviado" | "erro";
-export type ResultadoInscricao = { inscritas: number; puladas: { jaInscritas: number; emOutraSequencia: number; semEmail: number; sairam: number; parceiras: number; outraEtapa: number } };
+export type ResultadoInscricao = { inscritas: number; puladas: { jaInscritas: number; emOutraSequencia: number; semEmail: number; sairam: number; parceiras: number; outraEtapa: number; outraCaixa: number } };
+type SeqComVendedor = { salesAgent: { id: string; name: string; mailbox: string | null } | null };
+
+// Resultado do tick com várias caixas: o mais importante entre elas.
+const PRIORIDADE: ResultadoTick[] = ["enviado", "erro", "teto_do_dia", "intervalo", "pausado", "fora_do_horario", "nada_para_enviar"];
 
 const passosDe = (json: Prisma.JsonValue): ProspeccaoPasso[] => z.array(ProspeccaoPassoSchema).catch([]).parse(json);
 
@@ -68,15 +80,20 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
     return valor;
   }
 
-  private async liberadoApos(): Promise<Date | undefined> {
-    const r = await this.prisma.mktSetting.findUnique({ where: { chave: ESTADO } });
+  private chaveEstado(caixa: VendedorCaixa): string {
+    return caixa === "prospeccao" ? ESTADO : `${ESTADO}:${caixa}`;
+  }
+
+  private async liberadoApos(caixa: VendedorCaixa): Promise<Date | undefined> {
+    const r = await this.prisma.mktSetting.findUnique({ where: { chave: this.chaveEstado(caixa) } });
     const v = (r?.valor as { liberadoApos?: string } | null)?.liberadoApos;
     return v ? new Date(v) : undefined;
   }
 
-  private async liberarEm(d: Date) {
+  private async liberarEm(caixa: VendedorCaixa, d: Date) {
     const valor = { liberadoApos: d.toISOString() };
-    await this.prisma.mktSetting.upsert({ where: { chave: ESTADO }, create: { chave: ESTADO, valor }, update: { valor } });
+    const chave = this.chaveEstado(caixa);
+    await this.prisma.mktSetting.upsert({ where: { chave }, create: { chave, valor }, update: { valor } });
   }
 
   // ------------------------------------------------------------ sequências
@@ -100,7 +117,7 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
   }
 
   private async existe(id: string) {
-    const s = await this.prisma.prospectSequence.findUnique({ where: { id: parseOrBadRequest(IdSchema, id) } });
+    const s = await this.prisma.prospectSequence.findUnique({ where: { id: parseOrBadRequest(IdSchema, id) }, include: { salesAgent: { select: { id: true, name: true, mailbox: true } } } });
     if (!s) throw new NotFoundException("Sequência não encontrada.");
     return s;
   }
@@ -121,7 +138,7 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
     const [ajustes, cfg, rows, contagens, enviadosHoje] = await Promise.all([
       this.ajustes(),
       Promise.resolve(prospeccaoSmtpConfig()),
-      this.prisma.prospectSequence.findMany({ orderBy: { createdAt: "asc" } }),
+      this.prisma.prospectSequence.findMany({ orderBy: { createdAt: "asc" }, include: { salesAgent: { select: { id: true, name: true, mailbox: true } } } }),
       this.prisma.prospectEnrollment.groupBy({ by: ["sequenceId", "status"], _count: { _all: true } }),
       this.prisma.prospectEmailLog.count({ where: { status: "enviado", createdAt: { gte: inicioDoDiaBr(new Date()) } } }),
     ]);
@@ -142,7 +159,7 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
     return new Map(users.map((u) => [u.id, u.name]));
   }
 
-  private vista(r: { id: string; name: string; status: string; steps: Prisma.JsonValue; approvedById: string | null; approvedAt: Date | null; updatedAt: Date }, aprovadores: Map<string, string>, contagens: { sequenceId: string; status: string; _count: { _all: number } }[]): ProspeccaoSequencia {
+  private vista(r: { id: string; name: string; status: string; steps: Prisma.JsonValue; approvedById: string | null; approvedAt: Date | null; updatedAt: Date } & SeqComVendedor, aprovadores: Map<string, string>, contagens: { sequenceId: string; status: string; _count: { _all: number } }[]): ProspeccaoSequencia {
     return {
       id: r.id,
       nome: r.name,
@@ -152,7 +169,18 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
       aprovadaEm: r.approvedAt?.toISOString(),
       atualizadaEm: r.updatedAt.toISOString(),
       inscritas: Object.fromEntries(contagens.filter((c) => c.sequenceId === r.id).map((c) => [c.status, c._count._all])),
+      remetente: r.salesAgent
+        ? { vendedorId: r.salesAgent.id, nome: r.salesAgent.name, caixa: r.salesAgent.mailbox ?? undefined, endereco: r.salesAgent.mailbox && r.salesAgent.mailbox in CAIXAS_EMAIL ? CAIXAS_EMAIL[r.salesAgent.mailbox as VendedorCaixa].endereco : undefined }
+        : undefined,
     };
+  }
+
+  // Remetente (vendedor IA) da sequência. Só o dono (controller). Não envia nada.
+  async definirRemetente(id: string, raw: z.input<typeof ProspeccaoRemetenteSchema>): Promise<void> {
+    await this.existe(id);
+    const { vendedorId } = parseOrBadRequest(ProspeccaoRemetenteSchema, raw);
+    if (vendedorId && !(await this.prisma.salesAgent.findUnique({ where: { id: vendedorId }, select: { id: true } }))) throw new NotFoundException("Vendedor não encontrado.");
+    await this.prisma.prospectSequence.update({ where: { id }, data: { salesAgentId: vendedorId } });
   }
 
   async detalhe(id: string): Promise<{ sequencia: ProspeccaoSequencia; inscricoes: ProspeccaoInscricao[]; previa: { assunto: string; texto: string; html: string }[]; exemplo: string }> {
@@ -160,7 +188,7 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
     const [aprovadores, contagens, inscricoes] = await Promise.all([
       this.nomes([s.approvedById]),
       this.prisma.prospectEnrollment.groupBy({ by: ["sequenceId", "status"], where: { sequenceId: id }, _count: { _all: true } }),
-      this.prisma.prospectEnrollment.findMany({ where: { sequenceId: id }, include: { prospect: { select: { id: true, name: true, city: true } } }, orderBy: [{ updatedAt: "desc" }], take: 500 }),
+      this.prisma.prospectEnrollment.findMany({ where: { sequenceId: id }, include: { prospect: { select: { id: true, name: true, city: true, segment: true } } }, orderBy: [{ updatedAt: "desc" }], take: 2000 }),
     ]);
     // Prévia com uma empresa de verdade inscrita (ou uma de exemplo).
     const amostra = inscricoes[0]?.prospect ?? { id: "exemplo", name: "Loja Exemplo Veículos", city: "Belo Horizonte" };
@@ -174,6 +202,7 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
         id: e.id,
         empresa: e.prospect.name,
         cardId: e.prospect.id,
+        segmento: e.prospect.segment,
         status: e.status as ProspeccaoInscricao["status"],
         passosEnviados: e.stepsSent,
         proximoEnvio: ATIVOS.includes(e.status) ? e.nextSendAt?.toISOString() : undefined,
@@ -203,15 +232,39 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
     return new Set(marcas.map((m) => m.key));
   }
 
+  // Caixa de uma inscrição: a do vendedor da sequência; sem ele, a do
+  // vendedor do card; sem nenhum, o contato@.
+  private caixaDe(seq: SeqComVendedor, card: { salesAgent: { mailbox: string | null } | null }): VendedorCaixa {
+    const c = seq.salesAgent?.mailbox ?? card.salesAgent?.mailbox ?? "prospeccao";
+    return (c in CAIXAS_EMAIL ? c : "prospeccao") as VendedorCaixa;
+  }
+
+  // Caixas que já falaram (ou vão falar) com este endereço, em qualquer card:
+  // e-mails enviados, respostas mandadas e inscrições ativas.
+  async caixasDoEndereco(email: string, ignorarCard?: string): Promise<Set<VendedorCaixa>> {
+    const cards = await this.prisma.salesProspect.findMany({ where: { email }, select: { id: true, salesAgent: { select: { mailbox: true } } } });
+    const ids = cards.map((c) => c.id).filter((c) => c !== ignorarCard);
+    const r = new Set<VendedorCaixa>();
+    if (!ids.length) return r;
+    const [logs, msgs, ativas] = await Promise.all([
+      this.prisma.prospectEmailLog.findMany({ where: { status: "enviado", enrollment: { prospectId: { in: ids } } }, select: { mailbox: true }, distinct: ["mailbox"] }),
+      this.prisma.prospectMessage.findMany({ where: { prospectId: { in: ids }, direction: "out", channel: "email" }, select: { mailbox: true }, distinct: ["mailbox"] }),
+      this.prisma.prospectEnrollment.findMany({ where: { prospectId: { in: ids }, activeKey: { not: null } }, select: { sequence: { select: { salesAgent: { select: { id: true, name: true, mailbox: true } } } }, prospect: { select: { salesAgent: { select: { mailbox: true } } } } } }),
+    ]);
+    for (const l of [...logs, ...msgs]) r.add(((l.mailbox ?? "prospeccao") in CAIXAS_EMAIL ? (l.mailbox ?? "prospeccao") : "prospeccao") as VendedorCaixa);
+    for (const a of ativas) r.add(this.caixaDe(a.sequence, a.prospect));
+    return r;
+  }
+
   async inscrever(id: string, raw: z.input<typeof ProspeccaoInscreverSchema>, userId: string, agora = new Date()): Promise<ResultadoInscricao> {
-    await this.existe(id);
+    const seq = await this.existe(id);
     const filtro = parseOrBadRequest(ProspeccaoInscreverSchema, raw);
     const cards = await this.prisma.salesProspect.findMany({
-      where: { AND: [filtro.etiqueta ? { campaignTag: filtro.etiqueta } : {}, filtro.ids?.length ? { id: { in: filtro.ids } } : {}] },
-      select: { id: true, email: true, stage: true, partnerId: true, optedOutAt: true, repliedAt: true, emailInvalidAt: true },
+      where: { AND: [filtro.etiqueta ? { campaignTag: filtro.etiqueta } : {}, filtro.segmento ? { segment: filtro.segmento } : {}, filtro.ids?.length ? { id: { in: filtro.ids } } : {}] },
+      select: { id: true, email: true, stage: true, partnerId: true, optedOutAt: true, repliedAt: true, emailInvalidAt: true, salesAgent: { select: { mailbox: true } } },
       take: 5000,
     });
-    const r: ResultadoInscricao = { inscritas: 0, puladas: { jaInscritas: 0, emOutraSequencia: 0, semEmail: 0, sairam: 0, parceiras: 0, outraEtapa: 0 } };
+    const r: ResultadoInscricao = { inscritas: 0, puladas: { jaInscritas: 0, emOutraSequencia: 0, semEmail: 0, sairam: 0, parceiras: 0, outraEtapa: 0, outraCaixa: 0 } };
     const bloqueados = await this.suprimidos(cards.map((c) => c.email).filter((e): e is string => Boolean(e)));
     const marcados = await this.naoContatar(cards.map((c) => c.id));
     const jaNesta = new Set((await this.prisma.prospectEnrollment.findMany({ where: { sequenceId: id, prospectId: { in: cards.map((c) => c.id) } }, select: { prospectId: true } })).map((e) => e.prospectId));
@@ -237,6 +290,12 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
         r.puladas.outraEtapa++;
         continue;
       }
+      // Regra fixa: o mesmo endereço nunca recebe e-mail de duas caixas.
+      const caixa = this.caixaDe(seq, c);
+      if ([...(await this.caixasDoEndereco(c.email, c.id))].some((x) => x !== caixa)) {
+        r.puladas.outraCaixa++;
+        continue;
+      }
       try {
         // activeKey único: a empresa não fica em duas sequências ativas.
         await this.prisma.prospectEnrollment.create({ data: { sequenceId: id, prospectId: c.id, activeKey: c.id, status: "agendado", nextSendAt: quando, enrolledById: userId } });
@@ -249,6 +308,17 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
       }
     }
     return r;
+  }
+
+  // Tira empresas da sequência (uma ou várias). Sem e-mail enviado, a
+  // inscrição some; com e-mail enviado, fica no histórico como "retirada".
+  // Nada é enviado. A empresa fica livre para outra sequência.
+  async remover(id: string, raw: z.input<typeof ProspeccaoRemoverSchema>): Promise<{ removidas: number }> {
+    await this.existe(id);
+    const { ids } = parseOrBadRequest(ProspeccaoRemoverSchema, raw);
+    const apagadas = await this.prisma.prospectEnrollment.deleteMany({ where: { sequenceId: id, prospectId: { in: ids }, stepsSent: 0, status: { in: ATIVOS } } });
+    const paradas = await this.prisma.prospectEnrollment.updateMany({ where: { sequenceId: id, prospectId: { in: ids }, status: { in: ATIVOS } }, data: { status: "parou", stopReason: "removida", activeKey: null, nextSendAt: null } });
+    return { removidas: apagadas.count + paradas.count };
   }
 
   // ------------------------------------------------------------ parar
@@ -264,6 +334,15 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
     await this.prisma.salesProspect.update({ where: { id }, data: { repliedAt: new Date() } });
     await this.parar(id, "respondeu", "respondeu");
     await this.prisma.salesNote.create({ data: { prospectId: id, authorId: userId, kind: "email", body: "Respondeu o e-mail de prospecção. A sequência de e-mails parou para esta empresa." } });
+  }
+
+  async mudarSegmento(prospectId: string, segmento: string, userId: string): Promise<void> {
+    const id = parseOrBadRequest(IdSchema, prospectId);
+    const card = await this.prisma.salesProspect.findUnique({ where: { id }, select: { segment: true } });
+    if (!card) throw new NotFoundException("Empresa não encontrada.");
+    if (card.segment === segmento) return;
+    await this.prisma.salesProspect.update({ where: { id }, data: { segment: segmento } });
+    await this.prisma.salesNote.create({ data: { prospectId: id, authorId: userId, kind: "note", body: `Tipo da empresa trocado: ${segmentoLabel(card.segment)} → ${segmentoLabel(segmento)}.` } });
   }
 
   // Token do link de saída: id do card + assinatura (HMAC).
@@ -300,18 +379,40 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
     return process.env.NODE_ENV === "test" || process.env.PROSPECCAO_DISABLED === "1";
   }
 
-  // Um e-mail por vez. somenteSequencias: só para os testes isolarem os dados.
-  async tick(agora = new Date(), opcoes: { somenteSequencias?: string[] } = {}): Promise<ResultadoTick> {
-    const cfg = prospeccaoSmtpConfig();
-    if (!cfg && !this.envioDeTeste) return "sem_smtp";
-    const ajustes = await this.ajustes();
-    const enviadosHoje = await this.prisma.prospectEmailLog.count({ where: { status: "enviado", createdAt: { gte: inicioDoDiaBr(agora), lte: agora } } });
-    const pode = podeEnviar({ agora, enviadosHoje, limite: ajustes.limiteDiario, pausado: ajustes.pausado, liberadoApos: await this.liberadoApos() });
-    if (!pode.ok) return pode.motivo;
+  // Caixas que podem mandar agora (configuradas; nos testes, o envio falso vale para todas).
+  private caixasProntas(): { caixa: VendedorCaixa; cfg?: SmtpConfig }[] {
+    return VENDEDOR_CAIXAS.map((caixa) => ({ caixa, cfg: caixaSmtpConfig(caixa) })).filter((c) => c.cfg || this.envioDeTeste);
+  }
 
+  // Inscrições de cada caixa: as das sequências do vendedor dela; sequência
+  // sem vendedor usa o vendedor do card; sem nenhum, o contato@.
+  private filtroCaixa(caixa: VendedorCaixa): Prisma.ProspectEnrollmentWhereInput {
+    const doCard: Prisma.SalesProspectWhereInput = caixa === "prospeccao" ? { OR: [{ salesAgentId: null }, { salesAgent: { mailbox: "prospeccao" } }] } : { salesAgent: { mailbox: caixa } };
+    return { OR: [{ sequence: { salesAgent: { mailbox: caixa } } }, { sequence: { salesAgentId: null }, prospect: doCard }] };
+  }
+
+  private filtroLogCaixa(caixa: VendedorCaixa): Prisma.ProspectEmailLogWhereInput {
+    return caixa === "prospeccao" ? { OR: [{ mailbox: "prospeccao" }, { mailbox: null }] } : { mailbox: caixa };
+  }
+
+  // Um e-mail por vez em cada caixa. somenteSequencias: só para os testes isolarem os dados.
+  async tick(agora = new Date(), opcoes: { somenteSequencias?: string[] } = {}): Promise<ResultadoTick> {
+    const caixas = this.caixasProntas();
+    if (!caixas.length) return "sem_smtp";
+    const ajustes = await this.ajustes();
     // Vendedores IA que não podem mandar agora (pausados, sem caixa, fora do
     // ar, teto do dia deles, pausa geral): os cards deles esperam.
     const bloqueados = await this.vendedoresBloqueados(agora);
+    const resultados: ResultadoTick[] = [];
+    for (const { caixa, cfg } of caixas) resultados.push(await this.tickCaixa(caixa, cfg, ajustes, bloqueados, agora, opcoes));
+    return PRIORIDADE.find((r) => resultados.includes(r)) ?? "nada_para_enviar";
+  }
+
+  private async tickCaixa(caixa: VendedorCaixa, cfg: SmtpConfig | undefined, ajustes: ProspeccaoAjustes, bloqueados: string[], agora: Date, opcoes: { somenteSequencias?: string[] }): Promise<ResultadoTick> {
+    const enviadosHoje = await this.prisma.prospectEmailLog.count({ where: { status: "enviado", createdAt: { gte: inicioDoDiaBr(agora), lte: agora }, ...this.filtroLogCaixa(caixa) } });
+    const pode = podeEnviar({ agora, enviadosHoje, limite: ajustes.limiteDiario, pausado: ajustes.pausado, liberadoApos: await this.liberadoApos(caixa) });
+    if (!pode.ok) return pode.motivo;
+
     for (let tentativas = 0; tentativas < 25; tentativas++) {
       const e = await this.prisma.prospectEnrollment.findFirst({
         where: {
@@ -319,10 +420,16 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
           nextSendAt: { lte: agora },
           sequence: { status: "ativa", approvedAt: { not: null } },
           ...(opcoes.somenteSequencias ? { sequenceId: { in: opcoes.somenteSequencias } } : {}),
-          ...(bloqueados.length ? { prospect: { OR: [{ salesAgentId: null }, { salesAgentId: { notIn: bloqueados } }] } } : {}),
+          AND: [
+            this.filtroCaixa(caixa),
+            // Vendedor que não pode mandar agora: o da sequência ou, sem ele, o do card.
+            ...(bloqueados.length
+              ? [{ OR: [{ sequence: { salesAgentId: { notIn: bloqueados } } }, { sequence: { salesAgentId: null }, prospect: { OR: [{ salesAgentId: null }, { salesAgentId: { notIn: bloqueados } }] } }] }]
+              : []),
+          ],
         },
         orderBy: [{ nextSendAt: "asc" }, { createdAt: "asc" }],
-        include: { sequence: true, prospect: { select: { id: true, name: true, city: true, email: true, stage: true, repliedAt: true, optedOutAt: true, partnerId: true, emailInvalidAt: true, salesAgent: { select: { id: true, name: true } } } } },
+        include: { sequence: { include: { salesAgent: { select: { id: true, name: true, mailbox: true } } } }, prospect: { select: { id: true, name: true, city: true, email: true, stage: true, repliedAt: true, optedOutAt: true, partnerId: true, emailInvalidAt: true, salesAgent: { select: { id: true, name: true } } } } },
       });
       if (!e) return "nada_para_enviar";
       const p = e.prospect;
@@ -330,6 +437,12 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
         suprimido: p.email ? (await this.suprimidos([p.email])).size > 0 : false,
         naoContatar: (await this.naoContatar([p.id])).size > 0,
       });
+      // O mesmo endereço já falou com outra caixa: não manda (e avisa na inscrição).
+      if (!motivo && p.email && [...(await this.caixasDoEndereco(p.email, p.id))].some((x) => x !== caixa)) {
+        this.logger.warn(`Inscrição ${e.id}: o mesmo e-mail já foi contatado por outra caixa; não enviado.`);
+        await this.prisma.prospectEnrollment.update({ where: { id: e.id }, data: { status: "parou", stopReason: "outra_caixa", activeKey: null, nextSendAt: null } });
+        continue;
+      }
       if (motivo) {
         const status = motivo === "respondeu" ? "respondeu" : motivo === "saiu" ? "saiu" : motivo === "sem_email" ? (p.emailInvalidAt ? "parou" : "erro") : "parou";
         await this.prisma.prospectEnrollment.update({ where: { id: e.id }, data: { status, stopReason: motivo, activeKey: null, nextSendAt: null } });
@@ -345,42 +458,46 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
       // Trava: só um envio por inscrição, mesmo com duas rotinas ao mesmo tempo.
       const trava = await this.prisma.prospectEnrollment.updateMany({ where: { id: e.id, status: "agendado", stepsSent: n }, data: { status: "enviando" } });
       if (trava.count !== 1) continue;
-      return this.enviar(e, passos, n, agora, cfg);
+      return this.enviar(e, passos, n, agora, caixa, cfg);
     }
     return "nada_para_enviar";
   }
 
   private async enviar(
-    e: { id: string; firstMessageId: string | null; firstSubject: string | null; sequence: { name: string }; prospect: { id: string; name: string; city: string | null; email: string | null; salesAgent: { id: string; name: string } | null } },
+    e: { id: string; firstMessageId: string | null; firstSubject: string | null; sequence: { name: string } & SeqComVendedor; prospect: { id: string; name: string; city: string | null; email: string | null; salesAgent: { id: string; name: string } | null } },
     passos: ProspeccaoPasso[],
     n: number,
     agora: Date,
-    cfg: ReturnType<typeof prospeccaoSmtpConfig>,
+    caixa: VendedorCaixa,
+    cfg: SmtpConfig | undefined,
   ): Promise<ResultadoTick> {
     const p = e.prospect;
+    // Quem manda: o vendedor da sequência (e as respostas vão para ele); sem ele, o do card.
+    const vendedor = e.sequence.salesAgent ?? p.salesAgent;
     const email = renderizarEmail(passos[n]!, { empresa: p.name, cidade: p.city ?? undefined }, { linkSair: this.linkSair(p.id), numero: n + 1, assuntoPrimeiro: e.firstSubject ?? undefined });
     const messageId = `<prospeccao.${e.id}.${n + 1}.${randomBytes(6).toString("hex")}@novoseminovo.com.br>`;
     const umClique = `${(process.env.PUBLIC_API_URL ?? "").replace(/\/+$/, "")}/prospeccao/sair/${this.tokenSair(p.id)}`;
-    const remetente = cfg?.user ?? "contato@novoseminovo.com.br";
+    const remetente = cfg?.user ?? CAIXAS_EMAIL[caixa].endereco;
     // Descadastro de um clique (Gmail/Yahoo) só com o endereço https da API.
     const https = /^https:\/\//.test(umClique);
     const cabecalhos: Record<string, string> = {
       "List-Unsubscribe": `${https ? `<${umClique}>, ` : ""}<mailto:${remetente}?subject=SAIR>`,
       ...(https ? { "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } : {}),
     };
-    await this.liberarEm(new Date(agora.getTime() + intervaloEntreEnvios()));
+    await this.liberarEm(caixa, new Date(agora.getTime() + intervaloEntreEnvios()));
     try {
       const envio = this.envioDeTeste ?? criarEnvio(cfg!);
-      await envio({ para: p.email!, assunto: email.assunto, texto: email.texto, html: email.html, messageId, inReplyTo: n > 0 ? (e.firstMessageId ?? undefined) : undefined, cabecalhos, deNome: p.salesAgent ? `${p.salesAgent.name} | NovoSeminovo` : undefined });
+      await envio({ para: p.email!, assunto: email.assunto, texto: email.texto, html: email.html, messageId, inReplyTo: n > 0 ? (e.firstMessageId ?? undefined) : undefined, cabecalhos, caixa, deNome: nomeRemetente(caixa) ?? (vendedor ? `${vendedor.name} | NovoSeminovo` : undefined) });
     } catch (error) {
       const msg = semSenha(error instanceof Error ? error.message : String(error), cfg).slice(0, 300);
       this.logger.warn(`Falha ao enviar e-mail de prospecção (inscrição ${e.id}, passo ${n + 1}): ${msg}`);
-      await this.prisma.prospectEmailLog.create({ data: { enrollmentId: e.id, step: n + 1, status: "erro", error: msg, createdAt: agora, salesAgentId: p.salesAgent?.id } });
+      await this.prisma.prospectEmailLog.create({ data: { enrollmentId: e.id, step: n + 1, status: "erro", error: msg, createdAt: agora, salesAgentId: vendedor?.id, mailbox: caixa } });
       await this.prisma.prospectEnrollment.update({ where: { id: e.id }, data: { status: "erro", lastError: msg, activeKey: null, nextSendAt: null } });
       return "erro";
     }
     const ultimo = n + 1 >= passos.length;
-    await this.prisma.prospectEmailLog.create({ data: { enrollmentId: e.id, step: n + 1, status: "enviado", messageId, createdAt: agora, salesAgentId: p.salesAgent?.id } });
+    await this.prisma.prospectEmailLog.create({ data: { enrollmentId: e.id, step: n + 1, status: "enviado", messageId, createdAt: agora, salesAgentId: vendedor?.id, mailbox: caixa } });
+    if (vendedor && p.salesAgent?.id !== vendedor.id) await this.prisma.salesProspect.update({ where: { id: p.id }, data: { salesAgentId: vendedor.id } });
     await this.prisma.prospectEnrollment.update({
       where: { id: e.id },
       data: {
@@ -391,7 +508,7 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
         ...(ultimo ? { status: "concluido", activeKey: null, nextSendAt: null } : { status: "agendado", nextSendAt: agendarPasso(agora, passos[n + 1]!.esperaDias) }),
       },
     });
-    await this.prisma.salesNote.create({ data: { prospectId: p.id, kind: "email", body: `E-mail de prospecção enviado${p.salesAgent ? ` por ${p.salesAgent.name} (assistente comercial IA)` : ""} (sequência "${e.sequence.name}", passo ${n + 1}/${passos.length}): "${email.assunto}".`.slice(0, 2000) } });
+    await this.prisma.salesNote.create({ data: { prospectId: p.id, kind: "email", body: `E-mail de prospecção enviado${vendedor ? ` por ${vendedor.name} (assistente comercial IA)` : ""} (sequência "${e.sequence.name}", passo ${n + 1}/${passos.length}): "${email.assunto}".`.slice(0, 2000) } });
     return "enviado";
   }
 

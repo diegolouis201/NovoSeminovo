@@ -7,6 +7,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ProspeccaoSequenciasService } from "../prospeccao/sequencias.service";
 import type { MensagemProspeccao } from "../prospeccao/smtp";
 import type { CaixaEntrada, EmailBruto } from "../prospeccao/caixa-entrada";
+import { VENDEDORES_INICIAIS } from "@novoseminovo/shared-types";
 import { SalesService } from "./sales.service";
 import { VendedoresService, type ResultadoCaixa } from "./vendedores.service";
 
@@ -155,7 +156,16 @@ describe("Vendedores IA no banco (caixa, SMTP e modelo falsos)", { skip: !withDb
     assert.match(JSON.stringify(seq.steps), /assistente comercial/);
     assert.match(JSON.stringify(seq.steps), /utm_campaign=nina/);
     assert.ok(!/Diego/.test(JSON.stringify(seq.steps)), "a vendedora não assina como o dono");
-    for (const s of ["lara", "dani", "caio", "joao"]) assert.equal(iniciais.find((v) => v.slug === s)!.mailbox, null);
+    // Divisão de 18/11/2026 (marketing): Caio = lojas de veículos no atendimento@,
+    // Nina = imobiliárias e corretores no contato@. Quem já existia só muda
+    // pela arrumação do dono no Hub (vendedores-caixas.spec).
+    const ini = (slug: string) => VENDEDORES_INICIAIS.find((v) => v.slug === slug)!;
+    assert.deepEqual(ini("nina").segmentos, ["property", "broker"]);
+    assert.deepEqual(ini("caio").segmentos, ["vehicle"]);
+    assert.equal(ini("caio").caixa, "atendimento");
+    for (const s of ["lara", "dani", "joao"]) assert.equal(iniciais.find((v) => v.slug === s)!.mailbox, null);
+    const caio = iniciais.find((v) => v.slug === "caio")!;
+    assert.equal(caio.active, false, "Caio fica inativo até o dono ativar no Hub");
   });
 
   test("rodízio: só vendedores ativos, com caixa e sem pausa; só cards a abordar com e-mail", async () => {

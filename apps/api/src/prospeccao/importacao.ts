@@ -478,3 +478,15 @@ export function celulaCsv(valor: string | number): string {
 export function csvRelatorio(linhas: LinhaRecusada[]): string {
   return ["Linha;Empresa;Motivo", ...linhas.map((l) => [l.linha, l.nome, l.motivo].map(celulaCsv).join(";"))].join("\n") + "\n";
 }
+
+// Arquivo de imóveis (imobiliária ou corretor): a categoria do Google decide
+// por linha. "Corretor de imóveis"/"real estate agent" = corretor; com
+// "imobiliária"/"agency" na categoria = imobiliária. Sem categoria (ou arquivo
+// de lojas/outro), fica o tipo escolhido na importação.
+export function segmentoDaLinha<T extends string>(doArquivo: T, categoria?: string): T | "property" | "broker" {
+  if (doArquivo !== "property" && doArquivo !== "broker") return doArquivo;
+  const c = (categoria ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/imobiliari|real estate agency|agencia imobiliaria|realty/.test(c)) return "property";
+  if (/corretor|real estate agent|broker/.test(c)) return "broker";
+  return doArquivo;
+}

@@ -2,7 +2,8 @@ import {
   LOSS_CATEGORIES,
   OBJECOES,
   RascunhoModeloSchema,
-  VENDEDOR_TITULO,
+  assinaturaPadrao,
+  vendedorFeminino,
   DIAS_SUPERVISIONADO,
   type EtapaSugerida,
   type LossCategory,
@@ -148,16 +149,16 @@ export type RascunhoFinal = { texto: string; objecao: Objecao; etapa: EtapaSuger
 
 const ASSINATURA_ALHEIA = /^\s*(abra[cç]os?|att\.?|atenciosamente|obrigad[oa]|um abra[cç]o|at[ée] mais|sds|saudações)[,.!]?\s*$|^\s*(diego|nina|lara|dani|caio|jo[aã]o)\b.*$|^\s*(equipe )?novoseminovo\s*$/i;
 
-function assinar(texto: string, nome: string): string {
+function assinar(texto: string, assinatura: string): string {
   const linhas = texto.trim().split("\n");
   // Tira a despedida/assinatura que o modelo escreveu (às vezes com o nome do dono).
   while (linhas.length && (ASSINATURA_ALHEIA.test(linhas[linhas.length - 1]!) || !linhas[linhas.length - 1]!.trim())) linhas.pop();
-  return `${linhas.join("\n").trim()}\n\n${nome}, ${VENDEDOR_TITULO}`.trim();
+  return `${linhas.join("\n").trim()}\n\n${assinatura}`.trim();
 }
 
 // Confere a saída do modelo (zod), troca links, assina com o nome do
 // vendedor e decide se vai para o dono. Nunca lança erro.
-export function finalizarRascunho(bruto: unknown, ctx: { nome: string; slug: string; entrada: string }): RascunhoFinal {
+export function finalizarRascunho(bruto: unknown, ctx: { nome: string; slug: string; entrada: string; assinatura?: string }): RascunhoFinal {
   const r = RascunhoModeloSchema.safeParse(bruto);
   if (!r.success) return { texto: "", objecao: "outra", etapa: "manter", escalar: "incerto", followupDias: 2 };
   const s = r.data;
@@ -167,9 +168,9 @@ export function finalizarRascunho(bruto: unknown, ctx: { nome: string; slug: str
   if (termosProibidos(texto)) escalar = "fora_do_roteiro";
   texto = higienizarLinks(texto, ctx.slug).texto;
   if (texto && perguntaSeRobo(ctx.entrada) && !/assistente virtual/i.test(texto)) {
-    texto = `Sou a ${ctx.nome}, assistente virtual da equipe comercial da NovoSeminovo (não sou uma pessoa). Se preferir falar com alguém da equipe, é só me dizer que eu passo o seu contato.\n\n${texto}`;
+    texto = `Sou ${vendedorFeminino(ctx.slug) ? "a" : "o"} ${ctx.nome}, assistente virtual da equipe comercial da NovoSeminovo (não sou uma pessoa). Se preferir falar com alguém da equipe, é só me dizer que eu passo o seu contato.\n\n${texto}`;
   }
-  if (texto) texto = assinar(texto, ctx.nome);
+  if (texto) texto = assinar(texto, ctx.assinatura?.trim() || assinaturaPadrao(ctx.nome));
   return { texto: texto.slice(0, 3500), objecao: s.detected_objection, etapa: s.suggested_stage, escalar, followupDias: s.next_followup_days };
 }
 
