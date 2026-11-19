@@ -613,6 +613,28 @@ Pode rodar o passo 4 de novo: o que já saiu não aparece mais ("(nada)"). Se
 alguma foto não puder ser apagada do disco/S3, o script avisa a linha e segue.
 Para voltar atrás, use "Restaurar o banco" em Manutenção com o backup do passo 1.
 
+## Pesquisa NPS por e-mail (19/11/2026)
+
+O que muda no servidor: duas tabelas novas e colunas novas no banco, então o deploy
+**precisa do `prisma db push`**, e depois o rebuild de `api`, `web` e `hub`:
+
+```sh
+cd ~/NovoSeminovo && git pull origin claude/vehicle-marketplace-platform-lmif9s && nohup sh -c 'docker compose build api && docker compose build web && docker compose build hub && docker compose up -d && sleep 15 && docker compose exec -T -w /app/packages/db api ./node_modules/.bin/prisma db push --accept-data-loss --skip-generate && docker compose restart api && docker image prune -f && echo PRONTO-OK' > ~/deploy.log 2>&1 &
+```
+
+Espere aparecer `PRONTO-OK` em `tail ~/deploy.log`.
+
+- Nada é enviado sozinho depois do deploy: o envio automático começa **desligado**.
+  No Hub, em **NPS → Envio por e-mail**: clique "Enviar e-mail de teste para mim",
+  confira o e-mail e só então "Aprovar e ligar envio automático". "Pausar envio
+  automático" para tudo na hora.
+- Usa o mesmo e-mail do site dos avisos da conta (`RESEND_API_KEY` e `EMAIL_FROM`
+  que já existem). Sem `RESEND_API_KEY`, nada sai e o Hub mostra só a prévia.
+- Desligar pelo servidor (emergência): `NPS_EMAIL_DISABLED=1` no `.env` e
+  `docker compose up -d api`.
+- Opcional: `NPS_LINK_SECRET` (arquivo/variável) para assinar os links; sem ela,
+  usa o `JWT_SECRET` com prefixo próprio.
+
 ## Manutenção
 
 - **Atualizar depois de um novo commit**: `git pull && docker compose up --build -d`.

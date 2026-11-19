@@ -96,7 +96,7 @@ export class HubService {
       dueAt: r.dueAt.toISOString(),
       notes: r.notes ?? undefined,
       empresa: r.prospect ? { id: r.prospect.id, nome: r.prospect.name } : undefined,
-      responsavel: r.assignee?.name ?? (r.createdById === "site" ? "Site (formulário de campanha)" : nameOf.get(r.createdById)),
+      responsavel: r.assignee?.name ?? (r.createdById === "site" ? "Site (formulário de campanha)" : r.createdById === "nps-email" ? "Pesquisa NPS (e-mail)" : nameOf.get(r.createdById)),
       concluidaEm: r.doneAt?.toISOString(),
     }));
   }

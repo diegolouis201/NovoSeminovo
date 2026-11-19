@@ -198,7 +198,14 @@ export default async function Ficha({ params, searchParams }: { params: { id: st
             <section className="card">
               <h2 className="h2 mb-3">NPS e chamados</h2>
               <dl>
-                <Linha k="Última nota NPS" v={e?.nps ? `${e.nps.nota} (${e.nps.classificacao}) em ${data(e.nps.data)}${e.nps.comentario ? ` — “${e.nps.comentario}”` : ""}` : "Ainda não respondeu"} />
+                <Linha
+                  k="Última nota NPS"
+                  v={
+                    e?.nps
+                      ? `${e.nps.nota} (${e.nps.classificacao}) em ${data(e.nps.data)} ${e.nps.origem === "email" ? "por e-mail" : "no painel"}${e.nps.querContato ? " · pediu contato" : ""}${e.nps.comentario ? ` — “${e.nps.comentario}”` : ""}`
+                      : "Ainda não respondeu"
+                  }
+                />
                 <Linha k="Chamados" v={e ? `${e.chamados.total} no total · ${e.chamados.abertos} abertos${e.chamados.tempoMedioResolucaoHoras !== undefined ? ` · resolve em ${e.chamados.tempoMedioResolucaoHoras} h em média` : ""}` : "—"} />
               </dl>
               {detalhe?.tickets.length ? (

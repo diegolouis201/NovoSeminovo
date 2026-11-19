@@ -237,6 +237,9 @@ model User {
   salesCode            String?   @unique @map("sales_code")
   // Último uso do site com login (gravado no máximo 1x por hora) — CRM: risco de cancelamento.
   lastActiveAt         DateTime? @map("last_active_at")
+  // Saiu da pesquisa de satisfação por e-mail (link "não quero receber" do
+  // rodapé, LGPD). Nenhuma pesquisa NPS por e-mail vai mais para esta conta.
+  npsEmailOptOutAt     DateTime? @map("nps_email_opt_out_at")
 
   ownedPartners            Partner[]             @relation("PartnerOwner")
   salesProspects           SalesProspect[]       @relation("SalesOwner")
@@ -332,6 +335,7 @@ model Partner {
   salesProspect         SalesProspect?
   socios                PartnerSocio[]
   npsResponses          NpsResponse[]
+  npsEmailSurveys       NpsEmailSurvey[]
 
   @@map("partners")
 }
@@ -2162,9 +2166,57 @@ model NpsResponse {
   score     Int
   comment   String?
   createdAt DateTime @default(now()) @map("created_at")
+  // Onde respondeu: "painel" (pergunta no /parceiro) ou "email" (pesquisa
+  // semestral por e-mail, NpsEmailSurvey). As duas contam no mesmo NPS.
+  source       String         @default("painel")
+  surveyId     String?        @unique @map("survey_id")
+  survey       NpsEmailSurvey? @relation(fields: [surveyId], references: [id], onDelete: SetNull)
+  // Só para notas de 0 a 6: "Quer que alguém da nossa equipe fale com você?"
+  wantsContact Boolean?       @map("wants_contact")
+  // Tarefa do Hub criada quando wantsContact = true (uma só por resposta).
+  taskId       String?        @map("task_id")
+  updatedAt    DateTime?      @map("updated_at")
 
   @@index([partnerId, createdAt])
   @@map("nps_responses")
+}
+
+// Pesquisa NPS por e-mail (a cada 6 meses, 1 lembrete 5 dias depois). Os
+// links do e-mail são assinados (HMAC) com o id daqui; a resposta vai para
+// NpsResponse (source "email"). E-mail de teste do dono (test = true) não
+// tem empresa e nunca vira NpsResponse: a nota fica só aqui (test*).
+model NpsEmailSurvey {
+  id               String       @id @default(cuid())
+  partnerId        String?      @map("partner_id")
+  partner          Partner?     @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  userId           String       @map("user_id")
+  test             Boolean      @default(false)
+  sentAt           DateTime     @default(now()) @map("sent_at")
+  reminderSentAt   DateTime?    @map("reminder_sent_at")
+  testScore        Int?         @map("test_score")
+  testComment      String?      @map("test_comment")
+  testWantsContact Boolean?     @map("test_wants_contact")
+  testAnsweredAt   DateTime?    @map("test_answered_at")
+  response         NpsResponse?
+
+  @@index([partnerId, sentAt])
+  @@index([test, sentAt])
+  @@map("nps_email_surveys")
+}
+
+// Liga/desliga do envio automático da pesquisa NPS por e-mail (linha única,
+// id "geral"). Desligado até o dono clicar "Aprovar e ligar envio automático"
+// no Hub; pausedAt é o botão de pausa (kill switch).
+model NpsEmailSettings {
+  id           String    @id @default("geral")
+  approvedAt   DateTime? @map("approved_at")
+  approvedById String?   @map("approved_by_id")
+  pausedAt     DateTime? @map("paused_at")
+  pausedById   String?   @map("paused_by_id")
+  dailyCap     Int       @default(50) @map("daily_cap")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("nps_email_settings")
 }
 
 // NovoSeminovo Hub (hub.novoseminovo.com.br): quem da equipe entra e com qual

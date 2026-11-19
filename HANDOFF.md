@@ -538,3 +538,48 @@ Capital aplicadas no site e na API.
   (substitui `consentimento-resumido.cy.ts`) e `consentimento-credito.cy.ts`.
   Prints 390 px: `entregas/parecer/imovel.png`, `veiculo.png`, `privacidade.png`.
 - Deploy: `prisma db push` + rebuild de `api` e `web`.
+
+## Pesquisa NPS por e-mail a cada 6 meses — 19/11/2026
+Pedido do Diego (texto do e-mail aprovado por ele). Reaproveita o NPS do painel
+do parceiro: a resposta do e-mail vai para a **mesma tabela** `NpsResponse`
+(coluna nova `source` = "painel" | "email") e conta no mesmo NPS, no feed do
+CRM, no card da empresa e na régua. Quem respondeu no painel nos últimos 6
+meses não recebe o e-mail, e quem respondeu por e-mail não vê a pergunta no
+painel (o `NpsService.status` já olha a tabela toda).
+- **Quem recebe** (`apps/api/src/crm/nps-email.service.ts`): só lojas,
+  imobiliárias e corretores com conta ativa (dono `active`, sem bloqueio, sem
+  retenção), 6 meses depois do cadastro e depois a cada 6 meses. Fica de fora:
+  quem respondeu (painel ou e-mail) ou recebeu a pesquisa nos últimos 6 meses,
+  prospect sem cadastro, e-mail na lista de bloqueio da prospecção, contato de
+  marketing descadastrado, "não contatar" do Hub, card que saiu da prospecção
+  e quem clicou "Não quero mais receber esta pesquisa" (`User.npsEmailOptOutAt`).
+- **Envio**: 1 lembrete 5 dias depois (só sem resposta), segunda a sexta 9h–18h
+  (Brasília), 2 a cada 10 min e limite diário (`NpsEmailSettings.dailyCap`,
+  50). Rotina `nps-email` (trackRoutine), desligada em teste e com
+  `NPS_EMAIL_DISABLED=1`. Remetente: o mesmo dos e-mails da conta
+  (`EmailService.sendTransactional`, Resend), com versão texto e
+  `List-Unsubscribe` de um clique (`POST /nps/sair/:token`).
+- **Trava**: envio automático desligado até o dono (permissão "equipe")
+  clicar "Aprovar e ligar envio automático" em Hub → NPS → Envio por e-mail
+  (`/nps/envio`); lá também "Pausar" e "Enviar e-mail de teste para mim"
+  (modelo real, pesquisa `test=true`, nota fica só na pesquisa de teste e nunca
+  conta no NPS; prévia em iframe sem scripts).
+- **Links**: token HMAC (`nps-email.ts`, `signNpsToken`) = pesquisa + nota +
+  validade (30 dias); acompanhamento 7 dias; descadastro 10 anos. Página pública
+  `apps/web/app/nps/r/[token]` grava a nota no clique (clicar de novo em até 7
+  dias troca a nota, sem duplicar) e mostra a pergunta por faixa; 0–6 com "Sim"
+  cria tarefa do Comercial "Ligar para <empresa> (NPS <nota>)" em 2 dias úteis
+  (uma só). Comentário até 1000 caracteres, texto puro, nunca vai para IA.
+  Anotação automática na ficha do Comercial (linha do tempo).
+- **Hub**: `/nps` com NPS por período e por tipo (uma nota por empresa: a mais
+  recente), contagens, taxa de resposta do e-mail, últimos comentários com o
+  rótulo "Uso interno — depoimento público só com autorização por escrito da
+  empresa". Régua mostra a última nota; card da empresa mostra origem e "pediu
+  contato". API: `GET /hub/nps`, `GET /hub/nps/envio`, `POST /hub/nps/envio/{aprovar,pausa,teste}`.
+- Banco: `nps_email_surveys`, `nps_email_settings`, colunas novas em
+  `nps_responses` e `users.nps_email_opt_out_at` — **deploy precisa de
+  `prisma db push`** + rebuild de `api`, `web` e `hub` (DEPLOY.md).
+- Testes: `apps/api/src/crm/nps-email.spec.ts` (tokens, horário, limite,
+  elegibilidade, lembrete, clique idempotente, tarefa, escape do HTML,
+  descadastro, teste fora do NPS, trava, rotas); Cypress `cypress/e2e/nps-email.cy.ts`.
+  Prints (dados falsos) em `entregas/nps/` (pasta fora do git).

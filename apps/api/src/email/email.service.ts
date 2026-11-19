@@ -53,6 +53,22 @@ export class EmailService {
     headers?: Record<string, string>;
     replyTo?: string;
   }): Promise<{ id: string }> {
+    return this.post(message, "marketing");
+  }
+
+  // Mesmo remetente dos e-mails da conta (não as caixas da prospecção), com
+  // versão em texto e cabeçalhos (List-Unsubscribe). Usado pela pesquisa NPS.
+  async sendTransactional(
+    message: { to: string; subject: string; html: string; text: string; headers?: Record<string, string> },
+    categoria: string,
+  ): Promise<{ id: string }> {
+    return this.post(message, categoria);
+  }
+
+  private async post(
+    message: { to: string; subject: string; html: string; text: string; headers?: Record<string, string>; replyTo?: string },
+    categoria: string,
+  ): Promise<{ id: string }> {
     if (!this.isEnabled()) throw new Error("E-mail não configurado (RESEND_API_KEY)");
     const from = process.env.EMAIL_FROM ?? "NovoSeminovo <onboarding@resend.dev>";
     const apiUrl = process.env.RESEND_API_URL ?? "https://api.resend.com";
@@ -68,7 +84,7 @@ export class EmailService {
         text: message.text,
         headers: message.headers,
         reply_to: message.replyTo,
-        tags: [{ name: "categoria", value: "marketing" }],
+        tags: [{ name: "categoria", value: categoria }],
       }),
     });
     const body = (await res.json().catch(() => ({}))) as { id?: string; message?: string };

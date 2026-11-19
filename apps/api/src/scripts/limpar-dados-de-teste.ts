@@ -172,6 +172,7 @@ function regras(U: string[], P: string[], L: string[]): Regra[] {
     { tabela: "Chaves de API das lojas (partner_api_keys)", modelo: "partnerApiKey", apagar: [{ partnerId: p }] },
     { tabela: "Sócios das lojas (partner_socios)", modelo: "partnerSocio", apagar: [{ partnerId: p }] },
     { tabela: "NPS das lojas no site (nps_responses)", modelo: "npsResponse", apagar: [{ partnerId: p }] },
+    { tabela: "Pesquisas NPS por e-mail (nps_email_surveys)", modelo: "npsEmailSurvey", apagar: [{ partnerId: p }, { userId: u }] },
     { tabela: "Equipe das lojas (partner_members)", modelo: "partnerMember", apagar: [{ partnerId: p }, { userId: u }] },
     {
       tabela: "Empresas do CRM (sales_prospects)",

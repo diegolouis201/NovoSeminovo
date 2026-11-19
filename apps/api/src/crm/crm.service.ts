@@ -60,7 +60,7 @@ export type CrmEmpresa = {
   origemMarketing?: { canal: string; meio?: string; campanha?: string; anuncio?: string; publico?: string };
   uso: { ultimoAcesso?: string; diasSemAcesso?: number; visualizacoes: number };
   chamados: { total: number; abertos: number; abertoDesde?: string; tempoMedioResolucaoHoras?: number; ultimoAssunto?: string };
-  nps?: { nota: number; data: string; comentario?: string; classificacao: "promotor" | "neutro" | "detrator" };
+  nps?: { nota: number; data: string; comentario?: string; classificacao: "promotor" | "neutro" | "detrator"; origem?: "painel" | "email"; querContato?: boolean };
   motivoPerda?: { categoria?: string; texto?: string };
   socios: { nome: string; cargo?: string; aniversario?: string }[];
   etapa: { id: SalesStageId; nome: string };
@@ -174,7 +174,7 @@ export class CrmService {
       this.prisma.listing.groupBy({ by: ["partnerId"], where: { status: "active", partnerId: { not: null } }, _count: { _all: true } }),
       this.prisma.listing.groupBy({ by: ["partnerId"], where: { partnerId: { not: null } }, _sum: { viewsCount: true } }),
       this.prisma.crmTicket.findMany({ select: { prospectId: true, status: true, subject: true, openedAt: true, resolvedAt: true }, orderBy: { openedAt: "desc" } }),
-      this.prisma.npsResponse.findMany({ orderBy: { createdAt: "desc" }, distinct: ["partnerId"], select: { partnerId: true, score: true, comment: true, createdAt: true } }),
+      this.prisma.npsResponse.findMany({ orderBy: { createdAt: "desc" }, distinct: ["partnerId"], select: { partnerId: true, score: true, comment: true, createdAt: true, source: true, wantsContact: true } }),
     ]);
     const viewsBy = byPartnerOf(views);
     const npsBy = new Map(npsRows.map((n) => [n.partnerId, n]));
@@ -223,7 +223,14 @@ export class CrmService {
         },
         chamados: chamadosResumo(ticketsOf(prospect?.id)),
         nps: npsBy.get(p.id)
-          ? { nota: npsBy.get(p.id)!.score, data: npsBy.get(p.id)!.createdAt.toISOString(), comentario: npsBy.get(p.id)!.comment ?? undefined, classificacao: npsClass(npsBy.get(p.id)!.score) }
+          ? {
+              nota: npsBy.get(p.id)!.score,
+              data: npsBy.get(p.id)!.createdAt.toISOString(),
+              comentario: npsBy.get(p.id)!.comment ?? undefined,
+              classificacao: npsClass(npsBy.get(p.id)!.score),
+              origem: npsBy.get(p.id)!.source === "email" ? "email" : "painel",
+              ...(npsBy.get(p.id)!.wantsContact !== null ? { querContato: npsBy.get(p.id)!.wantsContact! } : {}),
+            }
           : undefined,
         motivoPerda: prospect?.lostCategory || prospect?.lostReason ? { categoria: label(LOSS_CATEGORIES, prospect.lostCategory), texto: prospect.lostReason ?? undefined } : undefined,
         socios: p.socios.map((s) => ({ nome: s.name, ...(s.role ? { cargo: s.role } : {}), ...(s.birthday ? { aniversario: s.birthday } : {}) })),

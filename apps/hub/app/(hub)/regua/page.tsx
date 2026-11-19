@@ -15,6 +15,7 @@ export default async function Regua({ searchParams }: { searchParams: { situacao
   const vendedores = [...new Set(todas.map((r) => r.vendedor).filter(Boolean))].sort() as string[];
   const lista = todas.filter((r) => !searchParams.situacao || r.situacao === searchParams.situacao).filter((r) => !searchParams.vendedor || r.vendedor === searchParams.vendedor);
   const conta = (s: string) => todas.filter((r) => r.situacao === s).length;
+  const npsDe = new Map(f.empresas.map((e) => [e.id, e.nps]));
   return (
     <>
       <Cabecalho titulo="Régua de relacionamento" subtitulo="Assinantes: contato a cada 30 dias. Período grátis: a cada 15. Conta da última ligação, WhatsApp, e-mail ou reunião registrada." />
@@ -38,8 +39,8 @@ export default async function Regua({ searchParams }: { searchParams: { situacao
         <button className="btn">Filtrar</button>
       </form>
       <div className="card mt-4 overflow-x-auto p-0">
-        <table className="tabela min-w-[760px]">
-          <thead><tr><th>Empresa</th><th className="w-1/3">Ciclo</th><th>Último contato</th><th>Vence</th><th></th></tr></thead>
+        <table className="tabela min-w-[900px]">
+          <thead><tr><th>Empresa</th><th className="w-1/3">Ciclo</th><th>Último contato</th><th>NPS</th><th>Vence</th><th></th></tr></thead>
           <tbody>
             {lista.map((r) => (
               <tr key={r.empresaId}>
@@ -54,6 +55,16 @@ export default async function Regua({ searchParams }: { searchParams: { situacao
                   </p>
                 </td>
                 <td className="text-sm">{r.ultimo ? `${data(r.ultimo)} · ${INTERACTION_KINDS[r.ultimoTipo as keyof typeof INTERACTION_KINDS] ?? ""}` : <span className="text-muted">Sem registro</span>}</td>
+                <td className="max-w-[220px] text-sm">
+                  {npsDe.get(r.empresaId) ? (
+                    <>
+                      <b>{npsDe.get(r.empresaId)!.nota}</b> <span className="text-xs text-muted">{data(npsDe.get(r.empresaId)!.data)}{npsDe.get(r.empresaId)!.querContato ? " · pediu contato" : ""}</span>
+                      {npsDe.get(r.empresaId)!.comentario ? <p className="truncate text-xs text-muted" title={npsDe.get(r.empresaId)!.comentario}>“{npsDe.get(r.empresaId)!.comentario}”</p> : null}
+                    </>
+                  ) : (
+                    <span className="text-muted">—</span>
+                  )}
+                </td>
                 <td className="text-sm">{data(r.vence)}</td>
                 <td><Link className="btn" href={`/empresas/${r.cardId ?? r.empresaId}`}>Registrar contato</Link></td>
               </tr>

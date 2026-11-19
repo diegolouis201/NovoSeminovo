@@ -1,3 +1,4 @@
+import { NpsHubController } from "./nps-hub.controller";
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
 import { CrmModule } from "../crm/crm.module";
@@ -23,7 +24,7 @@ import { VendedoresService } from "../sales/vendedores.service";
 
 @Module({
   imports: [AuthModule, CrmModule, NotificationsModule],
-  controllers: [HubController, FinanceiroController, MarketingHubController, MarketingFeedController, JornadaController, SeoController, ProspeccaoController, ProspeccaoSairController, VendedoresController, ProspectsIngestController],
+  controllers: [HubController, NpsHubController, FinanceiroController, MarketingHubController, MarketingFeedController, JornadaController, SeoController, ProspeccaoController, ProspeccaoSairController, VendedoresController, ProspectsIngestController],
   providers: [HubService, BuyerLeadsService, HubGuard, FinanceiroService, MarketingHubService, JornadaService, SeguidoresService, SeoService, ProspeccaoImportService, ProspeccaoSequenciasService, VendedoresService],
 })
 export class HubModule {}

@@ -2917,6 +2917,67 @@ export const TicketResolveInputSchema = z.object({ resolution: z.string().trim()
 // NPS no painel do parceiro.
 export const NpsInputSchema = z.object({ score: z.number().int().min(0).max(10), comment: z.string().trim().max(1000).optional() });
 
+// Pesquisa NPS por e-mail (a cada 6 meses). Os links do e-mail levam um
+// token assinado; a página pública /nps/r/:token do site registra a nota no
+// clique e mostra a pergunta de acompanhamento.
+export const NPS_TOKEN_RE = /^[A-Za-z0-9_-]{1,40}\.(?:10|[0-9]|c|s)\.[0-9a-z]{1,12}\.[A-Za-z0-9_-]{22}$/;
+export const NPS_COMMENT_MAX = 1000;
+export const NpsEmailTokenSchema = z.object({ token: z.string().max(120).regex(NPS_TOKEN_RE, "Link inválido") });
+export const NpsEmailFollowUpSchema = z.object({
+  token: z.string().max(120).regex(NPS_TOKEN_RE, "Link inválido"),
+  comment: z
+    .string()
+    .max(NPS_COMMENT_MAX * 2)
+    .transform((v) => v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim())
+    .pipe(z.string().max(NPS_COMMENT_MAX, `Escreva até ${NPS_COMMENT_MAX} caracteres`))
+    .optional(),
+  wantsContact: z.boolean().optional(),
+});
+export type NpsEmailFollowUpInput = z.input<typeof NpsEmailFollowUpSchema>;
+export type NpsFaixa = "detrator" | "neutro" | "promotor";
+export const npsFaixa = (score: number): NpsFaixa => (score >= 9 ? "promotor" : score >= 7 ? "neutro" : "detrator");
+export const NPS_PERGUNTA_ACOMPANHAMENTO: Record<NpsFaixa, string> = {
+  detrator: "Poxa, sentimos muito. O que mais atrapalhou?",
+  neutro: "O que faltou para ser um 10?",
+  promotor: "Que bom! O que você mais gosta no NovoSeminovo?",
+};
+export const NPS_PERGUNTA_CONTATO = "Quer que alguém da nossa equipe fale com você?";
+export const NPS_OBRIGADO = "Obrigado! A sua resposta vai direto para a nossa equipe.";
+export type NpsEmailClickResult =
+  | { status: "ok"; score: number; faixa: NpsFaixa; followToken: string; empresa?: string; teste: boolean; comment?: string; wantsContact?: boolean; atualizada: boolean }
+  | { status: "ja_respondida"; score: number; faixa: NpsFaixa }
+  | { status: "expirado" }
+  | { status: "invalido" };
+
+// Hub: painel do NPS (período e tipo de empresa por lista fixa).
+export const NPS_PERIODOS = { "90": "Últimos 90 dias", "180": "Últimos 6 meses", "365": "Últimos 12 meses", tudo: "Desde o início" } as const;
+export const NPS_TIPOS = { loja: "Lojas", imobiliaria: "Imobiliárias", corretor: "Corretores" } as const;
+export const NpsHubQuerySchema = z.object({
+  periodo: z.enum(Object.keys(NPS_PERIODOS) as [keyof typeof NPS_PERIODOS, ...(keyof typeof NPS_PERIODOS)[]]).default("180"),
+  tipo: z.enum(["todos", ...(Object.keys(NPS_TIPOS) as (keyof typeof NPS_TIPOS)[])] as [string, ...string[]]).default("todos"),
+});
+export type NpsConta = { respostas: number; promotores: number; neutros: number; detratores: number; nps: number | null };
+export type NpsDashboard = {
+  periodo: keyof typeof NPS_PERIODOS;
+  tipo: string;
+  geral: NpsConta;
+  porTipo: ({ tipo: keyof typeof NPS_TIPOS; rotulo: string } & NpsConta)[];
+  porOrigem: { painel: number; email: number };
+  email: { enviados: number; respondidos: number; taxaResposta: number | null; lembretes: number };
+  comentarios: { id: string; empresa: string; empresaId: string; cardId?: string; tipo: string; nota: number; faixa: NpsFaixa; comentario: string; origem: "painel" | "email"; querContato?: boolean; data: string }[];
+};
+export type NpsEmailConfig = {
+  aprovadoEm?: string;
+  aprovadoPor?: string;
+  pausadoEm?: string;
+  limiteDiario: number;
+  ligado: boolean;
+  motivoDesligado?: string;
+  enviadosHoje: number;
+  testes: { enviadoEm: string; nota?: number; respondidoEm?: string }[];
+};
+export const NpsPausaSchema = z.object({ pausado: z.boolean() });
+
 // Aniversário "DD/MM" (sem ano): dia válido para o mês (29/02 aceito).
 export function isValidBirthday(value: string): boolean {
   const match = /^(\d{2})\/(\d{2})$/.exec(value.trim());

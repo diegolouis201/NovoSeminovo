@@ -112,6 +112,7 @@ services:
       # Sem nome no .env, cada e-mail sai com o nome do vendedor ("Nina | NovoSeminovo").
       PROSPECCAO_FROM_NAME: ${PROSPECCAO_FROM_NAME:-}
       PROSPECCAO_DISABLED: ${PROSPECCAO_DISABLED:-}
+      NPS_EMAIL_DISABLED: ${NPS_EMAIL_DISABLED:-}
       # Leitura das respostas (IMAP): padrão = servidor do SMTP, porta 993.
       PROSPECCAO_IMAP_HOST: ${PROSPECCAO_IMAP_HOST:-}
       PROSPECCAO_IMAP_PORT: ${PROSPECCAO_IMAP_PORT:-993}

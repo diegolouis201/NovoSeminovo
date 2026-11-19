@@ -26,7 +26,7 @@ export type CrmEmpresa = {
   origemMarketing?: OrigemMarketing;
   uso: { ultimoAcesso?: string; diasSemAcesso?: number; visualizacoes: number };
   chamados: { total: number; abertos: number; abertoDesde?: string; tempoMedioResolucaoHoras?: number; ultimoAssunto?: string };
-  nps?: { nota: number; data: string; comentario?: string; classificacao: "promotor" | "neutro" | "detrator" };
+  nps?: { nota: number; data: string; comentario?: string; classificacao: "promotor" | "neutro" | "detrator"; origem?: "painel" | "email"; querContato?: boolean };
   motivoPerda?: { categoria?: string; texto?: string };
   socios: { nome: string; cargo?: string; aniversario?: string }[];
   etapa: { id: SalesStageId; nome: string };
