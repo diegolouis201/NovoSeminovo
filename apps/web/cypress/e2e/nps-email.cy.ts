@@ -3,7 +3,10 @@
 // do e-mail de teste abrem a página pública do site, que grava a nota no
 // clique e mostra a pergunta certa para cada faixa. A nota de teste não
 // conta no NPS. Sem RESEND_API_KEY no CI: nenhum e-mail sai de verdade.
-const links: Record<number, string> = {};
+// Trocar de baseUrl (Hub → site) recarrega o arquivo: os links passam por
+// um arquivo temporário, não por variável.
+const ARQ = "cypress/downloads/nps-links.json";
+let links: Record<number, string> = {};
 
 describe("Hub: NPS por e-mail (aprovação e e-mail de teste)", { baseUrl: "http://localhost:3100" }, () => {
   // A API aceita no máximo 8 logins por minuto por endereço.
@@ -31,6 +34,7 @@ describe("Hub: NPS por e-mail (aprovação e e-mail de teste)", { baseUrl: "http
         const hrefs = [...doc.matchAll(/href="(http:\/\/localhost:3000\/nps\/r\/[^"]+)"/g)].map((m) => m[1]!.replace(/&amp;/g, "&"));
         expect(hrefs).to.have.length(11);
         hrefs.forEach((h, n) => (links[n] = h));
+        cy.writeFile(ARQ, links);
         expect(doc).to.match(/href="http:\/\/localhost:3000\/nps\/sair\/[^"]+"/);
         expect(doc).to.contain("60.327.011/0001-02");
       });
@@ -53,6 +57,7 @@ describe("Hub: NPS por e-mail (aprovação e e-mail de teste)", { baseUrl: "http
 });
 
 describe("Site: página da nota (sem login)", () => {
+  beforeEach(() => cy.readFile(ARQ).then((l) => (links = l as Record<number, string>)));
   it("0 a 6: pergunta o que atrapalhou e se quer contato; agradece", () => {
     cy.visit(links[3]!);
     cy.contains("E-mail de teste");
