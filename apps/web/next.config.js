@@ -13,6 +13,9 @@ const nextConfig = {
   reactStrictMode: true,
   // Não anunciar a tecnologia do site (cabeçalho X-Powered-By: Next.js).
   poweredByHeader: false,
+  // "/pagina/" → "/pagina" (308) passa a ser feito no middleware.ts, para os
+  // endereços do WordPress antigo responderem 410 direto, sem esse desvio.
+  skipTrailingSlashRedirect: true,
   transpilePackages: ["@novoseminovo/shared-types"],
   // Fotos do anúncio passam por Server Action (ver uploadWizardPhotosAction):
   // o padrão de 1 MB barraria até uma foto só.
