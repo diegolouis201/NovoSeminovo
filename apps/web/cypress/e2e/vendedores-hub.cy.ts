@@ -33,7 +33,7 @@ describe("Hub: vendedores IA", { baseUrl: "http://localhost:3100" }, () => {
       // HTML escrito pela empresa aparece como texto, não vira negrito.
       cy.contains("<b>Como funciona</b>");
       cy.get("b").should("not.exist");
-      cy.contains("Objeção:").parent().should("contain", "Não tem tempo");
+      cy.contains("Objeção:").parent().should("contain", "Sem tempo");
       cy.get("textarea").should("contain.value", "Nina, assistente comercial da NovoSeminovo");
       cy.contains("button", "Editar e enviar").should("be.disabled");
       cy.contains("button", "Rejeitar").click();

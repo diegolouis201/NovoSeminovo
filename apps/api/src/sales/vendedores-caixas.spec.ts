@@ -78,14 +78,15 @@ describe("Primeira abordagem e roteiro de imóveis (Nina: imobiliárias e corret
   test("roteiro escolhido pelo segmento DA EMPRESA, não pelo vendedor", () => {
     for (const seg of ["property", "broker"]) {
       const s = sistemaVendedor({ nome: "Caio", slug: "caio" }, [], seg);
-      assert.match(s, /ZAP|VivaReal/);
+      assert.ok(!/ZAP|VivaReal|OLX/.test(s), "não cita concorrente (regra do Diego, 20/11/2026)");
       assert.match(s, /VRSync/, "integração por feed XML existe em apps/api/src/integrations");
       assert.match(s, /corretor autônomo/i);
       assert.match(s, /Arquiteto NovoSeminovo/);
       assert.match(s, /um assistente virtual/);
     }
     const loja = sistemaVendedor({ nome: "Nina", slug: "nina" }, [], "vehicle");
-    assert.match(loja, /OLX\/Webmotors/);
+    assert.ok(!/OLX|Webmotors/.test(loja), "não cita concorrente (regra do Diego, 20/11/2026)");
+    assert.match(loja, /catálogo de veículos do Facebook ou do Google/);
     assert.ok(!/VRSync|Arquiteto/.test(loja));
     assert.match(loja, /uma assistente virtual/);
   });

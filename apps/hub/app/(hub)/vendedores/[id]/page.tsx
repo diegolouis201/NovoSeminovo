@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ETAPAS_SUGERIDAS, OBJECOES, RASCUNHO_STATUS, VENDEDOR_AUTONOMIA, VENDEDOR_SEGMENTOS } from "@novoseminovo/shared-types";
+import { ETAPAS_SUGERIDAS, rotuloObjecao, RASCUNHO_STATUS, VENDEDOR_AUTONOMIA, VENDEDOR_SEGMENTOS } from "@novoseminovo/shared-types";
 import { Barras, Situacao } from "@/components/Barras";
 import { Form } from "@/components/Form";
 import { Cabecalho, Kpi, Secao, Vazio } from "@/components/ui";
@@ -159,7 +159,7 @@ export default async function Vendedor({ params }: { params: { id: string } }) {
                   <tr key={r.id}>
                     <th scope="row" className="font-semibold"><Link className="link" href={`/empresas/${r.empresa.id}`}>{r.empresa.nome}</Link></th>
                     <td>{RASCUNHO_STATUS[r.status]}</td>
-                    <td>{OBJECOES[r.objecao] ?? r.objecao}</td>
+                    <td>{rotuloObjecao(r.objecao)}</td>
                     <td>{ETAPAS_SUGERIDAS[r.etapaSugerida] ?? r.etapaSugerida}</td>
                     <td>{dataHora(r.criadoEm)}</td>
                   </tr>

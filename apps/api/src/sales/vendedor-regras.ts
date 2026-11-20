@@ -1,7 +1,7 @@
 import {
   LOSS_CATEGORIES,
-  OBJECOES,
   RascunhoModeloSchema,
+  rotuloObjecao,
   assinaturaPadrao,
   vendedorFeminino,
   DIAS_SUPERVISIONADO,
@@ -12,7 +12,8 @@ import {
   type VendedorAutonomia,
   type VendedorNumeros,
 } from "@novoseminovo/shared-types";
-import { TERMOS_PROIBIDOS_REGEX } from "./termos-proibidos";
+import { ETIQUETAS_PARA_PESSOA } from "./roteiro-objecoes";
+import { TERMOS_PROIBIDOS_REGEX, VENDEDOR_NAO_DIZ_REGEX } from "./termos-proibidos";
 
 // Regras puras dos vendedores IA (testadas em vendedor-regras.spec.ts).
 // Tudo que vem de fora (e-mail da empresa, saída do modelo) passa por aqui
@@ -58,7 +59,16 @@ export function pedidoDeSaida(texto: string): boolean {
 export function motivoEscalar(texto: string): MotivoEscalar | undefined {
   const t = sem(texto);
   if (/\b(porra|caralho|merda|idiota|imbecil|vagabund\w*|fdp|vai se f\w*|vai tomar|lixo de|otario\w*|babaca)\b/.test(t)) return "agressivo";
-  if (/\b(lgpd|anpd|advogad\w*|process(o|ar|arei)|judicial|juridic\w*|meus dados|dados pessoais|apag(ar|uem|ue) (os )?(meus|nossos)|exclu(ir|sao) (dos |de )?(meus |nossos )?dados|onde (voces )?(pegaram|conseguiram|acharam))\b/.test(t)) return "juridico";
+  // LGPD: pergunta comum vai para a IA (resposta pronta 9, decisão do Diego
+  // de 20/11/2026); pedido de exclusão de dados, assunto jurídico ou de
+  // contrato continua com uma pessoa.
+  if (
+    /\b(anpd|advogad\w*|processo judicial|acao judicial|process(ar|arei|aremos|ando)|judicial\w*|juridic\w*|contrato\w*|clausula\w*|onde (voces )?(pegaram|conseguiram|acharam))\b/.test(t) ||
+    /\b(apag|exclu|remov|delet|elimin)\w* (de |dos |os |todos os )?(meus |nossos |seus )?dados\b/.test(t) ||
+    /\b(meus|nossos) dados (\w+ )?(apagad|excluid|removid|deletad|eliminad)\w*/.test(t) ||
+    /\bexclusao (de |dos |do )?(meus |nossos )?(dados|cadastro)\b/.test(t)
+  )
+    return "juridico";
   if (/\b(reclama\w*|procon|insatisfeit\w*|absurdo|spam|denunci\w*|reclame aqui)\b/.test(t)) return "reclamacao";
   if (/\b(desconto|abatimento|preco especial|condicao especial|condicoes especiais|mais barato|fazer por menos|faz por menos|\d{1,3} ?% ?(de )?(off|desconto))\b/.test(t)) return "desconto";
   if (/\b(financiamento|financiar|financia|credito|emprestimo|consorcio|parcelar o carro)\b/.test(t)) return "financiamento";
@@ -142,7 +152,8 @@ export function higienizarLinks(texto: string, slug: string): { texto: string; r
 const PROIBIDO = /\b(desconto\w*|abatimento|regional|financiamento\w*|financiar|credito|emprestimo|\d{1,3} ?%|vendas? garantid\w*|garant\w* (de )?(vendas?|visitas?|clientes?)|vai vender|venda certa)\b/;
 
 export function termosProibidos(texto: string): boolean {
-  return PROIBIDO.test(sem(texto)) || TERMOS_PROIBIDOS_REGEX.test(sem(texto));
+  const t = sem(texto);
+  return PROIBIDO.test(t) || TERMOS_PROIBIDOS_REGEX.test(t) || VENDEDOR_NAO_DIZ_REGEX.test(t);
 }
 
 export type RascunhoFinal = { texto: string; objecao: Objecao; etapa: EtapaSugerida; escalar?: MotivoEscalar; followupDias: number };
@@ -165,6 +176,8 @@ export function finalizarRascunho(bruto: unknown, ctx: { nome: string; slug: str
   let texto = s.reply_text.replace(/\r\n?/g, "\n").trim();
   let escalar: MotivoEscalar | undefined = s.escalate.needed ? (s.escalate.reason ?? "incerto") : undefined;
   if (!texto && !escalar) escalar = "incerto";
+  // Cartão e categoria fora do produto não têm resposta conferida: pessoa.
+  if (!escalar && ETIQUETAS_PARA_PESSOA.includes(s.detected_objection)) escalar = "incerto";
   if (termosProibidos(texto)) escalar = "fora_do_roteiro";
   texto = higienizarLinks(texto, ctx.slug).texto;
   if (texto && perguntaSeRobo(ctx.entrada) && !/assistente virtual/i.test(texto)) {
@@ -192,8 +205,9 @@ export function etapaDestino(atual: string, sugerida: EtapaSugerida, card: { par
   return PERMITIDAS[atual]?.includes(para) ? para : undefined;
 }
 
-export function categoriaPerda(objecao: Objecao): LossCategory {
-  const mapa: Partial<Record<Objecao, LossCategory>> = { ja_anuncia: "concorrencia", sem_interesse: "sem_interesse", quanto_custa: "preco", sem_tempo: "timing", pouco_estoque: "pouco_estoque" };
+// Aceita também as etiquetas antigas (sem_interesse, pouco_estoque) dos cards de antes de 20/11/2026.
+export function categoriaPerda(objecao: string): LossCategory {
+  const mapa: Record<string, LossCategory> = { ja_anuncia: "concorrencia", sem_interesse: "sem_interesse", quanto_custa: "preco", sem_tempo: "timing", pouco_estoque: "pouco_estoque" };
   return mapa[objecao] ?? "outro";
 }
 
@@ -222,8 +236,9 @@ export function diasParaAutomatico(noArDesde: Date | null | undefined, agora = n
   return Math.max(0, Math.ceil((noArDesde.getTime() + DIAS_SUPERVISIONADO * 86_400_000 - agora.getTime()) / 86_400_000));
 }
 
-// Rotina = sem escalar, objeção conhecida, sem tirar o card do funil.
-const ROTINA: readonly Objecao[] = ["nenhuma", "ja_anuncia", "sem_tempo", "quanto_custa", "como_funciona", "nao_confia", "pouco_estoque"];
+// Rotina = sem escalar, objeção com resposta pronta, sem tirar o card do
+// funil. LGPD e pedido de pessoa sempre passam pelo dono.
+const ROTINA: readonly Objecao[] = ["nenhuma", "ja_anuncia", "sem_tempo", "quanto_custa", "integracao", "audiencia", "quem_usa", "arquiteto", "nao_confia", "cidade"];
 export function saiSozinho(r: { escalar?: MotivoEscalar; objecao: Objecao; etapa: EtapaSugerida }, autonomia: VendedorAutonomia): boolean {
   return autonomia === "automatico" && !r.escalar && ROTINA.includes(r.objecao) && r.etapa !== "perdido";
 }
@@ -276,7 +291,7 @@ export function numerosDoVendedor(d: DadosPainel, agora = new Date()): VendedorN
     ganhos,
     conversao: pct(ganhos, contatadosTotal),
     perdidos: contar(d.cards.filter((c) => !c.parceira && c.etapa === "perdida").map((c) => LOSS_CATEGORIES[(c.motivoPerda ?? "outro") as LossCategory] ?? "Outro")).map(({ k, v }) => ({ motivo: k, quantidade: v })),
-    objecoes: contar(d.cards.map((c) => c.objecao).filter((o): o is string => Boolean(o) && o !== "nenhuma")).map(({ k, v }) => ({ objecao: OBJECOES[k as Objecao] ?? k, quantidade: v })),
+    objecoes: contar(d.cards.map((c) => c.objecao).filter((o): o is string => Boolean(o) && o !== "nenhuma")).map(({ k, v }) => ({ objecao: rotuloObjecao(k), quantidade: v })),
     aprovacoesPendentes: d.aprovacoesPendentes,
     tempoMedioRespostaHoras: tempos.length ? Math.round((tempos.reduce((a, b) => a + b, 0) / tempos.length) * 10) / 10 : undefined,
     custoIaHojeBrl: Math.round(d.custoHojeBrl * 100) / 100,

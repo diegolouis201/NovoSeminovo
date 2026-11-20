@@ -26,7 +26,7 @@ import {
 const ctx = { nome: "Nina", slug: "nina" };
 const saida = (o: Record<string, unknown> = {}) => ({
   reply_text: "Oi! Que bom que respondeu. Dá uma olhada: https://novoseminovo.com.br/para-lojas/comecar",
-  detected_objection: "como_funciona",
+  detected_objection: "integracao",
   suggested_stage: "negociacao",
   escalate: { needed: false },
   next_followup_days: 3,
@@ -86,6 +86,10 @@ describe("Quando passar para uma pessoa (sem chamar a IA)", () => {
     ["Vai se f*, para de encher, seus idiotas", "agressivo"],
     ["Como funciona a importação pelo link?", undefined],
     ["Já anuncio na OLX e na Webmotors", undefined],
+    // LGPD comum vai para a IA (resposta pronta 9); exclusão/jurídico/contrato, não.
+    ["Vocês seguem a LGPD com os dados dos meus clientes?", undefined],
+    ["Quero ver o contrato antes de assinar", "juridico"],
+    ["Como é o processo de cadastro?", undefined],
   ];
   for (const [texto, esperado] of casos) test(`"${texto.slice(0, 40)}" → ${esperado ?? "IA responde"}`, () => assert.equal(motivoEscalar(texto), esperado));
 });
@@ -134,7 +138,7 @@ describe("Rascunho da IA conferido antes de qualquer coisa", () => {
     assert.match(r.texto, /Nina, assistente comercial da NovoSeminovo$/);
     assert.match(r.texto, /utm_campaign=nina/);
     assert.equal(r.etapa, "negociacao");
-    assert.equal(r.objecao, "como_funciona");
+    assert.equal(r.objecao, "integracao");
   });
 
   test("etapa \"ganho\" ou campo a mais = recusado, vai para o dono", () => {
@@ -263,7 +267,7 @@ test("números do painel do vendedor", () => {
   assert.equal(n.ganhos, 1);
   assert.equal(n.conversao, 25);
   assert.deepEqual(n.perdidos, [{ motivo: "Prefere outro portal", quantidade: 1 }]);
-  assert.deepEqual(n.objecoes[0], { objecao: "Já anuncia em outro portal", quantidade: 2 });
+  assert.deepEqual(n.objecoes[0], { objecao: "Já anuncia em outro lugar", quantidade: 2 });
   assert.equal(n.tempoMedioRespostaHoras, 3);
   assert.equal(n.fila, 7);
   const vazio = numerosDoVendedor({ primeirosEnvios: [], cards: [], respostasEnviadas: [], aprovacoesPendentes: 0, custoHojeBrl: 0, custoMesBrl: 0, rascunhosHoje: 0, emailsHoje: 0, fila: 0 }, agora);

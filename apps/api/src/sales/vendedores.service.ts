@@ -24,7 +24,7 @@ import {
   VENDEDOR_TITULO,
   VendedorAjustesSchema,
   VendedoresGeralSchema,
-  OBJECOES,
+  rotuloObjecao,
   type EtapaSugerida,
   type MotivoEscalar,
   type Objecao,
@@ -52,6 +52,7 @@ import { renderizarEmail } from "../prospeccao/sequencia-regras";
 import { ProspeccaoSequenciasService } from "../prospeccao/sequencias.service";
 import { caixaConhecida, caixaSmtpConfig, criarEnvio, nomeRemetente, semSenha, statusCaixaEmail, type EnviarProspeccao } from "../prospeccao/smtp";
 import { FERRAMENTA_RASCUNHO, PLAYBOOK_VERSAO, linkComecar, pedidoVendedor, sistemaVendedor } from "./playbook-vendedor";
+import { TAREFA_POR_ETIQUETA } from "./roteiro-objecoes";
 import {
   categoriaPerda,
   classificarEntrada,
@@ -739,6 +740,15 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
     for (const d of donos) await this.notificacoes.notify(d.id, "ops_alert", { title: titulo, body: corpo }).catch(() => undefined);
   }
 
+  // Respostas prontas 5 e 16 (roteiro-objecoes.ts): a etiqueta cria a tarefa
+  // para uma pessoa (uma só por card enquanto estiver aberta). A IA só
+  // escolhe a etiqueta, da lista fechada; o título e o texto são do código.
+  private async tarefaDaResposta(card: { id: string; name: string }, objecao: Objecao, agora: Date) {
+    const tipo = TAREFA_POR_ETIQUETA[objecao];
+    if (tipo === "ligar") await this.tarefa(card, `Ligar para ${card.name}`, "ligacao", "A empresa pediu para falar com uma pessoa da equipe. A assistente respondeu que alguém vai chamar: combine pelo telefone ou WhatsApp do card.", agora);
+    if (tipo === "ajudar_estoque") await this.tarefa(card, `Ajudar ${card.name} a subir o estoque`, "tarefa", "A empresa disse que não tem tempo (ou não tem CRM) para cadastrar. A assistente ofereceu ajuda da equipe: planilha, painel ou subir o estoque junto pelo WhatsApp (só com autorização da empresa).", agora);
+  }
+
   private async escalar(card: SalesProspect, motivo: MotivoEscalar, agora: Date, vendedor?: { name: string } | null) {
     const rotulo = MOTIVOS_ESCALAR[motivo];
     if (motivo === "ligacao") await this.tarefa(card, `Ligar para ${card.name}`, "ligacao", "A empresa pediu ligação ou reunião. A assistente não liga: combine pelo telefone do card.", agora);
@@ -751,7 +761,8 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
     const card = await this.prisma.salesProspect.findUniqueOrThrow({ where: { id: cardId }, include: { salesAgent: true } });
     const motivo = motivoEscalar(texto);
     if (motivo) {
-      if (card.salesAgentId) await this.criarRascunho(card, msg, { texto: "", objecao: "outra", etapa: "manter", escalar: motivo, followupDias: 1 }, agora);
+      // Pedido de ligação já ganha a etiqueta "quer falar com pessoa".
+      if (card.salesAgentId) await this.criarRascunho(card, msg, { texto: "", objecao: motivo === "ligacao" ? "quer_pessoa" : "outra", etapa: "manter", escalar: motivo, followupDias: 1 }, agora);
       else await this.escalar(card, motivo, agora);
       return;
     }
@@ -861,6 +872,7 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
     await this.prisma.prospectMessage.update({ where: { id: msg.id }, data: { needsDraft: false } });
     if (r.objecao !== "nenhuma" || !card.objection) await this.prisma.salesProspect.update({ where: { id: card.id }, data: { objection: r.objecao } });
     if (r.escalar) await this.escalar(card, r.escalar, agora, v);
+    await this.tarefaDaResposta(card, r.objecao, agora);
     if (auto) await this.enviarRascunho(d.id, agora);
   }
 
@@ -999,7 +1011,7 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
       where: { id: card.id },
       data: {
         ...(para ? { stage: para as SalesProspect["stage"] } : {}),
-        ...(perdida ? { lostCategory: categoriaPerda(d.objection as Objecao), lostReason: `Objeção: ${OBJECOES[d.objection as Objecao] ?? d.objection}`, nextContactAt: null } : {}),
+        ...(perdida ? { lostCategory: categoriaPerda(d.objection), lostReason: `Objeção: ${rotuloObjecao(d.objection)}`, nextContactAt: null } : {}),
         ...(followup ? { nextContactAt: followup, nextContactKind: d.channel === "whatsapp" ? "whatsapp" : "email" } : {}),
       },
     });
@@ -1131,7 +1143,7 @@ export class VendedoresService implements OnModuleInit, OnModuleDestroy {
       status: r.status as RascunhoVista["status"],
       mensagem: { assunto: r.inbound.subject ?? undefined, texto: r.inbound.body, recebidaEm: r.inbound.receivedAt.toISOString() },
       texto: r.finalText ?? r.replyText,
-      objecao: r.objection as Objecao,
+      objecao: r.objection,
       etapaSugerida: r.suggestedStage as EtapaSugerida,
       escalar: r.escalateReason ? { motivo: r.escalateReason as MotivoEscalar, rotulo: MOTIVOS_ESCALAR[r.escalateReason as MotivoEscalar] ?? r.escalateReason } : undefined,
       proximoContatoDias: r.nextFollowupDays,

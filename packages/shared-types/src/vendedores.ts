@@ -65,20 +65,35 @@ export const VENDEDOR_AUTONOMIA = { supervisionado: "Supervisionado (dono aprova
 export type VendedorAutonomia = keyof typeof VENDEDOR_AUTONOMIA;
 export const DIAS_SUPERVISIONADO = 14;
 
-// Objeções que a IA pode apontar (lista fechada: o modelo não inventa outra).
+// Etiquetas do campo "objeção" do CRM (lista fechada pedida pelo Diego em
+// 20/11/2026: a IA só grava uma destas; qualquer outro valor vira "outra").
+// Chaves antigas que continuam com o mesmo sentido foram mantidas
+// (quanto_custa, sem_tempo, ja_anuncia, nao_confia) para não perder o
+// histórico dos cards.
 export const OBJECOES = {
   nenhuma: "Nenhuma",
-  ja_anuncia: "Já anuncia em outro portal",
-  sem_tempo: "Não tem tempo",
-  quanto_custa: "Quanto custa depois",
-  como_funciona: "Como funciona",
-  nao_confia: "Não confia",
-  sem_interesse: "Sem interesse",
-  pouco_estoque: "Pouco estoque",
+  quanto_custa: "Preço depois do grátis",
+  cartao: "Cartão",
+  integracao: "Integração/CRM",
+  sem_tempo: "Sem tempo",
+  audiencia: "Audiência/resultado",
+  quem_usa: "Quem já usa",
+  lgpd: "LGPD",
+  arquiteto: "Arquiteto",
+  nao_confia: "Segurança/golpe",
+  categoria_fora: "Categoria fora",
+  cidade: "Cidade",
+  ja_anuncia: "Já anuncia em outro lugar",
+  quer_pessoa: "Quer falar com pessoa",
   outra: "Outra",
 } as const;
 export type Objecao = keyof typeof OBJECOES;
 export const ObjecaoSchema = z.enum(Object.keys(OBJECOES) as [Objecao, ...Objecao[]]);
+// Valores gravados antes da lista de 20/11/2026: só para mostrar o rótulo
+// de cards e rascunhos antigos (a IA não pode mais gravar estes).
+export const OBJECOES_ANTIGAS = { como_funciona: "Como funciona", sem_interesse: "Sem interesse", pouco_estoque: "Pouco estoque" } as const;
+export const rotuloObjecao = (valor: string | null | undefined): string =>
+  (valor && (OBJECOES[valor as Objecao] ?? OBJECOES_ANTIGAS[valor as keyof typeof OBJECOES_ANTIGAS])) || OBJECOES.outra;
 
 // Etapa sugerida pela IA. "ganho" NÃO existe aqui: só o cadastro no site
 // (casamento por e-mail/telefone/CNPJ/UTM) marca ganho.
@@ -90,7 +105,7 @@ export const EtapaSugeridaSchema = z.enum(Object.keys(ETAPAS_SUGERIDAS) as [Etap
 export const MOTIVOS_ESCALAR = {
   desconto: "Pediu desconto ou condição especial",
   reclamacao: "Reclamação",
-  juridico: "Assunto jurídico / LGPD / dados",
+  juridico: "Exclusão de dados, assunto jurídico ou contrato",
   financiamento: "Financiamento ou crédito",
   ligacao: "Pediu ligação ou reunião",
   agressivo: "Mensagem agressiva",
@@ -106,7 +121,9 @@ export const MotivoEscalarSchema = z.enum(Object.keys(MOTIVOS_ESCALAR) as [Motiv
 export const RascunhoModeloSchema = z
   .object({
     reply_text: z.string().max(3000),
-    detected_objection: ObjecaoSchema,
+    // Etiqueta fora da lista (ou que não é texto) vira "outra"; o resto do
+    // rascunho continua valendo.
+    detected_objection: ObjecaoSchema.catch("outra"),
     suggested_stage: EtapaSugeridaSchema,
     escalate: z.object({ needed: z.boolean(), reason: MotivoEscalarSchema.optional() }).strict(),
     next_followup_days: z.number().int().min(0).max(30),
@@ -259,7 +276,8 @@ export type RascunhoVista = {
   status: RascunhoStatus;
   mensagem: { assunto?: string; texto: string; recebidaEm: string };
   texto: string;
-  objecao: Objecao;
+  // Etiqueta (pode ser um valor antigo; use rotuloObjecao para mostrar).
+  objecao: string;
   etapaSugerida: EtapaSugerida;
   escalar?: { motivo: MotivoEscalar; rotulo: string };
   proximoContatoDias: number;

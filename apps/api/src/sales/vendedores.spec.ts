@@ -408,7 +408,7 @@ describe("Vendedores IA no banco (caixa, SMTP e modelo falsos)", { skip: !withDb
 
   test("pedido de ligação: tarefa \"Ligar para\" para uma pessoa; WhatsApp autorizado fica registrado", async () => {
     chega({ de: emailDe(9), assunto: "Re: Estoque", texto: "Me liga amanhã de manhã.", id: `<l9-${tag}@x>`, inReplyTo: await idEnviado(9) });
-    service.usarModelo(modeloFalso(rascunho({ detected_objection: "como_funciona" })).client);
+    service.usarModelo(modeloFalso(rascunho({ detected_objection: "integracao" })).client);
     chega({ de: emailDe(10), assunto: "Re: Estoque", texto: "Prefiro conversar pelo WhatsApp: (31) 98888-7777", id: `<w10-${tag}@x>`, inReplyTo: await idEnviado(10) });
     await ler(min(120), so());
     const t9 = await prisma.hubTask.findFirstOrThrow({ where: { prospectId: card(9) } });
