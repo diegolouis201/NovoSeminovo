@@ -33,8 +33,10 @@ export function sniffFileType(buffer: Buffer): "image/jpeg" | "image/png" | "ima
 
 // sharp sempre com teto de pixels: use no lugar de sharp() em todo o código
 // (fotos do CRM e de outros sites também passam por aqui).
+// Sem input (ex.: { create } para um fundo liso), o sharp só aceita as opções sozinhas.
 export function safeSharp(input?: Buffer, options: SharpOptions = {}) {
-  return sharp(input, { limitInputPixels: MAX_IMAGE_PIXELS, failOn: "error", ...options });
+  const opcoes: SharpOptions = { limitInputPixels: MAX_IMAGE_PIXELS, failOn: "error", ...options };
+  return input === undefined ? sharp(opcoes) : sharp(input, opcoes);
 }
 
 export async function assertNoMalware(buffer: Buffer, env: Env = process.env): Promise<void> {

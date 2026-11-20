@@ -2,3 +2,9 @@ Fredoka (SemiBold e Bold) — Copyright 2016 The Fredoka Project Authors.
 Licença SIL Open Font License 1.1 (https://openfontlicense.org): uso, inclusão e
 redistribuição livres, inclusive comercial. Baixada do Google Fonts.
 Usada nas artes dos posts do Instagram (src/marketing/art.service.ts).
+
+Nunito Sans (Regular e Bold) — Copyright 2016 The Nunito Sans Project Authors.
+Licença SIL Open Font License 1.1. Instâncias estáticas (peso 400 e 700)
+geradas da fonte variável do site (apps/web/assets/fonts/NunitoSans-Variable-latin.woff2,
+Google Fonts), com o nome de família "Nunito Sans". Usada na arte de
+boas-vindas das empresas (src/hub/boas-vindas-layout.ts), junto com a Fredoka.

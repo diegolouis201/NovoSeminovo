@@ -144,6 +144,8 @@ describe("Área Comercial", () => {
     form().find('input[name="instagram"]').should("have.value", "loja.teste");
     form().find('input[name="consent"]').should("be.checked");
     form().contains("Autorizado em").should("be.visible");
+    form().contains("label", "Autorizo o NovoSeminovo a divulgar minha empresa nas redes sociais").find('input[name="consent"]').should("be.checked");
+    form().find('input[name="consent"]').should("have.attr", "aria-describedby", "consent-data");
   });
 
   it("telas do CRM ficam no computador (repositório), não no site", () => {

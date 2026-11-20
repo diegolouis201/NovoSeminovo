@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException, Optional, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
 import {
   MktBoostRulesSchema,
   MktBoostSchema,
@@ -19,7 +19,8 @@ import { getPhotoStorage } from "../common/storage";
 import { windsorEnabled, windsorRows } from "../operations/windsor";
 import { PrismaService } from "../prisma/prisma.service";
 import { type ContagemCampanha, type LinhaGasto, atribuirConversoes, calendarioMes, custoPorCadastro, proximoStatus, publicacaoAutomatica, resumoGastos } from "./marketing-regras";
-import { MetaError, facebookEnabled, instagramEnabled, metricasInstagram, publicarFacebook, publicarInstagram } from "./meta-graph";
+import { MetaError, facebookEnabled, instagramEnabled, mencionarPaginaFacebook, metricasInstagram, paginaFacebookValida, perfilInstagramValido, publicarFacebook, publicarInstagram } from "./meta-graph";
+import { NotificationsService } from "../notifications/notifications.service";
 
 // Marketing do Hub: o Claude do Marketing envia os conteúdos (chave do
 // marketing), o Diego aprova ou pede ajuste no Hub, e o Hub publica sozinho
@@ -31,13 +32,59 @@ const publica = (url: string) => (url.startsWith("http") ? url : `${(process.env
 const legendaCompleta = (c: { legenda: string; hashtags: string[] }) => [c.legenda, c.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" ")].filter(Boolean).join("\n\n");
 const CONECTORES: Record<string, string> = { meta_ads: "facebook", google_ads: "google_ads", tiktok_ads: "tiktok" };
 
+// Cria um conteúdo "em aprovação" (o Diego aprova no Hub). Mesmo origemId não
+// entra duas vezes, nem com duas chamadas ao mesmo tempo (índice único).
+// Fora da classe para o post automático de boas-vindas usar sem depender do
+// módulo do Hub (que tem o publicador).
+export async function criarConteudo(prisma: PrismaService, raw: MktContentInput, origem: "claude" | "hub", autor: string): Promise<{ id: string; repetido?: boolean }> {
+  const i = MktContentInputSchema.parse(raw);
+  if (i.origemId) {
+    const ja = await prisma.mktContent.findUnique({ where: { origemId: i.origemId }, select: { id: true } });
+    if (ja) return { id: ja.id, repetido: true };
+  }
+  let c: { id: string };
+  try {
+    c = await prisma.mktContent.create({
+      data: {
+        tipo: i.tipo,
+        redes: i.redes,
+        titulo: i.titulo,
+        legenda: i.legenda,
+        hashtags: i.hashtags,
+        midias: i.midias,
+        dataPlanejada: i.dataPlanejada ? new Date(i.dataPlanejada) : null,
+        campanha: (i.campanha as Prisma.InputJsonValue) ?? undefined,
+        observacao: i.observacao,
+        ordemId: i.ordemId,
+        detalhes: (i.detalhes as Prisma.InputJsonValue) ?? undefined,
+        impulso: (i.impulso as Prisma.InputJsonValue) ?? undefined,
+        origemId: i.origemId,
+        origem,
+        status: "em_aprovacao",
+      },
+      select: { id: true },
+    });
+  } catch (e) {
+    if (i.origemId && (e as { code?: string }).code === "P2002") {
+      const ja = await prisma.mktContent.findUnique({ where: { origemId: i.origemId }, select: { id: true } });
+      if (ja) return { id: ja.id, repetido: true };
+    }
+    throw e;
+  }
+  await prisma.mktHistory.create({ data: { contentId: c.id, acao: "enviado", autor } });
+  return c;
+}
+
 @Injectable()
 export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MarketingHubService.name);
   private timer?: NodeJS.Timeout;
   private rodando = false;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly notificacoes?: NotificationsService,
+  ) {}
 
   // Publicador: a cada 2 minutos olha o que foi aprovado e chegou a hora.
   onModuleInit() {
@@ -74,33 +121,7 @@ export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
   }
 
   async criar(raw: MktContentInput, origem: "claude" | "hub", autor: string): Promise<{ id: string; repetido?: boolean }> {
-    const i = MktContentInputSchema.parse(raw);
-    if (i.origemId) {
-      const ja = await this.prisma.mktContent.findUnique({ where: { origemId: i.origemId }, select: { id: true } });
-      if (ja) return { id: ja.id, repetido: true };
-    }
-    const c = await this.prisma.mktContent.create({
-      data: {
-        tipo: i.tipo,
-        redes: i.redes,
-        titulo: i.titulo,
-        legenda: i.legenda,
-        hashtags: i.hashtags,
-        midias: i.midias,
-        dataPlanejada: i.dataPlanejada ? new Date(i.dataPlanejada) : null,
-        campanha: (i.campanha as Prisma.InputJsonValue) ?? undefined,
-        observacao: i.observacao,
-        ordemId: i.ordemId,
-        detalhes: (i.detalhes as Prisma.InputJsonValue) ?? undefined,
-        impulso: (i.impulso as Prisma.InputJsonValue) ?? undefined,
-        origemId: i.origemId,
-        origem,
-        status: "em_aprovacao",
-      },
-      select: { id: true },
-    });
-    await this.historico(c.id, "enviado", autor);
-    return c;
+    return criarConteudo(this.prisma, raw, origem, autor);
   }
 
   private async carregar(id: string) {
@@ -200,19 +221,31 @@ export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
       const imagens = c.midias.map(publica);
       const legenda = legendaCompleta(c);
       const extra: Prisma.MktContentUpdateInput = {};
+      // Marcação da empresa (post de boas-vindas): perfil guardado nos detalhes.
+      const detalhes = (c.detalhes as Record<string, unknown> | null) ?? {};
+      const marcarIg = perfilInstagramValido(detalhes.marcar_instagram) ? detalhes.marcar_instagram : undefined;
+      const marcarFb = paginaFacebookValida(detalhes.marcar_facebook) ? detalhes.marcar_facebook : undefined;
+      const marcacoesFalhas: { rede: "instagram" | "facebook"; perfil: string; motivo: string }[] = [];
       try {
         for (const rede of pendentes) {
           if (rede === "instagram") {
-            const r = await publicarInstagram(imagens, legenda);
+            const r = await publicarInstagram(imagens, legenda, undefined, { marcar: marcarIg });
             links.instagram = r.link ?? `https://www.instagram.com/`;
             extra.igMediaId = r.mediaId;
+            if (marcarIg && r.marcacaoErro) marcacoesFalhas.push({ rede, perfil: `@${marcarIg}`, motivo: r.marcacaoErro });
           } else {
             const r = await publicarFacebook(imagens, legenda);
             links.facebook = r.link;
             extra.fbPostId = r.postId;
+            if (marcarFb) {
+              await mencionarPaginaFacebook(r.postId, legenda, marcarFb).catch((e: Error) =>
+                marcacoesFalhas.push({ rede: "facebook", perfil: `facebook.com/${marcarFb}`, motivo: e instanceof MetaError ? e.message : "falha inesperada" }),
+              );
+            }
           }
           await this.historico(c.id, "publicado", "Hub", `${rede}: ${links[rede]}`);
         }
+        for (const f of marcacoesFalhas) await this.avisarMarcacao(c, f, links[f.rede]);
         const tudo = c.redes.every((r) => links[r]);
         await this.prisma.mktContent.update({ where: { id: c.id }, data: { ...extra, links, status: tudo ? "publicado" : "aprovado", publicadoEm: c.publicadoEm ?? agora, erro: null } });
         publicados++;
@@ -223,6 +256,19 @@ export class MarketingHubService implements OnModuleInit, OnModuleDestroy {
       }
     }
     return { publicados };
+  }
+
+  // Marcação automática não deu certo: o post está no ar; o Diego marca a
+  // empresa pelo app. Registra no histórico e avisa os donos (notificação +
+  // e-mail, o mesmo aviso de operação dos outros alertas).
+  private async avisarMarcacao(c: { id: string; titulo: string }, f: { rede: "instagram" | "facebook"; perfil: string; motivo: string }, link: string | undefined) {
+    const nomeRede = f.rede === "instagram" ? "Instagram" : "Facebook";
+    const motivo = f.motivo.slice(0, 300);
+    await this.historico(c.id, "marcacao", "Hub", `Marcação automática no ${nomeRede} não funcionou (${motivo}). Marcar ${f.perfil} pelo app.`);
+    const titulo = `Marque a empresa no ${nomeRede}: ${c.titulo}`.slice(0, 200);
+    const corpo = `O post "${c.titulo}" foi publicado${link ? ` (${link})` : ""}, mas a marcação automática de ${f.perfil} não funcionou (${motivo}). Abra o post pelo app do ${nomeRede} e marque ${f.perfil}.`;
+    const donos = await this.prisma.user.findMany({ where: { status: "active", OR: [{ role: "admin" }, { hubMember: { profile: "dono", active: true } }] }, select: { id: true }, take: 10 });
+    for (const d of donos) await this.notificacoes?.notify(d.id, "ops_alert", { title: titulo, body: corpo, source: "marketing" }).catch(() => undefined);
   }
 
   async atualizarMetricas(id: string) {

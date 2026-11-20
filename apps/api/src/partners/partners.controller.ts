@@ -130,7 +130,7 @@ export class PartnersController {
   @UseGuards(JwtAuthGuard)
   @Post("partners/mine/social")
   async saveSocial(@CurrentUser() user: { id: string }, @Body() body: unknown) {
-    await savePartnerSocial(this.prisma, user.id, parseOrBadRequest(PartnerSocialInputSchema, body) as PartnerSocialInput);
+    await savePartnerSocial(this.prisma, user.id, parseOrBadRequest(PartnerSocialInputSchema, body) as PartnerSocialInput, (id) => this.partnersService.syncWelcomePost(id));
     return this.partnersService.getMine(user.id);
   }
 

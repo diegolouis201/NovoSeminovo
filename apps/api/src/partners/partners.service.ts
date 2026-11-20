@@ -6,6 +6,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   type OnModuleDestroy,
   type OnModuleInit,
 } from "@nestjs/common";
@@ -48,6 +49,7 @@ import { fillCompanyFacts } from "./company-facts";
 import { CnpjService } from "./cnpj.service";
 import { trackRoutine } from "../operations/routine-health";
 import { sanitizeUpload } from "../common/image-safety";
+import { BoasVindasService } from "../hub/boas-vindas.service";
 
 // Quantas vagas de anúncio um plano "ocupa": tudo que não é um estado final
 // (vendido/recusado/expirado) conta contra o limite, porque senão dava pra
@@ -189,6 +191,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
     private readonly notifications: NotificationsService,
     private readonly cnpj: CnpjService,
     private readonly contacts: ContactsService,
+    @Optional() private readonly boasVindas?: BoasVindasService,
   ) {}
 
   // Fim do período grátis não tem evento nenhum — confere a cada 6 horas (e
@@ -352,7 +355,7 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
     description?: string,
   ): Promise<void> {
     const slug = await this.uniqueSlug(company.legalName);
-    await this.prisma.$transaction([
+    const [created] = await this.prisma.$transaction([
       this.prisma.partner.create({
         data: {
           ownerUserId,
@@ -384,6 +387,8 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
         consentText: "Cadastro de loja/imobiliária/corretor no site (cliente).",
       });
     }
+    // Fim do cadastro: post de boas-vindas se já houver logo e autorização.
+    await this.boasVindas?.sincronizarSemFalhar(created.id);
   }
 
   // ---------- Destaques (anúncios de loja) ----------
@@ -478,10 +483,17 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
 
     if (partner.logoUrl) await storage.remove(partner.logoUrl);
     await this.prisma.partner.update({ where: { id: partner.id }, data: { logoUrl: url } });
+    // Logo chegou: se a autorização já estava dada, cria o post de boas-vindas.
+    await this.boasVindas?.sincronizarSemFalhar(partner.id);
 
     const updated = await this.getMine(userId);
     if (!updated) throw new Error("Falha inesperada ao salvar a logo.");
     return updated;
+  }
+
+  // Gatilho das boas-vindas depois de salvar redes/autorização (ver savePartnerSocial).
+  async syncWelcomePost(partnerId: string): Promise<void> {
+    await this.boasVindas?.sincronizarSemFalhar(partnerId);
   }
 
   async getMine(userId: string): Promise<Partner | null> {

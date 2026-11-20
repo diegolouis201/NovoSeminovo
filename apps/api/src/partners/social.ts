@@ -12,8 +12,10 @@ export const socialView = (p: { instagram: string | null; facebook: string | nul
 
 // Só o dono da empresa informa as redes e autoriza (ou retira a autorização)
 // o post de boas-vindas com a logomarca. Marcar a caixinha de novo mantém a
-// data da primeira autorização.
-export async function savePartnerSocial(prisma: PrismaService, userId: string, input: PartnerSocialInput): Promise<PartnerSocialView> {
+// data da primeira autorização (registro LGPD).
+// aoMudar: gatilho do post automático de boas-vindas (cria quando logo e
+// autorização ficam completas; cancela quando a autorização é retirada).
+export async function savePartnerSocial(prisma: PrismaService, userId: string, input: PartnerSocialInput, aoMudar?: (partnerId: string) => Promise<void>): Promise<PartnerSocialView> {
   const partner = await prisma.partner.findFirst({
     where: { OR: [{ ownerUserId: userId }, { members: { some: { userId, role: "owner" } } }] },
     select: { id: true, socialConsentAt: true },
@@ -28,5 +30,6 @@ export async function savePartnerSocial(prisma: PrismaService, userId: string, i
     },
     select: { instagram: true, facebook: true, socialConsentAt: true },
   });
+  if (aoMudar) await aoMudar(partner.id);
   return socialView(updated);
 }

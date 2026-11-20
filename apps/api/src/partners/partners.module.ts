@@ -8,9 +8,10 @@ import { PartnersService } from "./partners.service";
 import { CnpjService } from "./cnpj.service";
 import { ContactsModule } from "../marketing/contacts.module";
 import { SalesModule } from "../sales/sales.module";
+import { BoasVindasModule } from "../hub/boas-vindas.module";
 
 @Module({
-  imports: [AuthModule, PaymentsModule, ListingsModule, NotificationsModule, ContactsModule, SalesModule],
+  imports: [AuthModule, PaymentsModule, ListingsModule, NotificationsModule, ContactsModule, SalesModule, BoasVindasModule],
   controllers: [PartnersController],
   providers: [PartnersService, CnpjService],
   exports: [PartnersService],

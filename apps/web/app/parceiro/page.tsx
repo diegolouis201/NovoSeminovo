@@ -128,7 +128,7 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
           <div>
             <h2 className="font-display text-base font-semibold text-ink">Redes sociais da empresa</h2>
             <p className="text-ink-muted">
-              Com plano ativo e logo enviada, o NovoSeminovo publica um post de boas-vindas no Instagram e no Facebook marcando a sua empresa.
+              Com a logo enviada e a autorização marcada, o NovoSeminovo prepara um post de boas-vindas para o Instagram e o Facebook com a logo da sua empresa e o link da sua página, marcando os perfis informados. O @ e a página são opcionais.
             </p>
           </div>
           {searchParams.redes === "ok" && <p className="rounded-brand bg-surface-sober px-3 py-2 font-semibold text-ink">Redes sociais salvas.</p>}
@@ -154,17 +154,23 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
               />
             </label>
           </div>
-          <label className="flex items-start gap-2">
-            <input type="checkbox" name="consent" defaultChecked={Boolean(partner.social?.consentAt)} className="mt-1" />
-            <span className="text-ink">
-              Autorizo o NovoSeminovo a divulgar minha empresa e a minha logomarca no Instagram e no Facebook, marcando os perfis acima.
-              {partner.social?.consentAt && (
-                <span className="block text-xs text-ink-muted">
-                  Autorizado em {new Date(partner.social.consentAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}. Pode desmarcar quando quiser.
-                </span>
-              )}
-            </span>
-          </label>
+          <div>
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                name="consent"
+                defaultChecked={Boolean(partner.social?.consentAt)}
+                aria-describedby={partner.social?.consentAt ? "consent-data" : undefined}
+                className="mt-1"
+              />
+              <span className="text-ink">Autorizo o NovoSeminovo a divulgar minha empresa nas redes sociais</span>
+            </label>
+            {partner.social?.consentAt && (
+              <p id="consent-data" className="ml-6 text-xs text-ink-muted">
+                Autorizado em {new Date(partner.social.consentAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}. Pode desmarcar quando quiser.
+              </p>
+            )}
+          </div>
           <Button type="submit" variant="secondary" className="self-start">
             Salvar redes sociais
           </Button>

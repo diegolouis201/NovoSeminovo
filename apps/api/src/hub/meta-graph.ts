@@ -55,12 +55,28 @@ async function esperarPronto(creationId: string, pollMs: number) {
   throw new MetaError("Instagram demorou demais para processar a imagem");
 }
 
+// Perfis que podem ser marcados (só o nome, como PartnerSocialInputSchema guarda).
+export const perfilInstagramValido = (v: unknown): v is string => typeof v === "string" && /^[a-z0-9._]{1,30}$/i.test(v);
+export const paginaFacebookValida = (v: unknown): v is string => typeof v === "string" && (/^[A-Za-z0-9.-]{1,100}$/.test(v) || /^profile\.php\?id=\d{1,20}$/.test(v));
+
 // Uma imagem: post comum. Duas a dez: carrossel. URLs públicas de JPEG.
-export async function publicarInstagram(imagens: string[], legenda: string, pollMs = 3000): Promise<{ mediaId: string; link?: string }> {
+// marcar: perfil do Instagram marcado na foto (user_tags, no centro). Se a
+// Meta recusar a marcação, publica sem ela e devolve o motivo em
+// marcacaoErro — a publicação nunca falha por causa da marcação.
+export async function publicarInstagram(imagens: string[], legenda: string, pollMs = 3000, opcoes: { marcar?: string } = {}): Promise<{ mediaId: string; link?: string; marcacaoErro?: string }> {
   const conta = process.env.INSTAGRAM_ACCOUNT_ID as string;
   let creationId: string;
+  let marcacaoErro: string | undefined;
   if (imagens.length === 1) {
-    creationId = String((await ig("POST", `/${conta}/media`, { image_url: imagens[0], caption: legenda })).id ?? "");
+    const base = { image_url: imagens[0], caption: legenda };
+    let criado: Record<string, unknown> | undefined;
+    if (opcoes.marcar && perfilInstagramValido(opcoes.marcar)) {
+      criado = await ig("POST", `/${conta}/media`, { ...base, user_tags: JSON.stringify([{ username: opcoes.marcar, x: 0.5, y: 0.5 }]) }).catch((e: Error) => {
+        marcacaoErro = e.message;
+        return undefined;
+      });
+    }
+    creationId = String((criado ?? (await ig("POST", `/${conta}/media`, base))).id ?? "");
   } else {
     const filhos: string[] = [];
     for (const url of imagens) filhos.push(String((await ig("POST", `/${conta}/media`, { image_url: url, is_carousel_item: "true" })).id ?? ""));
@@ -71,7 +87,7 @@ export async function publicarInstagram(imagens: string[], legenda: string, poll
   const mediaId = String((await ig("POST", `/${conta}/media_publish`, { creation_id: creationId })).id ?? "");
   if (!mediaId) throw new MetaError("Instagram não devolveu o id do post publicado");
   const details = await ig("GET", `/${mediaId}`, { fields: "permalink" }).catch(() => ({}) as Record<string, unknown>);
-  return { mediaId, link: typeof details.permalink === "string" ? details.permalink : undefined };
+  return { mediaId, link: typeof details.permalink === "string" ? details.permalink : undefined, ...(marcacaoErro ? { marcacaoErro } : {}) };
 }
 
 export async function publicarFacebook(imagens: string[], legenda: string): Promise<{ postId: string; link: string }> {
@@ -89,6 +105,17 @@ export async function publicarFacebook(imagens: string[], legenda: string): Prom
   }
   if (!postId) throw new MetaError("Facebook não devolveu o id do post");
   return { postId, link: `https://www.facebook.com/${postId}` };
+}
+
+// Menciona a página da empresa no post já publicado (edita o texto com
+// "@[id-da-página]"). Depende de a Meta liberar a menção de páginas para o
+// app; se recusar, quem chamou avisa o Diego para marcar pelo app.
+export async function mencionarPaginaFacebook(postId: string, legenda: string, pagina: string): Promise<void> {
+  if (!paginaFacebookValida(pagina)) throw new MetaError("Facebook: página da empresa inválida");
+  const numero = /^profile\.php\?id=(\d+)$/.exec(pagina)?.[1];
+  const id = numero ?? String((await fb("GET", `/${pagina}`, { fields: "id" })).id ?? "");
+  if (!/^\d+$/.test(id)) throw new MetaError("Facebook não encontrou a página da empresa");
+  await fb("POST", `/${postId}`, { message: `${legenda}\n\n@[${id}]` });
 }
 
 export const INSIGHT_METRICS = ["reach", "likes", "comments", "saved", "shares"] as const;
