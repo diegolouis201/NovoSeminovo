@@ -283,6 +283,8 @@ describe("Boas-vindas publicadas: marcação da empresa", { skip: !withDb && "se
     process.env = env;
     server.close();
     await prisma.mktContent.deleteMany({ where: { titulo: { contains: tag } } });
+    // Outros testes rodando ao mesmo tempo também avisam "todos os admins".
+    await prisma.notification.deleteMany({ where: { userId: adminId } });
     await prisma.user.deleteMany({ where: { id: adminId } });
     await prisma.$disconnect();
   });

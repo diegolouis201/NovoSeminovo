@@ -8,6 +8,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   type OnModuleDestroy,
   type OnModuleInit,
 } from "@nestjs/common";
@@ -31,6 +32,8 @@ import { LISTING_STATUSES_COUNTED_IN_PLAN_QUOTA, listingLimitFor } from "../part
 import { SafeFetchError, assertPublicHttpUrl, safeFetch } from "../common/safe-fetch";
 import { FeedFormatError, parseNovoSeminovoJson, parseVrsync, type ParsedFeedItem } from "./feed-parsers";
 import { parseVehicleCatalog } from "./vehicle-catalog-parser";
+import { baixarLogo, importarLogoDoFeed, logoUrlDoFeed } from "./feed-logo";
+import { BoasVindasService } from "../hub/boas-vindas.service";
 import { trackRoutine } from "../operations/routine-health";
 import { findContactInfo, scrubContactInline, stripContactInfo } from "../common/contact-filter";
 
@@ -97,6 +100,7 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly listings: ListingsService,
     private readonly vehicles: VehiclesService,
+    @Optional() private readonly boasVindas?: BoasVindasService,
   ) {}
 
   // ---------- Agendador ----------
@@ -537,6 +541,28 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
     return result.buffer.toString("utf8");
   }
 
+  // Exposto pra teste (troca o download da logo por bytes fixos).
+  async downloadLogo(url: string): Promise<Buffer> {
+    return baixarLogo(url);
+  }
+
+  // Logo da empresa que veio no feed: só quando a empresa ainda não tem
+  // (ver feed-logo.ts). Nunca derruba a importação dos anúncios: falhou, só
+  // registra no log. Logo nova + autorização → post de boas-vindas.
+  private async importFeedLogo(feedId: string, partnerId: string, format: string, raw: string): Promise<void> {
+    const url = logoUrlDoFeed(format, raw);
+    if (!url) return;
+    try {
+      const r = await importarLogoDoFeed(this.prisma, partnerId, url, {
+        baixar: (u) => this.downloadLogo(u),
+        aoSalvar: async (id) => this.boasVindas?.sincronizarSemFalhar(id),
+      });
+      if (r === "salva") this.logger.log(`Feed ${feedId}: logo da empresa importada do CRM`);
+    } catch (error) {
+      this.logger.warn(`Feed ${feedId}: logo do CRM não importada (${error instanceof Error ? error.message.slice(0, 200) : "erro"})`);
+    }
+  }
+
   async syncFeed(feedId: string): Promise<FeedRow> {
     return this.runSync(await this.beginSync(feedId));
   }
@@ -583,6 +609,7 @@ export class IntegrationsService implements OnModuleInit, OnModuleDestroy {
         `feed:${feed.id}`,
         { fullSync: true },
       );
+      await this.importFeedLogo(feed.id, feed.partner.id, feed.format, raw);
       report.durationMs = Date.now() - startedAt;
       this.logger.log(
         `Feed ${feed.id}: ${report.total} itens, +${report.created} ~${report.updated} =${report.unchanged} ⏸${report.paused} ✗${report.errors.length} em ${report.durationMs}ms`,

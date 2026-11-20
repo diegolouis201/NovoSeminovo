@@ -239,7 +239,8 @@ ${VEHICLE_EXAMPLE}`}</Code>
           <code>ListingID</code>, <code>Title</code>, <code>TransactionType</code>, <code>Media/Item</code>,{" "}
           <code>Details</code> (PropertyType, Description, ListPrice/RentalPrice, LivingArea/LotArea, Bedrooms,
           Bathrooms, Suites, Garage, PropertyAdministrationFee, YearlyTax, Features) e <code>Location</code> (State
-          abbreviation, City, Neighborhood, Address).
+          abbreviation, City, Neighborhood, Address). Logo da empresa: <code>Header/Logo</code> ou, sem ele,{" "}
+          <code>ContactInfo/Logo</code> do anúncio.
         </li>
         <li>
           <strong>Veículos — catálogo Facebook/Meta (XML ou CSV/TSV)</strong>, o mesmo feed usado nos anúncios de
@@ -253,7 +254,15 @@ ${VEHICLE_EXAMPLE}`}</Code>
           Sem cidade no feed, usamos a cidade onde a loja já anuncia.
         </li>
         <li>
-          <strong>Veículos e imóveis — JSON</strong>: <code>{`{ "listings": [ { "externalId": "...", ...mesmos campos da API } ] }`}</code>
+          <strong>Veículos e imóveis — JSON</strong>:{" "}
+          <code>{`{ "logoUrl": "https://.../logo.png", "listings": [ { "externalId": "...", ...mesmos campos da API } ] }`}</code>. O{" "}
+          <code>logoUrl</code> (opcional, link http/https de uma imagem JPEG, PNG ou WebP de até 5 MB) é a logo da
+          empresa.
+        </li>
+        <li>
+          <strong>Logo da empresa</strong>: vem junto só se a empresa ainda não tiver logo no NovoSeminovo. A logo enviada
+          pelo dono nunca é trocada, e a primeira logo do feed fica mesmo se o link mudar. O catálogo Facebook/Meta não tem
+          campo de logo: nesse caso, envie a logo em Minha loja.
         </li>
         <li>Até 50 MB por feed. Feed vazio é tratado como falha e não altera nada.</li>
       </ul>

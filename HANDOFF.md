@@ -424,6 +424,15 @@ docker compose exec -w /app api pnpm --filter @novoseminovo/db exec prisma db pu
    - Testes: `apps/api/src/hub/boas-vindas.spec.ts` (textos, legenda, regras, data, escape no SVG, arte creme/centro, sem logo, sem autorização, criação, sem duplicar, retirar autorização, marcação com Graph API falsa e aviso); trecho novo em `cypress/e2e/conta.cy.ts`.
    - Deploy: sem tabela nova (**sem `prisma db push`**); rebuild de `api` (fontes novas) e `web` (texto da caixinha).
 
+58. **Logo da empresa vinda da integração com o CRM (20/11/2026, pedido do Diego)** — na sincronização do feed (`IntegrationsService.runSync` → `importFeedLogo`, regras em `apps/api/src/integrations/feed-logo.ts`):
+   - **De onde vem**: VRSync → `Header/Logo`; sem ele, `ContactInfo/Logo` do primeiro anúncio que tiver. JSON NovoSeminovo → campo opcional de topo `"logoUrl"` (zod: http/https, até 2000 caracteres), documentado em `/integracoes/api#feed` e na tela `/parceiro/integracoes`. Catálogo Meta de veículos: o padrão não tem campo de logo da loja (nada é lido; a loja envia a logo em Minha loja).
+   - **Regras**: só preenche `Partner.logoUrl` se a empresa ainda não tiver logo (nem baixa quando já tem); nunca troca a do dono, nem quando a URL do feed muda (fica a primeira). Gravação com `updateMany where logoUrl: null` (se o dono enviou a dele durante o download, a do feed é descartada e apagada do armazenamento).
+   - **Segurança**: `assertPublicHttpUrl` antes de tudo (recusa `javascript:`, `file:`, usuário/senha, IP interno, localhost), download por `safeFetch` (5 MB, 15 s, `image/*`, confere o IP resolvido e redirecionamentos), `sanitizeUpload` (antivírus, tipo pelos bytes, redesenho) e `PhotoStorage`. A URL externa nunca é usada direto.
+   - Falhou (CRM fora, não é imagem, link recusado): só log `Feed <id>: logo do CRM não importada (...)`; a importação dos anúncios segue normal.
+   - Logo nova conta para o post de boas-vindas (item 57): chama `BoasVindasService.sincronizarSemFalhar`, que só cria com a autorização (`socialConsentAt`) e nunca duplica.
+   - Testes: `apps/api/src/integrations/feed-logo.spec.ts` (leitura por formato, URLs recusadas, arquivo que não é imagem, não sobrescreve, corrida com o dono, boas-vindas uma vez só, sem autorização sem post, falha no download não derruba o feed).
+   - Deploy: sem tabela nova (**sem `prisma db push`**); rebuild de `api` e `web` (textos de documentação).
+
 ## Pendências e dívidas conhecidas (não esquecer)
 
 - **Caio no atendimento@ (18/11/2026)**: deploy com `prisma db push`, senha e `.env` do atendimento@, depois Hub → Vendedores IA → Arrumar sequências (prévia → aplicar) e ativar o Caio (DEPLOY.md, "Ativar o Caio"). Revisar o texto da "Lojas BH" (assinado "Diego") antes de aprovar com o Caio de remetente.

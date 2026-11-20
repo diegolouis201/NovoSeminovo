@@ -153,6 +153,14 @@ export default async function PartnerIntegrationsPage({
                 : "A maioria dos sistemas de loja de veículos gera um link de “catálogo de veículos” para anunciar o estoque no Facebook e Instagram (às vezes chamado de feed do Facebook, catálogo Meta ou feed do Google). Peça esse link ao suporte do seu sistema e cole aqui. Se ele não gera, use a API logo abaixo."}{" "}
               Sincronizamos a cada {overview.syncIntervalMinutes} minutos, e você pode sincronizar na hora quando quiser.
             </p>
+            <p className="mt-1 text-sm text-ink-muted">
+              Se o feed trouxer a logo da empresa (VRSync: <code>Header/Logo</code> ou <code>ContactInfo/Logo</code>; JSON:{" "}
+              <code>logoUrl</code> no topo), ela entra na sua página quando você ainda não tiver enviado uma. A logo que você
+              enviou nunca é trocada.{" "}
+              <Link href="/integracoes/api#feed" className="font-semibold text-brand-blue hover:underline">
+                Ver os formatos
+              </Link>
+            </p>
 
             {overview.feeds.length > 0 && (
               <ul className="mt-4 flex flex-col gap-4">
