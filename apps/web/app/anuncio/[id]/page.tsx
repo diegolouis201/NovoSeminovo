@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AssistantVisitCounter } from "@/components/AssistantVisitCounter";
 import { isAppRequest } from "@/lib/app-context";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -73,6 +74,7 @@ export default async function ListingDetailPage({
     publicado?: string;
     pagamento?: string;
     session_id?: string;
+    de?: string;
   };
 }) {
   // Precisa vir antes do fetchListing: sem o accessToken, o dono não vê o
@@ -102,6 +104,7 @@ export default async function ListingDetailPage({
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
+      {searchParams.de === "assistente" && <AssistantVisitCounter listingId={params.id} />}
       <MarkVertical value={listing.assetType} />
       {isOwnListing && listing.status === "pending_review" && (
         <p

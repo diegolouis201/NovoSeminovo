@@ -87,7 +87,7 @@ describe("Conversões nas rotas (sem banco)", () => {
     const partners = { resolveCompany: async () => ({ type: "dealership" }), createPartnerRow: async () => undefined };
     const auth = { register: async () => ({ id: "u2" }), deleteUnusedUser: async () => undefined };
     const sales = { linkOwnerSignup: async () => undefined };
-    const ctrl = new PartnersController(partners as never, {} as never, auth as never, sales as never, {} as never, meta);
+    const ctrl = new PartnersController(partners as never, {} as never, auth as never, sales as never, {} as never, {} as never, meta);
     const body = { name: "Dono", email: "dono@loja.local", password: "senha-segura-123", cpf: "529.982.247-25", cnpj: "11.222.333/0001-81" };
     await ctrl.signup(body, request());
     assert.equal(sent(tracked).length, 1);
@@ -99,6 +99,7 @@ describe("Conversões nas rotas (sem banco)", () => {
       {} as never,
       auth as never,
       sales as never,
+      {} as never,
       {} as never,
       meta,
     );

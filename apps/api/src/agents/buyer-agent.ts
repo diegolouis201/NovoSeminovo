@@ -1,4 +1,5 @@
 import { formatBRL, type ListingSummary } from "@novoseminovo/shared-types";
+import { linkDoAssistente } from "../listings/listing-counts";
 import type { ListingsService } from "../listings/listings.service";
 import { DEFAULT_RATE, priceAmortization } from "../listings/listings.mapper";
 import type { AgentDefinition, AgentTool } from "./agent-engine";
@@ -99,7 +100,9 @@ export function buildBuyerAgent(
     saveFinancingLead: (input: FinancingLeadInput) => Promise<{ id: string }>;
   },
 ): AgentDefinition {
-  const linkFor = (id: string) => (ctx.channel === "web" ? `/anuncio/${id}` : `${ctx.siteUrl}/anuncio/${id}`);
+  // Link marcado (?de=assistente): a página do anúncio soma a visita num
+  // contador por anúncio e dia, sem guardar quem foi (listing-counts.ts).
+  const linkFor = (id: string) => linkDoAssistente(id, ctx.channel, ctx.siteUrl);
 
   const tools: AgentTool[] = [
     {
@@ -267,7 +270,7 @@ export function buildBuyerAgent(
 
   const channelRules =
     ctx.channel === "web"
-      ? "Você está no chat do site. Ao citar um anúncio, use link markdown com o caminho relativo devolvido pela ferramenta, ex.: [Corolla XEi 2020](/anuncio/abc123). Pode usar **negrito** e listas curtas."
+      ? "Você está no chat do site. Ao citar um anúncio, use link markdown com o caminho relativo devolvido pela ferramenta, ex.: [Corolla XEi 2020](/anuncio/abc123?de=assistente). Pode usar **negrito** e listas curtas."
       : "Você está no WhatsApp. Escreva como numa conversa de WhatsApp: mensagens curtas, sem markdown de link (cole o link completo devolvido pela ferramenta), *negrito* com um asterisco só, no máximo uns 3 anúncios por mensagem.";
 
   const userInfo = ctx.user

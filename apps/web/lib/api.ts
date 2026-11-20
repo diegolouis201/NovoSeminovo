@@ -1,3 +1,4 @@
+import { PartnerDashboardSchema, type PartnerDashboard } from "@novoseminovo/shared-types";
 import type {
   CrmOrderView,
   ProspectProfileInput,
@@ -820,6 +821,19 @@ export async function fetchMyPartner(accessToken: string): Promise<Partner | und
     if (!res.ok) return undefined;
     const body = await res.json();
     return body ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// Tela inicial do painel do parceiro: a resposta passa pelo contrato zod
+// (PartnerDashboardSchema); fora do formato, a tela mostra só o resto.
+export async function fetchPartnerDashboard(accessToken: string): Promise<PartnerDashboard | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/partners/mine/dashboard`, { headers: authHeaders(accessToken) }, 8000);
+    if (!res.ok) return undefined;
+    const parsed = PartnerDashboardSchema.safeParse(await res.json());
+    return parsed.success ? parsed.data : undefined;
   } catch {
     return undefined;
   }

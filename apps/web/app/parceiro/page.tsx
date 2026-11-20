@@ -7,7 +7,8 @@ import { Button } from "@/components/Button";
 import { FormField, TextAreaField } from "@/components/FormField";
 import { CompanyCnpjFields } from "@/components/CompanyCnpjFields";
 import { NpsCard } from "@/components/NpsCard";
-import { fetchMyPartner, resolveMediaUrl } from "@/lib/api";
+import { fetchMyPartner, fetchPartnerDashboard, resolveMediaUrl } from "@/lib/api";
+import { LeadsFunnel, LeadsLast15, ListingAnalysis, PlanSummary, RecentLeads, StoreQuality, TopListings } from "@/components/dashboard/PartnerHome";
 import { createPartnerAction, savePartnerSocialAction, uploadPartnerLogoAction } from "@/lib/actions/partners";
 
 const PARTNER_TYPE_LABEL: Record<string, string> = {
@@ -22,7 +23,8 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
   const session = await auth();
   if (!session?.accessToken) redirect("/entrar");
 
-  const partner = await fetchMyPartner(session.accessToken);
+  const [partner, dashboard] = await Promise.all([fetchMyPartner(session.accessToken), fetchPartnerDashboard(session.accessToken)]);
+  const agora = new Date();
 
   if (!partner) {
     return (
@@ -53,7 +55,7 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
   }
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-12">
+    <main className="mx-auto max-w-6xl px-4 py-12">
       <NpsCard accessToken={session.accessToken} thanks={searchParams.nps === "obrigado"} />
       {searchParams.error && (
         <p className="mb-6 rounded-brand bg-status-danger/10 px-4 py-3 text-sm text-status-danger">
@@ -92,89 +94,22 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
         </Link>
       </div>
 
-      {partner.isOwner && (
-        <form
-          action={uploadPartnerLogoAction}
-          encType="multipart/form-data"
-          className="mt-4 flex flex-wrap items-center gap-3 rounded-brand border border-border bg-surface-raised p-3"
-        >
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-semibold text-ink">
-              {partner.logoUrl ? "Trocar logo" : "Adicionar logo"}{" "}
-              <span className="font-normal text-ink-muted">(JPEG, PNG ou WebP, até 5MB)</span>
-            </span>
-            <input
-              type="file"
-              name="logo"
-              accept="image/jpeg,image/png,image/webp"
-              required
-              className="text-sm text-ink"
-            />
-          </label>
-          <Button type="submit" variant="secondary" className="self-end">
-            Enviar
-          </Button>
-        </form>
-      )}
-
-      {partner.isOwner && (
-        <form
-          key={`${partner.social?.instagram ?? ""}|${partner.social?.facebook ?? ""}|${partner.social?.consentAt ?? ""}`}
-          id="redes"
-          aria-label="Redes sociais da empresa"
-          action={savePartnerSocialAction}
-          className="mt-4 flex flex-col gap-3 rounded-brand border border-border bg-surface-raised p-4 text-sm"
-        >
-          <div>
-            <h2 className="font-display text-base font-semibold text-ink">Redes sociais da empresa</h2>
-            <p className="text-ink-muted">
-              Com a logo enviada e a autorização marcada, o NovoSeminovo prepara um post de boas-vindas para o Instagram e o Facebook com a logo da sua empresa e o link da sua página, marcando os perfis informados. O @ e a página são opcionais.
-            </p>
+      {dashboard && (
+        <div className="mt-6 flex flex-col gap-4">
+          <PlanSummary plano={dashboard.plano} isOwner={partner.isOwner} />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <LeadsLast15 leads={dashboard.leads} />
+            <LeadsFunnel funil={dashboard.funil} />
+            <RecentLeads leads={dashboard.novosLeads} agora={agora} />
           </div>
-          {searchParams.redes === "ok" && <p className="rounded-brand bg-surface-sober px-3 py-2 font-semibold text-ink">Redes sociais salvas.</p>}
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <label className="flex flex-col gap-1">
-              <span className="font-semibold text-ink">Instagram</span>
-              <input
-                name="instagram"
-                defaultValue={partner.social?.instagram ?? ""}
-                maxLength={200}
-                placeholder="@suaempresa ou link do perfil"
-                className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="font-semibold text-ink">Facebook</span>
-              <input
-                name="facebook"
-                defaultValue={partner.social?.facebook ?? ""}
-                maxLength={200}
-                placeholder="nome ou link da página"
-                className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink"
-              />
-            </label>
+          <h2 className="mt-4 font-display text-xl font-semibold text-ink">Sobre seus anúncios</h2>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <TopListings anuncios={dashboard.topAnuncios} />
+            <ListingAnalysis analise={dashboard.analise} />
+            <StoreQuality qualidade={dashboard.qualidade} />
           </div>
-          <div>
-            <label className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                name="consent"
-                defaultChecked={Boolean(partner.social?.consentAt)}
-                aria-describedby={partner.social?.consentAt ? "consent-data" : undefined}
-                className="mt-1"
-              />
-              <span className="text-ink">Autorizo o NovoSeminovo a divulgar minha empresa nas redes sociais</span>
-            </label>
-            {partner.social?.consentAt && (
-              <p id="consent-data" className="ml-6 text-xs text-ink-muted">
-                Autorizado em {new Date(partner.social.consentAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}. Pode desmarcar quando quiser.
-              </p>
-            )}
-          </div>
-          <Button type="submit" variant="secondary" className="self-start">
-            Salvar redes sociais
-          </Button>
-        </form>
+          <h2 className="mt-4 font-display text-xl font-semibold text-ink">Resumo geral</h2>
+        </div>
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -225,33 +160,127 @@ export default async function PartnerHomePage({ searchParams }: { searchParams: 
         />
       </div>
 
-      <Link
-        href="/parceiro/plano"
-        className="mt-6 block rounded-brand border border-border bg-surface-raised p-4 hover:bg-surface-sober"
-      >
-        <p className="text-xs text-ink-muted">Plano</p>
-        <p className="font-semibold text-ink">
-          {partner.subscription
-            ? `${partner.subscription.planName} · até ${partner.subscription.maxActiveListings} anúncios`
-            : "Nenhum plano ativo ainda"}
-        </p>
-        {partner.offline && (
-          <p className="mt-1 text-sm font-semibold text-status-danger">
-            Período grátis encerrado: sua vitrine e seus anúncios estão fora do ar. Toque aqui para contratar um plano.
+      {!dashboard && (
+        <Link
+          href="/parceiro/plano"
+          className="mt-6 block rounded-brand border border-border bg-surface-raised p-4 hover:bg-surface-sober"
+        >
+          <p className="text-xs text-ink-muted">Plano</p>
+          <p className="font-semibold text-ink">
+            {partner.subscription
+              ? `${partner.subscription.planName} · até ${partner.subscription.maxActiveListings} anúncios`
+              : "Nenhum plano ativo ainda"}
           </p>
-        )}
-        {!partner.offline && !partner.subscription && partner.trialEndsAt && new Date(partner.trialEndsAt) > new Date() && (
-          <p className="mt-1 text-sm text-ink-muted">
-            Período grátis, sem limite de anúncios, até{" "}
-            {new Date(partner.trialEndsAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}.
-          </p>
-        )}
-        {partner.subscription?.status === "past_due" && (
-          <p className="mt-1 text-sm font-semibold text-status-danger">
-            O pagamento da renovação não passou — toque aqui para atualizar o cartão.
-          </p>
-        )}
-      </Link>
+          {partner.offline && (
+            <p className="mt-1 text-sm font-semibold text-status-danger">
+              Período grátis encerrado: sua vitrine e seus anúncios estão fora do ar. Toque aqui para contratar um plano.
+            </p>
+          )}
+          {!partner.offline && !partner.subscription && partner.trialEndsAt && new Date(partner.trialEndsAt) > new Date() && (
+            <p className="mt-1 text-sm text-ink-muted">
+              Período grátis, sem limite de anúncios, até{" "}
+              {new Date(partner.trialEndsAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}.
+            </p>
+          )}
+          {partner.subscription?.status === "past_due" && (
+            <p className="mt-1 text-sm font-semibold text-status-danger">
+              O pagamento da renovação não passou — toque aqui para atualizar o cartão.
+            </p>
+          )}
+        </Link>
+      )}
+
+      {partner.isOwner && (
+        <section id="empresa" aria-labelledby="painel-empresa" className="mt-8">
+          <h2 id="painel-empresa" className="font-display text-xl font-semibold text-ink">
+            Dados da empresa
+          </h2>
+          {partner.isOwner && (
+            <form
+              action={uploadPartnerLogoAction}
+              encType="multipart/form-data"
+              className="mt-4 flex flex-wrap items-center gap-3 rounded-brand border border-border bg-surface-raised p-3"
+            >
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-semibold text-ink">
+                  {partner.logoUrl ? "Trocar logo" : "Adicionar logo"}{" "}
+                  <span className="font-normal text-ink-muted">(JPEG, PNG ou WebP, até 5MB)</span>
+                </span>
+                <input
+                  type="file"
+                  name="logo"
+                  accept="image/jpeg,image/png,image/webp"
+                  required
+                  className="text-sm text-ink"
+                />
+              </label>
+              <Button type="submit" variant="secondary" className="self-end">
+                Enviar
+              </Button>
+            </form>
+          )}
+
+          {partner.isOwner && (
+            <form
+              key={`${partner.social?.instagram ?? ""}|${partner.social?.facebook ?? ""}|${partner.social?.consentAt ?? ""}`}
+              id="redes"
+              aria-label="Redes sociais da empresa"
+              action={savePartnerSocialAction}
+              className="mt-4 flex flex-col gap-3 rounded-brand border border-border bg-surface-raised p-4 text-sm"
+            >
+              <div>
+                <h3 className="font-display text-base font-semibold text-ink">Redes sociais da empresa</h3>
+                <p className="text-ink-muted">
+                  Com a logo enviada e a autorização marcada, o NovoSeminovo prepara um post de boas-vindas para o Instagram e o Facebook com a logo da sua empresa e o link da sua página, marcando os perfis informados. O @ e a página são opcionais.
+                </p>
+              </div>
+              {searchParams.redes === "ok" && <p className="rounded-brand bg-surface-sober px-3 py-2 font-semibold text-ink">Redes sociais salvas.</p>}
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <label className="flex flex-col gap-1">
+                  <span className="font-semibold text-ink">Instagram</span>
+                  <input
+                    name="instagram"
+                    defaultValue={partner.social?.instagram ?? ""}
+                    maxLength={200}
+                    placeholder="@suaempresa ou link do perfil"
+                    className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="font-semibold text-ink">Facebook</span>
+                  <input
+                    name="facebook"
+                    defaultValue={partner.social?.facebook ?? ""}
+                    maxLength={200}
+                    placeholder="nome ou link da página"
+                    className="rounded-brand border border-border bg-surface-page px-3 py-2 text-ink"
+                  />
+                </label>
+              </div>
+              <div>
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    name="consent"
+                    defaultChecked={Boolean(partner.social?.consentAt)}
+                    aria-describedby={partner.social?.consentAt ? "consent-data" : undefined}
+                    className="mt-1"
+                  />
+                  <span className="text-ink">Autorizo o NovoSeminovo a divulgar minha empresa nas redes sociais</span>
+                </label>
+                {partner.social?.consentAt && (
+                  <p id="consent-data" className="ml-6 text-xs text-ink-muted">
+                    Autorizado em {new Date(partner.social.consentAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}. Pode desmarcar quando quiser.
+                  </p>
+                )}
+              </div>
+              <Button type="submit" variant="secondary" className="self-start">
+                Salvar redes sociais
+              </Button>
+            </form>
+          )}
+        </section>
+      )}
     </main>
   );
 }

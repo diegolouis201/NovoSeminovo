@@ -139,10 +139,12 @@ function MessageText({ text }: { text: string }) {
   );
 }
 
-function MiniListingCard({ listing }: { listing: ListingSummary }) {
+function MiniListingCard({ listing, fromBuyerAssistant }: { listing: ListingSummary; fromBuyerAssistant: boolean }) {
   return (
     <Link
-      href={`/anuncio/${listing.id}`}
+      // Só o assistente do comprador marca o link: a página do anúncio conta
+      // "abriu pelo assistente" (só o número, sem quem foi).
+      href={fromBuyerAssistant ? `/anuncio/${listing.id}?de=assistente` : `/anuncio/${listing.id}`}
       className="flex items-center gap-3 rounded-brand border border-border bg-surface-raised p-2 text-ink hover:bg-surface-sober"
     >
       <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-sober bg-surface-sober">
@@ -344,7 +346,7 @@ function AgentChat({ config, inApp }: { config: AgentConfig; inApp: boolean }) {
                   <div className="break-words rounded-brand bg-surface-sober px-4 py-2 text-sm text-ink">
                     <MessageText text={entry.text} />
                   </div>
-                  {entry.listings?.map((listing) => <MiniListingCard key={listing.id} listing={listing} />)}
+                  {entry.listings?.map((listing) => <MiniListingCard key={listing.id} listing={listing} fromBuyerAssistant={config.kind === "buyer"} />)}
                 </div>
               ),
             )}

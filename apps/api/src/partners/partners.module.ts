@@ -5,6 +5,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { PaymentsModule } from "../payments/payments.module";
 import { PartnersController } from "./partners.controller";
 import { PartnersService } from "./partners.service";
+import { PartnerDashboardService } from "./dashboard.service";
 import { CnpjService } from "./cnpj.service";
 import { ContactsModule } from "../marketing/contacts.module";
 import { SalesModule } from "../sales/sales.module";
@@ -13,7 +14,7 @@ import { BoasVindasModule } from "../hub/boas-vindas.module";
 @Module({
   imports: [AuthModule, PaymentsModule, ListingsModule, NotificationsModule, ContactsModule, SalesModule, BoasVindasModule],
   controllers: [PartnersController],
-  providers: [PartnersService, CnpjService],
+  providers: [PartnersService, CnpjService, PartnerDashboardService],
   exports: [PartnersService],
 })
 export class PartnersModule {}

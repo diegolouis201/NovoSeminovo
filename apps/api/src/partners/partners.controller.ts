@@ -40,6 +40,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { PartnersService } from "./partners.service";
+import { PartnerDashboardService } from "./dashboard.service";
 import { CnpjService } from "./cnpj.service";
 import { AuthService } from "../auth/auth.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -69,6 +70,7 @@ export class PartnersController {
     private readonly auth: AuthService,
     private readonly sales: SalesService,
     private readonly prisma: PrismaService,
+    private readonly dashboard: PartnerDashboardService,
     @Optional() private readonly meta?: MetaConversionsService,
   ) {}
 
@@ -116,6 +118,15 @@ export class PartnersController {
   @Get("partners/mine")
   getMine(@CurrentUser() user: { id: string }) {
     return this.partnersService.getMine(user.id);
+  }
+
+  // Tela inicial do painel (/parceiro): plano, leads, funil, anúncios e
+  // qualidade da loja de quem pede (dono ou equipe). Sem entrada do usuário:
+  // a loja sai do token, nunca de parâmetro.
+  @UseGuards(JwtAuthGuard)
+  @Get("partners/mine/dashboard")
+  getDashboard(@CurrentUser() user: { id: string }) {
+    return this.dashboard.forUser(user.id);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -508,6 +508,7 @@ model Listing {
   moderationLogs    ModerationLog[]
   financingDeals    FinancingDeal[]
   financingLeads    FinancingLead[]
+  dailyCounts       ListingDailyCount[]
 
   @@unique([partnerId, externalId])
   @@index([type, status, city, price])
@@ -711,6 +712,23 @@ model Photo {
 
   @@index([listingId])
   @@map("photos")
+}
+
+// Contadores agregados por anúncio e por dia (dia no fuso de São Paulo). Só a
+// contagem: nunca quem foi (sem usuário, IP ou sessão). kind vem de lista
+// fixa (LISTING_COUNT_KINDS em apps/api/src/listings/listing-counts.ts):
+// "assistente_abriu" = alguém abriu o anúncio por um link do assistente
+// virtual. Base também para contar visualizações por dia (etapa 2 do painel).
+model ListingDailyCount {
+  listingId String   @map("listing_id")
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  day       DateTime @db.Date
+  kind      String
+  count     Int      @default(0)
+
+  @@id([listingId, day, kind])
+  @@index([day, kind])
+  @@map("listing_daily_counts")
 }
 
 // ---------- Engagement ----------

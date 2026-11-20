@@ -130,12 +130,14 @@ function LeadCard({
 
   return (
     <article
+      // Âncora para o link "Novos leads" da tela inicial (/parceiro/leads#lead-<id>).
+      id={`lead-${lead.id}`}
       draggable
       onDragStart={(event) => {
         event.dataTransfer.setData("text/plain", lead.id);
         onDragStart();
       }}
-      className="cursor-grab rounded-brand border border-border bg-surface-raised p-3 shadow-card active:cursor-grabbing"
+      className="scroll-mt-24 cursor-grab rounded-brand border border-border bg-surface-raised p-3 shadow-card target:ring-2 target:ring-brand-blue active:cursor-grabbing"
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-bold text-ink">{lead.buyerName}</p>

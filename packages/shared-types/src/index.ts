@@ -3402,3 +3402,4 @@ export * from "./seo";
 export * from "./foto-tamanhos";
 export * from "./prospeccao";
 export * from "./vendedores";
+export * from "./painel-parceiro";

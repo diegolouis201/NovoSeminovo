@@ -11,11 +11,12 @@ import { ListingImportService } from "./listing-import.service";
 import { GeocodingService } from "./geocoding.service";
 import { ListingsService } from "./listings.service";
 import { SocialAssetsService } from "./social-assets.service";
+import { ListingCountsController, ListingCountsService } from "./listing-counts";
 
 @Module({
   imports: [AuthModule, NotificationsModule, VehiclesModule, PaymentsModule, AffiliatesModule],
-  controllers: [ListingsController, ListingImportController],
-  providers: [ListingsService, AiService, SocialAssetsService, GeocodingService, ListingImportService],
+  controllers: [ListingsController, ListingImportController, ListingCountsController],
+  providers: [ListingsService, AiService, SocialAssetsService, GeocodingService, ListingImportService, ListingCountsService],
   exports: [AiService, ListingsService],
 })
 export class ListingsModule {}

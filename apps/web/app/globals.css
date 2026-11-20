@@ -146,3 +146,61 @@ dialog::backdrop {
   overflow: hidden;
   overscroll-behavior: contain;
 }
+
+/* Anel da "Qualidade da loja" no painel do parceiro (components/dashboard/
+   PartnerHome.tsx). Base semântica é o <progress> nativo; o anel é um
+   conic-gradient vazado por mask-image (funciona em todos os navegadores;
+   background-clip: border-area ainda não tem no Firefox). O valor vem do
+   React em --value (attr() ainda não funciona no Safari). */
+@property --value {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+.ns-ring-wrapper {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+progress.ns-ring {
+  --size: 132px;
+  --thickness: 14px;
+  --fill-color: var(--brand-green);
+  --track-color: var(--surface-sober);
+  appearance: none;
+  -webkit-appearance: none;
+  width: var(--size);
+  height: var(--size);
+  border: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--fill-color) calc(var(--value) * 1%), var(--track-color) 0);
+  -webkit-mask-image: radial-gradient(transparent calc(50% - var(--thickness)), black calc(50% - var(--thickness) + 0.5px));
+  mask-image: radial-gradient(transparent calc(50% - var(--thickness)), black calc(50% - var(--thickness) + 0.5px));
+  transition: --value 0s ease-in-out;
+}
+@media (prefers-reduced-motion: no-preference) {
+  progress.ns-ring {
+    transition-duration: 0.4s;
+  }
+}
+progress.ns-ring::-webkit-progress-bar,
+progress.ns-ring::-webkit-progress-value {
+  display: none;
+  background: none;
+}
+progress.ns-ring::-moz-progress-bar {
+  display: none;
+  background: none;
+}
+@media (forced-colors: active) {
+  progress.ns-ring {
+    forced-color-adjust: none;
+    --fill-color: CanvasText;
+    --track-color: Canvas;
+  }
+}
+.ns-ring-content {
+  position: absolute;
+  text-align: center;
+}

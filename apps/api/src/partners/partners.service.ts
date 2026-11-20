@@ -142,6 +142,33 @@ export function planAudienceFor(partnerType: string): "vehicle" | "property" {
   return partnerType === "real_estate_agency" || partnerType === "broker" || partnerType === "builder" ? "property" : "vehicle";
 }
 
+// Quantos destaques a loja pode usar ao mesmo tempo: os do plano; no
+// período grátis, os do menor plano do público dela; sem plano, nenhum.
+// Funções soltas para o painel (dashboard.service.ts) usar a mesma regra.
+export async function highlightAllowanceFor(
+  prisma: PrismaService,
+  partner: { id: string; type: string; createdAt: Date },
+): Promise<{ max: number; superMax: number }> {
+  if (!requiresPlan(partner.type)) return { max: 0, superMax: 0 };
+  const subscription = await prisma.subscription.findFirst({
+    where: { partnerId: partner.id, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
+    include: { plan: true },
+    orderBy: { currentPeriodEnd: "desc" },
+  });
+  if (subscription) return { max: subscription.plan.highlightCredits, superMax: subscription.plan.superHighlightCredits };
+  if (trialEndsAt(partner) <= new Date()) return { max: 0, superMax: 0 };
+  const smallest = PLAN_CATALOG.find((item) => item.audience === planAudienceFor(partner.type));
+  return { max: smallest?.highlightCredits ?? 0, superMax: smallest?.superHighlightCredits ?? 0 };
+}
+
+export async function highlightUsageFor(prisma: PrismaService, partnerId: string) {
+  const [used, superUsed] = await Promise.all([
+    prisma.listing.count({ where: { partnerId, status: "active", tierRank: PARTNER_HIGHLIGHT_RANK.highlight } }),
+    prisma.listing.count({ where: { partnerId, status: "active", tierRank: { gte: PARTNER_HIGHLIGHT_RANK.super } } }),
+  ]);
+  return { used, superUsed };
+}
+
 const leadInclude = {
   listing: { select: { title: true, status: true, soldPrice: true } },
   buyer: { select: { name: true, email: true, phone: true } },
@@ -393,27 +420,12 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
 
   // ---------- Destaques (anúncios de loja) ----------
 
-  // Quantos destaques a loja pode usar ao mesmo tempo: os do plano; no
-  // período grátis, os do menor plano do público dela; sem plano, nenhum.
   async highlightAllowance(partner: { id: string; type: string; createdAt: Date }): Promise<{ max: number; superMax: number }> {
-    if (!requiresPlan(partner.type)) return { max: 0, superMax: 0 };
-    const subscription = await this.prisma.subscription.findFirst({
-      where: { partnerId: partner.id, status: { in: [...SUBSCRIPTION_STATUSES_IN_EFFECT] } },
-      include: { plan: true },
-      orderBy: { currentPeriodEnd: "desc" },
-    });
-    if (subscription) return { max: subscription.plan.highlightCredits, superMax: subscription.plan.superHighlightCredits };
-    if (trialEndsAt(partner) <= new Date()) return { max: 0, superMax: 0 };
-    const smallest = PLAN_CATALOG.find((item) => item.audience === planAudienceFor(partner.type));
-    return { max: smallest?.highlightCredits ?? 0, superMax: smallest?.superHighlightCredits ?? 0 };
+    return highlightAllowanceFor(this.prisma, partner);
   }
 
   private async highlightUsage(partnerId: string) {
-    const [used, superUsed] = await Promise.all([
-      this.prisma.listing.count({ where: { partnerId, status: "active", tierRank: PARTNER_HIGHLIGHT_RANK.highlight } }),
-      this.prisma.listing.count({ where: { partnerId, status: "active", tierRank: { gte: PARTNER_HIGHLIGHT_RANK.super } } }),
-    ]);
-    return { used, superUsed };
+    return highlightUsageFor(this.prisma, partnerId);
   }
 
   async setHighlight(userId: string, listingId: string, level: HighlightLevel): Promise<Partner> {
