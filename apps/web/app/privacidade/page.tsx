@@ -117,7 +117,12 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>Anunciantes:</strong> quando você conversa sobre um anúncio ou clica para chamar no WhatsApp, o
-          anunciante recebe o seu contato e a mensagem.
+          anunciante recebe o seu contato e a mensagem e passa a ser responsável pelo atendimento e por esses dados
+          (ver os{" "}
+          <Link href="/termos" className="font-semibold text-brand-blue hover:underline">
+            Termos de Uso
+          </Link>
+          , item 7). Não repassamos o seu contato a outros anunciantes.
         </li>
         <li>
           <strong>Prestadores de serviço</strong> que operam o site em nosso nome: hospedagem e armazenamento de

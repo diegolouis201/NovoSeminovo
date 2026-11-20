@@ -7,7 +7,7 @@
 describe("Consentimento do crédito", () => {
   it("Política de Privacidade: seção Simulação e Financiamento com papéis, bases legais, direitos e o encarregado", () => {
     cy.visit("/privacidade");
-    cy.contains("Última atualização: 17/11/2026").should("be.visible");
+    cy.contains("Última atualização: 20/11/2026").should("be.visible");
     cy.get("section#simulacao-e-financiamento").within(() => {
       cy.contains("h2", "Simulação e Financiamento").should("be.visible");
       cy.root().invoke("text").then((raw) => {

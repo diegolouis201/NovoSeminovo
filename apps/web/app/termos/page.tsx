@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { COMPANY, CORBAN, LEGAL_UPDATED_AT } from "@/lib/company";
+import { COMPANY, CORBAN, DPO, LEGAL_UPDATED_AT } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "Termos de Uso — NovoSeminovo",
@@ -80,7 +80,42 @@ export default function TermsPage() {
         crédito; essa remuneração é da empresa e não é repassada a quem contratou o financiamento.
       </p>
 
-      <H2>7. Condutas proibidas</H2>
+      <H2>7. Dados dos clientes dos parceiros (LGPD)</H2>
+      <p>
+        Vale para lojas, imobiliárias, corretores e demais anunciantes que recebem contatos pelo {COMPANY.brand}.
+      </p>
+      <ul>
+        <li>
+          <strong>O anunciante</strong> é o controlador dos dados dos interessados que recebe (nome, telefone, e-mail
+          e mensagem enviados pelo chat, pelo formulário do anúncio ou pelo botão de WhatsApp). A partir do recebimento,
+          cabe a ele usar esses dados só para atender o interessado sobre o anúncio, guardá-los com segurança e atender
+          os pedidos dos titulares (acesso, correção, exclusão) no que estiver com ele.
+        </li>
+        <li>
+          <strong>O {COMPANY.brand}</strong> é o controlador dos dados da plataforma: cadastro e conta do
+          interessado, conversas registradas no site, histórico de contatos, moderação e prevenção de fraudes, conforme a{" "}
+          <Link href="/privacidade" className="font-semibold text-brand-blue hover:underline">
+            Política de Privacidade
+          </Link>
+          . O {COMPANY.brand} não vende dados e não repassa o contato do interessado a outro anunciante. Só usa o
+          contato para marketing quando o próprio interessado autoriza.
+        </li>
+        <li>
+          Os dados do {COMPANY.brand} ficam em servidor no Brasil. Alguns fornecedores que operam o site (e-mail,
+          assistente com IA, WhatsApp) podem tratar parte deles fora do país, com as garantias exigidas pela LGPD.
+        </li>
+        <li>
+          A equipe do {COMPANY.brand} acessa os dados de contato apenas para suporte, moderação de anúncios e prevenção
+          de golpes.
+        </li>
+        <li>
+          Com o encerramento da conta do parceiro, ele pode pedir a exclusão dos dados ligados a ela ao encarregado
+          pelo tratamento de dados ({DPO.name}, {DPO.email}). Ficam guardados apenas os dados que a lei obriga a manter
+          (por exemplo, fiscais e de pagamento).
+        </li>
+      </ul>
+
+      <H2>8. Condutas proibidas</H2>
       <ul>
         <li>Publicar anúncio falso, de bem roubado, irregular ou que você não tem direito de vender.</li>
         <li>Usar o site para golpes, spam, coleta automatizada de dados ou assédio.</li>
@@ -88,20 +123,20 @@ export default function TermsPage() {
       </ul>
       <p>O descumprimento pode levar à remoção de anúncios e ao bloqueio da conta.</p>
 
-      <H2>8. Responsabilidade</H2>
+      <H2>9. Responsabilidade</H2>
       <p>
         O {COMPANY.brand} se esforça para manter o site disponível e seguro, mas não garante a veracidade de anúncios
         de terceiros nem responde pelas negociações entre usuários. Recomendamos ver o bem pessoalmente, conferir a
         documentação e nunca fazer pagamentos antecipados sem garantias.
       </p>
 
-      <H2>9. Alterações e foro</H2>
+      <H2>10. Alterações e foro</H2>
       <p>
         Estes termos podem ser atualizados; a data acima indica a versão vigente. Fica eleito o foro da comarca de{" "}
         {COMPANY.city.split("/")[0]}, salvo o foro do domicílio do consumidor, quando aplicável.
       </p>
 
-      <H2>10. Contato</H2>
+      <H2>11. Contato</H2>
       <p>
         WhatsApp{" "}
         <a href={COMPANY.whatsappLink} className="font-semibold text-brand-blue hover:underline">
