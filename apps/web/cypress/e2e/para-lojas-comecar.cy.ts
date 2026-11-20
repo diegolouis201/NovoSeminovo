@@ -20,6 +20,16 @@ describe("Campanha para lojas: /para-lojas/comecar", () => {
     cy.get("body").invoke("text").should("not.match", /em BH|Belo Horizonte e região/i);
   });
 
+  // Etapas do painel de leads com os nomes reais (LeadsKanban): novo, em
+  // contato, visita, proposta, vendido e perdido (decisão do Diego, 20/11/2026).
+  it("etapas do painel de leads com os nomes reais, nas duas páginas", () => {
+    for (const pagina of ["/para-lojas/comecar", "/para-lojas"]) {
+      cy.visit(pagina);
+      cy.get("main").should("contain.text", "novo, em contato, visita, proposta, vendido ou perdido");
+      cy.get("main").invoke("text").should("not.match", /negociando, ganho/);
+    }
+  });
+
   it("autorização de contato começa desmarcada, é obrigatória e o link da privacidade abre com segurança", () => {
     cy.visit("/para-lojas/comecar");
     cy.get('main input[name="consent"]').should("not.be.checked").and("have.attr", "required");

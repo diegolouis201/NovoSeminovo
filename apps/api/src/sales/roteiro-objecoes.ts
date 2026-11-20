@@ -1,22 +1,20 @@
 import { PARTNER_TRIAL_DAYS, type Objecao } from "@novoseminovo/shared-types";
 
 // Respostas prontas para objeções (pedido do Diego, 20/11/2026). A IA pode
-// adaptar o tom, nunca os fatos. Cada frase foi conferida contra o sistema;
-// o que o sistema não confirma ficou de fora até o Diego decidir:
-// - #2 "pedem cartão por segurança": o cadastro não pede cartão
-//   (RegisterCompanyInputSchema não tem pagamento; o Stripe só entra quando
-//   a empresa escolhe um plano, em /parceiro/plano).
-// - #12 "carros e motos": não há categoria de moto (FIPE só de carros,
-//   carrocerias só de carro). "Lançamentos" só como plano sob consulta.
-// - #13 "só residenciais à venda": aluguel (purpose "rent"), comercial,
-//   sala, galpão, terreno e rural (PropertyType) são aceitos hoje.
-// - Partes de outras respostas: #1 "aviso antes da primeira cobrança" (nada
-//   é cobrado sozinho; o aviso sai 7 dias antes de acabar o grátis e, sem
-//   plano, os anúncios só saem do ar); #8 colunas "negociando, ganho" (o
-//   painel usa Novo, Em contato, Visita, Proposta, Vendido, Perdido); #9
-//   "nem repassa dados" ficou com a frase dos Termos (item 7); #11 "conferida
-//   pela nossa equipe" (o selo sai da conferência do CNPJ na Receita ou, na
-//   dúvida, da equipe).
+// adaptar o tom, nunca os fatos. Cada frase foi conferida contra o sistema
+// e as que não batiam foram reescritas pelo Diego no mesmo dia:
+// - #1: nada é cobrado sozinho; o aviso sai 7 dias antes do fim do grátis
+//   (PartnersService.trialSweep) e, sem plano, os anúncios saem do ar.
+// - #2: o cadastro não pede cartão (RegisterCompanyInputSchema); o Stripe
+//   cobra no checkout, quando a empresa escolhe o plano (sem período de
+//   teste na assinatura).
+// - #8: etapas reais do painel (LEAD_STATUS_LABELS / LeadsKanban).
+// - #9: frase dos Termos, item 7 ("não repassa o contato ... a outro anunciante").
+// - #11: o selo sai da conferência do CNPJ na Receita ou da equipe.
+// - #12: não há categoria de moto (FIPE só de carros).
+// - #13: finalidade venda e aluguel; tipos residenciais, comercial (sala,
+//   loja, galpão), terreno e rural (sítio/fazenda) em PropertyType; não
+//   existe temporada. Lançamento continua com o Diego (plano sob consulta).
 // Mudou o texto: suba PLAYBOOK_VERSAO (playbook-vendedor.ts).
 
 export type PublicoRoteiro = "lojas" | "imoveis" | "todos";
@@ -31,7 +29,14 @@ export const RESPOSTAS_OBJECOES: readonly RespostaObjecao[] = [
     etiqueta: "quanto_custa",
     publico: "todos",
     pergunta: `Quanto custa depois dos ${MESES} meses? Tem multa?`,
-    resposta: `Nos ${MESES} primeiros meses você não paga nada e não tem limite de anúncios. Depois, você escolhe o plano que faz sentido (os valores estão em novoseminovo.com.br/para-lojas). Não tem multa nem fidelidade: se não quiser continuar, é só cancelar.`,
+    resposta: `Nos ${MESES} primeiros meses você não paga nada e não tem limite de anúncios. Uma semana antes de acabar, você recebe um aviso; se quiser continuar no ar, escolhe o plano (valores em novoseminovo.com.br/para-lojas). Nada é cobrado sozinho, e não tem multa nem fidelidade.`,
+  },
+  {
+    n: 2,
+    etiqueta: "cartao",
+    publico: "todos",
+    pergunta: "Por que pedem cartão se é grátis? / Precisa de cartão?",
+    resposta: `O cadastro não pede cartão. Ele só entra quando você escolhe um plano, e aí a cobrança é feita na contratação. Nos ${MESES} meses grátis nada é cobrado.`,
   },
   {
     n: 3,
@@ -77,7 +82,7 @@ export const RESPOSTAS_OBJECOES: readonly RespostaObjecao[] = [
     etiqueta: "nenhuma",
     publico: "todos",
     pergunta: "O contato chega como?",
-    resposta: "Pelo chat do site e pelo WhatsApp. Cada contato vira um card no seu painel.",
+    resposta: "Pelo chat do site e pelo WhatsApp. Cada contato vira um card no seu painel, nas etapas novo, em contato, visita, proposta, vendido ou perdido.",
   },
   {
     n: 9,
@@ -101,6 +106,21 @@ export const RESPOSTAS_OBJECOES: readonly RespostaObjecao[] = [
     publico: "todos",
     pergunta: "Golpista pode usar meu anúncio?",
     resposta: "A empresa é conferida e ganha o selo verificado. E o anúncio tem proteção: o contato não aparece na descrição e o WhatsApp só abre com login.",
+  },
+  {
+    n: 12,
+    etiqueta: "categoria_fora",
+    publico: "lojas",
+    pergunta: "Moto entra?",
+    resposta: "Por enquanto o NovoSeminovo trabalha só com carros.",
+  },
+  {
+    n: 13,
+    // Etiqueta "categoria fora" só quando a pergunta é de temporada (ver o roteiro).
+    etiqueta: "nenhuma",
+    publico: "imoveis",
+    pergunta: "Aluguel / temporada / rural / comercial entra?",
+    resposta: "Entra sim: venda e aluguel, residencial, comercial, terreno e rural. Só temporada ainda não; posso anotar o seu interesse e te avisar se isso mudar?",
   },
   {
     n: 14,
@@ -131,8 +151,9 @@ export const TAREFA_POR_ETIQUETA: Partial<Record<Objecao, TarefaDaResposta>> = O
   RESPOSTAS_OBJECOES.filter((r) => r.tarefa).map((r) => [r.etiqueta, r.tarefa]),
 );
 
-// Assuntos sem resposta conferida: a IA não responde sozinha (vai para o Diego).
-export const ETIQUETAS_PARA_PESSOA: readonly Objecao[] = ["cartao", "categoria_fora"];
+// Lançamento imobiliário é plano sob consulta: sempre com o Diego, mesmo que
+// a IA não encaminhe (conferido no texto que a empresa escreveu).
+export const PEDE_LANCAMENTO = /\b(lancamentos?|na planta|empreendimentos? (novos?|na planta))\b/;
 
 export function respostasDoPublico(imoveis: boolean): RespostaObjecao[] {
   return RESPOSTAS_OBJECOES.filter((r) => r.publico === "todos" || r.publico === (imoveis ? "imoveis" : "lojas"));

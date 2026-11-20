@@ -2,7 +2,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import type Anthropic from "@anthropic-ai/sdk";
 import { ConsoleLogger, Logger } from "@nestjs/common";
-import { OBJECOES, RascunhoModeloSchema, rotuloObjecao } from "@novoseminovo/shared-types";
+import { CreatePropertyInputSchema, LEAD_STATUS_LABELS, OBJECOES, PropertyType, RascunhoModeloSchema, rotuloObjecao } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProspeccaoSequenciasService } from "../prospeccao/sequencias.service";
 import { FERRAMENTA_RASCUNHO, sistemaVendedor } from "./playbook-vendedor";
@@ -21,9 +21,9 @@ const loja = () => sistemaVendedor({ nome: "Caio", slug: "caio" }, [], "vehicle"
 const imob = (seg: "property" | "broker" = "property") => sistemaVendedor({ nome: "Nina", slug: "nina" }, [], seg);
 
 describe("Respostas prontas no roteiro, pelo segmento certo", () => {
-  test("as respostas conferidas estão lá (numeradas, 1 a 16 sem as que dependem de decisão)", () => {
+  test("as 16 respostas estão lá, numeradas", () => {
     const ns = RESPOSTAS_OBJECOES.map((r) => r.n);
-    assert.deepEqual(ns, [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16]);
+    assert.deepEqual(ns, Array.from({ length: 16 }, (_, i) => i + 1));
     assert.equal(new Set(ns).size, ns.length);
   });
 
@@ -38,6 +38,34 @@ describe("Respostas prontas no roteiro, pelo segmento certo", () => {
     assert.equal(RESPOSTAS_OBJECOES.find((r) => r.n === 4)!.publico, "lojas");
     assert.equal(RESPOSTAS_OBJECOES.find((r) => r.n === 3)!.publico, "imoveis");
     assert.equal(RESPOSTAS_OBJECOES.find((r) => r.n === 10)!.publico, "imoveis");
+    assert.equal(RESPOSTAS_OBJECOES.find((r) => r.n === 12)!.publico, "lojas");
+    assert.equal(RESPOSTAS_OBJECOES.find((r) => r.n === 13)!.publico, "imoveis");
+  });
+
+  // Textos decididos pelo Diego em 20/11/2026 (depois da conferência no sistema).
+  test("textos decididos pelo Diego, exatos", () => {
+    const r = (n: number) => RESPOSTAS_OBJECOES.find((x) => x.n === n)!;
+    assert.equal(r(1).resposta, "Nos 3 primeiros meses você não paga nada e não tem limite de anúncios. Uma semana antes de acabar, você recebe um aviso; se quiser continuar no ar, escolhe o plano (valores em novoseminovo.com.br/para-lojas). Nada é cobrado sozinho, e não tem multa nem fidelidade.");
+    assert.equal(r(2).resposta, "O cadastro não pede cartão. Ele só entra quando você escolhe um plano, e aí a cobrança é feita na contratação. Nos 3 meses grátis nada é cobrado.");
+    assert.equal(r(2).etiqueta, "cartao");
+    assert.equal(r(8).resposta, "Pelo chat do site e pelo WhatsApp. Cada contato vira um card no seu painel, nas etapas novo, em contato, visita, proposta, vendido ou perdido.");
+    assert.equal(r(12).resposta, "Por enquanto o NovoSeminovo trabalha só com carros.");
+    assert.equal(r(12).etiqueta, "categoria_fora");
+    assert.equal(r(13).resposta, "Entra sim: venda e aluguel, residencial, comercial, terreno e rural. Só temporada ainda não; posso anotar o seu interesse e te avisar se isso mudar?");
+  });
+
+  test("#8 usa as etapas reais do painel (LEAD_STATUS_LABELS)", () => {
+    const t = RESPOSTAS_OBJECOES.find((x) => x.n === 8)!.resposta.toLowerCase();
+    for (const s of ["new", "contacted", "visit_scheduled", "negotiating", "won", "lost"] as const) {
+      const rotulo = LEAD_STATUS_LABELS[s].toLowerCase();
+      assert.ok(t.includes(rotulo), `${s}: ${rotulo}`);
+    }
+  });
+
+  test("#13 só afirma o que o anúncio de imóvel aceita (finalidade e tipos)", () => {
+    assert.deepEqual(CreatePropertyInputSchema.shape.purpose.options, ["sale", "rent"]);
+    for (const tipo of ["house", "apartment", "commercial", "store", "warehouse", "land", "farm"]) assert.ok(PropertyType.options.includes(tipo as never), tipo);
+    assert.ok(!PropertyType.options.some((t) => /season|temporada|vacation/.test(t)), "temporada não existe");
   });
 
   test("cada resposta usa uma etiqueta da lista fechada", () => {
@@ -59,6 +87,7 @@ describe("Respostas prontas no roteiro, pelo segmento certo", () => {
     for (const s of [loja(), imob(), imob("broker")]) {
       assert.ok(!/É por segurança/.test(s), "#2: o cadastro não pede cartão");
       assert.ok(!/carros e motos/.test(s), "#12: não há categoria de moto");
+      assert.ok(!/só residenciais|residenciais à venda e lançamentos/.test(s), "#13 antigo");
       assert.ok(!/residenciais à venda/.test(s), "#12/#13: aluguel, comercial e rural são aceitos");
       assert.ok(!/primeira cobrança/.test(s), "#1: nada é cobrado sozinho depois do grátis");
       assert.ok(!/negociando, ganho ou perdido/.test(s), "#8: as colunas do painel têm outros nomes");
@@ -68,11 +97,11 @@ describe("Respostas prontas no roteiro, pelo segmento certo", () => {
     }
   });
 
-  test("cartão e categoria fora do produto: a IA não responde sozinha", () => {
+  test("temporada leva \"categoria fora\"; aluguel, comercial, terreno e rural não; lançamento continua com o Diego", () => {
     const s = imob();
-    assert.match(s, /cartao/);
-    assert.match(s, /categoria_fora/);
-    assert.match(s, /aluguel/i);
+    assert.match(s, /temporada[^\n]*categoria_fora/i);
+    assert.match(s, /aluguel, comercial, terreno ou rural[^\n]*nenhuma/i);
+    assert.match(s, /[Ll]ançamento[^\n]*incerto/);
   });
 });
 
@@ -115,12 +144,25 @@ describe("Etiquetas padronizadas do campo \"objeção\"", () => {
     assert.equal(RascunhoModeloSchema.safeParse(saida({ detected_objection: "sem_interesse" })).data?.detected_objection, "outra");
   });
 
-  test("cartão e categoria fora vão para o Diego mesmo se a IA disser que não", () => {
-    for (const e of ["cartao", "categoria_fora"]) {
-      const r = finalizarRascunho(saida({ detected_objection: e }), { ...ctx, entrada: "Pedem cartão?" });
-      assert.equal(r.escalar, "incerto", e);
+  test("cartão, moto e temporada: a IA responde sem encaminhar", () => {
+    assert.equal(finalizarRascunho(saida({ detected_objection: "cartao" }), { ...ctx, entrada: "Pedem cartão?" }).escalar, undefined);
+    assert.equal(finalizarRascunho(saida({ detected_objection: "categoria_fora" }), { ...ctx, entrada: "Aceitam moto?" }).escalar, undefined);
+    assert.equal(finalizarRascunho(saida({ detected_objection: "categoria_fora" }), { ...ctx, entrada: "E aluguel de temporada?" }).escalar, undefined);
+    assert.equal(finalizarRascunho(saida({ detected_objection: "nenhuma" }), { ...ctx, entrada: "Posso anunciar sala comercial para alugar?" }).escalar, undefined);
+    assert.equal(motivoEscalar("Aceitam aluguel, terreno e sítio?"), undefined);
+  });
+
+  test("lançamento imobiliário continua com o Diego (sob consulta), mesmo se a IA não encaminhar", () => {
+    for (const entrada of ["Vocês aceitam lançamento?", "Tenho um empreendimento na planta", "LANÇAMENTOS entram?"]) {
+      assert.equal(finalizarRascunho(saida({ detected_objection: "categoria_fora" }), { ...ctx, entrada }).escalar, "incerto", entrada);
     }
-    assert.equal(finalizarRascunho(saida({ detected_objection: "cidade" }), { ...ctx, entrada: "x" }).escalar, undefined);
+  });
+
+  test("o texto do cartão passa no filtro (que continua barrando \"sem cartão\")", () => {
+    const t = RESPOSTAS_OBJECOES.find((x) => x.n === 2)!.resposta;
+    assert.equal(termosProibidos(t), false);
+    assert.equal(termosProibidos("Pode começar sem cartão."), true);
+    assert.equal(termosProibidos("Pode começar   SEM CARTAO."), true);
   });
 
   test("rótulo de valor antigo continua legível no Hub", () => {
@@ -129,10 +171,10 @@ describe("Etiquetas padronizadas do campo \"objeção\"", () => {
     assert.equal(rotuloObjecao("<b>x</b>"), "Outra");
   });
 
-  test("automático: LGPD, pedido de pessoa, cartão e categoria fora nunca saem sozinhos", () => {
+  test("automático: LGPD e pedido de pessoa nunca saem sozinhos; cartão e categoria fora têm resposta pronta", () => {
     const base = { escalar: undefined, etapa: "manter" as const };
-    for (const o of ["lgpd", "quer_pessoa", "cartao", "categoria_fora", "outra"] as const) assert.equal(saiSozinho({ ...base, objecao: o }, "automatico"), false, o);
-    for (const o of ["quanto_custa", "integracao", "audiencia", "quem_usa", "cidade", "ja_anuncia", "nao_confia", "arquiteto"] as const) assert.equal(saiSozinho({ ...base, objecao: o }, "automatico"), true, o);
+    for (const o of ["lgpd", "quer_pessoa", "outra"] as const) assert.equal(saiSozinho({ ...base, objecao: o }, "automatico"), false, o);
+    for (const o of ["cartao", "categoria_fora", "quanto_custa", "integracao", "audiencia", "quem_usa", "cidade", "ja_anuncia", "nao_confia", "arquiteto"] as const) assert.equal(saiSozinho({ ...base, objecao: o }, "automatico"), true, o);
   });
 });
 

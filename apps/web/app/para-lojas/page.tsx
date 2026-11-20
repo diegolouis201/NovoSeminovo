@@ -42,7 +42,7 @@ const FEATURES = [
   {
     icon: Kanban,
     title: "Leads organizados",
-    text: "Todo contato pelo chat e pelo WhatsApp vira um lead no seu painel, com etapas de novo, negociando, ganho ou perdido.",
+    text: "Todo contato pelo chat e pelo WhatsApp vira um lead no seu painel, com as etapas novo, em contato, visita, proposta, vendido ou perdido.",
   },
   {
     icon: ChartLineUp,

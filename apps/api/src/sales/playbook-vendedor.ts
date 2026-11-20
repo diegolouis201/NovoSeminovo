@@ -9,7 +9,7 @@ import { PARCEIROS_NAO_CITAR, PROGRAMAS_ENCERRADOS } from "./termos-proibidos";
 // (shared-types), a mesma fonte que cria os planos no banco.
 // O roteiro é escolhido pelo SEGMENTO DA EMPRESA (lojas de veículos ou
 // imóveis: imobiliária e corretor), não pelo nome do vendedor.
-export const PLAYBOOK_VERSAO = "2026-11-20.1";
+export const PLAYBOOK_VERSAO = "2026-11-20.2";
 
 const brl = (v: number) => `R$ ${v.toLocaleString("pt-BR")}`;
 const planos = (publico: "vehicle" | "property") =>
@@ -58,9 +58,11 @@ function respostasProntas(imoveis: boolean): string {
   return `RESPOSTAS PRONTAS PARA OBJEÇÕES (use o texto; pode adaptar o tom, nunca os fatos; não acrescente fato que não esteja aqui ou na oferta)
 ${linhas.join("\n")}
 
-ASSUNTOS SEM RESPOSTA PRONTA (não responda sozinho: escalate.needed = true com reason "incerto")
-- Cartão ou forma de pagamento no cadastro: não diga que pede nem que não pede; detected_objection "cartao".
-- Moto, lançamento, aluguel, temporada, imóvel rural ou comercial: não confirme nem negue; detected_objection "categoria_fora".
+ETIQUETAS DE CATEGORIA${imoveis ? `
+- Aluguel, comercial, terreno ou rural: entram (resposta pronta 13); detected_objection "nenhuma" (não é categoria fora).
+- Temporada: não entra ainda; use a resposta pronta 13 e detected_objection "categoria_fora".
+- Lançamento imobiliário (plano sob consulta): não responda sozinho; detected_objection "categoria_fora" e escalate.needed = true com reason "incerto".` : `
+- Moto: não entra (resposta pronta 12); detected_objection "categoria_fora", sem escalar.`}
 
 LGPD E DADOS
 - Pergunta comum sobre os dados dos clientes ou LGPD: responda com a resposta pronta [lgpd].

@@ -12,7 +12,7 @@ import {
   type VendedorAutonomia,
   type VendedorNumeros,
 } from "@novoseminovo/shared-types";
-import { ETIQUETAS_PARA_PESSOA } from "./roteiro-objecoes";
+import { PEDE_LANCAMENTO } from "./roteiro-objecoes";
 import { TERMOS_PROIBIDOS_REGEX, VENDEDOR_NAO_DIZ_REGEX } from "./termos-proibidos";
 
 // Regras puras dos vendedores IA (testadas em vendedor-regras.spec.ts).
@@ -176,8 +176,8 @@ export function finalizarRascunho(bruto: unknown, ctx: { nome: string; slug: str
   let texto = s.reply_text.replace(/\r\n?/g, "\n").trim();
   let escalar: MotivoEscalar | undefined = s.escalate.needed ? (s.escalate.reason ?? "incerto") : undefined;
   if (!texto && !escalar) escalar = "incerto";
-  // Cartão e categoria fora do produto não têm resposta conferida: pessoa.
-  if (!escalar && ETIQUETAS_PARA_PESSOA.includes(s.detected_objection)) escalar = "incerto";
+  // Lançamento imobiliário é sob consulta: pessoa (decisão do Diego).
+  if (!escalar && PEDE_LANCAMENTO.test(sem(ctx.entrada))) escalar = "incerto";
   if (termosProibidos(texto)) escalar = "fora_do_roteiro";
   texto = higienizarLinks(texto, ctx.slug).texto;
   if (texto && perguntaSeRobo(ctx.entrada) && !/assistente virtual/i.test(texto)) {
@@ -238,7 +238,7 @@ export function diasParaAutomatico(noArDesde: Date | null | undefined, agora = n
 
 // Rotina = sem escalar, objeção com resposta pronta, sem tirar o card do
 // funil. LGPD e pedido de pessoa sempre passam pelo dono.
-const ROTINA: readonly Objecao[] = ["nenhuma", "ja_anuncia", "sem_tempo", "quanto_custa", "integracao", "audiencia", "quem_usa", "arquiteto", "nao_confia", "cidade"];
+const ROTINA: readonly Objecao[] = ["nenhuma", "ja_anuncia", "sem_tempo", "quanto_custa", "cartao", "integracao", "audiencia", "quem_usa", "arquiteto", "nao_confia", "categoria_fora", "cidade"];
 export function saiSozinho(r: { escalar?: MotivoEscalar; objecao: Objecao; etapa: EtapaSugerida }, autonomia: VendedorAutonomia): boolean {
   return autonomia === "automatico" && !r.escalar && ROTINA.includes(r.objecao) && r.etapa !== "perdido";
 }

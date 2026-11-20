@@ -17,7 +17,7 @@ const BENEFITS = [
   { icon: Storefront, title: "3 meses grátis", text: "Sem limite de anúncios a partir do cadastro. Depois, escolha um plano para continuar no ar — sem fidelidade." },
   { icon: QrCode, title: "Vitrine pronta", text: "Cada anúncio vira imagem para o Instagram e o WhatsApp, e cartaz para imprimir com QR que leva direto ao anúncio." },
   { icon: LinkSimple, title: "Importe pelo link", text: "Já anuncia em outro site? Cole o link do anúncio e a gente organiza tudo no padrão do NovoSeminovo. Você só revisa." },
-  { icon: Kanban, title: "Leads organizados", text: "Todo contato pelo chat e pelo WhatsApp vira um lead no seu painel, com etapas de novo, negociando, ganho ou perdido." },
+  { icon: Kanban, title: "Leads organizados", text: "Todo contato pelo chat e pelo WhatsApp vira um lead no seu painel, com as etapas novo, em contato, visita, proposta, vendido ou perdido." },
 ];
 
 export default function CampaignStartPage() {
