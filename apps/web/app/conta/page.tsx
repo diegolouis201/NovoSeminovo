@@ -4,8 +4,8 @@ import { auth, signOut } from "@/auth";
 import { Button } from "@/components/Button";
 
 const ROLE_LABEL: Record<string, string> = {
-  buyer: "Comprador",
-  individual_seller: "Vendedor particular",
+  buyer: "Particular",
+  individual_seller: "Particular",
   partner_agent: "Corretor/vendedor de loja parceira",
   partner_owner: "Dono de loja/imobiliária parceira",
   admin: "Administrador",

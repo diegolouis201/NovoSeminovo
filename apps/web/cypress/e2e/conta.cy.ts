@@ -26,6 +26,13 @@ describe("Conta", () => {
     cy.contains("h1", "Moderação").should("be.visible");
   });
 
+  it("pessoa física aparece como Particular em Minha conta (mesmo nome do menu)", () => {
+    cy.loginAs("comprador@novoseminovo.com.br", "senha1234");
+    cy.visit("/conta");
+    cy.contains("Tipo de conta").next().should("have.text", "Particular");
+    cy.get("main").should("not.contain.text", "Comprador");
+  });
+
   it("quem não entrou é mandado para o login ao abrir o admin", () => {
     cy.visit("/admin");
     cy.location("pathname").should("eq", "/entrar");
