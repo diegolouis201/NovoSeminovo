@@ -26,7 +26,7 @@ export function Form({ action, botao, children, manter = false, className = "spa
       {children}
       <div className="flex flex-wrap items-center gap-3">
         <Enviar texto={botao} />
-        {state.ok ? <span className="text-sm font-semibold text-green">{state.ok}</span> : null}
+        {state.ok ? <span role="status" className="text-sm font-semibold text-green">{state.ok}</span> : null}
         {state.erro ? <span role="alert" className="text-sm font-semibold text-danger">{state.erro}</span> : null}
       </div>
     </form>

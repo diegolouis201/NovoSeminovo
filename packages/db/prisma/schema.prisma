@@ -1924,6 +1924,9 @@ model ProspectEnrollment {
   firstSubject   String?          @map("first_subject")
   stopReason     String?          @map("stop_reason")
   lastError      String?          @map("last_error")
+  // Falhas temporárias seguidas no passo atual (SMTP 4xx, conexão caiu):
+  // reagenda; na 3ª vira "erro". Zera quando o passo sai.
+  tempRetries    Int              @default(0) @map("temp_retries")
   enrolledById   String?          @map("enrolled_by_id")
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
@@ -1940,7 +1943,7 @@ model ProspectEmailLog {
   enrollmentId String             @map("enrollment_id")
   enrollment   ProspectEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   step         Int
-  // enviado | erro
+  // enviado | erro | adiado (falha temporária, nova tentativa agendada)
   status       String
   messageId    String?            @map("message_id")
   error        String?

@@ -357,6 +357,31 @@ async function main() {
     });
   }
 
+  // Sequência com falhas do servidor de e-mail (botão "Reenviar falhas
+  // temporárias" no Hub, Cypress prospeccao-hub.cy.ts): uma empresa parou
+  // com 451 (temporária, pode reenviar) e outra com 550 (permanente, não).
+  // Fica PAUSADA (aprovada antes): só envia se alguém ativar. Rodar o seed de
+  // novo volta tudo para este estado.
+  const passoSeed = [{ assunto: "Teste do seed para {{empresa}}", corpo: "E-mail de exemplo do seed (nunca enviado).", esperaDias: 0 }];
+  const seqFalhas =
+    (await prisma.prospectSequence.findFirst({ where: { name: "Seed: falhas temporárias" } })) ??
+    (await prisma.prospectSequence.create({ data: { name: "Seed: falhas temporárias", status: "pausada", steps: passoSeed, approvedAt: new Date(), approvedById: admin.id } }));
+  await prisma.prospectSequence.update({ where: { id: seqFalhas.id }, data: { status: "pausada", steps: passoSeed, approvedAt: new Date(), approvedById: admin.id, salesAgentId: null } });
+  const falhas = [
+    { chave: "seed-falha-temp-451", nome: "Loja Falha Temporária Seed", email: "falha451@exemplo.local", erro: "Message failed: 451 4.3.0 Error: queue file write error" },
+    { chave: "seed-falha-perm-550", nome: "Loja Falha Permanente Seed", email: "falha550@exemplo.local", erro: "Message failed: 550 5.1.1 Recipient address rejected: User unknown" },
+  ];
+  for (const f of falhas) {
+    const card = await prisma.salesProspect.upsert({
+      where: { googlePlaceId: f.chave },
+      update: { stage: "a_abordar", optedOutAt: null, repliedAt: null, salesAgentId: null },
+      create: { name: f.nome, segment: "vehicle", city: "Belo Horizonte", state: "MG", email: f.email, source: "mailerfind", campaignTag: "Exemplo falhas de envio", googlePlaceId: f.chave, stage: "a_abordar" },
+    });
+    await prisma.prospectEnrollment.deleteMany({ where: { prospectId: card.id } });
+    const insc = await prisma.prospectEnrollment.create({ data: { sequenceId: seqFalhas.id, prospectId: card.id, status: "erro", lastError: f.erro, enrolledById: admin.id } });
+    await prisma.prospectEmailLog.create({ data: { enrollmentId: insc.id, step: 1, status: "erro", error: f.erro, mailbox: "prospeccao" } });
+  }
+
   await prisma.favorite.upsert({
     where: { userId_listingId: { userId: buyer.id, listingId: vehicleListing.id } },
     update: {},

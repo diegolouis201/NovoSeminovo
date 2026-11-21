@@ -131,6 +131,10 @@ export const ProspeccaoRemoverSchema = z
   .object({ ids: z.array(z.string().regex(/^[A-Za-z0-9_-]{1,40}$/)).min(1, "Escolha as empresas.").max(5000) })
   .strict();
 
+// Recolocar na fila as inscrições que pararam por falha TEMPORÁRIA do SMTP
+// (4xx, conexão caiu). O dono confirma depois de ver quantas são.
+export const ProspeccaoReenviarFalhasSchema = z.object({ confirmo: z.literal(true) }).strict();
+
 // Remetente (vendedor IA) da sequência: só o dono troca.
 export const ProspeccaoRemetenteSchema = z.object({ vendedorId: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/).nullable() }).strict();
 
@@ -181,6 +185,8 @@ export type ProspeccaoInscricao = {
   ultimoEnvio?: string;
   motivo?: string;
   erro?: string;
+  // Falhas temporárias seguidas no passo atual (nova tentativa já agendada).
+  tentativas?: number;
 };
 export type ProspeccaoPainel = {
   ajustes: ProspeccaoAjustes;

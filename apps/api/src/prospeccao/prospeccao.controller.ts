@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { type ProspeccaoAjustes, ProspeccaoAjustesSchema, ProspeccaoCardSegmentoSchema, ProspeccaoConfirmarSchema, ProspeccaoInscreverSchema, ProspeccaoRemetenteSchema, ProspeccaoRemoverSchema, ProspeccaoSequenciaSchema } from "@novoseminovo/shared-types";
+import { type ProspeccaoAjustes, ProspeccaoAjustesSchema, ProspeccaoCardSegmentoSchema, ProspeccaoConfirmarSchema, ProspeccaoInscreverSchema, ProspeccaoReenviarFalhasSchema, ProspeccaoRemetenteSchema, ProspeccaoRemoverSchema, ProspeccaoSequenciaSchema } from "@novoseminovo/shared-types";
 import { z } from "zod";
 import { memoryStorage } from "multer";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -112,6 +112,17 @@ export class ProspeccaoController {
   @Post("sequencias/:id/remover")
   async remover(@Param("id") id: string, @Body() body: unknown) {
     return this.sequencias.remover(parseOrBadRequest(IdSchema, id), parseOrBadRequest(ProspeccaoRemoverSchema, body));
+  }
+
+  // Recoloca na fila as inscrições que pararam por falha TEMPORÁRIA do SMTP
+  // (4xx, conexão caiu): só o dono, com confirmação, só sequência ativa e
+  // aprovada. A rodada de envio confere tudo de novo antes de mandar.
+  @HubPermissionRequired("equipe")
+  @Post("sequencias/:id/reenviar-falhas")
+  async reenviarFalhas(@Param("id") id: string, @Body() body: unknown) {
+    const seq = parseOrBadRequest(IdSchema, id);
+    parseOrBadRequest(ProspeccaoReenviarFalhasSchema, body);
+    return this.sequencias.reenviarFalhasTemporarias(seq);
   }
 
   // Vendedor (remetente) da sequência: só o dono.

@@ -97,3 +97,52 @@ export function renderizarEmail(passo: ProspeccaoPasso, dados: { empresa: string
 </body></html>`;
   return { assunto, texto, html };
 }
+
+// ------------------------------------------------------------ falha temporária
+// O SMTP às vezes recusa por um problema dele, passageiro (ex.: Locaweb
+// "451 4.3.0 Error: queue file write error"), ou a conexão cai. Isso não é
+// culpa do endereço: a inscrição tenta de novo mais tarde (+30 min, +2 h,
+// sempre dentro da janela de envio). Na 3ª falha temporária seguida no mesmo
+// passo, vira "erro". Resposta 5xx (ex.: 550 caixa inexistente) é permanente.
+
+const CODIGOS_CONEXAO = ["ECONNRESET", "ETIMEDOUT", "ESOCKET", "ECONNECTION"];
+const PERMANENTE_TEXTO = /(^|[\s:])5\d\d[\s-]|(^|\s)5\.\d{1,3}\.\d{1,3}\b/;
+const TEMPORARIA_TEXTO = /(^|[\s:])4\d\d[\s-]|(^|\s)4\.\d{1,3}\.\d{1,3}\b|\b(ECONNRESET|ETIMEDOUT|ESOCKET|ECONNECTION|ECONNREFUSED)\b|connection timeout|greeting never received|unexpected socket close|socket closed unexpectedly/i;
+
+// Adiamentos das falhas temporárias: 1ª → +30 min, 2ª → +2 h; a 3ª vira erro.
+export const ADIAMENTOS_MS = [30 * 60_000, 2 * 3_600_000];
+export const MAX_FALHAS_TEMPORARIAS = 3;
+
+// Texto da falha (o que já está gravado em lastError serve também).
+export function textoDeFalhaTemporaria(texto: string | null | undefined): boolean {
+  if (!texto) return false;
+  const t = texto.slice(0, 300);
+  if (PERMANENTE_TEXTO.test(t)) return false;
+  return TEMPORARIA_TEXTO.test(t);
+}
+
+export function falhaTemporaria(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const { responseCode, code } = error as Error & { responseCode?: unknown; code?: unknown };
+  if (typeof responseCode === "number") {
+    if (responseCode >= 400 && responseCode < 500) return true;
+    if (responseCode >= 500) return false;
+  }
+  if (typeof code === "string" && CODIGOS_CONEXAO.includes(code)) return true;
+  return textoDeFalhaTemporaria(error.message);
+}
+
+// Mensagem gravada: inclui o código de conexão quando a mensagem não tem,
+// para dar para reconhecer depois (botão "Reenviar falhas temporárias").
+export function descreverErroSmtp(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const code = (error as Error & { code?: unknown }).code;
+  if (typeof code === "string" && CODIGOS_CONEXAO.includes(code) && !error.message.includes(code)) return `${code}: ${error.message}`;
+  return error.message;
+}
+
+// Quando tentar de novo depois da n-ésima falha temporária (1, 2…).
+export function reagendarFalha(agora: Date, falha: number): Date {
+  const espera = ADIAMENTOS_MS[Math.min(falha, ADIAMENTOS_MS.length) - 1] ?? ADIAMENTOS_MS[0]!;
+  return proximoHorarioUtil(new Date(agora.getTime() + espera));
+}

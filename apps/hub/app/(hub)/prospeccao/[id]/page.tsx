@@ -6,7 +6,7 @@ import { InscreverForm } from "@/components/InscreverForm";
 import { SequenciaEditor } from "@/components/SequenciaEditor";
 import { Cabecalho, Secao, Vazio } from "@/components/ui";
 import { HubApiError } from "@/lib/api";
-import { aprovarSequencia, definirRemetenteSequencia, pausarSequencia, removerDaSequencia } from "@/lib/actions";
+import { aprovarSequencia, definirRemetenteSequencia, pausarSequencia, reenviarFalhasTemporarias, removerDaSequencia } from "@/lib/actions";
 import { me } from "@/lib/crm";
 import { dataHora } from "@/lib/format";
 import { painelVendedores } from "@/lib/vendedores";
@@ -16,7 +16,10 @@ export const metadata = { title: "Sequência de prospecção" };
 
 const COR: Record<string, string> = { agendado: "bg-blue/10 text-blue", enviando: "bg-blue/10 text-blue", concluido: "bg-line text-navy", respondeu: "bg-green/15 text-green", saiu: "bg-orange/15 text-danger", parou: "bg-line text-muted", erro: "bg-orange/15 text-danger" };
 
-export default async function Sequencia({ params, searchParams }: { params: { id: string }; searchParams: { etiqueta?: string } }) {
+// Resultado do "Reenviar falhas temporárias" (vem na URL): só números.
+const contagem = (v?: string) => (v && /^\d{1,5}$/.test(v) ? Number(v) : undefined);
+
+export default async function Sequencia({ params, searchParams }: { params: { id: string }; searchParams: { etiqueta?: string; reenviadas?: string; fora?: string } }) {
   if (!/^[A-Za-z0-9_-]{1,40}$/.test(params.id)) notFound();
   const acesso = await me();
   let d: Awaited<ReturnType<typeof sequenciaProspeccao>>;
@@ -73,6 +76,32 @@ export default async function Sequencia({ params, searchParams }: { params: { id
                 <label htmlFor="confirmo">Li a prévia dos {s.passos.length} e-mails abaixo e autorizo o envio para as empresas inscritas (seg a sex, 9h às 17h, até o limite do dia).</label>
               </span>
             </Form>
+          )}
+        </Secao>
+      ) : null}
+
+      {contagem(searchParams.reenviadas) !== undefined ? (
+        <p role="status" className="mb-6 rounded-xl border border-green/30 bg-green/10 px-4 py-3 text-sm font-semibold text-green">
+          {contagem(searchParams.reenviadas)} empresa(s) de volta na fila. Os e-mails saem um por vez, no horário e no limite do dia.
+          {contagem(searchParams.fora) ? ` ${contagem(searchParams.fora)} ficaram de fora (já estão em outra sequência ativa).` : ""}
+        </p>
+      ) : null}
+
+      {dono && d.falhasTemporarias > 0 ? (
+        <Secao titulo={`Falhas temporárias do servidor de e-mail (${d.falhasTemporarias})`} className="mb-6">
+          {s.status === "ativa" && s.aprovadaEm ? (
+            <Form action={reenviarFalhasTemporarias} botao={`Reenviar falhas temporárias (${d.falhasTemporarias})`}>
+              <input type="hidden" name="id" value={s.id} />
+              <p className="text-sm text-muted">
+                {d.falhasTemporarias} empresa(s) não receberam o e-mail porque o servidor de e-mail estava com problema na hora (ex.: “451 queue file write error”). Não é problema do endereço. Reenviar coloca de volta na fila: sai um por vez, no horário e no limite do dia, e quem respondeu, saiu ou já está em outra sequência fica de fora.
+              </p>
+              <span className="flex items-start gap-2 text-sm">
+                <input id="confirmo-reenvio" name="confirmo" type="checkbox" value="1" required className="mt-1 accent-blue" />
+                <label htmlFor="confirmo-reenvio">Quero reenviar para estas {d.falhasTemporarias} empresa(s).</label>
+              </span>
+            </Form>
+          ) : (
+            <p className="text-sm text-muted">{d.falhasTemporarias} empresa(s) não receberam o e-mail por um problema passageiro do servidor de e-mail. Para reenviar, a sequência precisa estar ativa (aprovada).</p>
           )}
         </Secao>
       ) : null}
@@ -144,7 +173,7 @@ function Lista({ inscricoes, podeTirar, id }: { inscricoes: Inscricao[]; podeTir
               </div>
               <p className="text-xs text-muted">
                 {e.proximoEnvio ? `Próximo e-mail: ${dataHora(e.proximoEnvio)}` : e.status === "parou" && e.motivo ? e.motivo : e.ultimoEnvio ? `Último e-mail: ${dataHora(e.ultimoEnvio)}` : ""}
-                {e.erro ? ` · ${e.erro}` : ""}
+                {e.erro ? (e.tentativas ? ` · Servidor de e-mail falhou ${e.tentativas} vez(es) (problema passageiro); nova tentativa já agendada: ${e.erro}` : ` · ${e.erro}`) : ""}
               </p>
             </div>
           </li>

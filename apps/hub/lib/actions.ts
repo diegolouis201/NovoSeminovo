@@ -468,6 +468,25 @@ export async function inscreverSequencia(_: ResultadoInscricao, form: FormData):
   }
 }
 
+// Recoloca na fila as empresas que pararam por falha TEMPORÁRIA do servidor
+// de e-mail (ex.: 451 da Locaweb). A rodada de envio confere tudo de novo
+// (respondeu, saiu, outra caixa) e respeita o limite do dia.
+export async function reenviarFalhasTemporarias(_: Resultado, form: FormData): Promise<Resultado> {
+  const seq = id(txt(form, "id", 40));
+  if (form.get("confirmo") !== "1") return { erro: "Marque a confirmação antes de reenviar." };
+  let r = { reagendadas: 0, emOutraSequencia: 0 };
+  const res = await run(
+    async () => {
+      r = await hubFetch<{ reagendadas: number; emOutraSequencia: number }>(`/hub/prospeccao/sequencias/${seq}/reenviar-falhas`, { method: "POST", body: { confirmo: true } });
+    },
+    "ok",
+    ["/prospeccao"],
+  );
+  if (!res.ok) return res;
+  // A seção do botão some quando não sobra falha: o resultado vai na URL.
+  redirect(`/prospeccao/${seq}?reenviadas=${r.reagendadas}&fora=${r.emOutraSequencia}`);
+}
+
 // Tirar empresas da sequência (uma ou as marcadas). Nada é enviado.
 export async function removerDaSequencia(_: Resultado, form: FormData): Promise<Resultado> {
   const seq = id(txt(form, "id", 40));

@@ -27,7 +27,21 @@ import { parseOrBadRequest } from "../common/parse";
 import { signLink, verifyLink, webOrigin } from "../marketing/links";
 import { trackRoutine } from "../operations/routine-health";
 import { PrismaService } from "../prisma/prisma.service";
-import { agendarPasso, inicioDoDiaBr, intervaloEntreEnvios, motivoParaParar, podeEnviar, renderizarEmail, type MotivoParada } from "./sequencia-regras";
+import {
+  MAX_FALHAS_TEMPORARIAS,
+  agendarPasso,
+  descreverErroSmtp,
+  falhaTemporaria,
+  inicioDoDiaBr,
+  intervaloEntreEnvios,
+  motivoParaParar,
+  podeEnviar,
+  proximoHorarioUtil,
+  reagendarFalha,
+  renderizarEmail,
+  textoDeFalhaTemporaria,
+  type MotivoParada,
+} from "./sequencia-regras";
 import { caixaSmtpConfig, criarEnvio, nomeRemetente, prospeccaoSmtpConfig, semSenha, type EnviarProspeccao, type SmtpConfig } from "./smtp";
 
 // Sequências de e-mail de prospecção pelo CRM do Hub. Segurança:
@@ -40,7 +54,10 @@ import { caixaSmtpConfig, criarEnvio, nomeRemetente, prospeccaoSmtpConfig, semSe
 // - antes de cada envio confere: respondeu, saiu (lista de bloqueio pelo
 //   HMAC do e-mail), "não contatar" do Hub, mudou de etapa, virou parceira;
 // - todo e-mail leva rodapé legal + link de saída; todo envio vira
-//   interação "E-mail" na ficha da empresa.
+//   interação "E-mail" na ficha da empresa;
+// - falha temporária do SMTP (4xx, conexão caiu) reagenda a mesma inscrição
+//   (+30 min, +2 h, dentro da janela; log "adiado"); na 3ª seguida no mesmo
+//   passo vira "erro". Falha permanente (5xx) vira "erro" direto.
 
 const AJUSTES = "prospeccao";
 const ESTADO = "prospeccao_estado";
@@ -50,6 +67,7 @@ const IdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/, "Identificador invál
 const ATIVOS = ["agendado", "enviando"];
 
 export type ResultadoTick = "desligado" | "sem_smtp" | "pausado" | "fora_do_horario" | "teto_do_dia" | "intervalo" | "nada_para_enviar" | "enviado" | "erro";
+export type ResultadoReenvio = { reagendadas: number; emOutraSequencia: number };
 export type ResultadoInscricao = { inscritas: number; puladas: { jaInscritas: number; emOutraSequencia: number; semEmail: number; sairam: number; parceiras: number; outraEtapa: number; outraCaixa: number } };
 type SeqComVendedor = { salesAgent: { id: string; name: string; mailbox: string | null } | null };
 
@@ -183,12 +201,13 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
     await this.prisma.prospectSequence.update({ where: { id }, data: { salesAgentId: vendedorId } });
   }
 
-  async detalhe(id: string): Promise<{ sequencia: ProspeccaoSequencia; inscricoes: ProspeccaoInscricao[]; previa: { assunto: string; texto: string; html: string }[]; exemplo: string }> {
+  async detalhe(id: string): Promise<{ sequencia: ProspeccaoSequencia; inscricoes: ProspeccaoInscricao[]; previa: { assunto: string; texto: string; html: string }[]; exemplo: string; falhasTemporarias: number }> {
     const s = await this.existe(id);
-    const [aprovadores, contagens, inscricoes] = await Promise.all([
+    const [aprovadores, contagens, inscricoes, falhas] = await Promise.all([
       this.nomes([s.approvedById]),
       this.prisma.prospectEnrollment.groupBy({ by: ["sequenceId", "status"], where: { sequenceId: id }, _count: { _all: true } }),
       this.prisma.prospectEnrollment.findMany({ where: { sequenceId: id }, include: { prospect: { select: { id: true, name: true, city: true, segment: true } } }, orderBy: [{ updatedAt: "desc" }], take: 2000 }),
+      this.falhasTemporarias(id),
     ]);
     // Prévia com uma empresa de verdade inscrita (ou uma de exemplo).
     const amostra = inscricoes[0]?.prospect ?? { id: "exemplo", name: "Loja Exemplo Veículos", city: "Belo Horizonte" };
@@ -197,6 +216,7 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
     return {
       sequencia: this.vista(s, aprovadores, contagens),
       exemplo: amostra.name,
+      falhasTemporarias: falhas.length,
       previa: passos.map((p, i) => renderizarEmail(p, { empresa: amostra.name, cidade: amostra.city ?? undefined }, { linkSair: this.linkSair(amostra.id), numero: i + 1, assuntoPrimeiro: primeiro })),
       inscricoes: inscricoes.map((e) => ({
         id: e.id,
@@ -209,6 +229,7 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
         ultimoEnvio: e.lastSentAt?.toISOString(),
         motivo: e.stopReason ? (PROSPECCAO_MOTIVO_PARADA[e.stopReason as keyof typeof PROSPECCAO_MOTIVO_PARADA] ?? e.stopReason) : undefined,
         erro: e.lastError ?? undefined,
+        tentativas: ATIVOS.includes(e.status) && e.tempRetries ? e.tempRetries : undefined,
       })),
     };
   }
@@ -319,6 +340,42 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
     const apagadas = await this.prisma.prospectEnrollment.deleteMany({ where: { sequenceId: id, prospectId: { in: ids }, stepsSent: 0, status: { in: ATIVOS } } });
     const paradas = await this.prisma.prospectEnrollment.updateMany({ where: { sequenceId: id, prospectId: { in: ids }, status: { in: ATIVOS } }, data: { status: "parou", stopReason: "removida", activeKey: null, nextSendAt: null } });
     return { removidas: apagadas.count + paradas.count };
+  }
+
+  // ------------------------------------------------------------ falhas temporárias
+
+  // Inscrições paradas em "erro" cuja última falha foi temporária (SMTP 4xx,
+  // conexão caiu). Inclui as de antes da correção (só o texto do erro).
+  private async falhasTemporarias(sequenceId: string): Promise<{ id: string; prospectId: string }[]> {
+    const rows = await this.prisma.prospectEnrollment.findMany({ where: { sequenceId, status: "erro", lastError: { not: null } }, select: { id: true, prospectId: true, lastError: true }, take: 5000 });
+    return rows.filter((r) => textoDeFalhaTemporaria(r.lastError));
+  }
+
+  // Botão "Reenviar falhas temporárias" (só o dono). Só sequência ativa e
+  // aprovada. Volta para "agendado" agora (dentro da janela); a rodada de
+  // envio confere tudo de novo antes de mandar (respondeu, saiu, lista de
+  // bloqueio, outra caixa, etapa) e respeita teto, intervalo e ordem: não
+  // aumenta o volume. Empresa que entrou em outra sequência ativa fica de fora.
+  async reenviarFalhasTemporarias(id: string, agora = new Date()): Promise<ResultadoReenvio> {
+    const seq = await this.existe(id);
+    if (seq.status !== "ativa" || !seq.approvedAt) throw new BadRequestException("A sequência precisa estar ativa e aprovada para reenviar.");
+    const r: ResultadoReenvio = { reagendadas: 0, emOutraSequencia: 0 };
+    const quando = proximoHorarioUtil(agora);
+    for (const f of await this.falhasTemporarias(id)) {
+      try {
+        const u = await this.prisma.prospectEnrollment.updateMany({
+          where: { id: f.id, status: "erro" },
+          data: { status: "agendado", nextSendAt: quando, tempRetries: 0, activeKey: f.prospectId, lastError: null, stopReason: null },
+        });
+        r.reagendadas += u.count;
+      } catch (error) {
+        // activeKey único: a empresa já está em outra sequência ativa.
+        if ((error as { code?: string }).code !== "P2002") throw error;
+        r.emOutraSequencia++;
+      }
+    }
+    if (r.reagendadas) this.logger.log(`Sequência ${id}: ${r.reagendadas} inscrição(ões) com falha temporária de volta na fila.`);
+    return r;
   }
 
   // ------------------------------------------------------------ parar
@@ -464,7 +521,7 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
   }
 
   private async enviar(
-    e: { id: string; firstMessageId: string | null; firstSubject: string | null; sequence: { name: string } & SeqComVendedor; prospect: { id: string; name: string; city: string | null; email: string | null; salesAgent: { id: string; name: string } | null } },
+    e: { id: string; tempRetries: number; firstMessageId: string | null; firstSubject: string | null; sequence: { name: string } & SeqComVendedor; prospect: { id: string; name: string; city: string | null; email: string | null; salesAgent: { id: string; name: string } | null } },
     passos: ProspeccaoPasso[],
     n: number,
     agora: Date,
@@ -489,10 +546,19 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
       const envio = this.envioDeTeste ?? criarEnvio(cfg!);
       await envio({ para: p.email!, assunto: email.assunto, texto: email.texto, html: email.html, messageId, inReplyTo: n > 0 ? (e.firstMessageId ?? undefined) : undefined, cabecalhos, caixa, deNome: nomeRemetente(caixa) ?? (vendedor ? `${vendedor.name} | NovoSeminovo` : undefined) });
     } catch (error) {
-      const msg = semSenha(error instanceof Error ? error.message : String(error), cfg).slice(0, 300);
+      const msg = semSenha(descreverErroSmtp(error), cfg).slice(0, 300);
+      const falhas = e.tempRetries + 1;
+      // Temporária (4xx, conexão): tenta de novo mais tarde, mantendo a vaga.
+      if (falhaTemporaria(error) && falhas < MAX_FALHAS_TEMPORARIAS) {
+        const quando = reagendarFalha(agora, falhas);
+        this.logger.warn(`Falha temporária ao enviar e-mail de prospecção (inscrição ${e.id}, passo ${n + 1}, tentativa ${falhas}): ${msg}. Nova tentativa em ${quando.toISOString()}.`);
+        await this.prisma.prospectEmailLog.create({ data: { enrollmentId: e.id, step: n + 1, status: "adiado", error: msg, createdAt: agora, salesAgentId: vendedor?.id, mailbox: caixa } });
+        await this.prisma.prospectEnrollment.update({ where: { id: e.id }, data: { status: "agendado", lastError: msg, tempRetries: falhas, nextSendAt: quando } });
+        return "erro";
+      }
       this.logger.warn(`Falha ao enviar e-mail de prospecção (inscrição ${e.id}, passo ${n + 1}): ${msg}`);
       await this.prisma.prospectEmailLog.create({ data: { enrollmentId: e.id, step: n + 1, status: "erro", error: msg, createdAt: agora, salesAgentId: vendedor?.id, mailbox: caixa } });
-      await this.prisma.prospectEnrollment.update({ where: { id: e.id }, data: { status: "erro", lastError: msg, activeKey: null, nextSendAt: null } });
+      await this.prisma.prospectEnrollment.update({ where: { id: e.id }, data: { status: "erro", lastError: msg, activeKey: null, nextSendAt: null, tempRetries: 0 } });
       return "erro";
     }
     const ultimo = n + 1 >= passos.length;
@@ -504,6 +570,7 @@ export class ProspeccaoSequenciasService implements OnModuleInit, OnModuleDestro
         stepsSent: n + 1,
         lastSentAt: agora,
         lastError: null,
+        tempRetries: 0,
         ...(n === 0 ? { firstMessageId: messageId, firstSubject: email.assunto } : {}),
         ...(ultimo ? { status: "concluido", activeKey: null, nextSendAt: null } : { status: "agendado", nextSendAt: agendarPasso(agora, passos[n + 1]!.esperaDias) }),
       },

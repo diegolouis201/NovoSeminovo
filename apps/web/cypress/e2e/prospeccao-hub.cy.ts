@@ -79,6 +79,31 @@ describe("Hub: importar empresas do Mailerfind", { baseUrl: "http://localhost:31
     cy.contains("Rascunho (não envia)");
     cy.get("#confirmo:invalid").should("exist");
   });
+
+  // Seed: "Seed: falhas temporárias" (pausada) com um 451 (temporária) e um 550 (permanente).
+  it("reenviar falhas temporárias: mostra quantas antes, só com a sequência ativa e com confirmação; 550 fica de fora", () => {
+    entrar();
+    cy.visit("/prospeccao");
+    cy.contains("a", "Seed: falhas temporárias").click();
+    cy.contains("h2", "Falhas temporárias do servidor de e-mail (1)");
+    cy.contains("a sequência precisa estar ativa");
+    cy.contains("button", "Reenviar falhas temporárias").should("not.exist");
+    cy.get("#confirmo").check();
+    cy.contains("button", "Aprovar e ativar").click();
+    cy.contains("button", "Reenviar falhas temporárias (1)").click();
+    // Sem marcar a confirmação, o navegador não deixa reenviar.
+    cy.get("#confirmo-reenvio:invalid").should("exist");
+    cy.get("#confirmo-reenvio").check();
+    cy.contains("button", "Reenviar falhas temporárias (1)").click();
+    cy.get("[role=status]").should("contain", "1 empresa(s) de volta na fila");
+    cy.reload();
+    cy.contains("h2", "Falhas temporárias do servidor de e-mail").should("not.exist");
+    cy.contains("li", "Loja Falha Temporária Seed").should("contain", "Agendado");
+    cy.contains("li", "Loja Falha Permanente Seed").should("contain", "Erro").and("contain", "550");
+    // Deixa como estava (pausada).
+    cy.contains("button", "Pausar esta sequência").click();
+    cy.contains("Pausada");
+  });
 });
 
 describe("Site: página de saída dos e-mails de prospecção", () => {
