@@ -84,7 +84,12 @@ describe("Fila, aprovações e teto (banco local)", { skip: !withDb && "sem DATA
     const user = await prisma.user.create({ data: { name: "Teste Operação", email: `${tag}@teste.local`, role: "individual_seller" } });
     userId = user.id;
     const listing = await prisma.listing.create({
-      data: { type: "vehicle", ownerUserId: userId, title: "Carro de teste", description: "Anúncio criado pelo teste da Fase 1", price: 50000, city: "Teste", state: "MG", status: "active" },
+      // createdAt bem antigo: a lista de problemas vem do mais antigo para o
+      // mais novo, com teto de 30, então o anúncio do teste fica sempre no
+      // topo, não importa quantos anúncios ativos o banco local tenha (o seed
+      // sozinho já deixa mais de 30). updatedAt continua agora, para o anúncio
+      // não ganhar também o problema "parado".
+      data: { type: "vehicle", ownerUserId: userId, title: "Carro de teste", description: "Anúncio criado pelo teste da Fase 1", price: 50000, city: "Teste", state: "MG", status: "active", createdAt: new Date("2000-01-01T00:00:00Z") },
     });
     listingId = listing.id;
     const partner = await prisma.partner.create({ data: { ownerUserId: userId, type: "dealership", legalName: "Loja Teste Ltda", document: `${Date.now()}`.slice(-14), slug: tag } });
