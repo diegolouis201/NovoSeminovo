@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Car, House } from "@phosphor-icons/react/dist/ssr";
 import { PropertyProfileAssistant } from "@/components/PropertyProfileAssistant";
 import { VehicleProfileAssistant } from "@/components/VehicleProfileAssistant";
+import { pageMetadata } from "@/lib/seo/metadata";
 
 const COPY = {
   vehicle: {
@@ -17,11 +18,12 @@ const COPY = {
   },
 } as const;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Assistente de compra",
-  description: "Responda perguntas rápidas e descubra o carro ou o imóvel que cabe no seu orçamento.",
-  alternates: { canonical: "/assistente-compra" },
-};
+  description:
+    "Responda perguntas rápidas e descubra o carro ou o imóvel que cabe no seu orçamento.",
+  path: "/assistente-compra",
+});
 
 export default function AssistenteCompraPage({ searchParams }: { searchParams: { tipo?: string } }) {
   const assetType = searchParams.tipo === "property" ? "property" : "vehicle";

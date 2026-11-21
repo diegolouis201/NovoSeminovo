@@ -15,7 +15,10 @@ describe("Campanha para lojas: /para-lojas/comecar", () => {
     cy.get("main").should("contain.text", "3 meses grátis");
     cy.get("main").should("contain.text", "Vitrine");
     cy.get("main").should("contain.text", "QR");
-    cy.get("main").should("contain.text", "link");
+    // Para loja o argumento é a integração (CRM/catálogo ou planilha, atualiza
+    // a cada hora) — "colar o link" é para pessoa física (auditoria de SEO, 21/11).
+    cy.get("main").should("contain.text", "CRM").and("contain.text", "planilha");
+    cy.get("main").invoke("text").should("not.match", /importe pelo link|cole o link|tempo real/i);
     cy.get("body").invoke("text").should("not.match", /cashback|passaporte|diário do carro/i);
     cy.get("body").invoke("text").should("not.match", /em BH|Belo Horizonte e região/i);
   });

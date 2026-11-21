@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Buildings, Car, House, MapTrifold, Storefront } from "@phosphor-icons/react/dist/ssr";
+import { Buildings, Car, House, Key, MapTrifold, Storefront } from "@phosphor-icons/react/dist/ssr";
 import { BrandLogoStrip } from "@/components/BrandLogoStrip";
 import { brandLogo } from "@/lib/brand-logos";
 
@@ -7,12 +7,24 @@ import { brandLogo } from "@/lib/brand-logos";
 // que não existe no nosso schema — marca é o recorte real mais próximo que
 // já temos (ver ListingsService.popularBrands). Tipo de imóvel é fixo
 // (enum PropertyType), não precisa vir do banco.
-const PROPERTY_TYPES: { value: string; label: string; icon: typeof House }[] = [
-  { value: "house", label: "Casas", icon: House },
-  { value: "apartment", label: "Apartamentos", icon: Buildings },
-  { value: "commercial", label: "Comercial", icon: Storefront },
-  { value: "land", label: "Terrenos", icon: MapTrifold },
+const PROPERTY_LINKS: { href: string; label: string; icon: typeof House }[] = [
+  { href: "/busca?assetType=property&propertyType=house", label: "Casas", icon: House },
+  { href: "/busca?assetType=property&propertyType=apartment", label: "Apartamentos", icon: Buildings },
+  { href: "/busca?assetType=property&propertyType=commercial", label: "Comercial", icon: Storefront },
+  { href: "/busca?assetType=property&propertyType=land", label: "Terrenos", icon: MapTrifold },
+  { href: "/busca?assetType=property&purpose=rent", label: "Para alugar", icon: Key },
 ];
+
+// Carrocerias mais buscadas (filtro bodyType da busca) — só em /carros, que
+// precisava de conteúdo próprio (auditoria de SEO, 21/11/2026).
+const BODY_TYPE_LINKS: { value: string; label: string }[] = [
+  { value: "suv", label: "SUV" },
+  { value: "hatch", label: "Hatch" },
+  { value: "sedan", label: "Sedã" },
+  { value: "pickup", label: "Picape" },
+];
+
+const CHIP = "flex items-center gap-1.5 rounded-full border border-border bg-surface-raised px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-sober";
 
 // assetType indefinido (home geral, "/") mostra as duas famílias de chip
 // juntas; "/carros" e "/imoveis" passam o próprio tipo e só veem a sua.
@@ -23,6 +35,21 @@ export function QuickCategories({ brands, assetType }: { brands: string[]; asset
   return (
     <section className="flex flex-col gap-4">
       {assetType !== "property" && <BrandLogoStrip title={assetType === "vehicle" ? "Busque por marca" : "Carros por marca"} />}
+      {assetType === "vehicle" && (
+        <>
+          <h2 className="font-display text-xl font-semibold text-ink">Busque por tipo</h2>
+          <ul className="flex flex-wrap gap-2">
+            {BODY_TYPE_LINKS.map(({ value, label }) => (
+              <li key={value}>
+                <Link href={`/busca?assetType=vehicle&bodyType=${value}`} className={CHIP}>
+                  <Car size={16} weight="bold" className="text-brand-blue" aria-hidden />
+                  {label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       {assetType !== "vehicle" && <h2 className="font-display text-2xl font-semibold text-ink">Categorias rápidas</h2>}
       <div className="flex flex-wrap gap-2">
         {otherBrands.map((brand) => (
@@ -36,12 +63,8 @@ export function QuickCategories({ brands, assetType }: { brands: string[]; asset
             </Link>
           ))}
         {assetType !== "vehicle" &&
-          PROPERTY_TYPES.map(({ value, label, icon: Icon }) => (
-            <Link
-              key={value}
-              href={`/busca?assetType=property&propertyType=${value}`}
-              className="flex items-center gap-1.5 rounded-full border border-border bg-surface-raised px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-sober"
-            >
+          PROPERTY_LINKS.map(({ href, label, icon: Icon }) => (
+            <Link key={href} href={href} className={CHIP}>
               <Icon size={16} weight="bold" className="text-brand-orange" />
               {label}
             </Link>

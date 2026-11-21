@@ -26,6 +26,7 @@
   ],
   "exclude": [
     "node_modules",
+    "dist-test",
     "cypress",
     "cypress.config.ts"
   ]

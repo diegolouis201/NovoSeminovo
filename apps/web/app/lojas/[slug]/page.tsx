@@ -6,6 +6,9 @@ import type { ListingSummary, Review } from "@novoseminovo/shared-types";
 import { ListingCard } from "@/components/ListingCard";
 import { fetchPartnerStorefront, resolveMediaUrl } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
+import { JsonLd } from "@/components/JsonLd";
+import { SITE_URL } from "@/lib/company";
+import { storefrontJsonLd } from "@/lib/seo/json-ld";
 
 const PARTNER_TYPE_LABEL: Record<string, string> = {
   dealership: "Loja de veículos",
@@ -61,6 +64,8 @@ export default async function PartnerStorefrontPage({ params }: { params: { slug
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-12">
+      {/* AutoDealer / RealEstateAgent com cidade e os anúncios (lib/seo/json-ld.ts). */}
+      <JsonLd data={storefrontJsonLd(storefront, params.slug, SITE_URL, resolveMediaUrl)} />
       <div className="flex flex-col gap-4 rounded-brand-lg bg-surface-sober p-6 sm:flex-row sm:items-center">
         {storefront.logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element

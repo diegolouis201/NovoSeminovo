@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Car, DownloadSimple, FileText, House, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
+import { AnunciarPublico } from "@/components/AnunciarPublico";
+import { pageMetadata } from "@/lib/seo/metadata";
 import { Button } from "@/components/Button";
 import { FormField, SelectField, TextAreaField } from "@/components/FormField";
 import { CepLookup } from "@/components/CepLookup";
@@ -17,6 +20,13 @@ import { allowedAssetTypes } from "@novoseminovo/shared-types";
 import { fetchAiStatus, fetchMyPartner, fetchProfile } from "@/lib/api";
 import { isAppRequest } from "@/lib/app-context";
 import { FUEL_OPTIONS, TRANSMISSION_OPTIONS } from "@/lib/vehicle-options";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Anunciar carro ou imóvel grátis",
+  description:
+    "Anuncie grátis seu carro ou imóvel no NovoSeminovo: pessoa física anuncia grátis até vender, com planos para mais fotos e destaque. Lojas, imobiliárias e corretores começam com 3 meses grátis.",
+  path: "/anunciar",
+});
 
 const PURPOSE_OPTIONS = [
   { value: "sale", label: "Venda" },
@@ -44,7 +54,9 @@ export default async function CreateListingPage({
   };
 }) {
   const session = await auth();
-  if (!session?.user) redirect("/entrar");
+  // Sem login: página pública sobre anunciar grátis (está no sitemap), com os
+  // botões de entrar/cadastrar que voltam para cá. Logado: passo a passo.
+  if (!session?.user) return <AnunciarPublico inApp={isAppRequest()} />;
 
   const [{ aiEnabled }, partner] = await Promise.all([fetchAiStatus(), fetchMyPartner(session.accessToken)]);
   // Loja de veículos só anuncia carro; imobiliária e corretor só imóvel.

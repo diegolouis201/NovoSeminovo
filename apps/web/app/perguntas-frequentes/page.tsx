@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero, Section } from "@/components/marketing/PageHero";
 import { COMPANY, CORBAN } from "@/lib/company";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Perguntas frequentes",
-  description: "Dúvidas sobre comprar, anunciar e financiar carros e imóveis no NovoSeminovo.",
-  alternates: { canonical: "/perguntas-frequentes" },
-};
+  description:
+    "Dúvidas sobre comprar, anunciar e financiar carros e imóveis no NovoSeminovo.",
+  path: "/perguntas-frequentes",
+});
 
 type Faq = { q: string; a: string };
 

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, GoneException, Injectable, Logger, NotFoundException, Optional } from "@nestjs/common";
 import { Prisma, type PropertyType } from "@novoseminovo/db";
 import {
   VEHICLE_BODY_TYPE_OPTIONS,
@@ -159,6 +159,9 @@ function toNumber(value: string | undefined): number | undefined {
   const n = Number(value);
   return Number.isFinite(n) ? n : undefined;
 }
+
+// Status de anúncio que já foi público e saiu do ar (ver getDetail: 410).
+const LISTING_GONE_STATUSES: string[] = ["sold", "paused", "expired"];
 
 // Query string é texto livre — nunca confiar que "transmission=qualquercoisa"
 // bate com o enum do Prisma. Valor fora da lista vira "sem filtro" em vez de
@@ -376,9 +379,9 @@ export class ListingsService {
   // anúncio ativo. Só ids/datas — público de propósito (as páginas também são).
   async sitemapEntries(): Promise<{
     listings: { id: string; updatedAt: string }[];
-    storefronts: { slug: string }[];
+    storefronts: { slug: string; updatedAt?: string }[];
   }> {
-    const [listings, partners] = await Promise.all([
+    const [listings, partners, lastChange] = await Promise.all([
       this.prisma.listing.findMany({
         where: { status: "active" },
         select: { id: true, updatedAt: true },
@@ -387,12 +390,22 @@ export class ListingsService {
       }),
       this.prisma.partner.findMany({
         where: { listings: { some: { status: "active" } } },
-        select: { slug: true },
+        select: { id: true, slug: true },
+      }),
+      // Data da vitrine = alteração mais recente entre os anúncios ativos dela.
+      this.prisma.listing.groupBy({
+        by: ["partnerId"],
+        where: { status: "active", partnerId: { not: null } },
+        _max: { updatedAt: true },
       }),
     ]);
+    const lastByPartner = new Map(lastChange.map((row) => [row.partnerId, row._max.updatedAt]));
     return {
       listings: listings.map((listing) => ({ id: listing.id, updatedAt: listing.updatedAt.toISOString() })),
-      storefronts: partners,
+      storefronts: partners.map((partner) => {
+        const updatedAt = lastByPartner.get(partner.id);
+        return { slug: partner.slug, ...(updatedAt ? { updatedAt: updatedAt.toISOString() } : {}) };
+      }),
     };
   }
 
@@ -705,6 +718,20 @@ export class ListingsService {
     const isOwner = viewer?.id === listing.ownerUserId;
     const isAdmin = viewer?.role === "admin";
     if (listing.status !== "active" && !isOwner && !isAdmin) {
+      // Já foi público e saiu do ar (vendido, pausado, expirado): 410 com só
+      // a categoria e a cidade — o site manda para a busca equivalente em vez
+      // de um 404 (auditoria de SEO, 21/11/2026). Rascunho, em análise e
+      // recusado nunca foram públicos: continuam 404.
+      if (LISTING_GONE_STATUSES.includes(listing.status)) {
+        throw new GoneException({
+          statusCode: 410,
+          message: "Este anúncio saiu do ar.",
+          status: listing.status,
+          assetType: listing.type,
+          state: listing.state,
+          city: listing.city,
+        });
+      }
       throw new NotFoundException(`Anúncio ${id} não encontrado`);
     }
 

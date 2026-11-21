@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { cache } from "react";
 import { ListingCard } from "@/components/ListingCard";
 import { fetchListings, fetchSearchBrands, type SearchParams } from "@/lib/api";
 import { BrandLogoStrip } from "@/components/BrandLogoStrip";
@@ -11,6 +13,9 @@ import { MarkVertical } from "@/components/ActiveVertical";
 import { StateCityFields } from "@/components/StateCityFields";
 import { BrandModelFields } from "@/components/BrandModelFields";
 import { BRAZIL_STATES, isBrazilState } from "@/lib/brazil-states";
+import { citiesOfState } from "@/lib/cities-server";
+import { buscaRobots, buscaSeo } from "@/lib/seo/busca";
+import { pageMetadata } from "@/lib/seo/metadata";
 
 type SearchPageProps = {
   searchParams: {
@@ -69,51 +74,71 @@ function toNumber(value: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-export default async function SearchPage({ searchParams }: SearchPageProps) {
+// Filtros da URL -> consulta à API (a API valida cada um de novo).
+function listingQuery(searchParams: SearchPageProps["searchParams"]): SearchParams {
   const assetType = searchParams.assetType === "property" ? "property" : searchParams.assetType === "vehicle" ? "vehicle" : undefined;
+  const state = isBrazilState(searchParams.state) ? searchParams.state!.toUpperCase() : undefined;
+  const base: SearchParams = {
+    assetType,
+    q: searchParams.q,
+    state,
+    city: searchParams.city || undefined,
+    priceMin: toNumber(searchParams.priceMin),
+    priceMax: toNumber(searchParams.priceMax),
+  };
+  if (assetType === "property") {
+    return {
+      ...base,
+      bedroomsMin: toNumber(searchParams.bedroomsMin),
+      propertyType: searchParams.propertyType || undefined,
+      purpose: searchParams.purpose === "rent" || searchParams.purpose === "sale" ? searchParams.purpose : undefined,
+      neighborhood: searchParams.neighborhood || undefined,
+    };
+  }
+  return {
+    ...base,
+    yearMin: toNumber(searchParams.yearMin),
+    yearMax: toNumber(searchParams.yearMax),
+    brand: searchParams.brand,
+    model: searchParams.model || undefined,
+    transmission: searchParams.transmission,
+    fuelType: searchParams.fuelType,
+    mileageMax: toNumber(searchParams.mileageMax),
+    features: asList(searchParams.features).join(",") || undefined,
+    conditions: asList(searchParams.conditions).join(",") || undefined,
+    noAuction: searchParams.noAuction === "1" ? "1" : undefined,
+    bodyType: searchParams.bodyType || undefined,
+  };
+}
+
+// Metadados e página pedem os mesmos anúncios: uma chamada só à API.
+const searchListings = cache((key: string) => fetchListings(JSON.parse(key) as SearchParams));
+
+// Título, descrição e canonical pelo filtro (só rótulos das listas fixas, ver
+// lib/seo/busca.ts); busca sem anúncio fica fora do Google (noindex, follow).
+export async function generateMetadata({ searchParams }: SearchPageProps): Promise<Metadata> {
+  const [results, cities] = await Promise.all([
+    searchListings(JSON.stringify(listingQuery(searchParams))),
+    citiesOfState(typeof searchParams.state === "string" ? searchParams.state : undefined),
+  ]);
+  const seo = buscaSeo(searchParams, { cities });
+  const robots = buscaRobots(results.length);
+  return { ...pageMetadata({ title: seo.title, description: seo.description, path: seo.canonical }), ...(robots ? { robots } : {}) };
+}
+
+export default async function SearchPage({ searchParams }: SearchPageProps) {
+  const query = listingQuery(searchParams);
+  const assetType = query.assetType;
   const isProperty = assetType === "property";
-  const priceMin = toNumber(searchParams.priceMin);
-  const priceMax = toNumber(searchParams.priceMax);
-  const yearMin = toNumber(searchParams.yearMin);
-  const yearMax = toNumber(searchParams.yearMax);
-  const bedroomsMin = toNumber(searchParams.bedroomsMin);
-  const mileageMax = toNumber(searchParams.mileageMax);
+  const { priceMin, priceMax, bedroomsMin, state } = query;
   const features = asList(searchParams.features);
   const conditions = asList(searchParams.conditions);
   const noAuction = searchParams.noAuction === "1";
-  const state = isBrazilState(searchParams.state) ? searchParams.state!.toUpperCase() : undefined;
   const stateName = BRAZIL_STATES.find((item) => item.uf === state)?.name;
   const placeLabel = searchParams.city ? `${searchParams.city}${state ? ` - ${state}` : ""}` : stateName;
 
   const [results, { isAuthenticated, favoriteIds }, popularBrands] = await Promise.all([
-    fetchListings({
-      assetType,
-      q: searchParams.q,
-      state,
-      city: searchParams.city || undefined,
-      priceMin,
-      priceMax,
-      ...(isProperty
-        ? {
-            bedroomsMin,
-            propertyType: searchParams.propertyType || undefined,
-            purpose: searchParams.purpose === "rent" || searchParams.purpose === "sale" ? searchParams.purpose : undefined,
-            neighborhood: searchParams.neighborhood || undefined,
-          }
-        : {
-            yearMin,
-            yearMax,
-            brand: searchParams.brand,
-            model: searchParams.model || undefined,
-            transmission: searchParams.transmission,
-            fuelType: searchParams.fuelType,
-            mileageMax,
-            features: features.join(",") || undefined,
-            conditions: conditions.join(",") || undefined,
-            noAuction: noAuction ? ("1" as const) : undefined,
-            bodyType: searchParams.bodyType || undefined,
-          }),
-    }),
+    searchListings(JSON.stringify(query)),
     getFavoriteContext(),
     isProperty ? Promise.resolve([]) : fetchSearchBrands(),
   ]);

@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CheckCircle, Kanban, LinkSimple, QrCode, Storefront } from "@phosphor-icons/react/dist/ssr";
+import { ArrowsClockwise, CheckCircle, Kanban, QrCode, Storefront } from "@phosphor-icons/react/dist/ssr";
 import { CampaignLeadForm } from "@/components/CampaignLeadForm";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+// Para loja, imobiliária e corretor o argumento é a integração com o CRM ou o
+// catálogo de veículos (o estoque entra sozinho e a sincronização roda a cada
+// hora — nunca dizer "tempo real") ou a planilha. "Colar o link" é para pessoa
+// física (auditoria de SEO, 21/11/2026). Sem nome de CRM.
+export const metadata: Metadata = pageMetadata({
   title: "Comece grátis: lojas, imobiliárias e corretores",
   description:
-    "3 meses grátis, sem limite de anúncios. Vitrine para Instagram, WhatsApp e cartaz com QR, e importação dos seus anúncios pelo link. Deixe seu contato que a equipe chama no WhatsApp.",
-  alternates: { canonical: "/para-lojas/comecar" },
-};
+    "3 meses grátis, sem limite de anúncios. Estoque integrado ao seu CRM ou catálogo de veículos, ou por planilha, e vitrine para Instagram, WhatsApp e cartaz com QR. Deixe seu contato que a equipe chama no WhatsApp.",
+  path: "/para-lojas/comecar",
+});
 
 // Página de campanha (anúncio pago): curta, com o formulário na primeira
 // tela. Os textos repetem o que já está no ar em /para-lojas — nada de
@@ -16,7 +21,7 @@ export const metadata: Metadata = {
 const BENEFITS = [
   { icon: Storefront, title: "3 meses grátis", text: "Sem limite de anúncios a partir do cadastro. Depois, escolha um plano para continuar no ar — sem fidelidade." },
   { icon: QrCode, title: "Vitrine pronta", text: "Cada anúncio vira imagem para o Instagram e o WhatsApp, e cartaz para imprimir com QR que leva direto ao anúncio." },
-  { icon: LinkSimple, title: "Importe pelo link", text: "Já anuncia em outro site? Cole o link do anúncio e a gente organiza tudo no padrão do NovoSeminovo. Você só revisa." },
+  { icon: ArrowsClockwise, title: "Integração com o seu sistema", text: "Estoque no ar sem cadastrar um por um: integra com o seu CRM ou catálogo de veículos, ou sobe por planilha." },
   { icon: Kanban, title: "Leads organizados", text: "Todo contato pelo chat e pelo WhatsApp vira um lead no seu painel, com as etapas novo, em contato, visita, proposta, vendido ou perdido." },
 ];
 

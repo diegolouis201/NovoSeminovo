@@ -5,6 +5,7 @@ import { ListingCard } from "@/components/ListingCard";
 import { PromoCarousel } from "@/components/PromoCarousel";
 import { QuickCategories } from "@/components/QuickCategories";
 import { SolutionsGrid } from "@/components/SolutionsGrid";
+import { VerticalAbout } from "@/components/VerticalAbout";
 import { fetchFeaturedPartners, fetchListings, fetchPopularBrands } from "@/lib/api";
 import { getFavoriteContext } from "@/lib/favorites";
 
@@ -14,19 +15,24 @@ import { getFavoriteContext } from "@/lib/favorites";
 // "Carros"/"Imóveis" no cabeçalho leva pra a página dedicada em vez de cair
 // direto na lista de resultados crua, mantendo a mesma experiência rica da
 // home só que filtrada num vertical só.
+// H1 com o que as pessoas buscam (auditoria de SEO, 21/11/2026); a frase
+// divertida virou subtítulo.
 const COPY = {
   vehicle: {
-    headline: "Comprar e vender carro não precisa ser chato.",
+    headline: "Carros seminovos e usados à venda",
+    tagline: "Comprar e vender carro não precisa ser chato.",
     placeholder: "Corolla 2020, HB20 2021...",
     destaquesTitle: "Carros em destaque",
   },
   property: {
-    headline: "Comprar e vender imóveis ficou mais fácil.",
+    headline: "Imóveis à venda e para alugar",
+    tagline: "Comprar, vender e alugar imóvel ficou mais fácil.",
     placeholder: "Apartamento na Savassi, casa no Buritis...",
     destaquesTitle: "Imóveis em destaque",
   },
   undefined: {
-    headline: "Comprar e vender não precisa ser chato.",
+    headline: "Carros e imóveis à venda, sem enrolação",
+    tagline: "Comprar e vender não precisa ser chato.",
     placeholder: "Corolla 2020, apartamento na Savassi...",
     destaquesTitle: "Destaques",
   },
@@ -46,6 +52,7 @@ export async function VerticalHome({ assetType }: { assetType?: "vehicle" | "pro
     <main className="mx-auto flex max-w-6xl flex-col gap-12 px-4 pb-16">
       <section className="flex flex-col items-center gap-4 pt-10 text-center md:pt-14">
         <h1 className="max-w-2xl font-display text-4xl font-bold leading-tight text-ink md:text-5xl">{copy.headline}</h1>
+        <p className="max-w-xl font-display text-xl font-semibold text-ink md:text-2xl">{copy.tagline}</p>
         <p className="max-w-xl text-ink-muted">
           Busque, converse com o anunciante e já saia simulando o financiamento — tudo no mesmo lugar.
         </p>
@@ -111,6 +118,8 @@ export async function VerticalHome({ assetType }: { assetType?: "vehicle" | "pro
       </section>
 
       <FeaturedPartners partners={featuredPartners} />
+
+      {assetType && <VerticalAbout assetType={assetType} />}
 
       <SolutionsGrid />
     </main>

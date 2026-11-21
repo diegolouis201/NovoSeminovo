@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import localFont from "next/font/local";
 import "./globals.css";
 import { SITE_URL } from "@/lib/company";
+import { HOME_DESCRIPTION } from "@/lib/seo/metadata";
 import { auth } from "@/auth";
 import { AgentChatWidget } from "@/components/AgentChatWidget";
 import { NativeAppBridge } from "@/components/NativeAppBridge";
@@ -39,8 +40,9 @@ const sans = localFont({
   display: "swap",
 });
 
-const DESCRIPTION =
-  "Compre e venda carros e imóveis com histórico, chat e simulação de financiamento em um só lugar.";
+// Texto da auditoria de SEO (21/11/2026), sem "histórico" (Passaporte
+// descontinuado): ver lib/seo/metadata.ts.
+const DESCRIPTION = HOME_DESCRIPTION;
 
 // Padrão de todas as páginas: cada página pode sobrescrever o título (o
 // template põe " | NovoSeminovo" no fim) e a prévia de compartilhamento.

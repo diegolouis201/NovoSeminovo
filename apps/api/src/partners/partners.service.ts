@@ -655,6 +655,8 @@ export class PartnersService implements OnModuleInit, OnModuleDestroy {
       type: partner.type,
       description: partner.description ?? undefined,
       address: partner.address ?? undefined,
+      city: partner.city ?? undefined,
+      state: partner.state ?? undefined,
       logoUrl: partner.logoUrl ?? undefined,
       verified: Boolean(partner.verifiedAt),
       listings: listingSummaries,

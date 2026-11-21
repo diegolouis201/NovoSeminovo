@@ -3,12 +3,14 @@ import Link from "next/link";
 import { ChatCircleDots, EnvelopeSimple, FacebookLogo, InstagramLogo, Storefront, TiktokLogo, WhatsappLogo, YoutubeLogo } from "@phosphor-icons/react/dist/ssr";
 import { PageHero, Section } from "@/components/marketing/PageHero";
 import { COMPANY } from "@/lib/company";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Contato",
-  description: "Fale com o NovoSeminovo pelo WhatsApp, Instagram, Facebook, TikTok ou pelo assistente do site.",
-  alternates: { canonical: "/contato" },
-};
+  description:
+    "Fale com o NovoSeminovo pelo WhatsApp, Instagram, Facebook, TikTok ou pelo assistente do site.",
+  path: "/contato",
+});
 
 function wa(text: string): string {
   return `${COMPANY.whatsappLink}?text=${encodeURIComponent(text)}`;

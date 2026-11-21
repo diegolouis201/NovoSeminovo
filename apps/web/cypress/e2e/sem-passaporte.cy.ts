@@ -2,7 +2,21 @@
 // decisão do Diego, por risco jurídico das informações). As páginas antigas
 // redirecionam de vez e nenhuma tela pública fala do Passaporte.
 
-const PAGINAS_SEM_PASSAPORTE = ["/", "/carros", "/como-funciona", "/quem-somos", "/para-lojas", "/perguntas-frequentes", "/termos", "/privacidade"];
+const PAGINAS_SEM_PASSAPORTE = [
+  "/",
+  "/carros",
+  "/imoveis",
+  "/busca",
+  "/anunciar",
+  "/como-funciona",
+  "/quem-somos",
+  "/para-lojas",
+  "/para-lojas/comecar",
+  "/perguntas-frequentes",
+  "/guia",
+  "/termos",
+  "/privacidade",
+];
 const PASSAPORTE = /passaporte|diário do carro|histórico completo deste veículo/i;
 
 describe("Sem Passaporte Digital / Diário do Carro", () => {
@@ -37,6 +51,18 @@ describe("Sem Passaporte Digital / Diário do Carro", () => {
       cy.visit(path);
       cy.get("body").invoke("text").should("not.match", PASSAPORTE);
       cy.get('a[href^="/consultar-veiculo"], a[href^="/veiculo/"], a[href^="/ficha-tecnica"]').should("not.exist");
+    }
+  });
+
+  // Auditoria de SEO (21/11/2026): o "histórico" saiu também do que o Google e
+  // as redes mostram (description, og:*, twitter:*, title) em toda página.
+  it("título e prévias de compartilhamento sem 'histórico' do veículo", () => {
+    for (const path of PAGINAS_SEM_PASSAPORTE) {
+      cy.visit(path);
+      cy.get('head title, head meta[name="description"], head meta[property^="og:"], head meta[name^="twitter:"]').each(($el) => {
+        const texto = $el.attr("content") ?? $el.text();
+        expect(texto, `${path}: ${texto}`).not.to.match(/histórico|historico|passaporte|diário do carro/i);
+      });
     }
   });
 

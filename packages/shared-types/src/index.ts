@@ -327,8 +327,55 @@ export const ListingDetailSchema = ListingSummarySchema.extend({
   planTier: ListingTierIdSchema,
   isPartnerListing: z.boolean(),
   hiddenPhotosCount: z.number().int().optional(),
+  // Campos crus para os dados estruturados do Google (JSON-LD do anúncio,
+  // auditoria de SEO 21/11/2026). Só o que a página já mostra: cidade, UF e
+  // bairro — nunca rua, número ou coordenada (endereço exato é privado).
+  seo: z
+    .object({
+      city: z.string(),
+      state: z.string(),
+      neighborhood: z.string().optional(),
+      vehicle: z
+        .object({
+          brand: z.string(),
+          model: z.string(),
+          version: z.string().optional(),
+          yearManufacture: z.number().int(),
+          yearModel: z.number().int(),
+          mileageKm: z.number().int(),
+          transmission: z.string(),
+          fuelType: z.string(),
+          bodyType: z.string().optional(),
+          color: z.string(),
+          condition: z.string(),
+          doors: z.number().int().optional(),
+        })
+        .optional(),
+      property: z
+        .object({
+          propertyType: PropertyType,
+          purpose: z.enum(["sale", "rent"]),
+          bedrooms: z.number().int().optional(),
+          bathrooms: z.number().int().optional(),
+          areaM2: z.number().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
 });
 export type ListingDetail = z.infer<typeof ListingDetailSchema>;
+
+// Anúncio que já foi público e saiu do ar (vendido, pausado, expirado): a API
+// responde 410 com só isto, e o site redireciona para a busca da mesma
+// categoria e cidade (ver apps/web/app/anuncio/[id]/page.tsx).
+export const ListingGoneSchema = z.object({
+  // Vendido é definitivo; pausado/expirado pode voltar ao ar.
+  status: z.enum(["sold", "paused", "expired"]),
+  assetType: AssetType,
+  state: z.string(),
+  city: z.string(),
+});
+export type ListingGone = z.infer<typeof ListingGoneSchema>;
 
 // "Meus anúncios" precisa do status (a busca pública, não — só mostra ativos).
 export const MyListingSummarySchema = ListingSummarySchema.extend({
@@ -1239,6 +1286,10 @@ export const PartnerStorefrontSchema = z.object({
   type: PartnerType,
   description: z.string().optional(),
   address: z.string().optional(),
+  // Cidade e UF da empresa (dados estruturados da vitrine: AutoDealer /
+  // RealEstateAgent).
+  city: z.string().optional(),
+  state: z.string().optional(),
   logoUrl: z.string().optional(),
   verified: z.boolean(),
   listings: z.array(ListingSummarySchema),

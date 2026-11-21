@@ -17,13 +17,14 @@ import {
 import { PageHero, Section } from "@/components/marketing/PageHero";
 import { fetchPlans } from "@/lib/api";
 import { COMPANY } from "@/lib/company";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Para lojas, imobiliárias e corretores",
   description:
     "Anuncie seu estoque no NovoSeminovo: vitrine com a sua marca, leads organizados, assistente de IA, posts prontos pro Instagram e financiamento com acompanhamento para os seus clientes.",
-  alternates: { canonical: "/para-lojas" },
-};
+  path: "/para-lojas",
+});
 
 // Só o que já está no ar pro parceiro — nada de "em breve" aqui. A
 // integração com CRM existe, mas está escondida até o primeiro teste real

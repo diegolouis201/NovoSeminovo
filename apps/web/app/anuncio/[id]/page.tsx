@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { AssistantVisitCounter } from "@/components/AssistantVisitCounter";
 import { isAppRequest } from "@/lib/app-context";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { listingTier, mostrarFormularioCreditas } from "@novoseminovo/shared-types";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
+import { listingTier, mostrarFormularioCreditas, type ListingGone } from "@novoseminovo/shared-types";
 import { cache } from "react";
 import { PaintBrushHousehold, Storefront, WhatsappLogo } from "@phosphor-icons/react/dist/ssr";
 import { auth } from "@/auth";
@@ -19,7 +19,10 @@ import { FipeReference } from "@/components/FipeReference";
 import { ListingContactCard } from "@/components/ListingContactCard";
 import { PhotoCarousel } from "@/components/PhotoCarousel";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
-import { confirmListingBoost, fetchListing, fetchProfile, resolveMediaUrl } from "@/lib/api";
+import { confirmListingBoost, fetchListingPage, fetchProfile, resolveMediaUrl } from "@/lib/api";
+import { JsonLd } from "@/components/JsonLd";
+import { SITE_URL } from "@/lib/company";
+import { listingJsonLd } from "@/lib/seo/json-ld";
 import { getFavoriteContext } from "@/lib/favorites";
 import { startConversationAction } from "@/lib/actions/conversations";
 
@@ -29,15 +32,31 @@ import { startConversationAction } from "@/lib/actions/conversations";
 // A prévia (generateMetadata) e a página pedem o mesmo anúncio na mesma
 // requisição — cache() faz uma chamada só à API. Sem isso cada visita
 // contaria duas visualizações no anúncio (ver ListingsService.getDetail).
-const loadListing = cache(async (id: string) => {
+const loadListingPage = cache(async (id: string) => {
   const session = await auth();
-  return fetchListing(id, session?.accessToken);
+  return fetchListingPage(id, session?.accessToken);
 });
+
+// Anúncio que já foi público e saiu do ar (410 da API): em vez de 404, o
+// visitante vai para a busca da mesma categoria e cidade (auditoria de SEO,
+// 21/11/2026). Vendido não volta: 308 (permanente). Pausado/expirado pode
+// voltar ao ar: 307 (temporário), para o Google e o navegador não guardarem o
+// desvio para sempre. Id que nunca existiu ou que nunca foi público: 404.
+function goneTarget(gone: ListingGone): string {
+  const query = new URLSearchParams({ assetType: gone.assetType });
+  if (/^[A-Z]{2}$/.test(gone.state)) {
+    query.set("state", gone.state);
+    if (gone.city) query.set("city", gone.city);
+  }
+  return `/busca?${query.toString()}`;
+}
 
 // Prévia ao compartilhar o link (WhatsApp, Instagram, Facebook, Google):
 // título com preço e cidade, e a foto de capa do próprio anúncio.
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const listing = await loadListing(params.id);
+  const page = await loadListingPage(params.id);
+  if (page && "gone" in page) return { title: "Anúncio fora do ar", robots: { index: false, follow: true } };
+  const listing = page?.listing;
   if (!listing) return { title: "Anúncio não encontrado", robots: { index: false } };
 
   const title = `${listing.title} · ${listing.priceLabel}`;
@@ -87,11 +106,17 @@ export default async function ListingDetailPage({
     const confirmed = await confirmListingBoost(params.id, searchParams.session_id, session.accessToken);
     redirect(`/anuncio/${params.id}?pagamento=${confirmed ? "confirmado" : "pendente"}`);
   }
-  const [listing, { isAuthenticated, favoriteIds }] = await Promise.all([
-    loadListing(params.id),
+  const [page, { isAuthenticated, favoriteIds }] = await Promise.all([
+    loadListingPage(params.id),
     getFavoriteContext(),
   ]);
+  if (page && "gone" in page) {
+    if (page.gone.status === "sold") permanentRedirect(goneTarget(page.gone));
+    redirect(goneTarget(page.gone));
+  }
+  const listing = page?.listing;
   if (!listing) notFound();
+  const structuredData = listingJsonLd(listing, SITE_URL, resolveMediaUrl);
 
   const isOwnListing = session?.user?.id === listing.ownerUserId;
   const CREDITAS_FORM_ENABLED = mostrarFormularioCreditas(process.env.NEXT_PUBLIC_CREDITAS_FORM, session?.user?.role);
@@ -104,6 +129,8 @@ export default async function ListingDetailPage({
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
+      {/* Car/Offer (lib/seo/json-ld.ts): só anúncio ativo, sem endereço exato. */}
+      {structuredData && <JsonLd data={structuredData} />}
       {searchParams.de === "assistente" && <AssistantVisitCounter listingId={params.id} />}
       <MarkVertical value={listing.assetType} />
       {isOwnListing && listing.status === "pending_review" && (

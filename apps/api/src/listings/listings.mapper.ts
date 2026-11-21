@@ -382,6 +382,47 @@ function fipePriceOf(listing: ListingWithDetails): number | undefined {
   return Number.isFinite(fipe) && fipe > 0 ? fipe : undefined;
 }
 
+// Dados crus para o JSON-LD do anúncio (ver ListingDetail.seo). Nunca a rua,
+// o número nem a coordenada: o endereço exato do imóvel é privado.
+function seoFields(listing: ListingWithDetails): NonNullable<ListingDetail["seo"]> {
+  const v = listing.vehicleDetails;
+  const p = listing.propertyDetails;
+  return {
+    city: listing.city,
+    state: listing.state,
+    ...(listing.neighborhood ? { neighborhood: listing.neighborhood } : {}),
+    ...(listing.type === "vehicle" && v
+      ? {
+          vehicle: {
+            brand: v.brand.name,
+            model: v.model.name,
+            ...(v.version ? { version: v.version } : {}),
+            yearManufacture: v.yearManufacture,
+            yearModel: v.yearModel,
+            mileageKm: v.mileage,
+            transmission: v.transmission,
+            fuelType: v.fuelType,
+            ...(v.bodyType ? { bodyType: v.bodyType } : {}),
+            color: v.color,
+            condition: v.condition,
+            ...(v.doors ? { doors: v.doors } : {}),
+          },
+        }
+      : {}),
+    ...(listing.type === "property" && p
+      ? {
+          property: {
+            propertyType: p.propertyType,
+            purpose: p.purpose,
+            ...(p.bedrooms != null ? { bedrooms: p.bedrooms } : {}),
+            ...(p.bathrooms != null ? { bathrooms: p.bathrooms } : {}),
+            ...(Number(p.areaM2) > 0 ? { areaM2: Number(p.areaM2) } : {}),
+          },
+        }
+      : {}),
+  };
+}
+
 export function toListingDetail(
   listing: ListingWithDetails,
   reviewStatus: ListingDetail["reviewStatus"],
@@ -438,6 +479,7 @@ export function toListingDetail(
     financingEnabled: listing.financingEnabled,
     fipePrice: fipePriceOf(listing),
     finalidade: listing.propertyDetails ? (listing.propertyDetails.purpose === "rent" ? "aluguel" : "venda") : undefined,
+    seo: seoFields(listing),
     financing: {
       price: formatBRL(price),
       priceValue: price,

@@ -3,13 +3,14 @@ import Link from "next/link";
 import { PageHero, Section } from "@/components/marketing/PageHero";
 import { COMPANY, CORBAN } from "@/lib/company";
 import { PLATFORM_FACTS } from "@/lib/geo";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Quem somos",
   description:
     "A NovoSeminovo nasceu para desmistificar o mercado automotivo e imobiliário, tornando a compra e a venda mais transparentes, seguras e conscientes.",
-  alternates: { canonical: "/quem-somos" },
-};
+  path: "/quem-somos",
+});
 
 // Missão, visão e valores definidos pelo Diego (fundador) — mudar só com ele.
 const MISSION =

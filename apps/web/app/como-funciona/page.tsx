@@ -3,13 +3,14 @@ import Link from "next/link";
 import { ShieldCheck } from "@phosphor-icons/react/dist/ssr";
 import { PageHero, Section, Steps } from "@/components/marketing/PageHero";
 import { CORBAN } from "@/lib/company";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Como funciona",
   description:
     "Como comprar, vender e financiar carros e imóveis no NovoSeminovo: busca, chat com o anunciante, simulação e atendimento de financiamento.",
-  alternates: { canonical: "/como-funciona" },
-};
+  path: "/como-funciona",
+});
 
 const BUY = [
   {

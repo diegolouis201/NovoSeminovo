@@ -1,4 +1,4 @@
-import { PartnerDashboardSchema, type PartnerDashboard } from "@novoseminovo/shared-types";
+import { ListingGoneSchema, PartnerDashboardSchema, type ListingGone, type PartnerDashboard } from "@novoseminovo/shared-types";
 import type {
   CrmOrderView,
   ProspectProfileInput,
@@ -265,11 +265,37 @@ export async function fetchListing(id: string, accessToken?: string): Promise<Li
     const res = await fetchWithTimeout(`${API_URL}/listings/${id}`, {
       headers: accessToken ? authHeaders(accessToken) : undefined,
     });
-    if (res.status === 404) return undefined;
+    // 410: já foi público e saiu do ar — para quem não é dono, não existe.
+    if (res.status === 404 || res.status === 410) return undefined;
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return (await res.json()) as ListingDetail;
   } catch {
     return mockOr(() => getListing(id));
+  }
+}
+
+// Página pública do anúncio: além do anúncio, diz se ele saiu do ar (410 da
+// API: vendido, pausado, expirado) com a categoria e a cidade, para o site
+// mandar o visitante para a busca equivalente. A resposta da API é conferida
+// pelo schema (nada de usar campo que não está nele).
+export async function fetchListingPage(
+  id: string,
+  accessToken?: string,
+): Promise<{ listing: ListingDetail } | { gone: ListingGone } | undefined> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/listings/${encodeURIComponent(id)}`, {
+      headers: accessToken ? authHeaders(accessToken) : undefined,
+    });
+    if (res.status === 404) return undefined;
+    if (res.status === 410) {
+      const gone = ListingGoneSchema.safeParse(await res.json().catch(() => null));
+      return gone.success ? { gone: gone.data } : undefined;
+    }
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return { listing: (await res.json()) as ListingDetail };
+  } catch {
+    const listing = mockOr(() => getListing(id));
+    return listing ? { listing } : undefined;
   }
 }
 

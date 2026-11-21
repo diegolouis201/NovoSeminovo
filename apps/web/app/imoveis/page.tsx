@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { VerticalHome } from "@/components/VerticalHome";
+import { IMOVEIS_DESCRIPTION, pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "Imóveis — NovoSeminovo",
-  description: "Compre e venda imóveis com histórico, chat e simulação de financiamento.",
-  alternates: { canonical: "/imoveis" },
-};
+// Título sem o nome repetido: o template do layout já põe " | NovoSeminovo".
+export const metadata: Metadata = pageMetadata({
+  title: "Imóveis à venda e para alugar",
+  description: IMOVEIS_DESCRIPTION,
+  path: "/imoveis",
+});
 
 export default function ImoveisPage() {
   return <VerticalHome assetType="property" />;

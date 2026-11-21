@@ -28,8 +28,12 @@ export function BrandLogoStrip({ selected, title = "Busque por marca" }: { selec
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/marcas-carros/${brand.slug}.png`} alt="" loading="lazy" className="h-11 w-20 object-contain" />
-                <span className="text-xs font-semibold text-[#20261b]">{brand.name}</span>
+                {/* alt descreve o destino do link ("Carros Fiat"); o nome visível fica
+                    escondido do leitor de tela para não ser lido duas vezes. */}
+                <img src={`/marcas-carros/${brand.slug}.png`} alt={`Carros ${brand.name}`} loading="lazy" className="h-11 w-20 object-contain" />
+                <span aria-hidden="true" className="text-xs font-semibold text-[#20261b]">
+                  {brand.name}
+                </span>
               </Link>
             </li>
           );
