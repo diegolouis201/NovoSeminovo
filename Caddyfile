@@ -11,6 +11,14 @@
 	reverse_proxy web:3000
 }
 
+# Quem digita "www" vai para o domínio principal (auditoria de SEO de
+# 21/11/2026: o certificado só cobria o domínio sem www e o navegador dava
+# erro). O Caddy emite o certificado do www sozinho, desde que o DNS do www
+# aponte para este servidor. 308 = redirecionamento permanente.
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} 308
+}
+
 api.{$DOMAIN} {
 	# Mesmo motivo do bloco acima — a API também serve página HTML direto
 	# (ex.: confirmação de descadastro de e-mail em MarketingPublicController).
