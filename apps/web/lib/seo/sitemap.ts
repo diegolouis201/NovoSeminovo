@@ -28,7 +28,7 @@ export const STATIC_PAGES: { path: string; priority: number; changeFrequency: Fr
   { path: "/como-funciona", priority: 0.6, changeFrequency: "monthly", updatedAt: "2026-11-21" },
   { path: "/para-lojas", priority: 0.7, changeFrequency: "monthly", updatedAt: "2026-11-21" },
   { path: "/para-lojas/comecar", priority: 0.6, changeFrequency: "monthly", updatedAt: "2026-11-21" },
-  { path: "/quem-somos", priority: 0.4, changeFrequency: "monthly", updatedAt: "2026-11-21" },
+  { path: "/quem-somos", priority: 0.4, changeFrequency: "monthly", updatedAt: "2026-11-22" },
   { path: "/perguntas-frequentes", priority: 0.5, changeFrequency: "monthly", updatedAt: "2026-11-21" },
   { path: "/contato", priority: 0.4, changeFrequency: "monthly", updatedAt: "2026-11-21" },
   { path: "/privacidade", priority: 0.2, changeFrequency: "monthly", updatedAt: "2026-11-20" },

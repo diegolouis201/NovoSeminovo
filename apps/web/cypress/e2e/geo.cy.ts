@@ -172,4 +172,13 @@ describe("GEO: leitura por buscadores e assistentes de IA", () => {
     cy.get("main").should("contain.text", "Arquiteto NovoSeminovo");
     cy.get("main").should("contain.text", "não é instituição financeira e não concede crédito");
   });
+
+  it("Visão sem \"histórico\" do bem (texto escolhido pelo Diego em 22/11/2026)", () => {
+    cy.visit("/quem-somos");
+    cy.get("main").should(
+      "contain.text",
+      "Ser a referência no Brasil para comprar, vender e financiar veículos e imóveis com confiança, com informação clara sobre cada bem e cada negócio.",
+    );
+    cy.get("main").should("not.contain.text", "histórico de cada bem");
+  });
 });

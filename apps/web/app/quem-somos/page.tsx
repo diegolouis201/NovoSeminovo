@@ -16,7 +16,7 @@ export const metadata: Metadata = pageMetadata({
 const MISSION =
   "Tornar a compra, a venda e o financiamento de veículos e imóveis mais transparentes, seguros e conscientes, oferecendo informação de qualidade para que cada pessoa faça a escolha certa para a sua vida.";
 const VISION =
-  "Ser referência no Brasil em transparência na compra e venda de veículos e imóveis, tornando o histórico de cada bem tão importante quanto o seu preço.";
+  "Ser a referência no Brasil para comprar, vender e financiar veículos e imóveis com confiança, com informação clara sobre cada bem e cada negócio.";
 
 const VALUES = [
   { title: "Transparência", text: "Preço claro, informação completa e nada escondido — nem do comprador, nem do vendedor." },
