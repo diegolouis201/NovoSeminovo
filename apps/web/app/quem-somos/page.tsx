@@ -28,7 +28,7 @@ const VALUES = [
     title: "Escolha consciente",
     text: "Ajudar cada pessoa a escolher o que cabe nas suas necessidades e possibilidades, inclusive no financiamento — não vender a qualquer custo.",
   },
-  { title: "Segurança", text: "Moderação de anúncios, lojas verificadas e cuidado com os dados de cada pessoa." },
+  { title: "Segurança", text: "Moderação de anúncios, selo de loja verificada e cuidado com os dados de cada pessoa." },
   { title: "Simplicidade", text: "Tirar a complicação de mercados que costumam ser confusos. Comprar e vender não precisa ser chato." },
   {
     title: "Proximidade",

@@ -7,7 +7,7 @@ import { GUIDE_TOPICS, GUIDES, guideUrl, topicUrl } from "./guias";
 
 /** Resumo de uma linha (blockquote do /llms.txt e descrição da Organization). */
 export const SITE_SUMMARY =
-  "Marketplace nacional de carros e imóveis: anúncios de pessoas, lojas, imobiliárias e corretores de todo o Brasil, com chat, lojas verificadas e simulação de financiamento.";
+  "Marketplace nacional de carros e imóveis: anúncios de pessoas, lojas, imobiliárias e corretores de todo o Brasil, com chat, selo de loja verificada e simulação de financiamento.";
 
 /** O que o NovoSeminovo faz — usado em /quem-somos e no /llms.txt. */
 export const PLATFORM_FACTS: string[] = [

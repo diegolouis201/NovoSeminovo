@@ -181,4 +181,10 @@ describe("GEO: leitura por buscadores e assistentes de IA", () => {
     );
     cy.get("main").should("not.contain.text", "histórico de cada bem");
   });
+
+  it("valor Segurança fala em selo de loja verificada (nem toda loja é verificada)", () => {
+    cy.visit("/quem-somos");
+    cy.get("main").should("contain.text", "Moderação de anúncios, selo de loja verificada e cuidado com os dados de cada pessoa.");
+    cy.get("main").should("not.contain.text", "lojas verificadas");
+  });
 });
