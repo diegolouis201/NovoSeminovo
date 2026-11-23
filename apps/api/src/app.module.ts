@@ -8,6 +8,7 @@ import { ConfigModule } from "@nestjs/config";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ListingsModule } from "./listings/listings.module";
+import { CatalogFeedsModule } from "./catalog-feeds/catalog-feeds.module";
 import { AuthModule } from "./auth/auth.module";
 import { FavoritesModule } from "./favorites/favorites.module";
 import { ConversationsModule } from "./conversations/conversations.module";
@@ -44,6 +45,7 @@ import { MetaLeadsModule } from "./meta/meta-leads.module";
     MetaModule,
     MetaLeadsModule,
     ListingsModule,
+    CatalogFeedsModule,
     AuthModule,
     FavoritesModule,
     ConversationsModule,

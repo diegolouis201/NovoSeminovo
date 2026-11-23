@@ -635,6 +635,47 @@ Espere aparecer `PRONTO-OK` em `tail ~/deploy.log`.
 - Opcional: `NPS_LINK_SECRET` (arquivo/variável) para assinar os links; sem ela,
   usa o `JWT_SECRET` com prefixo próprio.
 
+## Catálogo da Meta: feeds de veículos e imóveis (23/11/2026)
+
+Dois links públicos que a Meta (Facebook/Instagram/Marketplace, anúncios de
+catálogo) lê sozinha. Não muda o banco: o deploy é só o rebuild da `api`
+(sem `prisma db push`):
+
+```sh
+cd ~/NovoSeminovo && git pull origin claude/vehicle-marketplace-platform-lmif9s && nohup sh -c 'docker compose build api && docker compose up -d && docker image prune -f && echo PRONTO-OK' > ~/deploy.log 2>&1 &
+```
+
+Espere aparecer `PRONTO-OK` em `tail ~/deploy.log` e confira no navegador:
+
+- Veículos: https://api.novoseminovo.com.br/feeds/meta/veiculos.xml
+- Imóveis: https://api.novoseminovo.com.br/feeds/meta/imoveis.xml
+
+Conectar na Meta (uma vez para cada feed; um catálogo de **Veículos** e outro
+de **Imóveis**, porque a Meta não mistura os dois tipos no mesmo catálogo):
+
+1. Abra business.facebook.com/commerce (Gerenciador de Comércio) e clique em
+   **Adicionar catálogo**. Tipo: **Veículos** (no outro: **Imóveis**). Escolha
+   "Fazer upload de informações do produto" e dê um nome (ex.: "NovoSeminovo
+   Veículos").
+2. Dentro do catálogo: **Catálogo → Fontes de dados → Adicionar itens →
+   Feed de dados (ou "Feed de dados agendado")**.
+3. Cole o link do feed (acima), sem usuário e senha.
+4. Frequência: **Diariamente** (ou **A cada hora**, se quiser preço/vendido
+   mais rápido). Horário: madrugada. Moeda: **BRL**.
+5. Salve e espere a primeira leitura. Em **Fontes de dados → (o feed) →
+   Problemas** aparecem os itens que a Meta recusou e o motivo.
+
+Bom saber:
+
+- Anúncio vendido, pausado, suspenso, em análise ou rascunho sai do feed na
+  hora; na próxima leitura agendada ele some do catálogo.
+- Anúncio sem foto fica de fora (a Meta exige imagem). Quantos ficaram de fora
+  aparece no cabeçalho `X-Feed-Sem-Foto` (comando abaixo) e no log da API.
+
+```sh
+curl -sI https://api.novoseminovo.com.br/feeds/meta/veiculos.xml | grep -i x-feed
+```
+
 ## Manutenção
 
 - **Atualizar depois de um novo commit**: `git pull && docker compose up --build -d`.
