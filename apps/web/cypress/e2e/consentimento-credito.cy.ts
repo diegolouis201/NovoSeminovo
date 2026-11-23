@@ -7,13 +7,13 @@
 describe("Consentimento do crédito", () => {
   it("Política de Privacidade: seção Simulação e Financiamento com papéis, bases legais, direitos e o encarregado", () => {
     cy.visit("/privacidade");
-    cy.contains("Última atualização: 20/11/2026").should("be.visible");
+    cy.contains("Última atualização: 22/11/2026").should("be.visible");
     cy.get("section#simulacao-e-financiamento").within(() => {
       cy.contains("h2", "Simulação e Financiamento").should("be.visible");
       cy.root().invoke("text").then((raw) => {
         const text = raw.replace(/\s+/g, " ");
         // Papéis.
-        expect(text).to.include("DLRLVM SOLUCOES LTDA");
+        expect(text).to.include("NOVOSEMINOVO LTDA");
         expect(text).to.include("60.327.011/0001-02");
         expect(text).to.match(/operador/i);
         expect(text).to.include("IBS Capital Corretora de Seguros Ltda.");

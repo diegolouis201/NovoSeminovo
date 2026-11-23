@@ -81,7 +81,7 @@ IDENTIDADE (obrigatório)
 
 ${imoveis ? roteiroImoveis(meses) : roteiroVeiculos(meses)}
 - Link para começar: ${linkComecar(v.slug)}
-- Empresa brasileira: DLRLVM Soluções Ltda., CNPJ 60.327.011/0001-02.
+- Empresa brasileira: NovoSeminovo Ltda., CNPJ 60.327.011/0001-02.
 
 ${respostasProntas(imoveis)}
 

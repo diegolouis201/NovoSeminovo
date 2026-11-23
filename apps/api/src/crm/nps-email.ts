@@ -118,7 +118,7 @@ function safeLink(link: string): string {
 
 const oneLine = (s: string) => s.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
 
-export const NPS_EMPRESA_RODAPE = "DLRLVM Soluções Ltda. · CNPJ 60.327.011/0001-02 · Belo Horizonte/MG";
+export const NPS_EMPRESA_RODAPE = "NovoSeminovo Ltda. · CNPJ 60.327.011/0001-02 · Belo Horizonte/MG";
 
 const COR = (n: number) => (n >= 9 ? { bg: "#e6f4d7", fg: "#2f5c0a", bd: "#76b82a" } : n >= 7 ? { bg: "#fff3cd", fg: "#7a4f00", bd: "#e0a800" } : { bg: "#fde7e3", fg: "#a8231a", bd: "#e06b5c" });
 

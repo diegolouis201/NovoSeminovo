@@ -31,8 +31,8 @@ export const STATIC_PAGES: { path: string; priority: number; changeFrequency: Fr
   { path: "/quem-somos", priority: 0.4, changeFrequency: "monthly", updatedAt: "2026-11-22" },
   { path: "/perguntas-frequentes", priority: 0.5, changeFrequency: "monthly", updatedAt: "2026-11-21" },
   { path: "/contato", priority: 0.4, changeFrequency: "monthly", updatedAt: "2026-11-21" },
-  { path: "/privacidade", priority: 0.2, changeFrequency: "monthly", updatedAt: "2026-11-20" },
-  { path: "/termos", priority: 0.2, changeFrequency: "monthly", updatedAt: "2026-11-20" },
+  { path: "/privacidade", priority: 0.2, changeFrequency: "monthly", updatedAt: "2026-11-22" },
+  { path: "/termos", priority: 0.2, changeFrequency: "monthly", updatedAt: "2026-11-22" },
 ];
 
 export type SitemapInput = {

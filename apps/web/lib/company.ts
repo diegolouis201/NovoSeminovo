@@ -4,7 +4,7 @@
 // razão social? É só trocar aqui.
 export const COMPANY = {
   brand: "NovoSeminovo",
-  legalName: "DLRLVM SOLUCOES LTDA",
+  legalName: "NOVOSEMINOVO LTDA",
   cnpj: "60.327.011/0001-02",
   site: "novoseminovo.com.br",
   // WhatsApp Business oficial (Diego, 22/10/2026).
@@ -27,11 +27,11 @@ export const CORBAN = {
   cnpj: "61.452.517/0001-06",
 } as const;
 
-export const LEGAL_UPDATED_AT = "20/11/2026";
+export const LEGAL_UPDATED_AT = "22/11/2026";
 
 // Política de Privacidade: seção "Simulação e Financiamento" do parecer
 // jurídico LGPD de 17/11/2026 (a data dos Termos continua a de cima).
-export const PRIVACY_UPDATED_AT = "20/11/2026";
+export const PRIVACY_UPDATED_AT = "22/11/2026";
 
 // Encarregado pelo tratamento de dados pessoais (DPO), canal do titular para
 // exercer direitos, revogar consentimento e pedir exclusão. O e-mail é o de

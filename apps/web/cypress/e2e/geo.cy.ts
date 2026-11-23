@@ -92,7 +92,7 @@ describe("GEO: leitura por buscadores e assistentes de IA", () => {
       const body = res.body as string;
       expect(body.startsWith("# NovoSeminovo\n")).to.eq(true);
       expect(body).to.match(/\n> Marketplace nacional de carros e imóveis/);
-      expect(body).to.include("DLRLVM SOLUCOES LTDA");
+      expect(body).to.include("NOVOSEMINOVO LTDA");
       expect(body).to.include("60.327.011/0001-02");
       expect(body).to.include("parceira de crédito");
       expect(body.toLowerCase()).to.not.match(/cashback|passaporte|diário do carro/);
@@ -118,7 +118,7 @@ describe("GEO: leitura por buscadores e assistentes de IA", () => {
         expect(orgs).to.have.length(1);
         const org = orgs[0];
         expect(org.name).to.eq("NovoSeminovo");
-        expect(org.legalName).to.eq("DLRLVM SOLUCOES LTDA");
+        expect(org.legalName).to.eq("NOVOSEMINOVO LTDA");
         expect(org.taxID).to.eq("60.327.011/0001-02");
         expect(org.logo).to.match(/\/marca\/novoseminovo-logo\.png$/);
         expect(org.sameAs).to.include.members([

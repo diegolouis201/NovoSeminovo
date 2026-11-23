@@ -13,7 +13,7 @@ describe("Termos: dados dos clientes dos parceiros (LGPD)", () => {
     cy.contains("não repassa o contato do interessado a outro anunciante").should("exist");
     cy.contains("servidor no Brasil").should("exist");
     cy.contains("encarregado").should("exist");
-    cy.contains("Última atualização: 20/11/2026").should("exist");
+    cy.contains("Última atualização: 22/11/2026").should("exist");
   });
 
   it("a Política de Privacidade avisa o comprador que o anunciante passa a ser responsável", () => {

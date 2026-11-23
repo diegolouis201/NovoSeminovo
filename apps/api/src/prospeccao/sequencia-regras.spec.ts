@@ -96,6 +96,8 @@ describe("Prospecção: texto do e-mail", () => {
     const e = renderizarEmail(passo, { empresa: "Auto <Teste> & Cia", cidade: "Belo Horizonte" }, { linkSair: link, numero: 1 });
     assert.equal(e.assunto, "Estoque da Auto <Teste> & Cia no NovoSeminovo, 3 meses grátis");
     assert.ok(e.texto.includes(PROSPECCAO_RODAPE.antes) && e.texto.includes(link) && e.texto.includes("responda SAIR"));
+    // Razão social nova aprovada na Junta Comercial em 19/11/2026 (mesmo CNPJ).
+    assert.ok(e.texto.includes("NovoSeminovo Ltda., CNPJ 60.327.011/0001-02") && !e.texto.includes("DLRLVM"));
     const x = renderizarEmail({ assunto: "Oi", corpo: "Olá, {{empresa}} de {{cidade}}! <script>alert(1)</script>", esperaDias: 0 }, { empresa: "Auto <Teste> & Cia", cidade: "Belo Horizonte" }, { linkSair: link, numero: 1 });
     assert.ok(x.html.includes("Olá, Auto &lt;Teste&gt; &amp; Cia de Belo Horizonte!"), "HTML escapado");
     assert.ok(!x.html.includes("<Teste>") && !x.html.includes("<script>"));

@@ -81,7 +81,7 @@ describe("NPS por e-mail: regras puras", () => {
       "É só clicar na nota. Leva menos de 1 minuto.",
       "Obrigado por anunciar com a gente!",
       "Equipe NovoSeminovo · Carros e imóveis, sem enrolação.",
-      "DLRLVM Soluções Ltda.",
+      "NovoSeminovo Ltda.",
       "60.327.011/0001-02",
     ]) {
       assert.ok(m.html.includes(trecho), `HTML tem: ${trecho}`);

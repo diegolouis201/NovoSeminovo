@@ -69,7 +69,7 @@ export type ProspeccaoResultado = {
 // dono clica "Aprovar e ativar"; editar volta para rascunho.
 
 export const PROSPECCAO_RODAPE = {
-  antes: "Você recebeu este e-mail porque o contato da sua empresa está público no Google Maps. NovoSeminovo, DLRLVM Soluções Ltda., CNPJ 60.327.011/0001-02. Não quer receber mais?",
+  antes: "Você recebeu este e-mail porque o contato da sua empresa está público no Google Maps. NovoSeminovo Ltda., CNPJ 60.327.011/0001-02. Não quer receber mais?",
   link: "Clique aqui para sair",
   depois: "ou responda SAIR.",
 } as const;
