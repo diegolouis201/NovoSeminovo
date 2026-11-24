@@ -15,6 +15,8 @@ export const COMPANY = {
   facebook: "https://www.facebook.com/novoseminovooficial",
   youtube: "https://www.youtube.com/@novoseminovooficial",
   tiktok: "https://www.tiktok.com/@novoseminovo",
+  // Página da empresa no LinkedIn (24/11/2026).
+  linkedin: "https://www.linkedin.com/company/145516110/",
   city: "Belo Horizonte/MG",
 } as const;
 

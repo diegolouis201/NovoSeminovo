@@ -126,6 +126,7 @@ describe("GEO: leitura por buscadores e assistentes de IA", () => {
           "https://www.facebook.com/novoseminovooficial",
           "https://www.youtube.com/@novoseminovooficial",
           "https://www.tiktok.com/@novoseminovo",
+          "https://www.linkedin.com/company/145516110/",
         ]);
         const sites = items.filter((item) => item["@type"] === "WebSite");
         expect(sites).to.have.length(1);

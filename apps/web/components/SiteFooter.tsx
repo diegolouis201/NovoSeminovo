@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FacebookLogo, InstagramLogo, TiktokLogo, YoutubeLogo } from "@phosphor-icons/react/dist/ssr";
+import { FacebookLogo, InstagramLogo, LinkedinLogo, TiktokLogo, YoutubeLogo } from "@phosphor-icons/react/dist/ssr";
 import { Logo } from "@/components/Logo";
 import { NewsletterForm } from "@/components/NewsletterForm";
 import { COMPANY, CORBAN } from "@/lib/company";
@@ -82,6 +82,15 @@ export function SiteFooter() {
               className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-ink transition-colors hover:border-ink hover:text-ink"
             >
               <TiktokLogo size={20} weight="bold" />
+            </Link>
+            <Link
+              href={COMPANY.linkedin}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="NovoSeminovo no LinkedIn"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-ink transition-colors hover:border-brand-blue hover:text-brand-blue"
+            >
+              <LinkedinLogo size={20} weight="bold" />
             </Link>
           </div>
         </div>

@@ -37,7 +37,7 @@ export function siteJsonLd() {
       logo: LOGO_URL,
       description: SITE_SUMMARY,
       areaServed: { "@type": "Country", name: "Brasil" },
-      sameAs: [COMPANY.instagram, COMPANY.facebook, COMPANY.youtube, COMPANY.tiktok],
+      sameAs: [COMPANY.instagram, COMPANY.facebook, COMPANY.youtube, COMPANY.tiktok, COMPANY.linkedin],
     },
     {
       "@context": "https://schema.org",

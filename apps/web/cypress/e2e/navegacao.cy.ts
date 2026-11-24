@@ -9,12 +9,15 @@ describe("Navegação de quem compra", () => {
     cy.contains("Imóveis").should("be.visible");
   });
 
-  it("rodapé leva às redes oficiais (Instagram, Facebook, YouTube e TikTok)", () => {
+  it("rodapé leva às redes oficiais (Instagram, Facebook, YouTube, TikTok e LinkedIn)", () => {
     cy.visit("/");
     cy.get('footer a[href="https://www.youtube.com/@novoseminovooficial"]').should("exist");
     cy.get('footer a[href="https://instagram.com/novoseminovooficial"]').should("exist");
     cy.get('footer a[href="https://www.tiktok.com/@novoseminovo"]').should("exist");
     cy.get('footer a[href="https://www.facebook.com/novoseminovooficial"]').should("exist");
+    cy.get('footer a[href="https://www.linkedin.com/company/145516110/"]')
+      .should("have.attr", "rel", "noopener noreferrer")
+      .and("have.attr", "aria-label", "NovoSeminovo no LinkedIn");
   });
 
   it("busca de carros: escolher o estado carrega as cidades dele", () => {
