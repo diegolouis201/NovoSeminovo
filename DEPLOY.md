@@ -613,6 +613,59 @@ Pode rodar o passo 4 de novo: o que já saiu não aparece mais ("(nada)"). Se
 alguma foto não puder ser apagada do disco/S3, o script avisa a linha e segue.
 Para voltar atrás, use "Restaurar o banco" em Manutenção com o backup do passo 1.
 
+## Apagar os leads de teste (24/11/2026)
+
+Apaga os 5 leads de teste da lista de Leads de compradores do Hub: o
+"Formulário Meta" de 24/11 16:43 (`test@meta.com`, do Testador de Lead Ads da
+Meta) e os pedidos de "Financiamento" de 13/11 19:33 (Diego Louis Pereira,
+T-Cross), 27/10 10:35 (Diego Louis), 26/10 16:07 (Ronaldo Murasawwa) e 26/10
+15:10 (Diego Louis). Cada um é achado pelo minuto exato + nome (ou pelo e-mail
+`test@meta.com`); se aparecer mais de um registro para o mesmo item, nada é
+apagado daquele item. Saem junto os consentimentos de crédito desses pedidos
+(aceites de teste) e os e-mails do contato da Meta. Pedido que já foi
+**enviado à Credihome/Creditas** fica, a não ser que você rode com
+`--incluir-enviados`; pedido com negócio registrado (comissão) nunca sai.
+
+Na pasta do projeto no servidor:
+
+1. Backup (termina com `BACKUP-OK`):
+
+   ```bash
+   sh scripts/backup.sh
+   ```
+
+2. Publicar a versão nova da API:
+
+   ```bash
+   git pull && docker compose up --build -d api
+   ```
+
+3. Ver o plano (não apaga nada; mostra nome, data, anúncio e id de cada um):
+
+   ```bash
+   docker compose exec api node dist/scripts/apagar-leads-de-teste.js
+   ```
+
+   Confira se os 5 aparecem com `VAI SER APAGADO`. Se algum aparecer com
+   `FICA: já foi enviado a parceiro`, decida antes: apagar também apaga o
+   registro desse envio no site (o pedido continua lá no parceiro).
+
+4. Apagar de verdade (termina com `PRONTO.`):
+
+   ```bash
+   docker compose exec api node dist/scripts/apagar-leads-de-teste.js --confirmar
+   ```
+
+   Só se decidiu apagar também os já enviados a parceiro:
+
+   ```bash
+   docker compose exec api node dist/scripts/apagar-leads-de-teste.js --confirmar --incluir-enviados
+   ```
+
+Pode rodar de novo: o que já saiu aparece como "não encontrado". O registro
+interno do lead da Meta (`meta_leadgens`) fica de propósito: é ele que impede
+a rotina de segurança de trazer o mesmo lead de teste de volta.
+
 ## Pesquisa NPS por e-mail (19/11/2026)
 
 O que muda no servidor: duas tabelas novas e colunas novas no banco, então o deploy
@@ -680,7 +733,8 @@ curl -sI https://api.novoseminovo.com.br/feeds/meta/veiculos.xml | grep -i x-fee
 
 - **Atualizar depois de um novo commit**: `git pull && docker compose up --build -d`.
 - **Ver logs de um serviço**: `docker compose logs -f api` (ou `web`, `postgres`, `caddy`).
-- **Backup automático** (`scripts/backup.sh`): banco todo dia às 03:17 (guarda 14 dias, e cada cópia é restaurada num banco temporário para provar que funciona) e fotos aos domingos (guarda as 4 últimas), em `~/backups`. Ativar uma vez: `sh scripts/instalar-backup.sh`. Rodar na hora: `sh scripts/backup.sh` (termina com `BACKUP-OK`). Registro: `tail ~/backups/backup.log`. Cópia fora da VPS (Google Drive, 60 dias): instalar o rclone (`curl https://rclone.org/install.sh | bash`), entrar na VPS com `ssh -L 53682:127.0.0.1:53682 root@<ip>` e rodar `rclone config create backup drive scope=drive.file` — abrir no navegador do computador o link `http://127.0.0.1:53682/auth…` que ele mostra e entrar na conta Google. A partir daí o script copia para a pasta `novoseminovo-backups` do Drive sozinho (o rclone só enxerga os arquivos que ele mesmo criou).
+- **Backup automático** (`scripts/backup.sh`): banco todo dia às 03:17 (guarda 14 dias, e cada cópia é restaurada num banco temporário para provar que funciona) e fotos aos domingos (guarda as 4 últimas), em `~/backups`. Ativar uma vez: `sh scripts/instalar-backup.sh`. Rodar na hora: `sh scripts/backup.sh` (termina com `BACKUP-OK`). Registro: `tail ~/backups/backup.log`. Cópia fora da VPS (Google Drive: banco 60 dias; fotos só as 4 últimas, como na VPS — ver "Fotos no Google Drive" abaixo): instalar o rclone (`curl https://rclone.org/install.sh | bash`), entrar na VPS com `ssh -L 53682:127.0.0.1:53682 root@<ip>` e rodar `rclone config create backup drive scope=drive.file` — abrir no navegador do computador o link `http://127.0.0.1:53682/auth…` que ele mostra e entrar na conta Google. A partir daí o script copia para a pasta `novoseminovo-backups` do Drive sozinho (o rclone só enxerga os arquivos que ele mesmo criou).
+- **Fotos no Google Drive: só as 4 últimas** (24/11/2026). Cada cópia das fotos tem uns 90 MB e o Drive enchia com 60 dias delas. Depois de cada cópia bem-sucedida, o backup roda `scripts/podar-fotos-drive.sh`: lista `fotos/` no Drive, ordena pela data do nome e apaga **de vez** (sem passar pela lixeira, que continuaria ocupando espaço) só o que passa das 4 mais novas. Nunca apaga com 4 cópias ou menos, nunca mexe fora de `fotos/` nem em arquivo com outro nome (só `fotos-AAAAMMDD-HHMM.tar.gz`) e, se não conseguir listar o Drive, não apaga nada. Se a poda falhar, a cópia do dia continua valendo: o registro mostra `AVISO:` (não `ERRO`), o backup termina com `BACKUP-OK` e chega um e-mail "Backup ok, mas a limpeza das fotos no Google Drive falhou". Rodar só a poda, na hora (termina com "ficam as 4 mais novas" ou "nada a apagar"): `cd ~/NovoSeminovo && sh scripts/podar-fotos-drive.sh`. Arquivos que a regra antiga dos 60 dias já tinha apagado foram para a lixeira do Drive e ainda ocupam espaço até o Google esvaziá-la (30 dias); para liberar na hora, esvazie a lixeira em drive.google.com → Lixeira. Os testes deste script rodam na CI (`node --test scripts/*.test.mjs`, com rclone/docker falsos).
 - **Restaurar o banco** (apaga o banco atual e põe o do backup — só em caso de perda): `docker compose stop api web && docker compose exec -T postgres pg_restore -U novoseminovo -d novoseminovo --clean --if-exists --no-owner < ~/backups/banco/banco-AAAAMMDD-HHMM.dump && docker compose start api web`.
 - **Restaurar as fotos**: `docker compose exec -T api tar xzf - -C /app/apps/api < ~/backups/fotos/fotos-AAAAMMDD-HHMM.tar.gz`.
 
