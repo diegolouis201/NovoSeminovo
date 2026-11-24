@@ -5,15 +5,19 @@
 #   - Fotos dos anúncios (pasta uploads da API): aos domingos (ou com
 #     BACKUP_FOTOS=1), guarda as 4 últimas.
 #   - Se existir um destino do rclone chamado "backup" (Google Drive, ver
-#     DEPLOY.md), copia tudo para lá e guarda 60 dias (cópia fora da VPS).
+#     DEPLOY.md), copia tudo para lá (cópia fora da VPS). Lá o banco fica 60
+#     dias; as fotos, só as 4 últimas como na VPS (scripts/podar-fotos-drive.sh),
+#     porque cada cópia tem ~90 MB e enchia o Drive.
 # Uso manual: sh scripts/backup.sh   (termina com BACKUP-OK)
 set -eu
 
+AQUI="$(cd "$(dirname "$0")" && pwd)"
 PROJETO="${PROJETO:-$HOME/NovoSeminovo}"
 DESTINO="${BACKUP_DIR:-$HOME/backups}"
 DIAS_BANCO="${BACKUP_DIAS_BANCO:-14}"
 COPIAS_FOTOS="${BACKUP_COPIAS_FOTOS:-4}"
 QUANDO="$(date +%Y%m%d-%H%M)"
+ALERTA="${BACKUP_ALERTA:-$AQUI/alerta.sh}"
 
 cd "$PROJETO"
 mkdir -p "$DESTINO/banco" "$DESTINO/fotos"
@@ -66,6 +70,16 @@ if command -v rclone >/dev/null 2>&1 && rclone listremotes 2>/dev/null | grep -q
   # Lá fora guarda mais tempo que na VPS: apaga só o que passou de 60 dias.
   rclone delete backup:novoseminovo-backups --min-age 60d || true
   echo "$(date '+%d/%m %H:%M') cópia fora da VPS ok"
+  # Fotos no Drive: só as $COPIAS_FOTOS mais novas. Roda só depois da cópia ok
+  # e só se há fotos aqui (senão a pasta lá fora pode nem existir). Se a poda
+  # falhar, a cópia continua valendo: vira AVISO (registro + e-mail), não ERRO.
+  if ls "$DESTINO"/fotos/fotos-*.tar.gz >/dev/null 2>&1; then
+    if ! sh "$AQUI/podar-fotos-drive.sh" backup:novoseminovo-backups/fotos "$COPIAS_FOTOS"; then
+      echo "$(date '+%d/%m %H:%M') AVISO: a cópia está ok, mas não consegui apagar as fotos antigas no Google Drive (o Drive pode encher)"
+      sh "$ALERTA" "Backup ok, mas a limpeza das fotos no Google Drive falhou" \
+        "A cópia de hoje foi feita. Só não consegui apagar as cópias antigas das fotos no Drive. Para tentar de novo: cd ~/NovoSeminovo && sh scripts/podar-fotos-drive.sh" || true
+    fi
+  fi
 fi
 
 echo "BACKUP-OK"
