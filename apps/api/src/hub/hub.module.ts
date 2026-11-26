@@ -21,10 +21,12 @@ import { ProspeccaoImportService } from "../prospeccao/prospeccao-import.service
 import { NotificationsModule } from "../notifications/notifications.module";
 import { ProspectsIngestController, VendedoresController } from "../sales/vendedores.controller";
 import { VendedoresService } from "../sales/vendedores.service";
+import { ApresentacaoHubController, CampaignVisitsController } from "./apresentacao.controller";
+import { ApresentacaoVisitasService } from "./apresentacao.service";
 
 @Module({
   imports: [AuthModule, CrmModule, NotificationsModule],
-  controllers: [HubController, NpsHubController, FinanceiroController, MarketingHubController, MarketingFeedController, JornadaController, SeoController, ProspeccaoController, ProspeccaoSairController, VendedoresController, ProspectsIngestController],
-  providers: [HubService, BuyerLeadsService, HubGuard, FinanceiroService, MarketingHubService, JornadaService, SeguidoresService, SeoService, ProspeccaoImportService, ProspeccaoSequenciasService, VendedoresService],
+  controllers: [HubController, NpsHubController, FinanceiroController, MarketingHubController, MarketingFeedController, JornadaController, SeoController, ProspeccaoController, ProspeccaoSairController, VendedoresController, ProspectsIngestController, CampaignVisitsController, ApresentacaoHubController],
+  providers: [HubService, BuyerLeadsService, HubGuard, FinanceiroService, MarketingHubService, JornadaService, SeguidoresService, SeoService, ProspeccaoImportService, ProspeccaoSequenciasService, VendedoresService, ApresentacaoVisitasService],
 })
 export class HubModule {}

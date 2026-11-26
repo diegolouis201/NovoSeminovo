@@ -4,14 +4,16 @@ import { Cabecalho, Secao, Vazio } from "@/components/ui";
 import { salvarAjustesProspeccao } from "@/lib/actions";
 import { me } from "@/lib/crm";
 import { dataHora } from "@/lib/format";
-import { STATUS_SEQUENCIA, painelProspeccao } from "@/lib/prospeccao";
+import { STATUS_SEQUENCIA, aberturasApresentacao, painelProspeccao } from "@/lib/prospeccao";
+
+const SITE = "https://novoseminovo.com.br";
 
 export const metadata = { title: "Sequências de prospecção" };
 
 export default async function Prospeccao({ searchParams }: { searchParams: { etiqueta?: string } }) {
   const etiqueta = (searchParams.etiqueta ?? "").slice(0, 60);
   const sufixo = etiqueta ? `?etiqueta=${encodeURIComponent(etiqueta)}` : "";
-  const [acesso, p] = await Promise.all([me(), painelProspeccao()]);
+  const [acesso, p, apresentacao] = await Promise.all([me(), painelProspeccao(), aberturasApresentacao()]);
   const dono = acesso.permissions.includes("equipe");
   return (
     <>
@@ -72,6 +74,44 @@ export default async function Prospeccao({ searchParams }: { searchParams: { eti
           </div>
         ) : (
           <Vazio titulo="Nenhuma sequência ainda" />
+        )}
+      </Secao>
+      <Secao titulo="Apresentação para empresas (PDF)" className="mt-6">
+        <p className="text-sm text-muted">
+          Use no e-mail o link de campanha, que conta a abertura e leva ao PDF:{" "}
+          <code className="break-all text-xs text-navy">{SITE}/apresentacao-empresas?utm_source=prospeccao&amp;utm_medium=email&amp;utm_campaign=caio_veiculos&amp;utm_content=apresentacao</code>{" "}
+          (troque <code className="text-xs">caio_veiculos</code> pela campanha; só letras minúsculas, números, _ e -).{" "}
+          <a className="link" href={`${SITE}/apresentacao-empresas.pdf`} target="_blank" rel="noopener noreferrer">Abrir o PDF</a>
+        </p>
+        {apresentacao === undefined ? (
+          <p className="mt-3 text-sm text-danger">Não foi possível carregar as aberturas agora.</p>
+        ) : apresentacao.linhas.length ? (
+          <>
+          <p id="aberturas-apresentacao" className="mt-4 text-sm">
+            Aberturas pelo link de campanha: <b>{apresentacao.total7d}</b> em 7 dias, <b>{apresentacao.total30d}</b> em 30 dias (cada pessoa conta uma vez a cada 30 minutos).
+          </p>
+          <div tabIndex={0} role="region" aria-labelledby="aberturas-apresentacao" className="mt-2 overflow-x-auto">
+            <table className="tabela min-w-[560px]">
+              <thead>
+                <tr><th scope="col">Campanha</th><th scope="col">Conteúdo</th><th scope="col">Origem / meio</th><th scope="col" className="text-right">7 dias</th><th scope="col" className="text-right">30 dias</th><th scope="col">Última</th></tr>
+              </thead>
+              <tbody>
+                {apresentacao.linhas.map((l) => (
+                  <tr key={[l.origem, l.meio, l.campanha, l.conteudo].join("|")}>
+                    <td className="font-semibold">{l.campanha ?? "(sem campanha)"}</td>
+                    <td>{l.conteudo ?? "—"}</td>
+                    <td className="text-xs">{l.origem ?? "—"}{l.meio ? ` / ${l.meio}` : ""}</td>
+                    <td className="text-right">{l.aberturas7d}</td>
+                    <td className="text-right">{l.aberturas30d}</td>
+                    <td className="text-xs text-muted">{dataHora(l.ultimaEm)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          </>
+        ) : (
+          <p className="mt-3 text-sm text-muted">Nenhuma abertura nos últimos 30 dias.</p>
         )}
       </Secao>
     </>

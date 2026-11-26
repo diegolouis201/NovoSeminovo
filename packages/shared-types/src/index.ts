@@ -3454,3 +3454,4 @@ export * from "./foto-tamanhos";
 export * from "./prospeccao";
 export * from "./vendedores";
 export * from "./painel-parceiro";
+export * from "./apresentacao";

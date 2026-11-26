@@ -1288,6 +1288,25 @@ model AffiliateClick {
   @@map("affiliate_clicks")
 }
 
+// Aberturas de links de campanha que não são página do site (hoje só o PDF de
+// apresentação para empresas: /apresentacao-empresas?utm_...), somadas por
+// dia (horário de Brasília) e por utm. Sem IP, sem visitante: só a contagem.
+// Valores de utm já limpos (CAMPAIGN_UTM_PATTERN); "" = não veio.
+model CampaignVisitDay {
+  day      String
+  target   String
+  source   String @default("")
+  medium   String @default("")
+  campaign String @default("")
+  content  String @default("")
+  count    Int    @default(0)
+  lastAt   DateTime @default(now()) @map("last_at")
+
+  @@id([day, target, source, medium, campaign, content])
+  @@index([target, day])
+  @@map("campaign_visit_days")
+}
+
 // Programa de afiliados (influenciadores, criadores, parceiros comerciais):
 // indicam pelo link novoseminovo.com.br/?ref=CODIGO ou pelo código digitado
 // no cadastro, e ganham comissão sobre o que os indicados pagam (ver

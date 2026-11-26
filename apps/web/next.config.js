@@ -31,9 +31,15 @@ const nextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self), payment=(self)" },
         ],
+      },
+      // CSP em tudo, menos no PDF de apresentação (app/apresentacao-empresas.pdf):
+      // "object-src 'none'" na resposta do PDF pode deixar o visualizador de
+      // PDF do navegador em branco. O PDF segue com X-Frame-Options DENY e nosniff.
+      {
+        source: "/:path((?!apresentacao-empresas\\.pdf$).*)",
+        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" }],
       },
       ...PUBLIC_PAGES.map((source) => ({ source, headers: [{ key: "Cache-Control", value: PUBLIC_PAGE_CACHE }] })),
     ];

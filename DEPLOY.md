@@ -729,6 +729,76 @@ Bom saber:
 curl -sI https://api.novoseminovo.com.br/feeds/meta/veiculos.xml | grep -i x-feed
 ```
 
+## Apresentação para empresas (PDF dos e-mails de prospecção, 26/11/2026)
+
+O PDF de apresentação para lojas, imobiliárias e corretores fica **no
+servidor, fora do site**: trocar o arquivo não pede deploy, e o link nunca muda.
+
+- PDF: https://novoseminovo.com.br/apresentacao-empresas.pdf (abre no navegador)
+- Link para os e-mails (conta a abertura no Hub e leva ao PDF):
+  `https://novoseminovo.com.br/apresentacao-empresas?utm_source=prospeccao&utm_medium=email&utm_campaign=caio_veiculos&utm_content=apresentacao`
+  (Nina: `utm_campaign=nina_imoveis`). Nos `utm_*` só letras minúsculas,
+  números, `_` e `-` — valor com outra coisa é ignorado.
+- Aberturas: Hub → **Prospecção** → seção "Apresentação para empresas (PDF)"
+  (por campanha e conteúdo, 7 e 30 dias; a mesma pessoa conta uma vez a cada
+  30 minutos; nenhum dado pessoal é gravado).
+
+**1. Deploy (uma vez).** Muda o banco (tabela das aberturas) e o
+`docker-compose.yml` (a pasta `arquivos-publicos` montada no `web`, só
+leitura). No servidor:
+
+```sh
+cd ~/NovoSeminovo && git pull origin claude/vehicle-marketplace-platform-lmif9s && mkdir -p ~/NovoSeminovo/arquivos-publicos && nohup sh -c 'docker compose build api && docker compose build web && docker compose build hub && docker compose up -d && sleep 15 && docker compose exec -T -w /app/packages/db api ./node_modules/.bin/prisma db push --accept-data-loss --skip-generate && docker compose restart api && docker image prune -f && docker builder prune -f --filter until=48h && echo PRONTO-OK' > ~/deploy.log 2>&1 &
+```
+
+Espere `PRONTO-OK` em `tail ~/deploy.log`. (O `docker compose up -d` recria o
+`web` sozinho por causa da pasta nova.)
+
+**2. Colocar ou trocar o PDF** (do Windows, no **PowerShell**; o arquivo
+`NovoSeminovo-para-empresas.pdf` na pasta Downloads). São dois comandos: o
+primeiro envia com um nome provisório, o segundo confere que é PDF e troca de
+uma vez (quem estiver abrindo o link nunca pega o arquivo pela metade). Cada
+um pede a senha do servidor.
+
+```powershell
+scp "$env:USERPROFILE\Downloads\NovoSeminovo-para-empresas.pdf" root@177.153.68.113:~/NovoSeminovo/arquivos-publicos/.apresentacao-empresas.pdf.novo
+```
+
+```powershell
+ssh root@177.153.68.113 "cd ~/NovoSeminovo/arquivos-publicos && head -c 5 .apresentacao-empresas.pdf.novo | grep -q '%PDF-' && chmod 644 .apresentacao-empresas.pdf.novo && mv -f .apresentacao-empresas.pdf.novo apresentacao-empresas.pdf && ls -l apresentacao-empresas.pdf && echo PDF-OK"
+```
+
+Tem que terminar com `PDF-OK`. Para trocar o arquivo no futuro: os mesmos dois
+comandos (o nome no servidor é sempre `apresentacao-empresas.pdf`). Em até 5
+minutos todo mundo vê o novo (cache curto).
+
+**3. Conferir** (PowerShell ou servidor; no PowerShell é `curl.exe`, não `curl`):
+
+```powershell
+curl.exe -I https://novoseminovo.com.br/apresentacao-empresas.pdf
+```
+
+Esperado: `HTTP/1.1 200`, `content-type: application/pdf`,
+`content-disposition: inline; filename="NovoSeminovo-para-empresas.pdf"`,
+`cache-control: public, max-age=300`, `x-robots-tag: noindex, nofollow` e
+`content-length` com o tamanho do arquivo (ex.: 1319594). E o link de campanha:
+
+```powershell
+curl.exe -I "https://novoseminovo.com.br/apresentacao-empresas?utm_source=prospeccao&utm_medium=email&utm_campaign=caio_veiculos&utm_content=apresentacao"
+```
+
+Esperado: `HTTP/1.1 303` e `location: /apresentacao-empresas.pdf` (o `-I`
+não conta abertura; só o clique de verdade conta).
+
+Se der **404**: o arquivo não está lá com o nome certo, passou de 20 MB, ou não
+é PDF (o site confere pelos bytes, não pelo nome). O motivo aparece em
+`docker compose logs web | grep apresentacao`.
+
+Por que não bloquear no `robots.txt`: o PDF e o link respondem com
+`X-Robots-Tag: noindex, nofollow` e ficam fora do mapa do site. Se o
+`robots.txt` bloqueasse, o Google não leria esse aviso e poderia listar o
+endereço (sem conteúdo) só por achá-lo em algum link.
+
 ## Manutenção
 
 - **Atualizar depois de um novo commit**: `git pull && docker compose up --build -d`.

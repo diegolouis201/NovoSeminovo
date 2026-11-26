@@ -164,6 +164,10 @@ services:
     volumes:
       # Chave do login do site (AUTH_SECRET) lida de arquivo (ver DEPLOY.md).
       - ./secrets:/run/secrets:ro
+      # Arquivos públicos trocados sem deploy (só leitura): hoje só o PDF
+      # apresentacao-empresas.pdf (DEPLOY.md, "Apresentação para empresas").
+      # A pasta inteira (não o arquivo) para a troca com "mv" aparecer na hora.
+      - ./arquivos-publicos:/app/arquivos-publicos:ro
 
   # NovoSeminovo Hub (hub.DOMÍNIO): CRM da empresa com login. App separado
   # do site — se o Hub cair, o marketplace continua no ar. Fala com a API pela
