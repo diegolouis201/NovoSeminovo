@@ -54,7 +54,8 @@ describe("Consentimento do crédito", () => {
     for (const path of ["/", "/privacidade", "/termos", "/como-funciona", "/quem-somos", "/perguntas-frequentes"]) {
       cy.visit(path);
       cy.get("body").invoke("text").should("not.match", /correspondente/i);
-      cy.get("footer").should("contain.text", "parceira de crédito Ibs Capital");
+      cy.get("footer").should("contain.text", "parceira de crédito IBS Capital");
+      cy.get("footer").should("not.contain.text", "Ibs Capital");
     }
   });
 });

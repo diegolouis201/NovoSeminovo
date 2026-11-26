@@ -24,7 +24,7 @@ export const COMPANY = {
 // de financiamento captados pelo assistente e recebe a comissão dos bancos.
 // Mesmos dados ficam em apps/api/src/agents/buyer-agent.ts (CORBAN).
 export const CORBAN = {
-  brand: "Ibs Capital",
+  brand: "IBS Capital",
   legalName: "IBS CAPITAL CORRETORA DE SEGUROS LTDA",
   cnpj: "61.452.517/0001-06",
 } as const;

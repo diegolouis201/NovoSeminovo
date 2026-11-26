@@ -6,7 +6,7 @@ import type { AgentDefinition, AgentTool } from "./agent-engine";
 
 // Parceira de crédito (empresa separada do NovoSeminovo) —
 // mesmos dados de CORBAN em apps/web/lib/company.ts.
-const CORBAN = { brand: "Ibs Capital", legalName: "IBS CAPITAL CORRETORA DE SEGUROS LTDA", cnpj: "61.452.517/0001-06" };
+const CORBAN = { brand: "IBS Capital", legalName: "IBS CAPITAL CORRETORA DE SEGUROS LTDA", cnpj: "61.452.517/0001-06" };
 
 export type BuyerAgentContext = {
   channel: "web" | "whatsapp";
