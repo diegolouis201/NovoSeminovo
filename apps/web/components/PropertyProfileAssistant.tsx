@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { Sparkle } from "@phosphor-icons/react/dist/ssr";
-import { formatBRL, type PropertyPriority, type PropertyRecommendation } from "@novoseminovo/shared-types";
+import type { PropertyPriority, PropertyRecommendation } from "@novoseminovo/shared-types";
+import { formatBRL } from "@novoseminovo/shared-types/dist/navegador";
 import { Button } from "@/components/Button";
 import { FormField, SelectField } from "@/components/FormField";
 import { ListingCard } from "@/components/ListingCard";

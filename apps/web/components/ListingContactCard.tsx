@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { CheckCircle, SealCheck, Star, Storefront, House, Car, CalendarBlank, User } from "@phosphor-icons/react";
 import type { ListingDetail } from "@novoseminovo/shared-types";
-import { resolveMediaUrl } from "@/lib/api";
+import { resolveMediaUrl } from "@/lib/media-url";
 import { sendListingContactAction, type ListingContactField, type ListingContactState } from "@/lib/actions/listing-contact";
 import { flushMetaEvents } from "@/lib/meta-events";
 

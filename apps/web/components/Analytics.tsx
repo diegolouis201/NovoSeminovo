@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Script from "next/script";
 import { Suspense, useEffect, useState } from "react";
-import { CONSENT_COOKIE } from "@novoseminovo/shared-types";
+import { CONSENT_COOKIE } from "@novoseminovo/shared-types/dist/navegador";
 import { MetaPixel } from "@/components/MetaPixel";
 import { META_PIXEL_ID } from "@/lib/meta-pixel";
 import { CONSENT_STORAGE_KEY, type Consent } from "@/lib/consent";

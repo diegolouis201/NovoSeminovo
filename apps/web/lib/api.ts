@@ -129,13 +129,8 @@ function mockOr<T>(mock: () => T, productionFallback?: T): T {
   throw new ApiUnavailableError();
 }
 
-// Fotos de anúncio vêm da API como caminho relativo (/uploads/...), porque é
-// lá que o arquivo é servido (ver apps/api/src/main.ts) — o navegador
-// resolveria isso contra o domínio do site, não da API, então quebra sem
-// este prefixo. URL de mock-data.ts já vem absoluta e passa direto.
-export function resolveMediaUrl(url: string): string {
-  return url.startsWith("http") ? url : `${API_URL}${url}`;
-}
+// Link das fotos (/uploads/... → endereço da API): lib/media-url.ts.
+export { resolveMediaUrl } from "@/lib/media-url";
 
 // 1.5s era o padrão original — curto demais pra uma chamada de verdade
 // passando pela internet (fica instantâneo em dev local contra a API no

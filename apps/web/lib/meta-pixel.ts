@@ -1,4 +1,4 @@
-import { isMetaPixelId } from "@novoseminovo/shared-types";
+import { isMetaPixelId } from "@novoseminovo/shared-types/dist/navegador";
 
 // ID do pixel da Meta (NEXT_PUBLIC_META_PIXEL_ID, gravado no build). Público
 // por natureza (vai no HTML). Qualquer coisa que não seja só números = pixel

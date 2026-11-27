@@ -10,8 +10,8 @@ import { auth } from "@/auth";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { ConsorcioCallout } from "@/components/ConsorcioCallout";
-import { CredihomeSimulator } from "@/components/CredihomeSimulator";
-import { CreditasSimulator } from "@/components/CreditasSimulator";
+// Simuladores em arquivo de JS à parte (só baixa quem vê): ver o componente.
+import { CredihomeSimulator, CreditasSimulator } from "@/components/FinancingSimulatorsLazy";
 import { MarkVertical } from "@/components/ActiveVertical";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FinancingCallout } from "@/components/FinancingCallout";

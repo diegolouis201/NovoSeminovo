@@ -10,5 +10,5 @@
     "declaration": false,
     "types": ["node"]
   },
-  "include": ["lib/seo/**/*.ts", "lib/apresentacao/regras*.ts", "lib/visitante/**/*.ts"]
+  "include": ["lib/seo/**/*.ts", "lib/apresentacao/regras*.ts", "lib/desempenho/**/*.ts", "lib/visitante/**/*.ts"]
 }

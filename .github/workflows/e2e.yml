@@ -84,6 +84,8 @@ jobs:
           pnpm --filter @novoseminovo/api build
           pnpm --filter @novoseminovo/web build
           pnpm --filter @novoseminovo/hub build
+          # Orçamento de JS por página (site e Hub) conferido no build de verdade.
+          EXIGIR_BUILD=1 pnpm --filter @novoseminovo/web test
           # Credihome de teste (só aqui): leva o simulador do imóvel até o pedido
           # de proposta, onde o Cypress confere as autorizações de crédito.
           (nohup node apps/web/cypress/fake-credihome.mjs 4010 > fake-credihome.log 2>&1 &)

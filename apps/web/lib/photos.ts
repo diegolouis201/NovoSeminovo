@@ -1,5 +1,7 @@
-import { photoSrcSet } from "@novoseminovo/shared-types";
-import { resolveMediaUrl } from "@/lib/api";
+// Imports leves de propósito: este arquivo vai para o navegador (cartões,
+// galeria, assistente) — ver lib/media-url.ts.
+import { photoSrcSet } from "@novoseminovo/shared-types/dist/foto-tamanhos";
+import { resolveMediaUrl } from "@/lib/media-url";
 
 // src + srcset de uma foto de anúncio (auditoria web, item 1). A API guarda
 // cópias menores em WebP ao lado da original e diz quais larguras existem;

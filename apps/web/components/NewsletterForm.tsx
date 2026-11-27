@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
-import { MARKETING_INTERESTS } from "@novoseminovo/shared-types";
+import { MARKETING_INTERESTS } from "@novoseminovo/shared-types/dist/navegador";
 import { newsletterAction, type NewsletterState } from "@/lib/actions/newsletter";
 
 function Submit() {

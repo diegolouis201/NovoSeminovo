@@ -1,6 +1,6 @@
 "use client";
 
-import { META_EVENT_COOKIE, parseMetaEventQueue, type MetaContentCategory, type MetaEventName } from "@novoseminovo/shared-types";
+import { META_EVENT_COOKIE, parseMetaEventQueue, type MetaContentCategory, type MetaEventName } from "@novoseminovo/shared-types/dist/navegador";
 
 type Fbq = ((...args: unknown[]) => void) & { queue?: unknown[] };
 

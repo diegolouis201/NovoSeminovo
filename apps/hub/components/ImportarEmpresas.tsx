@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { PROSPECCAO_ETIQUETA_PADRAO, PROSPECCAO_SEGMENTOS, type ProspeccaoAnalise, type ProspeccaoResultado } from "@novoseminovo/shared-types";
+// Direto do arquivo da prospecção (não da raiz do pacote): o navegador não
+// leva o contrato inteiro do shared-types junto.
+import { PROSPECCAO_ETIQUETA_PADRAO, PROSPECCAO_SEGMENTOS, type ProspeccaoAnalise, type ProspeccaoResultado } from "@novoseminovo/shared-types/dist/prospeccao";
 import { analisarImportacao, confirmarImportacao } from "@/lib/actions";
 
 const SITUACAO = { nova: ["Nova", "bg-green/15 text-green"], duplicada: ["Duplicada", "bg-orange/15 text-danger"], invalida: ["Inválida", "bg-line text-muted"] } as const;

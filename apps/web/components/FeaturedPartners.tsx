@@ -26,7 +26,7 @@ export function FeaturedPartners({ partners }: { partners: FeaturedPartner[] }) 
             <span className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-border bg-surface-raised shadow-card">
               {partner.logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={resolveMediaUrl(partner.logoUrl)} alt={partner.legalName} className="h-full w-full object-cover" />
+                <img src={resolveMediaUrl(partner.logoUrl)} alt={partner.legalName} width={80} height={80} loading="lazy" decoding="async" className="h-full w-full object-cover" />
               ) : (
                 <span className="font-display text-lg font-bold text-brand-blue">{initials(partner.legalName)}</span>
               )}

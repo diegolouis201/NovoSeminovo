@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { ACQUISITION_COOKIE, ACQUISITION_MAX_AGE, classifyAcquisition, serializeAcquisition } from "@novoseminovo/shared-types";
+import { ACQUISITION_COOKIE, ACQUISITION_MAX_AGE, classifyAcquisition, serializeAcquisition } from "@novoseminovo/shared-types/dist/navegador";
 
 const SESSION_FLAG = "ns_origem_lida";
 

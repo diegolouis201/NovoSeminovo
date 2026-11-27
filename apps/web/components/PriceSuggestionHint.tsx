@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Lightbulb } from "@phosphor-icons/react";
-import { formatBRL } from "@novoseminovo/shared-types";
+import { formatBRL } from "@novoseminovo/shared-types/dist/navegador";
 import { suggestPriceAction } from "@/lib/actions/listings";
 
 type Suggestion = { suggestedPrice: number; sampleSize: number };

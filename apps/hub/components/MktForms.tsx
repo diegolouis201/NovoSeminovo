@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { MKT_REDES } from "@novoseminovo/shared-types";
+import { MKT_REDES } from "@novoseminovo/shared-types/dist/navegador";
 import { aprovarConteudo, marcarPublicadoManual, pedirAjuste } from "@/lib/actions";
 
 const nome = (r: string) => MKT_REDES[r as keyof typeof MKT_REDES] ?? r;

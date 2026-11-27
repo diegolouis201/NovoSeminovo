@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { CheckCircle } from "@phosphor-icons/react";
-import { CAMPAIGN_BUSINESS_TYPES, CAMPAIGN_CONSENT_TEXT } from "@novoseminovo/shared-types";
+import { CAMPAIGN_BUSINESS_TYPES, CAMPAIGN_CONSENT_TEXT } from "@novoseminovo/shared-types/dist/navegador";
 import { sendCampaignLeadAction, type CampaignLeadState } from "@/lib/actions/campaign-lead";
 import { BRAZIL_STATES } from "@/lib/brazil-states";
 import { flushMetaEvents } from "@/lib/meta-events";
