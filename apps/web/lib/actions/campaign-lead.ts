@@ -1,17 +1,12 @@
 "use server";
 
-import { headers } from "next/headers";
+import { visitorIp } from "@/lib/visitante/ip";
 import { CampaignLeadInputSchema } from "@novoseminovo/shared-types";
 import { acquisitionHeaders } from "@/lib/acquisition";
 import { metaTracking } from "@/lib/meta-server";
 import { sendCampaignLead } from "@/lib/api";
 
 export type CampaignLeadState = { status: "idle" } | { status: "sent" } | { status: "error"; error: string };
-
-function visitorIp(): string | undefined {
-  const forwarded = headers().get("x-forwarded-for") ?? headers().get("x-real-ip");
-  return forwarded?.split(",")[0]?.trim() || undefined;
-}
 
 // Formulário de /para-lojas/comecar. Confere aqui (mensagem rápida) e a API
 // confere de novo. A origem do anúncio (cookie ns_origem) vai no cabeçalho.

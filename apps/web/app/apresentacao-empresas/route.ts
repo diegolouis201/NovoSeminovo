@@ -1,4 +1,5 @@
 import { cookies, headers } from "next/headers";
+import { visitorIp } from "@/lib/visitante/ip";
 import { ACQUISITION_COOKIE, APRESENTACAO_TARGET, cleanCampaignUtm } from "@novoseminovo/shared-types";
 import { cabecalhosRedirect, cookieDeOrigem } from "@/lib/apresentacao/regras";
 
@@ -11,11 +12,6 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-
-function visitorIp(): string | undefined {
-  const h = headers();
-  return (h.get("x-forwarded-for") ?? h.get("x-real-ip"))?.split(",")[0]?.trim().slice(0, 64) || undefined;
-}
 
 async function contarVisita(utm: ReturnType<typeof cleanCampaignUtm>): Promise<void> {
   const controller = new AbortController();

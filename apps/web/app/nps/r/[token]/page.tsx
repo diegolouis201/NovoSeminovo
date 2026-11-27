@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { NPS_TOKEN_RE, type NpsEmailClickResult } from "@novoseminovo/shared-types";
 import { COMPANY } from "@/lib/company";
+import { visitorIpHeaders } from "@/lib/visitante/ip";
 import { NpsFollowUpForm } from "./NpsFollowUpForm";
 
 export const metadata: Metadata = { title: "Pesquisa de satisfação", robots: { index: false, follow: false } };
@@ -15,7 +16,7 @@ async function registrar(token: string): Promise<NpsEmailClickResult | undefined
   if (!NPS_TOKEN_RE.test(token)) return { status: "invalido" };
   const res = await fetch(`${API_URL}/nps/clique`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...visitorIpHeaders() },
     body: JSON.stringify({ token }),
     cache: "no-store",
   }).catch(() => undefined);

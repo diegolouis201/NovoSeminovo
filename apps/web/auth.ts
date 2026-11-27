@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { AuthUser, LoginResponse } from "@novoseminovo/shared-types";
 import { readSecret } from "@/lib/secret-file";
+import { visitorIpHeaders } from "@/lib/visitante/ip";
 
 // A sessão é gerenciada aqui (cookie do NextAuth), mas quem valida a senha e
 // possui os dados do usuário é sempre apps/api — o site nunca fala com o
@@ -28,9 +29,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
         const password = credentials?.password;
         if (typeof email !== "string" || typeof password !== "string") return null;
 
+        // IP do visitante: o limite de tentativas da API é por pessoa.
         const res = await fetch(`${API_URL}/auth/login`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...visitorIpHeaders() },
           body: JSON.stringify({ email, password }),
         });
         if (!res.ok) return null;

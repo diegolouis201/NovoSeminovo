@@ -1,7 +1,7 @@
 "use server";
 
-import { headers } from "next/headers";
 import { acquisitionHeaders } from "@/lib/acquisition";
+import { visitorIpHeaders } from "@/lib/visitante/ip";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -10,10 +10,9 @@ export type NewsletterState = { ok?: boolean; error?: string };
 // Formulário de novidades do rodapé: grava o contato com permissão (opt-in)
 // e a origem do visitante. O IP vai junto para o limite de tentativas da API.
 export async function newsletterAction(_prev: NewsletterState, formData: FormData): Promise<NewsletterState> {
-  const forwarded = headers().get("x-forwarded-for");
   const res = await fetch(`${API_URL}/marketing/subscribe`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...acquisitionHeaders(), ...(forwarded ? { "x-forwarded-for": forwarded } : {}) },
+    headers: { "Content-Type": "application/json", ...acquisitionHeaders(), ...visitorIpHeaders() },
     body: JSON.stringify({
       email: String(formData.get("email") ?? "").trim(),
       name: String(formData.get("name") ?? "").trim() || undefined,

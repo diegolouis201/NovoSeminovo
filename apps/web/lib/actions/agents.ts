@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { visitorIp } from "@/lib/visitante/ip";
 import { revalidatePath } from "next/cache";
 import { CONSENTIMENTO_CREDITO, type AgentConversationView, type AgentKind, type FinancingLeadStatus } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
@@ -23,10 +24,6 @@ export async function agentStatusAction(): Promise<boolean> {
 // O navegador fala com o Next, e o Next com a API — sem isto a API veria
 // sempre o IP do servidor do site e o limite "por pessoa" viraria um limite
 // global. O Caddy preenche x-forwarded-for com o IP de quem acessou.
-function visitorIp(): string | undefined {
-  const forwarded = headers().get("x-forwarded-for") ?? headers().get("x-real-ip");
-  return forwarded?.split(",")[0]?.trim() || undefined;
-}
 
 export async function sendAgentMessageAction(
   kind: AgentKind,

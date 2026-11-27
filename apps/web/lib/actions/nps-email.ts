@@ -1,6 +1,7 @@
 "use server";
 
 import { NpsEmailFollowUpSchema, NPS_TOKEN_RE } from "@novoseminovo/shared-types";
+import { visitorIpHeaders } from "@/lib/visitante/ip";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -18,7 +19,7 @@ export async function responderNpsAction(_prev: NpsFollowUpState, formData: Form
   if (!parsed.success) return { erro: parsed.error.issues[0]?.message ?? "Confira o texto e tente de novo." };
   const res = await fetch(`${API_URL}/nps/acompanhamento`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...visitorIpHeaders() },
     body: JSON.stringify(parsed.data),
     cache: "no-store",
   }).catch(() => undefined);
@@ -37,7 +38,7 @@ export type NpsSairState = { ok?: boolean; erro?: string };
 export async function sairDoNpsAction(_prev: NpsSairState, formData: FormData): Promise<NpsSairState> {
   const token = String(formData.get("token") ?? "");
   if (!NPS_TOKEN_RE.test(token)) return { erro: "Link inválido." };
-  const res = await fetch(`${API_URL}/nps/sair/${token}`, { method: "POST", cache: "no-store" }).catch(() => undefined);
+  const res = await fetch(`${API_URL}/nps/sair/${token}`, { method: "POST", headers: visitorIpHeaders(), cache: "no-store" }).catch(() => undefined);
   if (!res) return { erro: "Não foi possível falar com o servidor. Tente de novo em instantes." };
   if (!res.ok) return { erro: "Link inválido." };
   return { ok: true };

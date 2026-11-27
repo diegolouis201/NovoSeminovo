@@ -1,6 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
+import { visitorIp } from "@/lib/visitante/ip";
 import { ListingContactInputSchema } from "@novoseminovo/shared-types";
 import { auth } from "@/auth";
 import { acquisitionHeaders } from "@/lib/acquisition";
@@ -23,10 +23,6 @@ function fieldOf(path: readonly PropertyKey[] | undefined): ListingContactField 
 
 // O IP do visitante vai junto (x-client-ip): sem ele a API veria sempre o
 // IP do servidor do site e o limite por pessoa viraria um limite geral.
-function visitorIp(): string | undefined {
-  const forwarded = headers().get("x-forwarded-for") ?? headers().get("x-real-ip");
-  return forwarded?.split(",")[0]?.trim() || undefined;
-}
 
 export async function sendListingContactAction(listingId: string, _state: ListingContactState, formData: FormData): Promise<ListingContactState> {
   const parsed = ListingContactInputSchema.safeParse({
