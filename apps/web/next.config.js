@@ -17,6 +17,9 @@ const nextConfig = {
   // endereços do WordPress antigo responderem 410 direto, sem esse desvio.
   skipTrailingSlashRedirect: true,
   transpilePackages: ["@novoseminovo/shared-types"],
+  // Otimizador de imagem (/_next/image) desligado: não usamos next/image e o
+  // Next 14 tem falhas críticas nele só corrigidas no Next 15.
+  images: { unoptimized: true },
   // Fotos do anúncio passam por Server Action (ver uploadWizardPhotosAction):
   // o padrão de 1 MB barraria até uma foto só.
   experimental: { serverActions: { bodySizeLimit: "20mb" } },

@@ -7,6 +7,9 @@ const nextConfig = {
   // Não anunciar a tecnologia do site (cabeçalho X-Powered-By: Next.js).
   poweredByHeader: false,
   transpilePackages: ["@novoseminovo/shared-types"],
+  // Otimizador de imagem (/_next/image) desligado: não usamos next/image e o
+  // Next 14 tem falhas críticas nele só corrigidas no Next 15.
+  images: { unoptimized: true },
   // Imagens e vídeos do marketing sobem por Server Action (vídeo até 150 MB).
   experimental: { externalDir: true, serverActions: { bodySizeLimit: "160mb" } },
   async headers() {

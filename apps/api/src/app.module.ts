@@ -3,11 +3,12 @@ import { SalesModule } from "./sales/sales.module";
 import { CrmModule } from "./crm/crm.module";
 import { HubModule } from "./hub/hub.module";
 import { Module } from "@nestjs/common";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./prisma/prisma.module";
 import { THROTTLER_OPTIONS } from "./common/client-ip";
+import { UploadErrorFilter } from "./common/upload-errors";
 import { ListingsModule } from "./listings/listings.module";
 import { CatalogFeedsModule } from "./catalog-feeds/catalog-feeds.module";
 import { AuthModule } from "./auth/auth.module";
@@ -73,6 +74,10 @@ import { MetaLeadsModule } from "./meta/meta-leads.module";
     HubModule,
   ],
   controllers: [HealthController],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Erro de envio de arquivo vira 400/413 (common/upload-errors.ts).
+    { provide: APP_FILTER, useClass: UploadErrorFilter },
+  ],
 })
 export class AppModule {}

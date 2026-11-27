@@ -61,6 +61,17 @@ describe("Varreduras de segurança", () => {
     );
   });
 
+  // Next 14 tem falhas críticas no otimizador de imagem (/_next/image) só
+  // corrigidas no Next 15. O site e o Hub não usam next/image: o otimizador
+  // fica desligado (images.unoptimized) e ninguém volta a usar next/image.
+  test("Next: otimizador de imagem desligado no site e no Hub, e next/image fora de uso", () => {
+    for (const app of ["apps/web", "apps/hub"]) {
+      const config = readFileSync(join(ROOT, app, "next.config.js"), "utf8");
+      assert.match(config, /images:\s*\{\s*unoptimized:\s*true\s*\}/, app);
+    }
+    assert.deepEqual(offenders(["apps/web", "apps/hub"], /\.(tsx?|jsx?)$/, /from ["']next\/(legacy\/)?image["']/), []);
+  });
+
   test("Senhas: bcrypt só em auth/password.ts (hashPassword/verifyPassword, custo 12)", () => {
     assert.deepEqual(offenders(["apps/api/src"], TS, /from ["']bcrypt(js)?["']/, ["apps/api/src/auth/password.ts"]), []);
   });
