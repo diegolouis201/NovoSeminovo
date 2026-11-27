@@ -22,3 +22,24 @@ export function visitorIpHeaders(): Record<string, string> {
   return ip ? { "x-client-ip": ip } : {};
 }
 
+
+// Junta o x-client-ip aos cabeçalhos de uma chamada à API, sem trocar um
+// valor que a chamada já tenha informado.
+export function withVisitorIp(headers: HeadersInit | undefined, ip: string | undefined): HeadersInit | undefined {
+  if (!ip) return headers;
+  const merged = new Headers(headers);
+  if (!merged.has("x-client-ip")) merged.set("x-client-ip", ip);
+  return merged;
+}
+
+// Para as chamadas gerais à API (lib/api.ts): fora de uma requisição
+// (build, geração estática) não há visitante e nada é enviado. O sinal do
+// Next de "página dinâmica" (digest DYNAMIC_SERVER_USAGE) segue adiante.
+export function visitorIpIfAny(): string | undefined {
+  try {
+    return visitorIp();
+  } catch (error) {
+    if ((error as { digest?: unknown } | undefined)?.digest === "DYNAMIC_SERVER_USAGE") throw error;
+    return undefined;
+  }
+}

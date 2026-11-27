@@ -104,6 +104,7 @@ import type {
   AdminReviewQueueItem,
 } from "@novoseminovo/shared-types";
 import { getListing, listListings } from "@/lib/mock-data";
+import { visitorIpIfAny, withVisitorIp } from "@/lib/visitante/ip";
 
 // apps/api (NestJS) implementa estes três endpoints sobre o schema de
 // packages/db. Sem NEXT_PUBLIC_API_URL configurada, ou com a API fora do ar
@@ -142,7 +143,9 @@ async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 400
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...init, signal: controller.signal, cache: "no-store" });
+    // IP do visitante em toda chamada: a API limita pedidos por pessoa, e sem
+    // ele todos os visitantes dividiriam o limite do próprio site.
+    return await fetch(url, { ...init, headers: withVisitorIp(init?.headers, visitorIpIfAny()), signal: controller.signal, cache: "no-store" });
   } finally {
     clearTimeout(timeout);
   }
