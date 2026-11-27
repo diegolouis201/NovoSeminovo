@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from "@nestjs/common";
+import { clientIp } from "../common/client-ip";
 import { SkipThrottle } from "@nestjs/throttler";
 import { CampaignVisitInputSchema } from "@novoseminovo/shared-types";
 import type { Request } from "express";
@@ -38,8 +39,7 @@ export class CampaignVisitsController {
   @HttpCode(204)
   async registrar(@Body() body: unknown, @Req() request: Request): Promise<void> {
     const input = parseOrBadRequest(CampaignVisitInputSchema, body);
-    const forwarded = request.headers["x-client-ip"];
-    const ip = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim().slice(0, 64) || request.ip || "desconhecido";
+    const ip = clientIp(request);
     if (contagemLimitada(ip)) return;
     if (visitaRepetida([ip, input.target, input.campaign ?? "", input.content ?? ""].join("|"))) return;
     await this.visitas.registrar(input);

@@ -1,4 +1,5 @@
 import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { clientIp } from "../common/client-ip";
 import type { Request } from "express";
 import {
   AgentKind,
@@ -29,16 +30,6 @@ function parseKind(kind: string): AgentKind {
   const parsed = AgentKind.safeParse(kind);
   if (!parsed.success || !WEB_AGENTS.has(parsed.data)) throw new NotFoundException("Agente não encontrado");
   return parsed.data;
-}
-
-// O site chama a API pelo servidor (server action), então o IP da conexão é
-// o do container do site — o IP do visitante vem no cabeçalho que o site
-// repassa (ver apps/web/lib/actions/agents.ts). Só serve pro limite por
-// pessoa; o teto diário global segura quem forjar esse cabeçalho.
-function clientIp(request: Request): string {
-  const forwarded = request.headers["x-client-ip"];
-  const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  return value?.split(",")[0]?.trim() || request.ip || "desconhecido";
 }
 
 // Navegador do visitante, para a autorização BACEN da Creditas e o registro
@@ -87,7 +78,7 @@ export class AgentsController {
 
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Get("admin/financing-leads")
-  listFinancingLeads(@Query("status") status?: string, @Query("assetType") assetType?: string) {
+  listFinancingLeads(@Query("status") status: unknown, @Query("assetType") assetType: unknown) {
     const parsed = FinancingLeadStatus.safeParse(status);
     return this.agentsService.listFinancingLeads(
       parsed.success ? parsed.data : undefined,

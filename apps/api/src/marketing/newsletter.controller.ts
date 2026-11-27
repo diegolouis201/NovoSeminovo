@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Query, Req, Res } from "@nestjs/common";
+import { clientIp } from "../common/client-ip";
 import type { Request, Response } from "express";
 import { NewsletterSubscribeInputSchema } from "@novoseminovo/shared-types";
 import { acquisitionFrom } from "../common/acquisition";
@@ -39,9 +40,8 @@ export class NewsletterController {
   @Post("marketing/subscribe")
   @HttpCode(200)
   async subscribe(@Req() req: Request, @Body() body: unknown) {
-    // Atrás do Caddy: o IP do visitante vem no X-Forwarded-For.
-    const forwarded = String(req.headers["x-forwarded-for"] ?? "").split(",")[0].trim();
-    if (rateLimited(forwarded || req.ip || "?")) throw new BadRequestException("Muitas tentativas. Tente de novo mais tarde.");
+    // IP do visitante (Caddy ou servidor do site): ver common/client-ip.ts.
+    if (rateLimited(clientIp(req))) throw new BadRequestException("Muitas tentativas. Tente de novo mais tarde.");
     const input = parseOrBadRequest(NewsletterSubscribeInputSchema, body);
     const acquisition = acquisitionFrom(req);
     await this.contacts.upsert({
@@ -79,8 +79,8 @@ export class NewsletterController {
 
   // Links de e-mails antigos continuam levando ao site (só com assinatura válida).
   @Get("m/c/:sendId/:signature")
-  click(@Param("sendId") sendId: string, @Param("signature") signature: string, @Query("u") target: string | undefined, @Res() res: Response) {
-    if (!target || !verifyLink(`${sendId}|${target}`, signature)) return res.redirect(302, webOrigin());
+  click(@Param("sendId") sendId: string, @Param("signature") signature: string, @Query("u") target: unknown, @Res() res: Response) {
+    if (typeof target !== "string" || !target || !verifyLink(`${sendId}|${target}`, signature)) return res.redirect(302, webOrigin());
     return res.redirect(302, target);
   }
 }

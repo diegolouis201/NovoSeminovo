@@ -1,5 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
-import type { ZodType } from "zod";
+import { z, type ZodType } from "zod";
 
 type ZodLikeError = { name: "ZodError"; issues: Array<{ message: string }> };
 
@@ -26,3 +26,10 @@ export function parseOrBadRequest<T>(schema: ZodType<T>, body: unknown): T {
     throw error;
   }
 }
+
+// Id da sessão de pagamento que o Stripe devolve na volta (?session_id=).
+export const StripeSessionIdSchema = z
+  .string({ required_error: "session_id é obrigatório", invalid_type_error: "session_id inválido" })
+  .trim()
+  .min(1, "session_id é obrigatório")
+  .max(300);

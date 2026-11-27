@@ -17,6 +17,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
+import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import { acquisitionFrom } from "../common/acquisition";
 import { metaContextFrom } from "../meta/meta-conversions";
@@ -40,10 +41,10 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AdminGuard } from "../admin/admin.guard";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { z } from "zod";
-import { parseOrBadRequest } from "../common/parse";
+import { parseOrBadRequest, StripeSessionIdSchema } from "../common/parse";
 import { StartBoostInputSchema } from "@novoseminovo/shared-types";
 import { AiService } from "./ai.service";
-import { ListingsService, MAX_LISTING_PHOTOS, type ListingSearchQuery } from "./listings.service";
+import { ListingsService, MAX_LISTING_PHOTOS, normalizeSearchQuery } from "./listings.service";
 import { FipeService } from "../vehicles/fipe.service";
 import { mergeBrandNames, mergeModelNames } from "../vehicles/search-catalog";
 import { SocialAssetsService } from "./social-assets.service";
@@ -83,6 +84,18 @@ const crlvInterceptor = FileInterceptor("crlv", {
   },
 });
 
+// Query e corpo validados (CLAUDE.md): texto com tamanho máximo; lista ou
+// objeto no lugar de texto (?brand[]=x) vira 400, não erro 500 no banco.
+const QueryText = z.string().trim().max(120).optional();
+const QueryObjectSchema = z.record(z.unknown());
+const PriceSuggestionQuerySchema = z.object({ assetType: QueryText, brand: QueryText, model: QueryText, propertyType: QueryText, city: QueryText });
+const FipeQuerySchema = z.object({ brand: QueryText, model: QueryText, modelCode: QueryText, yearModel: QueryText });
+const CrlvBodySchema = z.object({ plateStart: z.string().max(8).regex(/^[A-Za-z0-9 -]*$/, "Início da placa inválido").optional() });
+
+// Cada pedido destas rotas chama a IA (custa dinheiro): limite por visitante
+// mais apertado que o global (common/client-ip.ts).
+const AI_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
+
 @Controller("listings")
 export class ListingsController {
   constructor(
@@ -98,6 +111,7 @@ export class ListingsController {
     return { aiEnabled: this.aiService.isEnabled() };
   }
 
+  @Throttle(AI_THROTTLE)
   @UseGuards(JwtAuthGuard)
   @Post("generate-draft")
   generateDraft(@Body() body: unknown) {
@@ -108,12 +122,14 @@ export class ListingsController {
   // Leitura automática do CRLV na página de anunciar (ver AiService ->
   // extractCrlvData). Stateless de propósito — não depende de um anúncio já
   // existir, então fica fora do ListingsService.
+  @Throttle(AI_THROTTLE)
   @UseGuards(JwtAuthGuard)
   @Post("crlv-extract")
   @UseInterceptors(crlvInterceptor)
-  async extractCrlv(@UploadedFile() file: Express.Multer.File, @Body() body: { plateStart?: string }) {
+  async extractCrlv(@UploadedFile() file: Express.Multer.File, @Body() body: unknown) {
     if (!file) throw new BadRequestException("Envie o CRLV em imagem ou PDF.");
-    const plateStart = typeof body.plateStart === "string" ? body.plateStart.trim().slice(0, 8) || undefined : undefined;
+    // Vai para o prompt da IA: só letras, números e hífen.
+    const plateStart = parseOrBadRequest(CrlvBodySchema, body ?? {}).plateStart?.trim() || undefined;
     // Tipo real pelos bytes e antivírus; imagem ainda é redesenhada do zero.
     if (sniffFileType(file.buffer) === "application/pdf") {
       await assertNoMalware(file.buffer);
@@ -124,8 +140,10 @@ export class ListingsController {
   }
 
   @Get()
-  findAll(@Query() query: ListingSearchQuery) {
-    return this.listingsService.search(query);
+  findAll(@Query() query: unknown) {
+    // normalizeSearchQuery: texto até 200, lista só nos campos de lista, o
+    // resto vira "sem filtro" (listings.service.ts).
+    return this.listingsService.search(normalizeSearchQuery(parseOrBadRequest(QueryObjectSchema, query ?? {})));
   }
 
   // Lista pro sitemap.xml do site (ver apps/web/app/sitemap.ts). Também
@@ -144,11 +162,8 @@ export class ListingsController {
 
   // Mesmo motivo de "popular-brands" acima.
   @Get("price-suggestion")
-  suggestPrice(
-    @Query()
-    query: { assetType?: string; brand?: string; model?: string; propertyType?: string; city?: string },
-  ) {
-    return this.listingsService.suggestPrice(query);
+  suggestPrice(@Query() query: unknown) {
+    return this.listingsService.suggestPrice(parseOrBadRequest(PriceSuggestionQuerySchema, query ?? {}));
   }
 
   // Lista "Escolha uma versão" e preço FIPE no /anunciar (mesmo motivo de
@@ -160,7 +175,8 @@ export class ListingsController {
   }
 
   @Get("fipe-models")
-  fipeModels(@Query() query: { brand?: string; yearModel?: string }) {
+  fipeModels(@Query() raw: unknown) {
+    const query = parseOrBadRequest(FipeQuerySchema, raw ?? {});
     const year = Number(query.yearModel);
     if (!query.brand) return [];
     return this.fipe.listModels(query.brand, Number.isInteger(year) && year > 1950 ? year : undefined);
@@ -169,21 +185,24 @@ export class ListingsController {
   // Preço de referência pelo nome do modelo digitado (sem versão escolhida):
   // etapa de preço quando a pessoa pulou a lista de versões.
   @Get("fipe-reference")
-  async fipeReference(@Query() query: { brand?: string; model?: string; yearModel?: string }) {
+  async fipeReference(@Query() raw: unknown) {
+    const query = parseOrBadRequest(FipeQuerySchema, raw ?? {});
     const year = Number(query.yearModel);
     if (!query.brand || !query.model || !Number.isInteger(year)) return null;
     return (await this.fipe.lookupPrice(query.brand, query.model, year)) ?? null;
   }
 
   @Get("fipe-versions")
-  fipeVersions(@Query() query: { brand?: string; model?: string; yearModel?: string }) {
+  fipeVersions(@Query() raw: unknown) {
+    const query = parseOrBadRequest(FipeQuerySchema, raw ?? {});
     const year = Number(query.yearModel);
     if (!query.brand || !query.model) return [];
     return this.fipe.listVersions(query.brand, query.model, Number.isInteger(year) && year > 1950 ? year : undefined);
   }
 
   @Get("fipe-price")
-  async fipePrice(@Query() query: { brand?: string; modelCode?: string; yearModel?: string }) {
+  async fipePrice(@Query() raw: unknown) {
+    const query = parseOrBadRequest(FipeQuerySchema, raw ?? {});
     const code = Number(query.modelCode);
     const year = Number(query.yearModel);
     if (!query.brand || !Number.isInteger(code) || !Number.isInteger(year)) return null;
@@ -214,6 +233,7 @@ export class ListingsController {
 
   // Botão "qual carro é ideal pra mim?" — público (não exige login) porque é
   // um recurso de pré-venda, útil antes mesmo de a pessoa criar conta.
+  @Throttle(AI_THROTTLE)
   @Post("recommend-vehicle")
   recommendVehicle(@Body() body: unknown) {
     const input = parseOrBadRequest(VehicleProfileInputSchema, body);
@@ -221,6 +241,7 @@ export class ListingsController {
   }
 
   // Mesma ideia acima, pra imóvel.
+  @Throttle(AI_THROTTLE)
   @Post("recommend-property")
   recommendProperty(@Body() body: unknown) {
     const input = parseOrBadRequest(PropertyProfileInputSchema, body);
@@ -276,9 +297,8 @@ export class ListingsController {
 
   @UseGuards(JwtAuthGuard)
   @Get(":id/boost/confirm")
-  confirmBoost(@CurrentUser() user: { id: string }, @Param("id") id: string, @Query("session_id") sessionId?: string) {
-    if (!sessionId) throw new BadRequestException("session_id é obrigatório");
-    return this.listingsService.confirmBoost(id, user.id, sessionId);
+  confirmBoost(@CurrentUser() user: { id: string }, @Param("id") id: string, @Query("session_id") sessionId: unknown) {
+    return this.listingsService.confirmBoost(id, user.id, parseOrBadRequest(StripeSessionIdSchema, sessionId));
   }
 
   @UseGuards(JwtAuthGuard)
@@ -336,6 +356,7 @@ export class ListingsController {
   // Disparado pela própria página de fotos logo após o upload — ver
   // AiService.classifyVehiclePhotos. Sem IA habilitada, devolve as fotos
   // como estão (ver ListingsService.classifyPhotos).
+  @Throttle(AI_THROTTLE)
   @UseGuards(JwtAuthGuard)
   @Post(":id/photos/classify")
   classifyPhotos(@CurrentUser() user: { id: string }, @Param("id") id: string) {

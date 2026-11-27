@@ -14,6 +14,7 @@
 // E-mail e telefone saem só como SHA-256.
 
 import { createHash, randomUUID } from "node:crypto";
+import { clientIp, isInternalAddress } from "../common/client-ip";
 import { isIP } from "node:net";
 import type { Request } from "express";
 import {
@@ -120,13 +121,14 @@ function cleanSourceUrl(raw: string | undefined, env: Env): string | undefined {
 // Lê os cabeçalhos que o site manda nas server actions (lib/meta-server.ts).
 export function metaContextFrom(request: Request, env: Env = process.env, nowMs = Date.now()): MetaEventContext | undefined {
   if (header(request, META_HEADERS.consent) !== "granted") return undefined;
-  const ip = header(request, "x-client-ip")?.split(",")[0]?.trim();
+  // IP do visitante só quando é dele mesmo (não o do servidor do site).
+  const ip = clientIp(request);
   const userAgent = header(request, "x-client-user-agent")?.slice(0, 500);
   const context: MetaEventContext = {
     eventId: cleanMetaEventId(header(request, META_HEADERS.eventId)) ?? randomUUID(),
     fbp: cleanFbp(header(request, META_HEADERS.fbp)),
     fbc: cleanFbc(header(request, META_HEADERS.fbc)) ?? buildFbc(acquisitionFrom(request)?.clickId, nowMs),
-    clientIp: ip && isIP(ip) ? ip : undefined,
+    clientIp: isIP(ip) && !isInternalAddress(ip) ? ip : undefined,
     userAgent: userAgent || undefined,
     sourceUrl: cleanSourceUrl(header(request, META_HEADERS.pageUrl), env),
   };

@@ -12,6 +12,7 @@ import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
 import { corsOptions, UPLOADS_STATIC_OPTIONS } from "./common/cors";
+import { jsonBodyLimit } from "./common/body-limits";
 import { UPLOADS_DIR, UPLOADS_URL_PREFIX } from "./common/storage";
 import { currentDataKeys } from "./common/field-encryption";
 import { PrismaService } from "./prisma/prisma.service";
@@ -28,10 +29,10 @@ async function bootstrap() {
   // só no webhook do Stripe (WebhooksController), pra verificar a assinatura
   // sobre os bytes exatos recebidos, mas o Nest só tem essa opção global.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
-  // Padrão do Express é 100kb — pouco pro envio em lote da API de
-  // integração (até 100 anúncios com descrição, ver IntegrationsController).
-  // 12 MB: imagens do marketing (Hub) chegam em base64 (até ~8 MB cada).
-  app.useBodyParser("json", { limit: "12mb" });
+  // Corpo JSON: 1 MB nas rotas públicas; 12 MB só no Hub, no marketing por
+  // chave e na API de integração (common/body-limits.ts). Registrado antes do
+  // parser padrão do Nest, que passa a ignorar o corpo já lido.
+  app.use(jsonBodyLimit);
   // Não anunciar a tecnologia do servidor (cabeçalho X-Powered-By: Express).
   app.disable("x-powered-by");
   // Só o próprio site fala com a API pelo navegador (ver common/cors.ts).

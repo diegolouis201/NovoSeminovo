@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpException, HttpStatus, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { clientIp } from "../common/client-ip";
 import type { Request } from "express";
 import { ListingContactInputSchema, SendMessageInputSchema } from "@novoseminovo/shared-types";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
@@ -71,9 +72,7 @@ export class ListingContactController {
   @UseGuards(OptionalJwtAuthGuard)
   @Post("listings/:id/contact")
   send(@CurrentUser() user: { id: string } | undefined, @Param("id") listingId: string, @Body() body: unknown, @Req() request: Request) {
-    const forwarded = request.headers["x-client-ip"];
-    const ip = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim() || request.ip || "desconhecido";
-    if (contactRateLimited(ip)) throw new HttpException("Muitas mensagens em pouco tempo. Tente de novo daqui a alguns minutos.", HttpStatus.TOO_MANY_REQUESTS);
+    if (contactRateLimited(clientIp(request))) throw new HttpException("Muitas mensagens em pouco tempo. Tente de novo daqui a alguns minutos.", HttpStatus.TOO_MANY_REQUESTS);
     const input = parseOrBadRequest(ListingContactInputSchema, body);
     return this.contact.send(listingId, { ...input, wantsSimilar: input.wantsSimilar ?? false }, user?.id, acquisitionFrom(request), metaContextFrom(request));
   }

@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, Param, Post, Query, Req, UseGuards, Optional } from "@nestjs/common";
+import { clientIp } from "../common/client-ip";
 import { SkipThrottle } from "@nestjs/throttler";
 import type { Request } from "express";
 import {
@@ -40,7 +41,7 @@ export class SalesController {
   }
 
   @Get("board")
-  board(@CurrentUser() user: Me, @Query("segmento") segmento?: string, @Query("meus") meus?: string) {
+  board(@CurrentUser() user: Me, @Query("segmento") segmento: unknown, @Query("meus") meus: unknown) {
     const segment = segmento === "vehicle" || segmento === "property" ? segmento : undefined;
     return this.sales.board(user.id, { segment, mine: meus === "1" });
   }
@@ -180,9 +181,7 @@ export class SalesCampaignController {
   @Post("campaign-lead")
   @HttpCode(200)
   async campaignLead(@Body() body: unknown, @Req() request: Request) {
-    const forwarded = request.headers["x-client-ip"];
-    const ip = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim() || request.ip || "desconhecido";
-    if (campaignLeadRateLimited(ip)) throw new HttpException("Muitos envios em pouco tempo. Tente de novo daqui a alguns minutos.", HttpStatus.TOO_MANY_REQUESTS);
+    if (campaignLeadRateLimited(clientIp(request))) throw new HttpException("Muitos envios em pouco tempo. Tente de novo daqui a alguns minutos.", HttpStatus.TOO_MANY_REQUESTS);
     // Campo isca preenchido = robô: responde como se tivesse dado certo.
     if (body && typeof body === "object" && typeof (body as { website?: unknown }).website === "string" && (body as { website: string }).website.trim()) return { ok: true };
     const input = parseOrBadRequest(CampaignLeadInputSchema, body);

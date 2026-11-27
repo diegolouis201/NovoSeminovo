@@ -7,6 +7,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./prisma/prisma.module";
+import { THROTTLER_OPTIONS } from "./common/client-ip";
 import { ListingsModule } from "./listings/listings.module";
 import { CatalogFeedsModule } from "./catalog-feeds/catalog-feeds.module";
 import { AuthModule } from "./auth/auth.module";
@@ -40,7 +41,8 @@ import { MetaLeadsModule } from "./meta/meta-leads.module";
     // @Throttle) — sem isto, nada impedia tentar senha ou criar conta
     // infinitamente. WebhooksController usa @SkipThrottle() porque quem
     // chama lá é o Stripe/WhatsApp/Resend, não uma pessoa num navegador.
-    ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 120 }]),
+    // Contado por visitante (common/client-ip.ts), não pelo IP do Caddy.
+    ThrottlerModule.forRoot(THROTTLER_OPTIONS),
     PrismaModule,
     MetaModule,
     MetaLeadsModule,
