@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { visitorIpHeaders } from "@/lib/visitante/ip";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"]);
@@ -10,7 +11,8 @@ export async function GET(request: Request) {
   if (!session?.accessToken) return new Response("Entre na sua conta.", { status: 401 });
   const url = new URL(request.url).searchParams.get("url") ?? "";
   const upstream = await fetch(`${API_URL}/listing-import/photo?url=${encodeURIComponent(url)}`, {
-    headers: { Authorization: `Bearer ${session.accessToken}` },
+    // IP do visitante: a API limita por pessoa (60 fotos por minuto).
+    headers: { Authorization: `Bearer ${session.accessToken}`, ...visitorIpHeaders() },
     cache: "no-store",
   });
   if (!upstream.ok) return new Response("Foto indisponível.", { status: upstream.status });

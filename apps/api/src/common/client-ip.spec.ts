@@ -1,6 +1,6 @@
 import { describe, test, after } from "node:test";
 import assert from "node:assert/strict";
-import { Controller, Get, Module } from "@nestjs/common";
+import { Controller, Get, Module, Post } from "@nestjs/common";
 import { APP_GUARD, NestFactory } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import type { Request } from "express";
@@ -76,6 +76,11 @@ class LimitController {
   ok() {
     return { ok: true };
   }
+
+  @Post()
+  post() {
+    return { ok: true };
+  }
 }
 
 @Module({
@@ -101,6 +106,27 @@ describe("Limite global por visitante (ThrottlerGuard)", async () => {
 
   test("o mesmo visitante passa do limite e recebe 429", async () => {
     assert.equal(await hit({ "x-client-ip": "198.51.100.1" }), 429);
+  });
+
+  // Páginas do site montadas no servidor (leitura, sem visitante conhecido):
+  // o servidor do site não é um visitante — antes todas as páginas de todo
+  // mundo dividiam 120 leituras por minuto e o site dava "instabilidade".
+  test("leitura (GET) do servidor do site sem visitante informado não entra no limite", async () => {
+    for (let i = 0; i < 5; i++) assert.equal(await hit({}), 200);
+  });
+
+  test("escrita (POST) do servidor sem visitante continua com limite", async () => {
+    const post = () => fetch(`${base}/teste-limite`, { method: "POST" }).then((res) => res.status);
+    assert.equal(await post(), 201);
+    assert.equal(await post(), 201);
+    assert.equal(await post(), 429);
+  });
+
+  test("leitura pelo Caddy (visitante de fora) continua com limite", async () => {
+    const viaCaddy = { "x-forwarded-for": "203.0.113.77" };
+    assert.equal(await hit(viaCaddy), 200);
+    assert.equal(await hit(viaCaddy), 200);
+    assert.equal(await hit(viaCaddy), 429);
   });
 
   test("valores globais do site: 120 por minuto", () => {

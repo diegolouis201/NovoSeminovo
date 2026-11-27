@@ -1,4 +1,5 @@
 import { isIP } from "node:net";
+import type { ExecutionContext } from "@nestjs/common";
 import type { ThrottlerModuleOptions } from "@nestjs/throttler";
 
 // IP do visitante — um lugar só para todos os limites por pessoa e para o
@@ -36,19 +37,37 @@ function headerValue(request: RequestLike, name: string): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export function clientIp(request: RequestLike): string {
+// Quem abriu a conexão: o visitante (pelo Caddy) ou um servidor nosso.
+function edgeAddress(request: RequestLike): string | undefined {
   const socket = normalize(request.socket?.remoteAddress ?? request.ip);
-  let edge = socket;
   // Atrás do Caddy: o último valor é o que o próprio proxy viu.
   if (socket && isInternalAddress(socket)) {
-    edge = normalize(headerValue(request, "x-forwarded-for")?.split(",").pop()) ?? socket;
+    return normalize(headerValue(request, "x-forwarded-for")?.split(",").pop()) ?? socket;
   }
+  return socket;
+}
+
+function forwardedVisitor(request: RequestLike): string | undefined {
+  return normalize(headerValue(request, "x-client-ip")?.split(",")[0]);
+}
+
+export function clientIp(request: RequestLike): string {
+  const edge = edgeAddress(request);
   // Servidor nosso (site/Hub) chamando: vale o IP do visitante repassado.
   if (edge && isInternalAddress(edge)) {
-    const visitor = normalize(headerValue(request, "x-client-ip")?.split(",")[0]);
+    const visitor = forwardedVisitor(request);
     if (visitor) return visitor;
   }
   return edge ?? "desconhecido";
+}
+
+// Leitura (GET/HEAD) feita por um servidor nosso sem visitante informado
+// (página do site montada no servidor, telas do Hub): o servidor não é um
+// visitante; contar todas essas leituras juntas derrubava o site inteiro.
+// Escrita continua com limite, e quem vem de fora (pelo Caddy) também.
+export function isInternalReadWithoutVisitor(request: RequestLike & { method?: string }): boolean {
+  const edge = edgeAddress(request);
+  return Boolean(edge && isInternalAddress(edge) && !forwardedVisitor(request) && (request.method === "GET" || request.method === "HEAD"));
 }
 
 // Limite global (app.module.ts): 120 pedidos por minuto por visitante. As
@@ -56,4 +75,6 @@ export function clientIp(request: RequestLike): string {
 export const THROTTLER_OPTIONS = {
   throttlers: [{ name: "default", ttl: 60_000, limit: 120 }],
   getTracker: (request: Record<string, unknown>) => clientIp(request as RequestLike),
+  skipIf: (context: ExecutionContext) =>
+    context.getType() === "http" && isInternalReadWithoutVisitor(context.switchToHttp().getRequest<RequestLike & { method?: string }>()),
 } satisfies ThrottlerModuleOptions;

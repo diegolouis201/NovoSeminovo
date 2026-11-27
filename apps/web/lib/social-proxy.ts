@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { visitorIpHeaders } from "@/lib/visitante/ip";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -14,7 +15,7 @@ export async function proxySocialImage(apiPath: string): Promise<Response> {
   if (!session?.user) return new Response("Não autenticado.", { status: 401 });
 
   const upstream = await fetch(`${API_URL}/${apiPath}`, {
-    headers: { Authorization: `Bearer ${session.accessToken}` },
+    headers: { Authorization: `Bearer ${session.accessToken}`, ...visitorIpHeaders() },
     cache: "no-store",
   });
 
