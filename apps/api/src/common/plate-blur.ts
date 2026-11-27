@@ -1,4 +1,4 @@
-import sharp, { type OverlayOptions } from "sharp";
+import type { OverlayOptions } from "sharp";
 import type { PlateBox } from "../listings/ai.service";
 import { safeSharp } from "./image-safety";
 

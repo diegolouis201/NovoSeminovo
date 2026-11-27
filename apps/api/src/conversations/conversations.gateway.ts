@@ -12,7 +12,7 @@ import type { Server, Socket } from "socket.io";
 import type { RealtimeMessage } from "@novoseminovo/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { canAccessConversation } from "./access";
-import { allowedOrigins } from "../common/cors";
+import { allowedOrigins, socketAllowRequest } from "../common/cors";
 
 // Só cobre o lado de "receber ao vivo" — enviar continua sendo o POST
 // /conversations/:id/messages de sempre (ConversationsService chama
@@ -20,7 +20,7 @@ import { allowedOrigins } from "../common/cors";
 // hora porque o formulário recarrega a página (revalidatePath); o socket
 // existe pra quem está do outro lado da conversa, sem precisar atualizar.
 @Injectable()
-@WebSocketGateway({ cors: { origin: allowedOrigins(), credentials: false } })
+@WebSocketGateway({ cors: { origin: allowedOrigins(), credentials: false }, allowRequest: socketAllowRequest() })
 export class ConversationsGateway implements OnGatewayConnection {
   @WebSocketServer() private server!: Server;
 
@@ -54,7 +54,7 @@ export class ConversationsGateway implements OnGatewayConnection {
   ): Promise<void> {
     const userId = client.data.userId as string | undefined;
     const conversationId = body?.conversationId;
-    if (!userId || !conversationId) return;
+    if (!userId || typeof conversationId !== "string" || conversationId.length > 64) return;
 
     const conversation = await this.prisma.conversation.findUnique({ where: { id: conversationId } });
     if (!conversation) return;

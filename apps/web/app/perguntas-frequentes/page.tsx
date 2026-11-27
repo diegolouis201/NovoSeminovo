@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/JsonLd";
 import { PageHero, Section } from "@/components/marketing/PageHero";
 import { COMPANY, CORBAN } from "@/lib/company";
 import { pageMetadata } from "@/lib/seo/metadata";
@@ -101,7 +102,7 @@ export default function FaqPage() {
 
   return (
     <main className="pb-16">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <JsonLd data={jsonLd} />
       <PageHero eyebrow="Ajuda" title="Perguntas frequentes" />
 
       {GROUPS.map((group) => (

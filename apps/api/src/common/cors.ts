@@ -34,6 +34,17 @@ export function corsOptions(env: Env = process.env): CorsOptions {
   };
 }
 
+// Socket.IO (chat ao vivo): CORS não se aplica a WebSocket, então a origem
+// é conferida no aperto de mão, com a mesma regra acima (sem Origin = não é
+// navegador; o login vem no token do aperto de mão).
+export function socketAllowRequest(env: Env = process.env) {
+  const origins = allowedOrigins(env);
+  return (request: { headers: { origin?: string } }, callback: (error: string | null | undefined, allow: boolean) => void) => {
+    const origin = request.headers.origin;
+    callback(null, origin === undefined || origins.includes(origin));
+  };
+}
+
 // Fotos e arquivos em /uploads: só o próprio site (mesmo domínio-base) pode
 // embutir; outro site não usa a API como hospedagem de imagem.
 export const STATIC_FILE_HEADERS = {
