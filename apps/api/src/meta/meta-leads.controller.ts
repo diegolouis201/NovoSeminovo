@@ -32,10 +32,10 @@ export class MetaLeadsController {
   @Get("leadgen")
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Header("Content-Type", "text/plain; charset=utf-8")
-  verify(@Query() query: Record<string, unknown>): string {
+  verify(@Query() query: unknown): string {
     const { verifyToken, appSecret } = metaLeadsConfig();
     if (!verifyToken || !appSecret) throw new NotFoundException();
-    const challenge = checkSubscription(query ?? {}, verifyToken);
+    const challenge = query && typeof query === "object" ? checkSubscription(query as Record<string, unknown>, verifyToken) : undefined;
     if (!challenge) throw new ForbiddenException("Token de verificação inválido.");
     return challenge;
   }

@@ -27,7 +27,7 @@ export class VendedoresController {
 
   @HubPermissionRequired("equipe")
   @Get("respostas")
-  fila(@Query("vendedor") vendedor?: string) {
+  fila(@Query("vendedor") vendedor: unknown) {
     return this.vendedores.fila(vendedor ? parseOrBadRequest(VendedorIdSchema, vendedor) : undefined);
   }
 

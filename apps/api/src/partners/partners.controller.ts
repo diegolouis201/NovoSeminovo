@@ -38,7 +38,7 @@ import {
 import { AdminGuard } from "../admin/admin.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { parseOrBadRequest } from "../common/parse";
+import { parseOrBadRequest, StripeSessionIdSchema } from "../common/parse";
 import { PartnersService } from "./partners.service";
 import { PartnerDashboardService } from "./dashboard.service";
 import { CnpjService } from "./cnpj.service";
@@ -149,7 +149,7 @@ export class PartnersController {
   // sem segmento nenhum não bateria com ":slug" de qualquer forma, mas a ordem
   // deixa a intenção clara.
   @Get("partners")
-  listFeatured(@Query("for") forParam?: string) {
+  listFeatured(@Query("for") forParam: unknown) {
     const forAssetType = forParam === "vehicle" || forParam === "property" ? forParam : undefined;
     return this.partnersService.listFeatured(forAssetType);
   }
@@ -218,7 +218,7 @@ export class PartnersController {
 
   // ?for=vehicle (loja de veículos) ou ?for=property (imobiliária/corretor).
   @Get("plans")
-  listPlans(@Query("for") audience?: string) {
+  listPlans(@Query("for") audience: unknown) {
     return this.partnersService.listPlans(audience === "vehicle" || audience === "property" ? audience : undefined);
   }
 
@@ -249,9 +249,8 @@ export class PartnersController {
 
   @UseGuards(JwtAuthGuard)
   @Get("partners/mine/checkout-session/confirm")
-  confirmCheckoutSession(@CurrentUser() user: { id: string }, @Query("session_id") sessionId?: string) {
-    if (!sessionId) throw new BadRequestException("session_id é obrigatório");
-    return this.partnersService.confirmCheckoutSession(user.id, sessionId);
+  confirmCheckoutSession(@CurrentUser() user: { id: string }, @Query("session_id") sessionId: unknown) {
+    return this.partnersService.confirmCheckoutSession(user.id, parseOrBadRequest(StripeSessionIdSchema, sessionId));
   }
 
   @UseGuards(JwtAuthGuard)

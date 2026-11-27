@@ -5,8 +5,9 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { NotificationsService } from "./notifications.service";
 import { PushService } from "./push.service";
 
-function pushInput(body: { token?: unknown; platform?: unknown }): { token: string; platform: "android" | "ios" } {
-  const token = typeof body?.token === "string" ? body.token.trim() : "";
+function pushInput(raw: unknown): { token: string; platform: "android" | "ios" } {
+  const body = (raw && typeof raw === "object" ? raw : {}) as { token?: unknown; platform?: unknown };
+  const token = typeof body.token === "string" ? body.token.trim() : "";
   if (token.length < 20 || token.length > 4096) throw new BadRequestException("Token inválido");
   if (body.platform !== "android" && body.platform !== "ios") throw new BadRequestException("Plataforma inválida");
   return { token, platform: body.platform };
@@ -22,7 +23,7 @@ export class NotificationsController {
 
   // App do celular (mobile/): guarda o aparelho para receber push.
   @Post("me/push-devices")
-  async registerPushDevice(@CurrentUser() user: { id: string }, @Body() body: { token?: unknown; platform?: unknown }) {
+  async registerPushDevice(@CurrentUser() user: { id: string }, @Body() body: unknown) {
     const { token, platform } = pushInput(body);
     await this.push.register(user.id, token, platform);
     return { ok: true };
@@ -56,8 +57,9 @@ export class PushDevicesPublicController {
   constructor(private readonly push: PushService) {}
 
   @Post("push-devices/remove")
-  async remove(@Body() body: { token?: unknown; platform?: unknown }) {
-    const { token } = pushInput({ ...body, platform: body?.platform ?? "android" });
+  async remove(@Body() body: unknown) {
+    const fields = (body && typeof body === "object" ? body : {}) as { token?: unknown; platform?: unknown };
+    const { token } = pushInput({ ...fields, platform: fields.platform ?? "android" });
     await this.push.unregister(token);
     return { ok: true };
   }

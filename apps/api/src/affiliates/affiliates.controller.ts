@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { AdminAffiliateActionInputSchema, AdminAffiliatePayoutInputSchema, AffiliateApplyInputSchema } from "@novoseminovo/shared-types";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -6,14 +7,17 @@ import { AdminGuard } from "../admin/admin.guard";
 import { parseOrBadRequest } from "../common/parse";
 import { AffiliatesService } from "./affiliates.service";
 
+const AffiliateClickSchema = z.object({ code: z.string().max(64).optional() });
+
 @Controller()
 export class AffiliatesController {
   constructor(private readonly affiliates: AffiliatesService) {}
 
   // Público: o site chama quando alguém chega pelo link ?ref=CODIGO.
   @Post("affiliates/click")
-  async click(@Body() body: { code?: string }) {
-    await this.affiliates.recordClick(String(body?.code ?? ""));
+  async click(@Body() body: unknown) {
+    const { code } = parseOrBadRequest(AffiliateClickSchema, body ?? {});
+    await this.affiliates.recordClick(code ?? "");
     return { ok: true };
   }
 

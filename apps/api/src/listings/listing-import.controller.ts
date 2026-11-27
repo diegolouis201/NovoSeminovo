@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, Query, Res, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
+import { z } from "zod";
 import { ImportFromPageInputSchema, ImportFromTextInputSchema, ImportFromUrlInputSchema } from "@novoseminovo/shared-types";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -36,8 +37,8 @@ export class ListingImportController {
 
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get("photo")
-  async photo(@Query("url") url: string, @Res() response: Response) {
-    const photo = await this.service.fetchPhoto(String(url ?? ""));
+  async photo(@Query("url") url: unknown, @Res() response: Response) {
+    const photo = await this.service.fetchPhoto(parseOrBadRequest(z.string().trim().min(1, "Informe o link da foto.").max(2000), url));
     response.setHeader("Content-Type", photo.contentType);
     response.setHeader("Cache-Control", "private, max-age=600");
     response.send(photo.buffer);

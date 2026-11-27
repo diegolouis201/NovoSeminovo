@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
   AdminBlockAccountInputSchema,
@@ -22,6 +23,10 @@ import { AdminOverviewService } from "./overview.service";
 import { AdminAccountsService } from "./accounts.service";
 import { AdminLeadsService } from "./leads.service";
 
+// Filtros das listas do admin (?etapa=&busca=…): só texto curto; lista ou
+// objeto no lugar de texto vira 400 (antes ia cru para o banco e dava 500).
+const AdminFilterQuerySchema = z.record(z.string().max(200).optional());
+
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller("admin")
 export class AdminController {
@@ -35,7 +40,8 @@ export class AdminController {
 
   // Todos os leads do site com o funil (/admin/leads).
   @Get("leads")
-  listLeads(@Query() query: Record<string, string | undefined>) {
+  listLeads(@Query() raw: unknown) {
+    const query = parseOrBadRequest(AdminFilterQuerySchema, raw ?? {});
     const days = Number(query.periodo);
     return this.leads.list({
       days: [7, 30, 90].includes(days) ? days : undefined,
@@ -51,7 +57,7 @@ export class AdminController {
 
   // Big numbers do site inteiro (/admin/painel).
   @Get("overview")
-  overview(@Query("tipo") tipo?: string) {
+  overview(@Query("tipo") tipo: unknown) {
     return this.overviewService.overview(tipo === "vehicle" || tipo === "property" ? tipo : "all");
   }
 
@@ -67,7 +73,8 @@ export class AdminController {
   }
 
   @Get("listings")
-  listAllListings(@Query() query: Record<string, string | undefined>) {
+  listAllListings(@Query() raw: unknown) {
+    const query = parseOrBadRequest(AdminFilterQuerySchema, raw ?? {});
     const page = Math.max(1, Number(query.pagina) || 1);
     return this.adminService.listAllListings({
       assetType: query.tipo === "property" ? "property" : "vehicle",

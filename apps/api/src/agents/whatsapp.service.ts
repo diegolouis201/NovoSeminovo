@@ -55,13 +55,6 @@ export class WhatsAppService {
     );
   }
 
-  // GET de verificação que o painel da Meta faz ao configurar o webhook.
-  verifySubscription(mode?: string, token?: string, challenge?: string): string | undefined {
-    const expected = process.env.WHATSAPP_VERIFY_TOKEN;
-    if (mode === "subscribe" && expected && token === expected && challenge) return challenge;
-    return undefined;
-  }
-
   // HMAC-SHA256 do corpo cru com a chave secreta do app, comparado em tempo
   // constante — sem isso qualquer um faria o agente responder (e gastar API)
   // fingindo ser a Meta.

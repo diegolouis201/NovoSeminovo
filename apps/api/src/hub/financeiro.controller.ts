@@ -30,7 +30,7 @@ export class FinanceiroController {
   constructor(private readonly fin: FinanceiroService) {}
 
   @Get("painel")
-  painel(@Query("ano") ano?: string) {
+  painel(@Query("ano") ano: unknown) {
     const a = parseOrBadRequest(z.coerce.number().int().min(2020).max(2100).optional(), ano) ?? Number(hoje().slice(0, 4));
     return this.fin.painel(a, hoje());
   }
@@ -91,19 +91,19 @@ export class FinanceiroController {
   }
 
   @Get("extrato")
-  extrato(@Query("conta") conta?: string, @Query("de") de?: string, @Query("ate") ate?: string) {
+  extrato(@Query("conta") conta: unknown, @Query("de") de: unknown, @Query("ate") ate: unknown) {
     const h = hoje();
     const inicio = parseOrBadRequest(Dia.optional(), de) ?? `${h.slice(0, 7)}-01`;
     return this.fin.extrato({ contaId: parseOrBadRequest(Id.optional(), conta), de: inicio, ate: parseOrBadRequest(Dia.optional(), ate) ?? h }, h);
   }
 
   @Get("fluxo")
-  fluxo(@Query("meses") meses?: string) {
+  fluxo(@Query("meses") meses: unknown) {
     return this.fin.fluxo(hoje(), parseOrBadRequest(z.coerce.number().int().min(1).max(24).optional(), meses) ?? 6);
   }
 
   @Get("dre")
-  dre(@Query("ano") ano?: string, @Query("regime") regime?: string) {
+  dre(@Query("ano") ano: unknown, @Query("regime") regime: unknown) {
     const a = parseOrBadRequest(z.coerce.number().int().min(2020).max(2100).optional(), ano) ?? Number(hoje().slice(0, 4));
     return this.fin.dre(a, parseOrBadRequest(z.enum(["competencia", "caixa"]).optional(), regime) ?? "competencia");
   }

@@ -12,17 +12,17 @@ export class FinancingDealsController {
   constructor(private readonly financingDeals: FinancingDealsService) {}
 
   @Get("admin/financing-report")
-  monthlyReport(@Query("month") month?: string) {
+  monthlyReport(@Query("month") month: unknown) {
     return this.financingDeals.monthlyReport(typeof month === "string" ? month.slice(0, 7) : "");
   }
 
   @Get("admin/partner-sends")
-  partnerSends(@Query("month") month?: string) {
+  partnerSends(@Query("month") month: unknown) {
     return this.financingDeals.partnerSends(typeof month === "string" ? month.slice(0, 7) : "");
   }
 
   @Get("admin/financing-deals")
-  listDeals(@Query("etapa") stage?: string) {
+  listDeals(@Query("etapa") stage: unknown) {
     const parsed = FinancingCommissionStage.safeParse(stage);
     return this.financingDeals.listDeals(parsed.success ? parsed.data : undefined);
   }
