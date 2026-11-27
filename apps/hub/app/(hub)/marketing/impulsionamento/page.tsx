@@ -33,7 +33,8 @@ export default async function Impulsionamento() {
         <Kpi valor={brl(total)} rotulo="Planejado" />
         <Kpi valor={brl(gasto)} rotulo="Gasto até agora" />
         <Kpi valor={lista.filter((c) => c.impulso!.status === "proposto").length} rotulo="Aguardando sua aprovação" tom="orange" />
-        <Kpi valor={`${brl(limite)}/dia`} rotulo="Teto por rede, salvo aprovação" />
+        {/* <wbr>: no celular quebra antes de "/dia" (o "R$ 20,00" não se parte). */}
+        <Kpi valor={<>{brl(limite)}<wbr />/dia</>} rotulo="Teto por rede, salvo aprovação" />
       </div>
       {Object.keys(porDia).length ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -53,7 +54,7 @@ export default async function Impulsionamento() {
       ) : null}
       <Secao titulo="Posts impulsionados" className="mt-6">
         {lista.length ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Posts impulsionados">
             <table className="tabela min-w-[980px]">
               <thead><tr><th>Período</th><th>Post</th><th>Objetivo · público</th><th className="text-right">R$/dia × dias</th><th>Situação</th><th className="text-right">Gasto</th><th className="text-right">Cliques</th><th></th></tr></thead>
               <tbody>

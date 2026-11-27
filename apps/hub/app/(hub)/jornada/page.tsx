@@ -131,7 +131,8 @@ export default async function Jornada({ searchParams }: { searchParams: { aba?: 
       </Secao>
 
       <Secao titulo={aba === "receita" ? "Marcos de receita mensal" : "Marcos de clientes"} className="mt-6">
-        <div className="overflow-x-auto">
+        {/* Tabela larga rola dentro do próprio quadro (com teclado também), nunca a página. */}
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={aba === "receita" ? "Marcos de receita mensal" : "Marcos de clientes"}>
           <table className="tabela min-w-[960px]">
             <thead>
               <tr>
@@ -174,7 +175,9 @@ export default async function Jornada({ searchParams }: { searchParams: { aba?: 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <Secao titulo="Redes sociais" className={podeEditar ? "xl:col-span-2" : undefined}>
           <p className="mb-3 text-xs text-muted">Meta de seguidores = clientes do marco × seguidores por cliente (estimativa).</p>
-          <div className="overflow-x-auto">
+          {/* relative: o rótulo escondido (sr-only, absolute) dos campos fica preso
+              ao quadro que rola; sem isso ele escapa e a página rola de lado no celular. */}
+          <div className="relative overflow-x-auto" tabIndex={0} role="region" aria-label="Seguidores por rede">
             <table className="tabela">
               <thead>
                 <tr>

@@ -1,10 +1,12 @@
 import Link from "next/link";
 
+// Número do indicador: menor no celular (2 por linha) e quebra em vez de
+// sair do cartão quando o valor é longo (ex.: "R$ 20,00/dia").
 export function Kpi({ valor, rotulo, detalhe, tom = "navy", href }: { valor: React.ReactNode; rotulo: string; detalhe?: React.ReactNode; tom?: "navy" | "orange" | "green" | "danger"; href?: string }) {
   const cor = { navy: "text-navy", orange: "text-orange", green: "text-green", danger: "text-danger" }[tom];
   const body = (
     <>
-      <p className={`font-display text-3xl font-semibold ${cor}`}>{valor}</p>
+      <p className={`break-words font-display text-2xl font-semibold sm:text-3xl ${cor}`}>{valor}</p>
       <p className="mt-1 text-sm text-muted">{rotulo}</p>
       {detalhe ? <p className="mt-1 text-xs text-muted">{detalhe}</p> : null}
     </>

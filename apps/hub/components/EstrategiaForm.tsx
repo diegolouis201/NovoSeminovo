@@ -36,7 +36,7 @@ export function EstrategiaCard({ e, nome, sigla, cor, posts, publicados }: { e: 
           {CAMPOS.map(([k, l]) => (
             <div key={k} className="contents">
               <dt className="font-semibold text-muted">{l}</dt>
-              <dd className="min-w-0 whitespace-pre-wrap">{(e[k] as string) || "—"}</dd>
+              <dd className="min-w-0 whitespace-pre-wrap break-words">{(e[k] as string) || "—"}</dd>
             </div>
           ))}
         </dl>
