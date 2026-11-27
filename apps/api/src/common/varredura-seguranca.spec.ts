@@ -72,6 +72,15 @@ describe("Varreduras de segurança", () => {
     assert.deepEqual(offenders(["apps/web", "apps/hub"], /\.(tsx?|jsx?)$/, /from ["']next\/(legacy\/)?image["']/), []);
   });
 
+  test("CSV: toda planilha baixada do site sai por toCsv (neutraliza fórmula =, +, -, @)", () => {
+    const routes = ["apps/web/app", "apps/hub/app"].flatMap((dir) => files(join(ROOT, dir), /^route\.tsx?$/));
+    const problems = routes
+      .filter((path) => /text\/csv/.test(readFileSync(path, "utf8")))
+      .filter((path) => !/import \{[^}]*\btoCsv\b[^}]*\} from "@\/lib\/planilha-excel"/.test(readFileSync(path, "utf8")))
+      .map((path) => relative(ROOT, path));
+    assert.deepEqual(problems, []);
+  });
+
   test("Senhas: bcrypt só em auth/password.ts (hashPassword/verifyPassword, custo 12)", () => {
     assert.deepEqual(offenders(["apps/api/src"], TS, /from ["']bcrypt(js)?["']/, ["apps/api/src/auth/password.ts"]), []);
   });
